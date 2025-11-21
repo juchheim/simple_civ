@@ -1,0 +1,21 @@
+{
+  "name": "simple-civ-v0.9",
+  "version": "0.9.0",
+  "private": true,
+  "workspaces": [
+    "engine",
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5"
+  }
+}
