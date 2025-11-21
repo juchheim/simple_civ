@@ -1,4 +1,5 @@
 import React from "react";
+import { unitImages } from "../assets";
 import { GameState, HexCoord, TerrainType, Tile } from "@simple-civ/engine";
 
 // Since we are in monorepo and using "composite", we should import from package name if linked, or relative.
@@ -113,12 +114,14 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
 
                 {/* Unit */}
                 {isVisible && unit && (
-                    <g>
-                        <circle r={10} fill={unit.ownerId === gameState.currentPlayerId ? "blue" : "red"} stroke="white" strokeWidth={2} />
-                        <text x={0} y={4} textAnchor="middle" fill="white" fontSize={10} style={{ pointerEvents: "none" }}>
-                            {unit.type[0]}
-                        </text>
-                    </g>
+                    <image
+                        href={unitImages[unit.type] || ""}
+                        x={-20}
+                        y={-20}
+                        width={40}
+                        height={40}
+                        style={{ pointerEvents: "none" }}
+                    />
                 )}
 
                 {/* Coord Debug */}
