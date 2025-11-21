@@ -5,8 +5,9 @@ import { TechTree } from "./components/TechTree";
 import { GameState, Action, HexCoord, TechId } from "@simple-civ/engine";
 import { applyAction } from "./utils/turn-loop";
 import { generateWorld } from "./utils/map-generator";
-import { hexEquals } from "./utils/hex";
+import { hexEquals, hexDistance } from "./utils/hex";
 import { runAiTurn } from "./utils/ai";
+import { UNITS } from "./utils/constants";
 
 // Mock initial setup for single player
 const INITIAL_PLAYERS = [
@@ -42,10 +43,8 @@ function App() {
             const nextState = applyAction(gameState, action);
             setGameState(nextState);
 
-            // If turn changed and local multiplayer (hotseat), switch player?
-            // For now, let's just stay as p1 or switch to p2 if it's p2's turn?
-            // Let's implement simple hotseat: always be current player.
-            if (nextState.currentPlayerId !== playerId) {
+            const nextPlayer = nextState.players.find(p => p.id === nextState.currentPlayerId);
+            if (nextPlayer && !nextPlayer.isAI && nextState.currentPlayerId !== playerId) {
                 setPlayerId(nextState.currentPlayerId);
             }
         } catch (e: any) {
@@ -83,6 +82,25 @@ function App() {
                     return;
                 }
 
+                // Check for enemy city attack
+                const targetCity = gameState.cities.find(c => hexEquals(c.coord, coord));
+                if (targetCity && targetCity.ownerId !== playerId) {
+                    const unitStats = UNITS[unit.type];
+                    const dist = hexDistance(unit.coord, coord);
+                    if (dist <= unitStats.rng) {
+                        handleAction({
+                            type: "Attack",
+                            playerId,
+                            attackerId: unit.id,
+                            targetId: targetCity.id,
+                            targetType: "City"
+                        });
+                        setSelectedCoord(null);
+                        setSelectedUnitId(null);
+                        return;
+                    }
+                }
+
                 // Move
                 // Only if not clicking self
                 if (!hexEquals(coord, selectedCoord)) {
@@ -116,7 +134,10 @@ function App() {
         }
         if (next !== gameState) {
             setGameState(next);
-            if (next.currentPlayerId !== playerId) setPlayerId(next.currentPlayerId);
+            const nextPlayer = next.players.find(p => p.id === next.currentPlayerId);
+            if (nextPlayer && !nextPlayer.isAI && next.currentPlayerId !== playerId) {
+                setPlayerId(next.currentPlayerId);
+            }
         }
     }, [gameState, playerId]);
 
@@ -139,7 +160,12 @@ function App() {
             }
             const parsed = JSON.parse(raw) as GameState;
             setGameState(parsed);
-            setPlayerId(parsed.currentPlayerId);
+            const currentPlayer = parsed.players.find(p => p.id === parsed.currentPlayerId);
+            const fallbackPlayer = parsed.players.find(p => !p.isAI);
+            const nextPlayerId = currentPlayer && !currentPlayer.isAI
+                ? parsed.currentPlayerId
+                : fallbackPlayer?.id ?? parsed.currentPlayerId;
+            setPlayerId(nextPlayerId);
             setSelectedCoord(null);
             setSelectedUnitId(null);
         } catch (e) {

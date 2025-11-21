@@ -251,6 +251,7 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
 
         const dist = hexDistance(attacker.coord, city.coord);
         if (dist > attackerStats.rng) throw new Error("Target out of range");
+        if (!hasClearLineOfSight(state, attacker.coord, city.coord)) throw new Error("Line of sight blocked");
 
         // Combat Math
         const randIdx = Math.floor(state.seed % 3);
