@@ -36,7 +36,6 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
     const selectedCity = selectedCoord
         ? cities.find(c => c.coord.q === selectedCoord.q && c.coord.r === selectedCoord.r)
         : null;
-    const ownedCities = cities.filter(c => c.ownerId === playerId);
     const tilesForCity = (cityId: string) => {
         const city = cities.find(c => c.id === cityId);
         if (!city) return [];

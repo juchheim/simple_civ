@@ -43,6 +43,7 @@ function baseState(): GameState {
         cities: [
             {
                 id: "c1",
+                name: "Test City",
                 ownerId: owner,
                 coord: { q: 0, r: 0 },
                 pop: 2,

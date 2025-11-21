@@ -1,0 +1,18 @@
+# Cursor Project Rules
+- Read `/docs/codebase_info/*.md` before making changes; prefer engine-first truth and mirror client/server to it.
+- Keep code in `src/` only; never edit `dist/` or `node_modules/`.
+- Use workspace scripts: dev via `npm run dev [-w <pkg>]`, tests via `npm test -w engine`, lint via `npm run lint -w <pkg>`.
+- Follow existing style: TypeScript, 4-space indent, double quotes, semicolons; prefer pure functions in the engine.
+- When logic changes, update matching client `src/utils/*` mirrors or switch to engine imports to avoid drift.
+- Do not add new gameplay or AI behavior beyond the rulebook/dev-spec (`docs/rules/simple-civ_v0.9_rulebook.md`, `docs/dev-spec/**`). If a requirement is missing in code, mark the gap in `docs/doc_drift_report*.md` instead of inventing features.
+- Cite the rule/spec section for gameplay changes; if none exists, add to drift report instead of shipping unscoped behavior.
+- Update `/docs/memory.md` with noteworthy changes and keep docs in `/docs/` and subfolders current (drift reports, spec notes).
+- Seed randomness in tests/map gen when possible to keep runs deterministic.
+- Validate inputs on both client and server; server must never trust client-only checks.
+- Keep client `src/utils` in sync with engine changes within the same PR and note the sync in `/docs/memory.md`.
+- No gameplay changes without a corresponding Vitest case in `engine/src/**`; map-gen changes must use seeded tests.
+- Server routes must only expose engine-supported actions; adding routes requires a matching engine action and doc reference.
+- Avoid new dependencies unless necessary; document justification and any runtime/env impact in `/docs/` when adding them.
+- When `GameState` shape changes, document migration/compat impact (client localStorage saves, Mongo docs) and update docs accordingly.
+- Any randomized feature must expose/control its seed for reproducibility; document default seeding in `docs/codebase_info/`.
+- Keep tokens lean: inspect only relevant file slices (use `rg`, `sed -n`, or targeted `head`/`tail`), avoid dumping large blobs or generated code, and keep responses concise while noting file paths for detail.

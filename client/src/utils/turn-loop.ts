@@ -4,6 +4,7 @@ import {
     PlayerPhase,
     UnitState,
     UnitType,
+    Unit,
     City,
     HexCoord,
     TechId,
@@ -473,10 +474,10 @@ function handleSetDiplomacy(state: GameState, action: { type: "SetDiplomacy"; pl
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
     state.diplomacy[a][b] = action.state;
     state.diplomacy[b][a] = action.state;
-    if (action.state === "Peace") {
+    if (action.state === DiplomacyState.Peace) {
         state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b) && !(o.from === b && o.to === a));
     }
-    if (action.state === "War") {
+    if (action.state === DiplomacyState.War) {
         disableSharedVision(state, a, b);
     }
     return state;
@@ -487,14 +488,14 @@ function handleProposePeace(state: GameState, action: { type: "ProposePeace"; pl
     const b = action.targetPlayerId;
     if (!state.players.find(p => p.id === b)) throw new Error("Target player not found");
     assertContact(state, a, b);
-    if (state.diplomacy[a]?.[b] === "Peace") return state;
+    if (state.diplomacy[a]?.[b] === DiplomacyState.Peace) return state;
     const incoming = state.diplomacyOffers.find(o => o.from === b && o.to === a && o.type === "Peace");
     if (incoming) {
         state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === b && o.to === a && o.type === "Peace"));
         if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
         if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
-        state.diplomacy[a][b] = "Peace";
-        state.diplomacy[b][a] = "Peace";
+        state.diplomacy[a][b] = DiplomacyState.Peace;
+        state.diplomacy[b][a] = DiplomacyState.Peace;
         return state;
     }
     const existing = state.diplomacyOffers.find(o => o.from === a && o.to === b && o.type === "Peace");
@@ -511,8 +512,8 @@ function handleAcceptPeace(state: GameState, action: { type: "AcceptPeace"; play
     state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === b && o.to === a && o.type === "Peace"));
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
-    state.diplomacy[a][b] = "Peace";
-    state.diplomacy[b][a] = "Peace";
+    state.diplomacy[a][b] = DiplomacyState.Peace;
+    state.diplomacy[b][a] = DiplomacyState.Peace;
     return state;
 }
 
@@ -713,7 +714,7 @@ function completeBuild(state: GameState, city: City) {
 
         if (uType === UnitType.Settler) {
             city.pop = Math.max(1, city.pop - SETTLER_POP_LOSS_ON_BUILD);
-            city.workedTiles = autoAssignWorkedTiles(city, state);
+            city.workedTiles = ensureWorkedTiles(city, state);
         }
     } else if (build.type === "Building") {
         city.buildings.push(build.id as BuildingType);
@@ -760,7 +761,6 @@ function ensureWorkedTiles(city: City, state: GameState): HexCoord[] {
             return t && t.ownerId === city.ownerId && TERRAIN[t.terrain].workable;
         });
 
-    const centerKey = hexToString(city.coord);
     const allowed = new Set(ownedCoords.map(c => hexToString(c)));
 
     const currentValid = city.workedTiles
@@ -825,7 +825,7 @@ function captureCity(state: GameState, city: City, newOwnerId: string) {
     city.pop = Math.max(1, city.pop - 1);
     city.currentBuild = null;
     city.buildProgress = 0;
-    city.workedTiles = autoAssignWorkedTiles(city, state);
+    city.workedTiles = ensureWorkedTiles(city, state);
     city.hasFiredThisTurn = false;
 }
 
@@ -872,8 +872,8 @@ function disableSharedVision(state: GameState, a: string, b: string) {
 function ensureWar(state: GameState, a: string, b: string) {
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
-    state.diplomacy[a][b] = "War";
-    state.diplomacy[b][a] = "War";
+    state.diplomacy[a][b] = DiplomacyState.War;
+    state.diplomacy[b][a] = DiplomacyState.War;
     setContact(state, a, b);
     disableSharedVision(state, a, b);
     state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b) && !(o.from === b && o.to === a));

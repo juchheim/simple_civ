@@ -1,0 +1,20 @@
+# cursor: project defaults
+You are working in the Simple Civ monorepo. Apply these defaults on every task:
+
+- Read `/docs/codebase_info/*.md` to understand architecture before editing code.
+- Treat the engine as the source of truth for rules/AI; when changing logic, mirror `client/src/utils/*` or re-use engine exports to avoid drift.
+- Keep edits in `src/`; never touch generated `dist/` or `node_modules/`.
+- Follow repo style: TypeScript, 4-space indentation, double quotes, semicolons, pure functions in the engine.
+- Run/workspace scripts when testing: `npm test -w engine`, `npm run lint -w <workspace>`, `npm run dev -w client|server` for manual checks.
+- Seed randomness in tests/map generation for determinism.
+- Validate inputs on both client and server; do not rely on client-only checks.
+- Update `/docs/memory.md` with meaningful changes and keep `/docs/**` docs (rulebook, specs, drift reports) in sync with code behavior.
+- Before implementing behavior, confirm it exists in `docs/rules/simple-civ_v0.9_rulebook.md` or `docs/dev-spec/**`; if it is undocumented, log the gap in `docs/doc_drift_report*.md` instead of inventing functionality.
+- Reference the specific rule/spec section your change implements; otherwise, create a drift entry instead of shipping new behavior.
+- Update client `src/utils` mirrors when engine logic changes in the same PR and note the sync in `/docs/memory.md`.
+- Add gameplay changes only with a covering Vitest case (`engine/src/**`); seed randomness for reproducibility, especially in map-gen tests.
+- Server endpoints must align with engine actions; new routes require matching engine support and a doc reference.
+- Justify new dependencies and record runtime/env implications in `/docs/` when they’re added.
+- When `GameState` shape changes, describe migration/compatibility for localStorage saves and Mongo documents and update docs accordingly.
+- Ensure randomized features can be seeded/controlled; document defaults in `docs/codebase_info/`.
+- Control token use: view only relevant file slices (prefer `rg`, `sed -n`, `head`/`tail`), avoid pasting large blobs or generated files, and keep responses concise while citing paths.

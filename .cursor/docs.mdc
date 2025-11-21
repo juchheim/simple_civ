@@ -1,0 +1,6 @@
+# cursor: documentation rules
+- Keep documentation current: whenever behavior or APIs change, update relevant files under `/docs/` (rulebook, dev-spec, drift reports, codebase_info) and add notes to `/docs/memory.md`.
+- Prefer concise, architecture-aware explanations; mirror terminology from the engine (actions, GameState fields, map/AI terminology).
+- For diagrams, use Mermaid where helpful (flows, dependency graphs); store them inline in Markdown.
+- When marking drift fixes, update `docs/doc_drift_report*.md` accordingly.
+- Avoid duplicating content—link to existing sections in `docs/codebase_info/` where possible.

@@ -21,6 +21,7 @@ import {
     TERRAIN,
     PROJECTS,
     UNITS,
+    CITY_WORK_RADIUS_RINGS,
 } from "./constants";
 import { getNeighbors, hexEquals, hexDistance } from "./hex";
 
