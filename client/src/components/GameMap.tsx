@@ -12,7 +12,7 @@ import { GameState, HexCoord, TerrainType, Tile } from "@simple-civ/engine";
 // Let's fix imports to use package name.
 // Note: Vite needs to resolve this.
 
-const HEX_SIZE = 50;
+const HEX_SIZE = 75;
 
 interface GameMapProps {
     gameState: GameState;
@@ -88,25 +88,25 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                             stroke="#111"
                             strokeWidth={1}
                         />
-                        <circle r={6} fill="rgba(255,255,255,0.25)" />
+                        <circle r={9} fill="rgba(255,255,255,0.25)" />
                     </>
                 )}
                 {isShroud && (
-                    <text x={0} y={4} textAnchor="middle" fill="#777" fontSize={12} style={{ pointerEvents: "none" }}>
+                    <text x={0} y={6} textAnchor="middle" fill="#777" fontSize={18} style={{ pointerEvents: "none" }}>
                         ?
                     </text>
                 )}
                 {/* Overlays */}
                 {isVisible && tile.overlays.includes("RiverEdge" as any) && (
                     // Simple river indicator
-                    <circle r={5} fill="blue" cx={0} cy={-10} />
+                    <circle r={7.5} fill="blue" cx={0} cy={-15} />
                 )}
 
                 {/* City */}
                 {isVisible && city && (
                     <g>
-                        <rect x={-10} y={-10} width={20} height={20} fill="purple" stroke="white" strokeWidth={2} />
-                        <text x={0} y={-15} textAnchor="middle" fill="white" fontSize={10} style={{ pointerEvents: "none" }}>
+                        <rect x={-15} y={-15} width={30} height={30} fill="purple" stroke="white" strokeWidth={3} />
+                        <text x={0} y={-20} textAnchor="middle" fill="white" fontSize={15} style={{ pointerEvents: "none" }}>
                             {city.pop}
                         </text>
                     </g>
@@ -116,10 +116,10 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 {isVisible && unit && (
                     <image
                         href={unitImages[unit.type] || ""}
-                        x={-20}
-                        y={-20}
-                        width={40}
-                        height={40}
+                        x={-30}
+                        y={-30}
+                        width={60}
+                        height={60}
                         style={{ pointerEvents: "none" }}
                     />
                 )}
