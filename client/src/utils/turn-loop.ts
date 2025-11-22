@@ -49,6 +49,33 @@ import {
     CAPTURED_CITY_HP_RESET,
 } from "./constants";
 
+function summarizePlayers(state: GameState) {
+    return state.players.map(p => {
+        const units = state.units.filter(u => u.ownerId === p.id);
+        const cities = state.cities.filter(c => c.ownerId === p.id);
+        const settlerCount = units.filter(u =>
+            u.type === UnitType.Settler ||
+            u.type === "Settler" ||
+            String(u.type) === "Settler"
+        ).length;
+        return {
+            id: p.id,
+            eliminated: p.isEliminated,
+            cities: cities.length,
+            settlers: settlerCount,
+            units: units.map(u => ({ id: u.id, type: u.type, coord: u.coord })),
+        };
+    });
+}
+
+function logStateSnapshot(label: string, state: GameState) {
+    console.log(`[state] ${label}`, {
+        turn: state.turn,
+        currentPlayerId: state.currentPlayerId,
+        players: summarizePlayers(state),
+    });
+}
+
 // --- Action Handlers ---
 
 export function applyAction(state: GameState, action: Action): GameState {
@@ -92,7 +119,10 @@ export function applyAction(state: GameState, action: Action): GameState {
         case "RevokeVisionShare":
             return handleRevokeVisionShare(nextState, action);
         case "EndTurn":
-            return handleEndTurn(nextState, action);
+            logStateSnapshot(`applyAction:EndTurn:before (${action.playerId})`, nextState);
+            const result = handleEndTurn(nextState, action);
+            logStateSnapshot(`applyAction:EndTurn:after (${action.playerId})`, result);
+            return result;
         default:
             return nextState;
     }
@@ -605,6 +635,8 @@ function handleRevokeVisionShare(state: GameState, action: { type: "RevokeVision
 }
 
 function handleEndTurn(state: GameState, action: { type: "EndTurn"; playerId: string }): GameState {
+    logStateSnapshot(`handleEndTurn:start (${action.playerId})`, state);
+    
     // Set fortify state for the ending player based on activity this turn
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
         const stats = UNITS[unit.type];
@@ -620,10 +652,24 @@ function handleEndTurn(state: GameState, action: { type: "EndTurn"; playerId: st
 
     if (nextPIdx === 0) {
         state.turn += 1;
+        logStateSnapshot("handleEndTurn:before end-of-round", state);
         runEndOfRound(state);
+        logStateSnapshot("handleEndTurn:after end-of-round", state);
     }
 
-    return advancePlayerTurn(state, nextPlayer.id);
+    const unitsBeforeAdvance = state.units.length;
+    const result = advancePlayerTurn(state, nextPlayer.id);
+    logStateSnapshot(`handleEndTurn:after advance (${nextPlayer.id})`, result);
+    
+    // Safety check: if we started with units and now have 0, something went wrong
+    // (unless a player was legitimately eliminated)
+    if (unitsBeforeAdvance > 0 && result.units.length === 0) {
+        console.error("[handleEndTurn] ERROR: Units went from", unitsBeforeAdvance, "to 0 unexpectedly.");
+        logStateSnapshot("handleEndTurn:error input", state);
+        logStateSnapshot("handleEndTurn:error output", result);
+    }
+    
+    return result;
 }
 
 function advancePlayerTurn(state: GameState, playerId: string): GameState {
@@ -975,20 +1021,29 @@ function computeVisibility(state: GameState, playerId: string): string[] {
 }
 
 function runEndOfRound(state: GameState) {
-    if (state.winnerId) return;
+    console.log("[runEndOfRound] Starting, units:", state.units.length, "cities:", state.cities.length);
+    
+    if (state.winnerId) {
+        console.log("[runEndOfRound] Winner already set:", state.winnerId);
+        return;
+    }
 
     const progressWinner = checkProgressVictory(state);
     if (progressWinner) {
+        console.log("[runEndOfRound] Progress winner:", progressWinner);
         state.winnerId = progressWinner;
         return;
     }
 
     const conquestWinner = checkConquestVictory(state);
     if (conquestWinner) {
+        console.log("[runEndOfRound] Conquest winner:", conquestWinner);
         state.winnerId = conquestWinner;
     }
 
+    console.log("[runEndOfRound] Before eliminationSweep, units:", state.units.length);
     eliminationSweep(state);
+    console.log("[runEndOfRound] After eliminationSweep, units:", state.units.length);
 }
 
 function checkProgressVictory(state: GameState): string | null {
@@ -1014,11 +1069,64 @@ function checkConquestVictory(state: GameState): string | null {
 }
 
 function eliminationSweep(state: GameState) {
+    console.log("[eliminationSweep] Starting, turn:", state.turn, "units:", state.units.length, "cities:", state.cities.length);
+    console.log("[eliminationSweep] All units:", state.units.map(u => ({ id: u.id, ownerId: u.ownerId, type: u.type })));
+    console.log("[eliminationSweep] Players:", state.players.map(p => ({ id: p.id, isEliminated: p.isEliminated })));
+    console.log("[eliminationSweep] Cities:", state.cities.map(c => ({ id: c.id, ownerId: c.ownerId, name: c.name })));
+    
     for (const player of state.players) {
+        // Skip if already eliminated
+        if (player.isEliminated) {
+            console.log(`[eliminationSweep] Player ${player.id} already eliminated, skipping`);
+            continue;
+        }
+        
         const hasCity = state.cities.some(c => c.ownerId === player.id);
-        if (!hasCity) {
-            player.isEliminated = true;
-            state.units = state.units.filter(u => u.ownerId !== player.id);
+        const playerUnits = state.units.filter(u => u.ownerId === player.id);
+        // Check for Settler using both enum and string comparison (in case of serialization issues)
+        const settlerUnits = playerUnits.filter(u => 
+            u.type === UnitType.Settler || 
+            u.type === "Settler" || 
+            String(u.type) === "Settler"
+        );
+        const hasSettler = settlerUnits.length > 0;
+        
+        console.log(`[eliminationSweep] Player ${player.id}: hasCity=${hasCity}, hasSettler=${hasSettler}`);
+        console.log(`[eliminationSweep] Player ${player.id} units:`, playerUnits.map(u => ({ id: u.id, type: u.type })));
+        console.log(`[eliminationSweep] Player ${player.id} Settlers:`, settlerUnits.map(u => ({ id: u.id, type: u.type })));
+        
+        // Only eliminate if player has no cities AND no Settlers
+        // If they have a Settler, they can still found a city, so don't eliminate them
+        if (!hasCity && !hasSettler) {
+            const unitsBefore = state.units.length;
+            const playerUnits = state.units.filter(u => u.ownerId === player.id);
+            console.log(`[eliminationSweep] Player ${player.id} has no cities and no Settlers, eliminating. Units to remove:`, playerUnits.length);
+            
+            // Double-check: make absolutely sure there's no Settler before removing
+            const doubleCheckSettler = playerUnits.some(u => 
+                u.type === UnitType.Settler || 
+                u.type === "Settler" || 
+                String(u.type) === "Settler"
+            );
+            if (doubleCheckSettler) {
+                console.error(`[eliminationSweep] ERROR: About to eliminate player ${player.id} but they have a Settler! Aborting elimination.`);
+            } else {
+                player.isEliminated = true;
+                state.units = state.units.filter(u => u.ownerId !== player.id);
+                const unitsAfter = state.units.length;
+                console.log(`[eliminationSweep] Eliminated player ${player.id}, removed ${unitsBefore - unitsAfter} units`);
+            }
+        } else if (!hasCity && hasSettler) {
+            console.log(`[eliminationSweep] Player ${player.id} has no cities but has Settler - keeping them in game (NOT eliminating)`);
+            // Safety check: ensure we don't accidentally remove their units
+            const playerUnitCount = state.units.filter(u => u.ownerId === player.id).length;
+            if (playerUnitCount === 0) {
+                console.error(`[eliminationSweep] ERROR: Player ${player.id} has Settler but 0 units! This should not happen.`);
+            }
+        } else if (hasCity) {
+            console.log(`[eliminationSweep] Player ${player.id} has city - keeping them in game`);
         }
     }
+    
+    console.log("[eliminationSweep] Finished, units:", state.units.length, "cities:", state.cities.length);
 }

@@ -1,18 +1,13 @@
-import React from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { unitImages } from "../assets";
 import { GameState, HexCoord, TerrainType, Tile } from "@simple-civ/engine";
 
-// Since we are in monorepo and using "composite", we should import from package name if linked, or relative.
-// The package.json says "@simple-civ/engine": "*".
-// We should import from "@simple-civ/engine".
-// But `hexToString` is not exported from index?
-// I exported `* from "./core/hex"` in engine/src/index.ts.
-// So I can import { hexToString } from "@simple-civ/engine".
-
-// Let's fix imports to use package name.
-// Note: Vite needs to resolve this.
-
 const HEX_SIZE = 75;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3.0;
+const ZOOM_SENSITIVITY = 0.1;
+const UNIT_IMAGE_SIZE = 110; // Much larger unit icons
+const DRAG_THRESHOLD = 3; // Pixels of movement before starting pan
 
 interface GameMapProps {
     gameState: GameState;
@@ -28,12 +23,176 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
     const visibleSet = new Set(gameState.visibility?.[playerId] ?? []);
     const revealedSet = new Set(gameState.revealed?.[playerId] ?? []);
 
+    // Pan and zoom state
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1.0);
+    const [isPanning, setIsPanning] = useState(false);
+    const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+    const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
+    const [clickTarget, setClickTarget] = useState<HexCoord | null>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const hasInitializedRef = useRef(false);
+
     // Calculate pixel coordinates for a hex
-    const hexToPixel = (hex: HexCoord) => {
+    const hexToPixel = useCallback((hex: HexCoord) => {
         const x = HEX_SIZE * (Math.sqrt(3) * hex.q + (Math.sqrt(3) / 2) * hex.r);
         const y = HEX_SIZE * ((3 / 2) * hex.r);
         return { x, y };
-    };
+    }, []);
+
+    // Convert screen coordinates to world coordinates
+    const screenToWorld = useCallback((screenX: number, screenY: number) => {
+        return {
+            x: (screenX - pan.x) / zoom,
+            y: (screenY - pan.y) / zoom
+        };
+    }, [pan, zoom]);
+
+    // Find hex at screen coordinates
+    const findHexAtScreen = useCallback((screenX: number, screenY: number): HexCoord | null => {
+        const world = screenToWorld(screenX, screenY);
+        let closestHex: HexCoord | null = null;
+        let minDist = Infinity;
+
+        map.tiles.forEach(tile => {
+            const { x, y } = hexToPixel(tile.coord);
+            const dist = Math.sqrt((world.x - x) ** 2 + (world.y - y) ** 2);
+            if (dist < minDist && dist < HEX_SIZE) {
+                minDist = dist;
+                closestHex = tile.coord;
+            }
+        });
+
+        return closestHex;
+    }, [map.tiles, hexToPixel, screenToWorld]);
+
+    // Calculate map bounds and center on initial mount only
+    useEffect(() => {
+        // Only initialize once, don't reset on game state changes
+        if (hasInitializedRef.current || map.tiles.length === 0 || !containerRef.current) return;
+
+        // Calculate bounds of all tiles
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        
+        map.tiles.forEach(tile => {
+            const { x, y } = hexToPixel(tile.coord);
+            const hexRadius = HEX_SIZE;
+            minX = Math.min(minX, x - hexRadius);
+            minY = Math.min(minY, y - hexRadius);
+            maxX = Math.max(maxX, x + hexRadius);
+            maxY = Math.max(maxY, y + hexRadius);
+        });
+
+        const mapWidth = maxX - minX;
+        const mapHeight = maxY - minY;
+        const mapCenterX = (minX + maxX) / 2;
+        const mapCenterY = (minY + maxY) / 2;
+
+        // Get container dimensions
+        const container = containerRef.current;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        // Calculate zoom to fit map with some padding
+        const padding = 50;
+        const scaleX = (containerWidth - padding * 2) / mapWidth;
+        const scaleY = (containerHeight - padding * 2) / mapHeight;
+        const initialZoom = Math.min(scaleX, scaleY, 1.0); // Don't zoom in beyond 1.0 initially
+
+        // Center the map
+        const centerX = containerWidth / 2 - mapCenterX * initialZoom;
+        const centerY = containerHeight / 2 - mapCenterY * initialZoom;
+
+        setPan({ x: centerX, y: centerY });
+        setZoom(initialZoom);
+        hasInitializedRef.current = true;
+    }, [map.tiles, hexToPixel]);
+
+    // Handle mouse wheel zoom
+    const handleWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+        e.preventDefault();
+        
+        if (!svgRef.current) return;
+
+        const svg = svgRef.current;
+        const rect = svg.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Calculate zoom delta
+        const delta = e.deltaY > 0 ? -ZOOM_SENSITIVITY : ZOOM_SENSITIVITY;
+        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta));
+
+        // Zoom towards mouse position
+        const zoomRatio = newZoom / zoom;
+        const newPanX = mouseX - (mouseX - pan.x) * zoomRatio;
+        const newPanY = mouseY - (mouseY - pan.y) * zoomRatio;
+
+        setZoom(newZoom);
+        setPan({ x: newPanX, y: newPanY });
+    }, [zoom, pan]);
+
+    // Handle mouse down
+    const handleMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+        if (e.button !== 0) return; // Only left button
+
+        if (!svgRef.current) return;
+        const svg = svgRef.current;
+        const rect = svg.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+
+        // Find if we clicked on a hex
+        const hex = findHexAtScreen(screenX, screenY);
+        
+        setMouseDownPos({ x: e.clientX, y: e.clientY });
+        setClickTarget(hex);
+        setPanStart(pan);
+    }, [pan, findHexAtScreen]);
+
+    // Handle mouse move
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!mouseDownPos) return;
+
+        const deltaX = e.clientX - mouseDownPos.x;
+        const deltaY = e.clientY - mouseDownPos.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // If moved beyond threshold, start panning
+        if (distance > DRAG_THRESHOLD) {
+            if (!isPanning) {
+                setIsPanning(true);
+                setClickTarget(null); // Cancel click if we're panning
+            }
+            
+            // Update pan
+            setPan({
+                x: panStart.x + deltaX,
+                y: panStart.y + deltaY
+            });
+        }
+    }, [mouseDownPos, panStart, isPanning]);
+
+    // Handle mouse up
+    const handleMouseUp = useCallback(() => {
+        // If we were panning, don't trigger click
+        if (isPanning) {
+            setIsPanning(false);
+            setMouseDownPos(null);
+            setClickTarget(null);
+            return;
+        }
+
+        // If we have a click target and didn't pan, trigger click
+        if (clickTarget) {
+            onTileClick(clickTarget);
+        }
+
+        setIsPanning(false);
+        setMouseDownPos(null);
+        setClickTarget(null);
+    }, [isPanning, clickTarget, onTileClick]);
 
     // Terrain Colors
     const getTerrainColor = (type: TerrainType) => {
@@ -70,8 +229,10 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         const unit = units.find(u => u.coord.q === tile.coord.q && u.coord.r === tile.coord.r);
         const city = cities.find(c => c.coord.q === tile.coord.q && c.coord.r === tile.coord.r);
 
+        const unitImageOffset = UNIT_IMAGE_SIZE / 2;
+
         return (
-            <g transform={`translate(${x},${y})`} onClick={() => onTileClick(tile.coord)} style={{ cursor: "pointer" }}>
+            <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}>
                 <polygon
                     points={getHexPoints()}
                     fill={color}
@@ -116,10 +277,10 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 {isVisible && unit && (
                     <image
                         href={unitImages[unit.type] || ""}
-                        x={-30}
-                        y={-30}
-                        width={60}
-                        height={60}
+                        x={-unitImageOffset}
+                        y={-unitImageOffset}
+                        width={UNIT_IMAGE_SIZE}
+                        height={UNIT_IMAGE_SIZE}
                         style={{ pointerEvents: "none" }}
                     />
                 )}
@@ -140,15 +301,28 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         return points.join(" ");
     };
 
-    // ViewBox calculation
-    // Find min/max x/y
-    // This is rough, can be optimized
-
     return (
-        <svg width="100%" height="100%" viewBox="-500 -500 2000 2000" style={{ background: "#111" }}>
-            {map.tiles.map((tile) => (
-                <Hex key={`${tile.coord.q},${tile.coord.r}`} tile={tile} />
-            ))}
-        </svg>
+        <div
+            ref={containerRef}
+            style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative" }}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+        >
+            <svg
+                ref={svgRef}
+                width="100%"
+                height="100%"
+                style={{ background: "#111", cursor: isPanning ? "grabbing" : "default" }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+            >
+                <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+                    {map.tiles.map((tile) => (
+                        <Hex key={`${tile.coord.q},${tile.coord.r}`} tile={tile} />
+                    ))}
+                </g>
+            </svg>
+        </div>
     );
 };

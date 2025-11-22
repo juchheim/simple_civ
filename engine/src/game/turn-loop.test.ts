@@ -97,4 +97,33 @@ describe("Turn Loop & Actions", () => {
         const city = s3.cities.find(c => c.id === "c1");
         expect(city!.storedFood).toBe(2);
     });
+
+    it("should not eliminate a player with no cities if they still have a Settler", () => {
+        const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+        const initialUnits = state.units.filter(u => u.ownerId === "p1");
+
+        const endTurn: Action = { type: "EndTurn", playerId: "p1" };
+        const next = applyAction(state, endTurn);
+        const remainingUnits = next.units.filter(u => u.ownerId === "p1");
+        const player = next.players.find(p => p.id === "p1");
+
+        expect(remainingUnits.length).toBe(initialUnits.length);
+        expect(remainingUnits.some(u => u.type === UnitType.Settler)).toBe(true);
+        expect(player?.isEliminated).toBe(false);
+    });
+
+    it("should preserve units across multiple rounds when a Settler is alive", () => {
+        const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+        const initialUnits = state.units.filter(u => u.ownerId === "p1");
+
+        const afterFirst = applyAction(state, { type: "EndTurn", playerId: "p1" });
+        const afterSecond = applyAction(afterFirst, { type: "EndTurn", playerId: "p1" });
+
+        const remainingUnits = afterSecond.units.filter(u => u.ownerId === "p1");
+        const player = afterSecond.players.find(p => p.id === "p1");
+
+        expect(remainingUnits.length).toBe(initialUnits.length);
+        expect(remainingUnits.some(u => u.type === UnitType.Settler)).toBe(true);
+        expect(player?.isEliminated).toBe(false);
+    });
 });

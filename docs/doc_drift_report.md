@@ -13,7 +13,7 @@
 - ✅ Tech passives: FormationTraining/DrilledRanks now modify unit combat stats; SignalRelay adds +1 Science per city. ArmyDoctrine remains a gating tech only.
 - ✅ Form Army flow: availability requires a full-HP base unit within city borders; completion transforms that unit to the Army variant (`engine/src/game/rules.ts`, `engine/src/game/turn-loop.ts`, client mirrors).
 - ✅ City Wards prereq: CityWards tech now accepts StoneworkHalls OR FormationTraining when choosing the tech.
-- ✅ Victory/elimination: end-of-round now checks Progress (GrandExperiment + city), Conquest (owns all capitals), and eliminates civs with zero cities (removing their units).
+- ✅ Victory/elimination: end-of-round now checks Progress (GrandExperiment + city), Conquest (owns all capitals), and eliminates civs only when they have zero cities **and no Settlers** (removing their units).
 - ✅ Diplomacy/FoW: war/peace state tracks and auto-declares on attacks/captures; peace can be proposed/accepted (reciprocal offers insta-peace). Fog-of-war uses per-player visibility/reveal with fog shading, shroud indicators, and a toggle to show unseen tiles. (Code also adds a mutual vision-sharing pact that is not described in the docs.)
 - ✅ Civ traits: ForgeClans (+1P if working Hills), ScholarKingdoms (+1S at Pop ≥3), and RiverLeague (+1F on river-adj worked tiles) applied during city yields.
 

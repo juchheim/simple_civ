@@ -959,8 +959,13 @@ function checkConquestVictory(state: GameState): string | null {
 
 function eliminationSweep(state: GameState) {
     for (const player of state.players) {
+        if (player.isEliminated) continue;
+
         const hasCity = state.cities.some(c => c.ownerId === player.id);
-        if (!hasCity) {
+        const hasSettler = state.units.some(u => u.ownerId === player.id && u.type === UnitType.Settler);
+
+        // Keep players alive if they still have a Settler so they can found a city
+        if (!hasCity && !hasSettler) {
             player.isEliminated = true;
             state.units = state.units.filter(u => u.ownerId !== player.id);
         }
