@@ -5,7 +5,6 @@ import {
     DiplomacyState,
     GameState,
     HexCoord,
-    OverlayType,
     PlayerPhase,
     ProjectId,
     TechId,
@@ -50,6 +49,7 @@ import {
     HEAL_FRIENDLY_CITY,
     CAPTURED_CITY_HP_RESET,
 } from "../core/constants.js";
+import { isTileAdjacentToRiver } from "../map/rivers.js";
 
 // --- Action Handlers ---
 
@@ -1016,12 +1016,7 @@ function tileScore(coord: HexCoord, state: GameState): number {
     const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
     if (!tile) return -999;
     const base = getTileYields(tile);
-    // Approximate river adjacency bonus
-    const neighbors = getNeighbors(coord);
-    const adjRiver = neighbors.some(n => {
-        const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-        return t?.overlays.includes(OverlayType.RiverEdge);
-    });
+    const adjRiver = isTileAdjacentToRiver(state.map, coord);
     const food = base.F + (adjRiver ? 1 : 0);
     return food + base.P + base.S;
 }

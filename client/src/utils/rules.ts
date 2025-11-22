@@ -2,7 +2,6 @@ import {
     BuildingType,
     City,
     GameState,
-    OverlayType,
     TerrainType,
     Tile,
     Yields,
@@ -23,7 +22,8 @@ import {
     UNITS,
     CITY_WORK_RADIUS_RINGS,
 } from "./constants";
-import { getNeighbors, hexEquals, hexDistance } from "./hex";
+import { hexEquals, hexDistance } from "./hex";
+import { isTileAdjacentToRiver, riverAdjacencyCount } from "./rivers";
 
 // --- Yields ---
 
@@ -67,16 +67,7 @@ export function getCityYields(city: City, state: GameState): Yields {
             tileY = getTileYields(tile);
         }
 
-        const neighbors = getNeighbors(coord);
-        let adjacentToRiver = false;
-        for (const n of neighbors) {
-            const nTile = state.map.tiles.find(t => hexEquals(t.coord, n));
-            if (nTile && nTile.overlays.includes(OverlayType.RiverEdge)) {
-                adjacentToRiver = true;
-                break;
-            }
-        }
-        if (adjacentToRiver) {
+        if (isTileAdjacentToRiver(state.map, coord)) {
             tileY.F += 1;
         }
 
@@ -86,16 +77,7 @@ export function getCityYields(city: City, state: GameState): Yields {
     }
 
     // 2. Buildings
-    let isRiverCity = false;
-    // Check if city center is adjacent to river
-    const centerNeighbors = getNeighbors(city.coord);
-    for (const n of centerNeighbors) {
-        const nTile = state.map.tiles.find(t => hexEquals(t.coord, n));
-        if (nTile && nTile.overlays.includes(OverlayType.RiverEdge)) {
-            isRiverCity = true;
-            break;
-        }
-    }
+    const isRiverCity = isTileAdjacentToRiver(state.map, city.coord);
 
     let worksForest = false;
     for (const coord of city.workedTiles) {
@@ -133,15 +115,7 @@ export function getCityYields(city: City, state: GameState): Yields {
     } else if (trait === "ScholarKingdoms") {
         if (city.pop >= 3) total.S += 1;
     } else if (trait === "RiverLeague") {
-        const riverBonus = city.workedTiles.reduce((sum, coord) => {
-            const neighbors = getNeighbors(coord);
-            const adjRiver = neighbors.some(n => {
-                const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-                return t?.overlays.includes(OverlayType.RiverEdge);
-            });
-            return sum + (adjRiver ? 1 : 0);
-        }, 0);
-        total.F += riverBonus;
+        total.F += riverAdjacencyCount(state.map, city.workedTiles);
     }
 
     return total;

@@ -49,4 +49,25 @@ describe("World Generation", () => {
         expect(tile!.terrain).not.toBe(TerrainType.Mountain);
         expect(tile!.terrain).not.toBe(TerrainType.Coast);
     });
+
+    it("should emit river polylines with concrete coordinates", () => {
+        const state = generateWorld({
+            mapSize: "Small",
+            seed: 42,
+            players: [{ id: "p1", civName: "Civ A", color: "red" }],
+        });
+
+        expect(state.map.riverPolylines).toBeDefined();
+        const hasPolyline = state.map.riverPolylines!.some(poly => poly.length > 0);
+        expect(hasPolyline).toBe(true);
+
+        state.map.riverPolylines!.forEach(polyline => {
+            polyline.forEach(segment => {
+                expect(typeof segment.start.x).toBe("number");
+                expect(typeof segment.start.y).toBe("number");
+                expect(typeof segment.end.x).toBe("number");
+                expect(typeof segment.end.y).toBe("number");
+            });
+        });
+    });
 });

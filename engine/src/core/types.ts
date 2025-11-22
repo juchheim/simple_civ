@@ -174,6 +174,15 @@ export type SharedVisionState = Record<string, Record<string, boolean>>;
 
 export type ContactState = Record<string, Record<string, boolean>>;
 
+export type RiverPoint = { x: number; y: number };
+export type RiverSegmentDescriptor = {
+    tile: HexCoord;
+    cornerA: number;
+    cornerB: number;
+    start: RiverPoint;
+    end: RiverPoint;
+};
+
 export type GameState = {
     id: string;
     turn: number; // Global turn number
@@ -185,6 +194,7 @@ export type GameState = {
         height: number;
         tiles: Tile[];
         rivers?: { a: HexCoord; b: HexCoord }[];
+        riverPolylines?: RiverSegmentDescriptor[][];
     };
     units: Unit[];
     cities: City[];

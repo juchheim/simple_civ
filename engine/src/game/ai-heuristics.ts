@@ -1,16 +1,16 @@
 import { CITY_CENTER_MIN_FOOD, CITY_CENTER_MIN_PROD, TERRAIN } from "../core/constants.js";
 import { getTileYields } from "./rules.js";
-import { hexSpiral, getNeighbors, hexDistance, hexEquals } from "../core/hex.js";
+import { hexSpiral, hexDistance, hexEquals } from "../core/hex.js";
 import { AiVictoryGoal, City, GameState, OverlayType, Tile } from "../core/types.js";
+import { isTileAdjacentToRiver } from "../map/rivers.js";
 
 type YieldKey = "F" | "P" | "S";
 
-function isRiverCity(tile: Tile, state: GameState | { map: { tiles: Tile[] } }): boolean {
-    const neighbors = getNeighbors(tile.coord);
-    return neighbors.some(n => {
-        const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-        return t?.overlays.includes(OverlayType.RiverEdge);
-    });
+function isRiverCity(
+    tile: Tile,
+    state: GameState | { map: { tiles: Tile[]; rivers?: { a: Tile["coord"]; b: Tile["coord"] }[] } },
+): boolean {
+    return isTileAdjacentToRiver(state.map as GameState["map"], tile.coord);
 }
 
 function countNearbyOverlays(tile: Tile, state: GameState | { map: { tiles: Tile[] } }, radius = 2): number {
@@ -25,13 +25,13 @@ function countNearbyOverlays(tile: Tile, state: GameState | { map: { tiles: Tile
     }, 0);
 }
 
-function tileValue(tile: Tile, state: GameState | { map: { tiles: Tile[] } }, asCenter: boolean): number {
+function tileValue(
+    tile: Tile,
+    state: GameState | { map: { tiles: Tile[]; rivers?: { a: Tile["coord"]; b: Tile["coord"] }[] } },
+    asCenter: boolean,
+): number {
     const y = getTileYields(tile);
-    const neighbors = getNeighbors(tile.coord);
-    const adjRiver = neighbors.some(n => {
-        const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-        return t?.overlays.includes(OverlayType.RiverEdge);
-    });
+    const adjRiver = isTileAdjacentToRiver(state.map as GameState["map"], tile.coord);
     const val = {
         F: y.F + (adjRiver ? 1 : 0),
         P: y.P,
@@ -85,11 +85,7 @@ export function tilesByPriority(city: City, state: GameState, prioritized: Yield
 
     const scoreTile = (tile: Tile) => {
         const y = getTileYields(tile);
-        const neighbors = getNeighbors(tile.coord);
-        const adjRiver = neighbors.some(n => {
-            const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-            return t?.overlays.includes(OverlayType.RiverEdge);
-        });
+        const adjRiver = isTileAdjacentToRiver(state.map, tile.coord);
         const weighted = {
             F: y.F + (adjRiver ? 1 : 0),
             P: y.P,

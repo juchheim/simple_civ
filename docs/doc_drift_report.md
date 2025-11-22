@@ -8,7 +8,8 @@
 - ✅ City ranged attack: cities with a friendly garrison can make one ranged attack per turn (range 2, CityWard bonus applied) via a CityAttack action in engine/client turn loop.
 - ✅ Fortify/healing: units that end turn idle become Fortified; start-of-turn healing now applies on friendly tiles/cities before refresh (`engine/src/game/turn-loop.ts`, client mirror).
 - ✅ Growth handling: growth now loops to allow multiple pops per turn and reassigns worked tiles immediately (`engine/src/game/turn-loop.ts`, `client/src/utils/turn-loop.ts`).
-- ✅ River rules unblocked: map gen now places `RiverEdge` overlays along river paths (`engine/src/map/map-generator.ts`, `client/src/utils/map-generator.ts`), enabling river adjacency food and river-city bonuses. (Note: river data is tile-overlay based, not edge-graph as in spec.)
+- ✅ River rules unblocked: map gen now persists rivers as edge graphs (`map.rivers`) and still mirrors overlays for legacy saves; adjacency bonuses read the edge data and the client renders continuous river segments instead of blue dots (`engine/src/map/rivers.ts`, `client/src/components/GameMap.tsx`).
+- ✅ River geometry source of truth: the engine now emits fully ordered corner polylines (`map.riverPolylines`) with explicit start/end coordinates per segment, and the client renders those verbatim (previous docs assumed the client rebuilt geometry heuristically).
 - ✅ Progress projects: Observatory now grants +1 Science in its city and GrandAcademy grants +1 Science per city; milestones recorded on completion.
 - ✅ Tech passives: FormationTraining/DrilledRanks now modify unit combat stats; SignalRelay adds +1 Science per city. ArmyDoctrine remains a gating tech only.
 - ✅ Form Army flow: availability requires a full-HP base unit within city borders; completion transforms that unit to the Army variant (`engine/src/game/rules.ts`, `engine/src/game/turn-loop.ts`, client mirrors).
@@ -18,8 +19,8 @@
 - ✅ Civ traits: ForgeClans (+1P if working Hills), ScholarKingdoms (+1S at Pop ≥3), and RiverLeague (+1F on river-adj worked tiles) applied during city yields.
 
 ### Dev Spec modules in docs/dev-spec/v0.9/*.ts.md
-- Map generation ignores `mapGenParams.ts.md`/`generateMap.ts.md`: no mountain clusters, coast bias, rivers as edges, overlay density toggles, or start guarantees (food/prod tiles, min 6-tile spacing); engine uses simple noise and 4-tile spacing (`engine/src/map/map-generator.ts:85-201`).
-- Type shapes diverge: specs model tiles with `features` plus `map.rivers` edges (`mapTypes.ts.md`), but code stores `overlays` on tiles and has no river edge data, so several spec hooks cannot run.
+- Map generation ignores `mapGenParams.ts.md`/`generateMap.ts.md`: no mountain clusters, coast bias, overlay density toggles, or start guarantees (food/prod tiles, min 6-tile spacing); engine uses simple noise and 4-tile spacing (`engine/src/map/map-generator.ts:85-201`).
+- Type shapes largely align again: `map.rivers` now exposes edge data alongside tile overlays, so spec hooks that consume river graphs can function.
 - City utilities from `cities.ts.md` (capture reset to 10 HP, pop loss, raze, project effects) and `states.ts.md` (fortify/heal helpers) are not present in the engine.
 - Diplomacy/visibility logic lives directly in the turn loop (war/peace state, auto-declare, FoW visibility/reveal, new mutual vision sharing), not in the dev-spec helper modules.
 - AI hooks (`aiHeuristics.ts.md`, `aiDecisions.ts.md`) are entirely absent; there is no AI turn logic.

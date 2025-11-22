@@ -108,3 +108,11 @@ export function hexLine(a: HexCoord, b: HexCoord): HexCoord[] {
     }
     return results;
 }
+
+export function hexAngle(from: HexCoord, to: HexCoord): number {
+    const dx = to.q - from.q;
+    const dy = to.r - from.r;
+    let angle = Math.atan2(dy, dx);
+    if (angle < 0) angle += Math.PI * 2;
+    return angle;
+}

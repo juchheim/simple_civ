@@ -12,3 +12,5 @@
 - Remaining gaps: deeper diplomacy beyond war/peace/vision sharing; tile assignment could still use richer visual cues.
 - When a drift item is completed, mark it in docs/doc_drift_report.md.
 - Wired a `unitImages` asset map in the client, swapped unit circles for Settler PNG sprites, and staged a placeholder Settler image plus slot comments for future asset expansion.
+- Rivers now use the `map.rivers` edge graph with helpers for adjacency; generator biases rivers downhill toward coasts using elevation/water-distance heuristics, and the client renders connected river segments instead of per-tile dots (overlay fallback kept for legacy saves).
+- Rivers must be solved in the engine; client-side reconstruction attempts are unreliable. Always emit final river geometry from engine outputs.

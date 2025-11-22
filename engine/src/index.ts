@@ -2,6 +2,7 @@ export * from "./core/types.js";
 export * from "./core/constants.js";
 export * from "./core/hex.js";
 export { generateWorld } from "./map/map-generator.js";
+export * from "./map/rivers.js";
 export * from "./game/rules.js";
 export * from "./game/turn-loop.js";
 export * from "./game/ai-heuristics.js";

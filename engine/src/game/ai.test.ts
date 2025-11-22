@@ -42,15 +42,21 @@ describe("ai heuristics", () => {
     it("scores city sites with yields, rivers, and overlays per docs", () => {
         const state = baseState();
         const center = { coord: hex(0, 0), terrain: TerrainType.Plains, overlays: [OverlayType.RichSoil] };
-        const riverAdj = { coord: hex(1, 0), terrain: TerrainType.Plains, overlays: [OverlayType.RiverEdge] };
+        const riverAdj = { coord: hex(1, 0), terrain: TerrainType.Plains, overlays: [] };
         const best1 = { coord: hex(1, -1), terrain: TerrainType.Hills, overlays: [OverlayType.OreVein] }; // 3P
         const best2 = { coord: hex(-1, 0), terrain: TerrainType.Forest, overlays: [OverlayType.SacredSite] }; // 1F1P1S
         const best3 = { coord: hex(0, 1), terrain: TerrainType.Marsh, overlays: [] }; // 2F
         const filler = { coord: hex(-1, 1), terrain: TerrainType.Desert, overlays: [] };
         state.map.tiles = [center, riverAdj, best1, best2, best3, filler] as any;
+        state.map.rivers = [
+            { a: center.coord, b: riverAdj.coord },
+            { a: center.coord, b: best1.coord },
+            { a: center.coord, b: best2.coord },
+            { a: center.coord, b: best3.coord },
+        ];
         const score = scoreCitySite(center as any, state as any);
-        // With river adjacency on nearby tiles: center 4 + best tiles (3 + 4 + 3) + river bonus 1 + overlay bonus 3 = 18
-        expect(score).toBeCloseTo(18);
+        // With river adjacency on nearby tiles: center 5 + best tiles (3 + 4 + 3) + river bonus 1 + overlay bonus 3 = 19
+        expect(score).toBeCloseTo(19);
     });
 
     it("orders tile working priority per goal and behind-curve food bias", () => {

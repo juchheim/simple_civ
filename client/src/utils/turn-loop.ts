@@ -11,7 +11,6 @@ import {
     BuildingType,
     ProjectId,
     TerrainType,
-    OverlayType,
     DiplomacyState,
 } from "./engine-types";
 import {
@@ -19,7 +18,6 @@ import {
     hexDistance,
     hexSpiral,
     hexToString,
-    getNeighbors,
     hexLine,
 } from "./hex";
 import {
@@ -48,6 +46,7 @@ import {
     HEAL_FRIENDLY_CITY,
     CAPTURED_CITY_HP_RESET,
 } from "./constants";
+import { isTileAdjacentToRiver } from "./rivers";
 
 function summarizePlayers(state: GameState) {
     return state.players.map(p => {
@@ -839,11 +838,7 @@ function tileScore(coord: HexCoord, state: GameState): number {
     const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
     if (!tile) return -999;
     const base = getTileYields(tile);
-    const neighbors = getNeighbors(coord);
-    const adjRiver = neighbors.some(n => {
-        const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-        return t?.overlays.includes(OverlayType.RiverEdge);
-    });
+    const adjRiver = isTileAdjacentToRiver(state.map, coord);
     const food = base.F + (adjRiver ? 1 : 0);
     return food + base.P + base.S;
 }

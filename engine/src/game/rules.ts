@@ -3,7 +3,6 @@ import {
     City,
     GameState,
     HexCoord,
-    OverlayType,
     Player,
     TerrainType,
     Tile,
@@ -27,6 +26,7 @@ import {
     CITY_WORK_RADIUS_RINGS,
 } from "../core/constants.js";
 import { getNeighbors, hexEquals, hexToString, hexDistance } from "../core/hex.js";
+import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
 
 // --- Yields ---
 
@@ -70,42 +70,7 @@ export function getCityYields(city: City, state: GameState): Yields {
             tileY = getTileYields(tile);
         }
 
-        // River Adjacency: +1 Food if adjacent to RiverEdge
-        // Note: The rule says "Adjacent tiles get +1 Food when worked".
-        // This means if the worked tile ITSELF is adjacent to a river edge?
-        // Or if the worked tile HAS a river edge?
-        // Rulebook 3.1.2: "River (edge) - Adjacent tiles get +1 Food when worked."
-        // Usually in Civ this means if a tile is *next* to a river.
-        // But here RiverEdge is an overlay ON a tile.
-        // Let's assume if the tile ITSELF has RiverEdge, it's a river tile?
-        // Or does it mean if a neighbor has RiverEdge?
-        // "River (edge) ... Adjacent tiles get +1 Food" implies the river is between tiles.
-        // But we model it as an overlay.
-        // Let's interpret: If a tile has `RiverEdge` overlay, it IS a river tile.
-        // Wait, "Adjacent tiles get +1 Food".
-        // If I work tile A, and tile B (neighbor) has RiverEdge...
-        // Actually, usually "River Edge" means the edge of the hex.
-        // But we have `OverlayType.RiverEdge`.
-        // Let's assume for v0.9 simplicity: If a tile has `RiverEdge` overlay, it provides +1 Food to ITSELF when worked?
-        // Or maybe it means "If you work a tile that is adjacent to a RiverEdge".
-        // Let's look at the dev spec:
-        // "RiverEdge: {riverEdge:true} // adjacency effect handled in city yield calc"
-        // "For each worked tile adjacent to a RiverEdge -> +1 Food"
-        // So we check neighbors of the worked tile.
-
-        const neighbors = getNeighbors(coord);
-        let adjacentToRiver = false;
-        for (const n of neighbors) {
-            const nTile = state.map.tiles.find(t => hexEquals(t.coord, n));
-            if (nTile && nTile.overlays.includes(OverlayType.RiverEdge)) {
-                adjacentToRiver = true;
-                break;
-            }
-        }
-        // Also check if the tile itself has RiverEdge (maybe it represents a river flowing through?)
-        // The spec says "River (edge)".
-        // Let's stick to: check neighbors.
-        if (adjacentToRiver) {
+        if (isTileAdjacentToRiver(state.map, coord)) {
             tileY.F += 1;
         }
 
@@ -115,16 +80,7 @@ export function getCityYields(city: City, state: GameState): Yields {
     }
 
     // 2. Buildings
-    let isRiverCity = false;
-    // Check if city center is adjacent to river
-    const centerNeighbors = getNeighbors(city.coord);
-    for (const n of centerNeighbors) {
-        const nTile = state.map.tiles.find(t => hexEquals(t.coord, n));
-        if (nTile && nTile.overlays.includes(OverlayType.RiverEdge)) {
-            isRiverCity = true;
-            break;
-        }
-    }
+    const isRiverCity = isTileAdjacentToRiver(state.map, city.coord);
 
     let worksForest = false;
     for (const coord of city.workedTiles) {
@@ -164,15 +120,7 @@ export function getCityYields(city: City, state: GameState): Yields {
     } else if (trait === "ScholarKingdoms") {
         if (city.pop >= 3) total.S += 1;
     } else if (trait === "RiverLeague") {
-        const riverBonus = city.workedTiles.reduce((sum, coord) => {
-            const neighbors = getNeighbors(coord);
-            const adjRiver = neighbors.some(n => {
-                const t = state.map.tiles.find(tt => hexEquals(tt.coord, n));
-                return t?.overlays.includes(OverlayType.RiverEdge);
-            });
-            return sum + (adjRiver ? 1 : 0);
-        }, 0);
-        total.F += riverBonus;
+        total.F += riverAdjacencyCount(state.map, city.workedTiles);
     }
 
     return total;
