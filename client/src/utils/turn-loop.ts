@@ -54,9 +54,7 @@ function summarizePlayers(state: GameState) {
         const units = state.units.filter(u => u.ownerId === p.id);
         const cities = state.cities.filter(c => c.ownerId === p.id);
         const settlerCount = units.filter(u =>
-            u.type === UnitType.Settler ||
-            u.type === "Settler" ||
-            String(u.type) === "Settler"
+            u.type === UnitType.Settler
         ).length;
         return {
             id: p.id,
@@ -1083,11 +1081,9 @@ function eliminationSweep(state: GameState) {
         
         const hasCity = state.cities.some(c => c.ownerId === player.id);
         const playerUnits = state.units.filter(u => u.ownerId === player.id);
-        // Check for Settler using both enum and string comparison (in case of serialization issues)
+        // Check for Settler
         const settlerUnits = playerUnits.filter(u => 
-            u.type === UnitType.Settler || 
-            u.type === "Settler" || 
-            String(u.type) === "Settler"
+            u.type === UnitType.Settler
         );
         const hasSettler = settlerUnits.length > 0;
         
@@ -1104,9 +1100,7 @@ function eliminationSweep(state: GameState) {
             
             // Double-check: make absolutely sure there's no Settler before removing
             const doubleCheckSettler = playerUnits.some(u => 
-                u.type === UnitType.Settler || 
-                u.type === "Settler" || 
-                String(u.type) === "Settler"
+                u.type === UnitType.Settler
             );
             if (doubleCheckSettler) {
                 console.error(`[eliminationSweep] ERROR: About to eliminate player ${player.id} but they have a Settler! Aborting elimination.`);
