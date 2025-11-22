@@ -10,7 +10,7 @@ import {
     OverlayType,
 } from "./types.js";
 
-export const GAME_VERSION = "0.9";
+export const GAME_VERSION = "0.91";
 export const MAX_PLAYERS = 4;
 
 // Yields

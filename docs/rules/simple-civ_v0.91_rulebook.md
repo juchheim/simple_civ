@@ -887,7 +887,7 @@ At least one valid settlement tile within 1 tile.
 Starting Settlers must be at least 6 tiles apart (hex distance).
 If a start fails guarantees, regenerate that start zone until it passes (max 50 tries, then best-available by site score).
 
-4. Rules Priority (v0.9)
+4. Rules Priority (v0.91)
 
 If two rules conflict, resolve by priority:
 
@@ -905,7 +905,7 @@ Reference appendix + glossary
 
 If still unclear, the digital version follows the reference appendix.
 
-5. State Indicators (v0.9)
+5. State Indicators (v0.91)
 
 These are official game states the engine/UI may surface:
 
@@ -957,7 +957,7 @@ Planning Phase = builds/tech/tiles selection only.
 
 Action Phase = movement/attacks only.
 
-7. AI / Engine Hooks Appendix (v0.9, non-player)
+7. AI / Engine Hooks Appendix (v0.91, non-player)
 7.1 City Site Scoring (minimum AI)
 
 Score candidate tile:

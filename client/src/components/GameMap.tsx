@@ -73,7 +73,7 @@ const HexTileBase: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, x, y,
                     y={-HEX_SIZE}
                     width={HEX_SIZE * 2}
                     height={HEX_SIZE * 2}
-                    style={{ pointerEvents: "none", opacity: 0.6 }}
+                    style={{ pointerEvents: "none", opacity: 0.3 }}
                 />
             )}
             {isShroud && (
