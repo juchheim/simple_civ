@@ -15,7 +15,7 @@ import {
 } from "./engine-types";
 
 // Inline constants to avoid build issues
-import { hexToString, hexSpiral, getNeighbors, hexEquals } from "./hex";
+import { hexToString, hexSpiral, getNeighbors, hexDistance } from "./hex";
 import { MAP_DIMS, UNITS } from "./constants";
 import { getTileYields } from "./rules";
 import { scoreCitySite } from "./ai-heuristics";
@@ -86,6 +86,7 @@ function pushCornerSegment(
     cornerPoints: { x: number; y: number }[],
     startIdx: number,
     endIdx: number,
+    isMouth = false,
 ) {
     segments.push({
         tile,
@@ -93,6 +94,7 @@ function pushCornerSegment(
         cornerB: endIdx,
         start: cornerPoints[startIdx],
         end: cornerPoints[endIdx],
+        isMouth,
     });
 }
 
@@ -306,60 +308,82 @@ export function generateWorld(settings: WorldGenSettings): GameState {
     const addRiverEdge = (a: HexCoord, b: HexCoord) => {
         const keyA = hexToString(a);
         const keyB = hexToString(b);
-        // Check for duplicates (both directions)
-        const isDuplicate = riverEdges.some(e => {
-            const ea = hexToString(e.a);
-            const eb = hexToString(e.b);
-            return (ea === keyA && eb === keyB) || (ea === keyB && eb === keyA);
-        });
-        if (isDuplicate) return;
-        
-        // Store edge in flow order (a -> b)
-        riverEdges.push({ a, b });
+        const key = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
+        if (riverEdges.some(e => {
+            const ek = hexToString(e.a) < hexToString(e.b)
+                ? `${hexToString(e.a)}|${hexToString(e.b)}`
+                : `${hexToString(e.b)}|${hexToString(e.a)}`;
+            return ek === key;
+        })) return;
+        riverEdges.push(keyA < keyB ? { a, b } : { a: b, b: a });
         incrementDegree(keyA);
         incrementDegree(keyB);
     };
 
     const elevationThreshold = 3;
-    const minStartSpacing = 6; // Increased spacing to allow longer rivers
-    const minRiverLength = 6; // Increased minimum length
-    
-    // Select high-elevation tiles as river starts
-    const potentialStarts = landTiles
+    const minStartSpacing = 4;
+    const minRiverLength = 4;
+    const minStartCoastDistance = 2;
+    const highElevation = landTiles
         .filter(t => (elevationByKey.get(hexToString(t.coord)) ?? 0) >= elevationThreshold)
         .sort((a, b) => {
             const ea = elevationByKey.get(hexToString(a.coord)) ?? 0;
             const eb = elevationByKey.get(hexToString(b.coord)) ?? 0;
-            return eb - ea; // Highest first
+            if (eb !== ea) return eb - ea;
+            const da = coastDistance.get(hexToString(a.coord)) ?? Number.MAX_SAFE_INTEGER;
+            const db = coastDistance.get(hexToString(b.coord)) ?? Number.MAX_SAFE_INTEGER;
+            return db - da;
         });
+    const getCoastDist = (coord: HexCoord) => coastDistance.get(hexToString(coord)) ?? Number.MAX_SAFE_INTEGER;
+    const interiorCandidates = highElevation.filter(t => getCoastDist(t.coord) >= minStartCoastDistance);
+    const shallowCandidates = highElevation.filter(t => getCoastDist(t.coord) < minStartCoastDistance);
 
-    const hexDist = (a: HexCoord, b: HexCoord) =>
-        (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
-
+    const chosenStartKeys = new Set<string>();
     const riverStarts: Tile[] = [];
-    for (const candidate of potentialStarts) {
-        if (riverStarts.length >= riverCount) break;
-        const spaced = riverStarts.every(r => hexDist(r.coord, candidate.coord) >= minStartSpacing);
-        if (!spaced) continue;
+    const tryAddStart = (candidate: Tile) => {
+        if (riverStarts.length >= riverCount) return;
+        const key = hexToString(candidate.coord);
+        if (chosenStartKeys.has(key)) return;
+        const spaced = riverStarts.every(r => hexDistance(r.coord, candidate.coord) >= minStartSpacing);
+        if (!spaced) return;
         riverStarts.push(candidate);
+        chosenStartKeys.add(key);
+    };
+
+    for (const candidate of interiorCandidates) {
+        if (riverStarts.length >= riverCount) break;
+        tryAddStart(candidate);
     }
 
-    // Fallback if not enough high-elevation starts
     if (riverStarts.length < riverCount) {
-        const chosenKeys = new Set(riverStarts.map(t => hexToString(t.coord)));
-        const fallback = landTiles.filter(t => !chosenKeys.has(hexToString(t.coord)));
-        rng.shuffle(fallback);
-        for (const tile of fallback) {
+        for (const candidate of shallowCandidates) {
             if (riverStarts.length >= riverCount) break;
-            const spaced = riverStarts.every(r => hexDist(r.coord, tile.coord) >= minStartSpacing);
-            if (!spaced) continue;
-            riverStarts.push(tile);
+            tryAddStart(candidate);
         }
     }
 
+    if (riverStarts.length < riverCount) {
+        const fallback = landTiles
+            .filter(t => !chosenStartKeys.has(hexToString(t.coord)))
+            .sort((a, b) => {
+                const da = coastDistance.get(hexToString(a.coord)) ?? Number.MAX_SAFE_INTEGER;
+                const db = coastDistance.get(hexToString(b.coord)) ?? Number.MAX_SAFE_INTEGER;
+                return db - da;
+            });
+        for (const tile of fallback) {
+            if (riverStarts.length >= riverCount) break;
+            tryAddStart(tile);
+        }
+    }
+
+    const coastEntries = buildCoastEntries(tiles, getTile, isLand);
+    const usedCoastEntries = new Set<string>();
+
     for (const start of riverStarts) {
-        const path = findRiverPath(
+        const result = findRiverPathToCoast(
             start,
+            coastEntries,
+            usedCoastEntries,
             getTile,
             isLand,
             existingRiverTiles,
@@ -370,17 +394,25 @@ export function generateWorld(settings: WorldGenSettings): GameState {
             rng,
         );
 
-        if (!path || path.length < minRiverLength + 1) {
+        if (!result) {
             continue;
         }
 
+        const path = result.path;
+        const targetKey = result.targetKey;
+        usedCoastEntries.add(targetKey);
+
         const polylineDescriptor: RiverSegmentDescriptor[] = [];
         let lastPoint: { x: number; y: number } | null = null;
+
         for (let i = 0; i < path.length - 1; i++) {
             const from = path[i];
             const to = path[i + 1];
             const dir = directionBetween(from, to);
             if (dir === null) continue;
+            const toKey = hexToString(to);
+            const toDist = coastDistance.get(toKey) ?? Number.MAX_SAFE_INTEGER;
+            const isMouth = toDist === 0;
 
             const cornerPoints = getCornerPoints(from);
             const [cornerA, cornerB] = EDGE_TO_CORNER_INDICES[dir];
@@ -411,13 +443,13 @@ export function generateWorld(settings: WorldGenSettings): GameState {
                 if (bridgePath.length) {
                     let currentIdx = entryIdx;
                     for (const nextIdx of bridgePath) {
-                        pushCornerSegment(polylineDescriptor, from, cornerPoints, currentIdx, nextIdx);
+                        pushCornerSegment(polylineDescriptor, from, cornerPoints, currentIdx, nextIdx, false);
                         currentIdx = nextIdx;
                     }
                 }
             }
 
-            pushCornerSegment(polylineDescriptor, from, cornerPoints, startIdx, endIdx);
+            pushCornerSegment(polylineDescriptor, from, cornerPoints, startIdx, endIdx, isMouth);
             lastPoint = cornerPoints[endIdx];
             addRiverEdge(from, to);
         }
@@ -434,7 +466,9 @@ export function generateWorld(settings: WorldGenSettings): GameState {
                 tile.overlays.push(OverlayType.RiverEdge);
                 tile.features = tile.overlays;
             }
+            existingRiverTiles.add(hexToString(coord));
         }
+        existingRiverTiles.add(targetKey);
     }
 
     // 3. Players & Starting Units
@@ -604,8 +638,44 @@ function buildCoastDistance(tiles: Tile[], getTile: (coord: HexCoord) => Tile | 
     return distance;
 }
 
-function findRiverPath(
+type CoastEntry = {
+    tile: Tile;
+    key: string;
+};
+
+type CoastPathResult = {
+    path: HexCoord[];
+    targetKey: string;
+};
+
+const MAX_COAST_ENTRY_ATTEMPTS = 12;
+const COAST_BAND_ALLOWANCE = 5;
+const MAX_COAST_BAND_STREAK = 4;
+const MAX_SHORELINE_PLATEAU = 1;
+const MAX_RIVER_SEARCH_STATES = 1500;
+
+function buildCoastEntries(
+    tiles: Tile[],
+    getTile: (coord: HexCoord) => Tile | undefined,
+    isLand: (tile: Tile | undefined) => boolean,
+): CoastEntry[] {
+    const entries: CoastEntry[] = [];
+    for (const tile of tiles) {
+        if (tile.terrain !== TerrainType.Coast) continue;
+        const hasLandNeighbor = getNeighbors(tile.coord).some(coord => {
+            const neighbor = getTile(coord);
+            return neighbor && isLand(neighbor);
+        });
+        if (!hasLandNeighbor) continue;
+        entries.push({ tile, key: hexToString(tile.coord) });
+    }
+    return entries;
+}
+
+function findRiverPathToCoast(
     start: Tile,
+    coastEntries: CoastEntry[],
+    usedCoastEntries: Set<string>,
     getTile: (coord: HexCoord) => Tile | undefined,
     isLand: (tile: Tile | undefined) => boolean,
     existingRiverTiles: Set<string>,
@@ -614,108 +684,261 @@ function findRiverPath(
     coastDistance: Map<string, number>,
     minRiverLength: number,
     rng: Random,
-): HexCoord[] | null {
-    type Node = {
-        coord: HexCoord;
-        key: string;
-        prev: string | null;
-        length: number;
-        dir: number | null;
-        priority: number;
-    };
+): CoastPathResult | null {
+    if (!coastEntries.length) return null;
 
+    const ranked = coastEntries
+        .filter(entry => !usedCoastEntries.has(entry.key))
+        .map(entry => ({
+            entry,
+            distance: hexDistance(start.coord, entry.tile.coord),
+            noise: rng.next(),
+        }))
+        .sort((a, b) => {
+            if (a.distance !== b.distance) return a.distance - b.distance;
+            return a.noise - b.noise;
+        });
+
+    for (const candidate of ranked.slice(0, MAX_COAST_ENTRY_ATTEMPTS)) {
+        const result = findRiverPathToTarget(
+            start,
+            candidate.entry,
+            usedCoastEntries,
+            getTile,
+            isLand,
+            existingRiverTiles,
+            riverDegree,
+            elevationByKey,
+            coastDistance,
+            minRiverLength,
+            rng,
+        );
+        if (result) {
+            return result;
+        }
+    }
+
+    return null;
+}
+
+type PathNode = {
+    coord: HexCoord;
+    key: string;
+    prev: string | null;
+    dir: number | null;
+    g: number;
+    f: number;
+    bandSteps: number;
+    bandStreak: number;
+    plateau: number;
+};
+
+function findRiverPathToTarget(
+    start: Tile,
+    targetEntry: CoastEntry,
+    usedCoastEntries: Set<string>,
+    getTile: (coord: HexCoord) => Tile | undefined,
+    isLand: (tile: Tile | undefined) => boolean,
+    existingRiverTiles: Set<string>,
+    riverDegree: Map<string, number>,
+    elevationByKey: Map<string, number>,
+    coastDistance: Map<string, number>,
+    minRiverLength: number,
+    rng: Random,
+): CoastPathResult | null {
+    const targetKey = targetEntry.key;
+    const targetCoord = targetEntry.tile.coord;
     const startKey = hexToString(start.coord);
-    const startNode: Node = {
-        coord: start.coord,
-        key: startKey,
-        prev: null,
-        length: 0,
-        dir: null,
-        priority: 0,
-    };
-
-    const frontier: Node[] = [startNode];
-    const nodeByKey = new Map<string, Node>();
-    nodeByKey.set(startKey, startNode);
-    const visited = new Set<string>([startKey]);
-
     const getElevation = (coord: HexCoord) => elevationByKey.get(hexToString(coord)) ?? 0;
     const getCoastDist = (coord: HexCoord) => coastDistance.get(hexToString(coord)) ?? Number.POSITIVE_INFINITY;
 
-    while (frontier.length) {
-        frontier.sort((a, b) => a.priority - b.priority);
-        const current = frontier.shift()!;
+    const startCoastDist = getCoastDist(start.coord);
+    const startNode: PathNode = {
+        coord: start.coord,
+        key: startKey,
+        prev: null,
+        dir: null,
+        g: 0,
+        f: heuristicCost(start.coord, targetCoord),
+        bandSteps: startCoastDist <= 2 ? 1 : 0,
+        bandStreak: startCoastDist <= 1 ? 1 : 0,
+        plateau: 0,
+    };
 
-        if (
-            current.length >= minRiverLength &&
-            !hexEquals(current.coord, start.coord) &&
-            getTile(current.coord)?.terrain === TerrainType.Coast
-        ) {
-            return reconstructPath(current.key, nodeByKey);
+    const open: PathNode[] = [startNode];
+    const nodeByKey = new Map<string, PathNode>([[startKey, startNode]]);
+    const gScore = new Map<string, number>([[startKey, 0]]);
+
+    let expansions = 0;
+    while (open.length && expansions < MAX_RIVER_SEARCH_STATES) {
+        expansions++;
+        open.sort((a, b) => a.f - b.f);
+        const current = open.shift()!;
+        if (current.key === targetKey) {
+            const degree = riverDegree.get(targetKey) ?? 0;
+            if (current.g >= minRiverLength && !usedCoastEntries.has(targetKey) && degree < 1) {
+                return { path: reconstructPath(current.key, nodeByKey), targetKey };
+            }
+            continue;
         }
 
         const currentTile = getTile(current.coord);
         if (!currentTile) continue;
 
-        const neighbors = getNeighbors(current.coord)
-            .map(coord => getTile(coord))
-            .filter((t): t is Tile => !!t);
+        const currentCoastDist = getCoastDist(current.coord);
+        const needsLength = current.g < minRiverLength;
+        const forcingCoast =
+            currentCoastDist <= 2 &&
+            (current.g >= minRiverLength || current.bandSteps >= COAST_BAND_ALLOWANCE);
+        const neighborCoords = getNeighbors(current.coord);
+        const seekInland = needsLength && currentCoastDist <= 2;
+        let inlandOptionAvailable = false;
+        if (seekInland) {
+            for (const coord of neighborCoords) {
+                const neighbor = getTile(coord);
+                if (!neighbor) continue;
+                const neighborKey = hexToString(neighbor.coord);
+                if (neighborKey === targetKey) continue;
+                const neighborCoastDist = getCoastDist(neighbor.coord);
+                if (neighborCoastDist <= currentCoastDist) continue;
+                if (!isLand(neighbor) || neighbor.terrain === TerrainType.Coast) continue;
+                if (existingRiverTiles.has(neighborKey)) continue;
+                const touchesRiver = getNeighbors(neighbor.coord).some(adj => {
+                    const key = hexToString(adj);
+                    if (key === current.key) return false;
+                    return existingRiverTiles.has(key);
+                });
+                if (touchesRiver) continue;
+                inlandOptionAvailable = true;
+                break;
+            }
+        }
 
-        for (const neighbor of neighbors) {
+        if (current.g >= minRiverLength) {
+            const coastNeighbor = selectAvailableCoastNeighbor(
+                currentTile,
+                getTile,
+                usedCoastEntries,
+                riverDegree,
+                rng,
+            );
+            if (coastNeighbor) {
+                const basePath = reconstructPath(current.key, nodeByKey);
+                basePath.push(coastNeighbor.tile.coord);
+                return { path: basePath, targetKey: coastNeighbor.key };
+            }
+        }
+
+        for (const neighborCoord of neighborCoords) {
+            const neighbor = getTile(neighborCoord);
+            if (!neighbor) continue;
             const neighborKey = hexToString(neighbor.coord);
-            const neighborIsCoast = neighbor.terrain === TerrainType.Coast;
-            const neighborIsLand = isLand(neighbor);
+            const isTarget = neighborKey === targetKey;
+            const neighborCoastDist = getCoastDist(neighbor.coord);
 
-            if (!neighborIsLand && !neighborIsCoast) continue;
-            if (visited.has(neighborKey)) continue;
+            if (!isTarget) {
+                if (!isLand(neighbor)) continue;
+                if (neighbor.terrain === TerrainType.Coast) continue;
+                if (existingRiverTiles.has(neighborKey)) continue;
+                const touchesRiver = getNeighbors(neighbor.coord).some(coord => {
+                    const key = hexToString(coord);
+                    if (key === current.key) return false;
+                    return existingRiverTiles.has(key);
+                });
+                if (touchesRiver) continue;
+            } else {
+                const degree = riverDegree.get(neighborKey) ?? 0;
+                if (degree >= 1 || usedCoastEntries.has(neighborKey)) continue;
+            }
 
-            if (existingRiverTiles.has(neighborKey) && !neighborIsCoast) {
+            if (!isTarget && forcingCoast && neighborCoastDist >= currentCoastDist) continue;
+            if (!isTarget && seekInland && inlandOptionAvailable && neighborCoastDist <= currentCoastDist) {
                 continue;
             }
-
-            if (neighborIsCoast) {
-                const degree = riverDegree.get(neighborKey) ?? 0;
-                if (degree >= 1) continue;
-                if (current.length + 1 < minRiverLength) continue;
-            }
-
-            const currentDir = current.dir;
-            const dirToNeighbor = directionBetween(current.coord, neighbor.coord);
-            if (currentDir !== null && dirToNeighbor !== null) {
-                const diff = Math.abs(dirToNeighbor - currentDir);
-                const wrapped = Math.min(diff, 6 - diff);
-                if (wrapped > 1) {
+            if (!isTarget && currentCoastDist <= 1) {
+                if (needsLength) {
+                    if (neighborCoastDist <= currentCoastDist) continue;
+                } else if (neighborCoastDist <= 1) {
                     continue;
                 }
             }
 
-            const elevationPenalty = Math.max(0, getElevation(neighbor.coord) - getElevation(current.coord));
-            const coastPenalty = getCoastDist(neighbor.coord);
-            const turnPenalty = currentDir !== null && dirToNeighbor !== null && dirToNeighbor !== currentDir ? 1 : 0;
-            const randomNoise = rng.next() * 0.1;
-            const priority =
-                (current.length + 1) * 2 +
-                elevationPenalty * 5 +
-                coastPenalty * 3 +
-                turnPenalty * 2 +
-                randomNoise;
+            const nextBandSteps = neighborCoastDist <= 2 ? current.bandSteps + 1 : 0;
+            const nextBandStreak = neighborCoastDist <= 1 ? current.bandStreak + 1 : 0;
+            const nextPlateau =
+                currentCoastDist <= 2 && neighborCoastDist === currentCoastDist ? current.plateau + 1 : 0;
+            if (
+                !isTarget &&
+                currentCoastDist <= 2 &&
+                neighborCoastDist === currentCoastDist &&
+                nextPlateau > MAX_SHORELINE_PLATEAU
+            ) {
+                continue;
+            }
+            if (!isTarget) {
+                if (neighborCoastDist <= 2 && nextBandSteps > COAST_BAND_ALLOWANCE) continue;
+                if (neighborCoastDist <= 1 && nextBandStreak > MAX_COAST_BAND_STREAK) continue;
+            }
 
-            const nextNode: Node = {
+            const dir = directionBetween(current.coord, neighbor.coord);
+            if (current.dir !== null && dir !== null) {
+                const diff = Math.abs(dir - current.dir);
+                const wrapped = Math.min(diff, 6 - diff);
+                if (wrapped > 1) continue;
+            }
+
+            const tentativeG = current.g + 1;
+            const recordedG = gScore.get(neighborKey);
+            if (recordedG !== undefined && tentativeG >= recordedG) continue;
+
+            const currentElevation = getElevation(current.coord);
+            const neighborElevation = getElevation(neighbor.coord);
+            const elevationPenalty = Math.max(0, neighborElevation - currentElevation);
+            const heuristic = heuristicCost(neighbor.coord, targetCoord);
+            const coastBias = Math.max(0, neighborCoastDist - 1);
+            const fScore = tentativeG + heuristic + elevationPenalty * 2 + coastBias * 0.5;
+
+            const nextNode: PathNode = {
                 coord: neighbor.coord,
                 key: neighborKey,
                 prev: current.key,
-                length: current.length + 1,
-                dir: dirToNeighbor,
-                priority,
+                dir,
+                g: tentativeG,
+                f: fScore,
+                bandSteps: isTarget ? 0 : nextBandSteps,
+                bandStreak: isTarget ? 0 : nextBandStreak,
+                plateau: isTarget ? 0 : nextPlateau,
             };
 
-            frontier.push(nextNode);
+            gScore.set(neighborKey, tentativeG);
             nodeByKey.set(neighborKey, nextNode);
-            visited.add(neighborKey);
+            open.push(nextNode);
         }
     }
 
     return null;
+}
+
+function heuristicCost(from: HexCoord, to: HexCoord): number {
+    return hexDistance(from, to);
+}
+
+function selectAvailableCoastNeighbor(
+    tile: Tile,
+    getTile: (coord: HexCoord) => Tile | undefined,
+    usedCoastEntries: Set<string>,
+    riverDegree: Map<string, number>,
+    rng: Random,
+): { tile: Tile; key: string } | null {
+    const candidates = getNeighbors(tile.coord)
+        .map(coord => getTile(coord))
+        .filter((t): t is Tile => !!t && t.terrain === TerrainType.Coast)
+        .map(neighbor => ({ tile: neighbor, key: hexToString(neighbor.coord) }))
+        .filter(candidate => !usedCoastEntries.has(candidate.key))
+        .filter(candidate => (riverDegree.get(candidate.key) ?? 0) < 1);
+    if (!candidates.length) return null;
+    const idx = Math.floor(rng.next() * candidates.length);
+    return candidates[idx];
 }
 
 function reconstructPath(endKey: string, nodeByKey: Map<string, { coord: HexCoord; prev: string | null }>): HexCoord[] {

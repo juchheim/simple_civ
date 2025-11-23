@@ -1,17 +1,27 @@
-import SettlerImg from "../public/units/Settler.png";
 
-// Unit asset imports
+
 import ScoutImg from "../public/units/Scout.png";
-// import SpearGuardImg from "../public/units/SpearGuard.png";
-// import WarriorImg from "../public/units/Warrior.png";
-// Add additional unit imports above as assets are created.
+import SettlerImg from "../public/units/Settler.png";
+import SpearGuardImg from "../public/units/SpearGuard.png";
+import BowGuardImg from "../public/units/BowGuard.png";
+import RidersImg from "../public/units/Riders.png";
+import RiverBoatImg from "../public/units/RiverBoat.png";
+import ArmyScoutImg from "../public/units/ArmyScout.png";
+import ArmySpearGuardImg from "../public/units/ArmySpearGuard.png";
+import ArmyBowGuardImg from "../public/units/ArmyBowGuard.png";
+import ArmyRidersImg from "../public/units/ArmyRiders.png";
 
 export const unitImages: Record<string, string> = {
     Settler: SettlerImg,
     Scout: ScoutImg,
-    // SpearGuard: SpearGuardImg,
-    // Warrior: WarriorImg,
-    // Add more unit image mappings above as they come online.
+    SpearGuard: SpearGuardImg,
+    BowGuard: BowGuardImg,
+    Riders: RidersImg,
+    RiverBoat: RiverBoatImg,
+    ArmyScout: ArmyScoutImg,
+    ArmySpearGuard: ArmySpearGuardImg,
+    ArmyBowGuard: ArmyBowGuardImg,
+    ArmyRiders: ArmyRidersImg,
 };
 
 // Terrain asset imports
@@ -24,6 +34,8 @@ import MountainImg from "../public/terrain/Mountain.png";
 import CoastImg from "../public/terrain/Coast.png";
 import DeepSeaImg from "../public/terrain/DeepSea.png";
 import FogImg from "../public/terrain/Fog.png";
+import RiverEdgeImg from "../public/terrain/RiverEdge.png";
+import RiverMouthImg from "../public/terrain/RiverMouth.png";
 
 export const terrainImages: Record<string, string> = {
     Plains: PlainsImg,
@@ -35,6 +47,8 @@ export const terrainImages: Record<string, string> = {
     Coast: CoastImg,
     DeepSea: DeepSeaImg,
     Fog: FogImg,
+    RiverEdge: RiverEdgeImg,
+    RiverMouth: RiverMouthImg,
 };
 
 // City asset imports

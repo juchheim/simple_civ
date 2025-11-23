@@ -11,8 +11,6 @@ const UNIT_IMAGE_SIZE = 110; // Much larger unit icons
 const DRAG_THRESHOLD = 3; // Pixels of movement before starting pan
 const HEX_POINTS = getHexPoints();
 const HEX_CORNER_OFFSETS = getHexCornerOffsets();
-const RIVER_STROKE_WIDTH = 14;
-const RIVER_COLOR = "#2563eb";
 const RIVER_OPACITY = 0.9;
 
 interface GameMapProps {
@@ -482,7 +480,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
     }, [map.riverPolylines, map.rivers]);
 
     const riverLineSegments = useMemo(() => {
-        const segments: { id: string; start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
+        const segments: { id: string; start: { x: number; y: number }; end: { x: number; y: number }; isMouth?: boolean }[] = [];
         const descriptorPolylines = map.riverPolylines && map.riverPolylines.length ? map.riverPolylines : null;
 
         if (descriptorPolylines) {
@@ -492,10 +490,19 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                     const isVisible = tileVisibility.get(tileKey)?.isVisible ?? false;
                     if (!isVisible) return;
 
+                    if (polyIdx === 0 && segIdx < 3) {
+                        console.log("[River Debug] render check", {
+                            polyIdx,
+                            segIdx,
+                            tile: segment.tile,
+                        });
+                    }
+
                     segments.push({
                         id: `river-${polyIdx}-${segIdx}`,
                         start: segment.start,
                         end: segment.end,
+                        isMouth: segment.isMouth,
                     });
                 });
 
@@ -639,18 +646,29 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
                     {renderedTiles.map(tile => tile.base)}
                     <g style={{ pointerEvents: "none" }}>
-                        {riverLineSegments.map(segment => (
-                            <path
-                                key={segment.id}
-                                d={`M ${segment.start.x} ${segment.start.y} L ${segment.end.x} ${segment.end.y}`}
-                                stroke={RIVER_COLOR}
-                                strokeWidth={RIVER_STROKE_WIDTH}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                opacity={RIVER_OPACITY}
-                                fill="none"
-                            />
-                        ))}
+                        {riverLineSegments.map(segment => {
+                            const dx = segment.end.x - segment.start.x;
+                            const dy = segment.end.y - segment.start.y;
+                            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                            const midX = (segment.start.x + segment.end.x) / 2;
+                            const midY = (segment.start.y + segment.end.y) / 2;
+                            const width = 90; // Asset width
+                            const height = 30; // Asset height
+                            const texture = segment.isMouth ? terrainImages.RiverMouth : terrainImages.RiverEdge;
+
+                            return (
+                                <image
+                                    key={segment.id}
+                                    href={texture}
+                                    x={midX - width / 2}
+                                    y={midY - height / 2}
+                                    width={width}
+                                    height={height}
+                                    transform={`rotate(${angle}, ${midX}, ${midY})`}
+                                    style={{ pointerEvents: "none", opacity: RIVER_OPACITY }}
+                                />
+                            );
+                        })}
                     </g>
                     {renderedTiles.map(tile => tile.overlay)}
                 </g>

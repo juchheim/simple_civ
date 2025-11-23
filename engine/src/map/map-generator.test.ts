@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateWorld } from "./map-generator";
+import { getNeighbors } from "../core/hex";
 import { TerrainType, UnitType } from "../core/types";
 
 describe("World Generation", () => {
@@ -69,5 +70,33 @@ describe("World Generation", () => {
                 expect(typeof segment.end.y).toBe("number");
             });
         });
+    });
+
+    it("should spawn scout adjacent to settler", () => {
+        const state = generateWorld({
+            mapSize: "Standard",
+            players: [{ id: "p1", civName: "Civ A", color: "red" }],
+        });
+
+        const settler = state.units.find((u) => u.type === UnitType.Settler);
+        const scout = state.units.find((u) => u.type === UnitType.Scout);
+
+        expect(settler).toBeDefined();
+        expect(scout).toBeDefined();
+
+        // Should not be on same tile
+        expect(settler!.coord).not.toEqual(scout!.coord);
+
+        // Should be neighbors
+        const neighbors = getNeighbors(settler!.coord);
+        const isNeighbor = neighbors.some(n => n.q === scout!.coord.q && n.r === scout!.coord.r);
+        expect(isNeighbor).toBe(true);
+
+        // Scout should be on valid terrain
+        const scoutTile = state.map.tiles.find(t => t.coord.q === scout!.coord.q && t.coord.r === scout!.coord.r);
+        expect(scoutTile).toBeDefined();
+        expect(scoutTile!.terrain).not.toBe(TerrainType.DeepSea);
+        expect(scoutTile!.terrain).not.toBe(TerrainType.Mountain);
+        expect(scoutTile!.terrain).not.toBe(TerrainType.Coast);
     });
 });

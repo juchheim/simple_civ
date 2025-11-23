@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
@@ -24,10 +24,16 @@ function App() {
     const [playerId, setPlayerId] = useState("p1"); // Local player
     const SAVE_KEY = "simple-civ-save";
 
+    const initRef = useRef(false);
+
     useEffect(() => {
+        if (initRef.current) return;
+        initRef.current = true;
         // Init Game
         try {
-            const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS });
+            // const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS });
+            const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS, seed: 41839, });
+            console.info("[World] seed", state.seed);
             setGameState(state);
             // Show tech tree on turn 1
             setShowTechTree(true);

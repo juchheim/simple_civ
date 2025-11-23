@@ -15,14 +15,28 @@
   - Rivers render as continuous, smooth paths following hex edges
 
 ### Technical Details
-- **New Type**: `RiverSegmentDescriptor` with `tile`, `cornerA`, `cornerB`, `start`, and `end` fields
+- **New Type**: `RiverSegmentDescriptor` with `tile`, `cornerA`, `cornerB`, `start`, `end`, and optional `isMouth` fields
 - **New Field**: `map.riverPolylines` in `GameState` containing pre-calculated river geometry
 - **Architecture**: Engine calculates exact corner points; client renders verbatim
 
+### Added
+- **River Mouth Asset** (`client/public/terrain/RiverMouth.png`)
+  - Dedicated sprite for the final edge where a river meets the sea
+  - Asset can be fully transparent when designers want an invisible terminator
+
+### Implementation Notes
+- **River Mouth Descriptor Flag**
+  - Engine now marks only the final segment touching water with `isMouth: true`
+  - Bridge segments inside the last land tile always carry `isMouth: false`
+  - Client swaps to the `RiverMouth` texture strictly for those flagged segments
+- **Rendering Simplification**
+  - Removed historical `hidden`/masking logic from `RiverSegmentDescriptor`
+  - All path segments are rendered; visual masking is controlled purely by the mouth sprite
+
 ### Impact
-- Rivers now render correctly without visual artifacts (zigzags, gaps, double-backs)
-- Improved visual quality and consistency
-- Simplified client-side rendering code
+- Rivers terminate cleanly on the coastline without hiding inland tiles
+- Artists can style or hide the terminator independently of the main river asset
+- Fewer edge cases in generator/render sync; every segment shown corresponds to real gameplay data
 
 ## Version Updates
 - All package versions updated to 0.91.0

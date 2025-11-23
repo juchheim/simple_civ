@@ -181,6 +181,7 @@ export type RiverSegmentDescriptor = {
     cornerB: number;
     start: RiverPoint;
     end: RiverPoint;
+    isMouth?: boolean;
 };
 
 export type GameState = {
