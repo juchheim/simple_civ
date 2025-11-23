@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unitImages, terrainImages, cityImages } from "../assets";
-import { City, GameState, HexCoord, TerrainType, Tile, Unit } from "@simple-civ/engine";
+import { City, GameState, HexCoord, TerrainType, Tile, Unit, UnitType } from "@simple-civ/engine";
 import { buildRiverPolylines } from "../utils/rivers";
 
 const HEX_SIZE = 75;
@@ -123,11 +123,25 @@ const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisi
                     style={{ pointerEvents: "none" }}
                 />
                 <text
-                    x={0}
+                    x={-40}
                     y={-30}
-                    textAnchor="middle"
+                    textAnchor="start"
                     fill="white"
-                    fontSize={40}
+                    fontSize={20}
+                    style={{
+                        pointerEvents: "none",
+                        fontWeight: "bold",
+                        textShadow: "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000"
+                    }}
+                >
+                    {city.name}
+                </text>
+                <text
+                    x={40}
+                    y={-30}
+                    textAnchor="end"
+                    fill="white"
+                    fontSize={24}
                     style={{
                         pointerEvents: "none",
                         fontWeight: "bold",
@@ -152,6 +166,37 @@ const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisi
                 style={{ pointerEvents: "none" }}
             />,
         );
+
+        // Health Bar
+        if (unit.type !== UnitType.Settler) {
+            const barWidth = 60;
+            const barHeight = 8;
+            const yOffset = -unitImageOffset - 15; // Above the unit
+            const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
+
+            overlayElements.push(
+                <g key="health-bar">
+                    {/* Background */}
+                    <rect
+                        x={-barWidth / 2}
+                        y={yOffset}
+                        width={barWidth}
+                        height={barHeight}
+                        fill="#333"
+                        stroke="black"
+                        strokeWidth={1}
+                    />
+                    {/* Health */}
+                    <rect
+                        x={-barWidth / 2}
+                        y={yOffset}
+                        width={barWidth * hpPct}
+                        height={barHeight}
+                        fill={hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#eab308" : "#ef4444"} // Green, Yellow, Red
+                    />
+                </g>
+            );
+        }
     }
 
     if (!overlayElements.length) return null;
