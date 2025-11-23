@@ -45,6 +45,8 @@ import {
     HEAL_FRIENDLY_TILE,
     HEAL_FRIENDLY_CITY,
     CAPTURED_CITY_HP_RESET,
+    BASE_CITY_HP,
+    CITY_HEAL_PER_TURN,
 } from "./constants";
 import { isTileAdjacentToRiver } from "./rivers";
 
@@ -161,6 +163,16 @@ function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: 
         cost = terrainData.moveCostNaval ?? 999;
     }
 
+    // Special Rule: Units with max movement 1 can always move 1 tile (if passable)
+    if (unitStats.move === 1) {
+        cost = 1;
+    }
+
+    // Allow moving if we have ANY moves left, consuming all remaining moves if cost > movesLeft
+    if (unit.movesLeft > 0 && unit.movesLeft < cost) {
+        cost = unit.movesLeft;
+    }
+
     if (unit.movesLeft < cost) throw new Error("Not enough movement");
 
     // Occupancy check
@@ -242,6 +254,22 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
         if (dist > attackerStats.rng) throw new Error("Target out of range");
         if (!hasClearLineOfSight(state, attacker.coord, defender.coord)) throw new Error("Line of sight blocked");
 
+        // Settler capture: must be adjacent, captures instead of attacking
+        if (defender.type === UnitType.Settler) {
+            if (dist !== 1) throw new Error("Must be adjacent to capture settler");
+            const defenderCoord = defender.coord;
+            // Capture the settler
+            defender.ownerId = action.playerId;
+            defender.movesLeft = 0;
+            defender.capturedOnTurn = state.turn; // Track when captured
+            // Attacker moves to settler's hex
+            attacker.coord = defenderCoord;
+            attacker.hasAttacked = true;
+            attacker.movesLeft = 0;
+            attacker.state = UnitState.Normal;
+            return state;
+        }
+
         // Combat Math
         const randIdx = Math.floor(state.seed % 3); // 0, 1, 2
         state.seed = (state.seed * 9301 + 49297) % 233280; // Advance seed
@@ -268,8 +296,15 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
         attacker.state = UnitState.Normal; // Unfortify attacker
 
         if (defender.hp <= 0) {
+            const defenderCoord = defender.coord;
             // Destroy
             state.units = state.units.filter(u => u.id !== defender.id);
+
+            // Melee units (range 1) advance into the hex after killing
+            if (attackerStats.rng === 1 && dist === 1) {
+                attacker.coord = defenderCoord;
+                attacker.movesLeft = 0; // Consume all movement
+            }
         }
     } else {
         // City Attack
@@ -296,6 +331,7 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
         const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
 
         city.hp -= damage;
+        city.lastDamagedOnTurn = state.turn;
         attacker.hasAttacked = true;
     }
 
@@ -633,7 +669,7 @@ function handleRevokeVisionShare(state: GameState, action: { type: "RevokeVision
 
 function handleEndTurn(state: GameState, action: { type: "EndTurn"; playerId: string }): GameState {
     logStateSnapshot(`handleEndTurn:start (${action.playerId})`, state);
-    
+
     // Set fortify state for the ending player based on activity this turn
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
         const stats = UNITS[unit.type];
@@ -657,7 +693,7 @@ function handleEndTurn(state: GameState, action: { type: "EndTurn"; playerId: st
     const unitsBeforeAdvance = state.units.length;
     const result = advancePlayerTurn(state, nextPlayer.id);
     logStateSnapshot(`handleEndTurn:after advance (${nextPlayer.id})`, result);
-    
+
     // Safety check: if we started with units and now have 0, something went wrong
     // (unless a player was legitimately eliminated)
     if (unitsBeforeAdvance > 0 && result.units.length === 0) {
@@ -665,7 +701,7 @@ function handleEndTurn(state: GameState, action: { type: "EndTurn"; playerId: st
         logStateSnapshot("handleEndTurn:error input", state);
         logStateSnapshot("handleEndTurn:error output", result);
     }
-    
+
     return result;
 }
 
@@ -681,7 +717,11 @@ function advancePlayerTurn(state: GameState, playerId: string): GameState {
     // 1. Refresh Units (movement & attack flags)
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
         const unitStats = UNITS[unit.type];
-        unit.movesLeft = unitStats.move;
+        // Skip movement refresh for units captured in the previous turn
+        const wasJustCaptured = unit.capturedOnTurn != null && unit.capturedOnTurn > state.turn - 2;
+        if (!wasJustCaptured) {
+            unit.movesLeft = unitStats.move;
+        }
         unit.hasAttacked = false;
     }
 
@@ -701,6 +741,16 @@ function advancePlayerTurn(state: GameState, playerId: string): GameState {
     for (const city of state.cities.filter(c => c.ownerId === playerId)) {
         city.workedTiles = ensureWorkedTiles(city, state);
         const yields = getCityYields(city, state);
+
+        // City Healing (only if not attacked in previous turn)
+        const maxHp = city.maxHp || BASE_CITY_HP;
+        const wasRecentlyAttacked = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn > state.turn - 2;
+        if (city.hp < maxHp && !wasRecentlyAttacked) {
+            console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)}`);
+            city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
+            // Ensure maxHp is saved if it was missing
+            if (!city.maxHp) city.maxHp = maxHp;
+        }
 
         // Food / Growth
         city.storedFood += yields.F;
@@ -1015,7 +1065,7 @@ function computeVisibility(state: GameState, playerId: string): string[] {
 
 function runEndOfRound(state: GameState) {
     console.log("[runEndOfRound] Starting, units:", state.units.length, "cities:", state.cities.length);
-    
+
     if (state.winnerId) {
         console.log("[runEndOfRound] Winner already set:", state.winnerId);
         return;
@@ -1066,35 +1116,35 @@ function eliminationSweep(state: GameState) {
     console.log("[eliminationSweep] All units:", state.units.map(u => ({ id: u.id, ownerId: u.ownerId, type: u.type })));
     console.log("[eliminationSweep] Players:", state.players.map(p => ({ id: p.id, isEliminated: p.isEliminated })));
     console.log("[eliminationSweep] Cities:", state.cities.map(c => ({ id: c.id, ownerId: c.ownerId, name: c.name })));
-    
+
     for (const player of state.players) {
         // Skip if already eliminated
         if (player.isEliminated) {
             console.log(`[eliminationSweep] Player ${player.id} already eliminated, skipping`);
             continue;
         }
-        
+
         const hasCity = state.cities.some(c => c.ownerId === player.id);
         const playerUnits = state.units.filter(u => u.ownerId === player.id);
         // Check for Settler
-        const settlerUnits = playerUnits.filter(u => 
+        const settlerUnits = playerUnits.filter(u =>
             u.type === UnitType.Settler
         );
         const hasSettler = settlerUnits.length > 0;
-        
+
         console.log(`[eliminationSweep] Player ${player.id}: hasCity=${hasCity}, hasSettler=${hasSettler}`);
         console.log(`[eliminationSweep] Player ${player.id} units:`, playerUnits.map(u => ({ id: u.id, type: u.type })));
         console.log(`[eliminationSweep] Player ${player.id} Settlers:`, settlerUnits.map(u => ({ id: u.id, type: u.type })));
-        
+
         // Only eliminate if player has no cities AND no Settlers
         // If they have a Settler, they can still found a city, so don't eliminate them
         if (!hasCity && !hasSettler) {
             const unitsBefore = state.units.length;
             const playerUnits = state.units.filter(u => u.ownerId === player.id);
             console.log(`[eliminationSweep] Player ${player.id} has no cities and no Settlers, eliminating. Units to remove:`, playerUnits.length);
-            
+
             // Double-check: make absolutely sure there's no Settler before removing
-            const doubleCheckSettler = playerUnits.some(u => 
+            const doubleCheckSettler = playerUnits.some(u =>
                 u.type === UnitType.Settler
             );
             if (doubleCheckSettler) {
@@ -1116,6 +1166,6 @@ function eliminationSweep(state: GameState) {
             console.log(`[eliminationSweep] Player ${player.id} has city - keeping them in game`);
         }
     }
-    
+
     console.log("[eliminationSweep] Finished, units:", state.units.length, "cities:", state.cities.length);
 }

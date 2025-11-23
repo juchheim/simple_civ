@@ -162,6 +162,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             {selectedCity && (
                 <div>
                     <h4>City: {selectedCity.name}</h4>
+                    <p>HP: {selectedCity.hp}/{selectedCity.maxHp}</p>
                     <p>Pop: {selectedCity.pop}</p>
                     <p>Food: {selectedCity.storedFood}</p>
                     <p>Prod: {selectedCity.storedProduction}</p>
@@ -237,9 +238,9 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         </div>
                     )}
 
-                    {isMyTurn && selectedCity.ownerId === playerId && (
+                    {isMyTurn && selectedCity.ownerId === playerId && !selectedCity.isCapital && (
                         <div style={{ marginTop: 8 }}>
-                            <button onClick={handleRazeCity}>Raze City</button>
+                            <button onClick={handleRazeCity} style={{ background: "#ef4444", border: "1px solid #b91c1c" }}>Raze City</button>
                         </div>
                     )}
 

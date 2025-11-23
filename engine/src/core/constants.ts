@@ -35,6 +35,7 @@ export const ATTACK_RANDOM_BAND = [-1, 0, 1];
 export const FORTIFY_DEF_BONUS = 1;
 export const HEAL_FRIENDLY_TILE = 3;
 export const HEAL_FRIENDLY_CITY = 5;
+export const CITY_HEAL_PER_TURN = 2;
 
 // Growth
 export const BASECOST_POP2 = 20;

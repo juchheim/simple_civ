@@ -45,9 +45,11 @@ import {
     SETTLER_COST,
     SETTLER_POP_LOSS_ON_BUILD,
     CITY_WORK_RADIUS_RINGS,
+    BASE_CITY_HP,
     HEAL_FRIENDLY_TILE,
     HEAL_FRIENDLY_CITY,
     CAPTURED_CITY_HP_RESET,
+    CITY_HEAL_PER_TURN,
 } from "../core/constants.js";
 import { isTileAdjacentToRiver } from "../map/rivers.js";
 
@@ -141,6 +143,11 @@ function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: 
     // effectively ignoring terrain cost > 1.
     if (unitStats.move === 1) {
         cost = 1;
+    }
+
+    // Allow moving if we have ANY moves left, consuming all remaining moves if cost > movesLeft
+    if (unit.movesLeft > 0 && unit.movesLeft < cost) {
+        cost = unit.movesLeft;
     }
 
     if (unit.movesLeft < cost) throw new Error("Not enough movement");
@@ -240,6 +247,22 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
         if (dist > attackerStats.rng) throw new Error("Target out of range");
         if (!hasClearLineOfSight(state, attacker.coord, defender.coord)) throw new Error("Line of sight blocked");
 
+        // Settler capture: must be adjacent, captures instead of attacking
+        if (defender.type === UnitType.Settler) {
+            if (dist !== 1) throw new Error("Must be adjacent to capture settler");
+            const defenderCoord = defender.coord;
+            // Capture the settler
+            defender.ownerId = action.playerId;
+            defender.movesLeft = 0;
+            defender.capturedOnTurn = state.turn; // Track when captured
+            // Attacker moves to settler's hex
+            attacker.coord = defenderCoord;
+            attacker.hasAttacked = true;
+            attacker.movesLeft = 0;
+            attacker.state = UnitState.Normal;
+            return state;
+        }
+
         // Combat Math
         // AttackPower = AttackerAttack + random(-1, 0, +1)
         // We need randomness. State should probably have a seed or we pass it in?
@@ -270,8 +293,15 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
         attacker.state = UnitState.Normal; // Unfortify attacker
 
         if (defender.hp <= 0) {
+            const defenderCoord = defender.coord;
             // Destroy
-            state.units = state.units.filter(u => u.id !== defender.id);
+            state.units = state.units.filter((u) => u.id !== defender.id);
+
+            // Melee units (range 1) advance into the hex after killing
+            if (attackerStats.rng === 1 && dist === 1) {
+                attacker.coord = defenderCoord;
+                attacker.movesLeft = 0; // Consume all movement
+            }
         }
     } else {
         // City Attack
@@ -298,6 +328,7 @@ function handleAttack(state: GameState, action: { type: "Attack"; playerId: stri
         const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
 
         city.hp -= damage;
+        city.lastDamagedOnTurn = state.turn;
         attacker.hasAttacked = true;
 
         // Capture Logic (Melee/Cav only)
@@ -708,10 +739,14 @@ function advancePlayerTurn(state: GameState, playerId: string): GameState {
     // Heal resting units before refreshing actions
     healUnitsAtStart(state, playerId);
 
-    // Refresh Units (movement & attack flags)
-    for (const unit of state.units.filter(u => u.ownerId === playerId)) {
+    // 1. Refresh Units (movement & attack flags)
+    for (const unit of state.units.filter((u) => u.ownerId === playerId)) {
         const unitStats = UNITS[unit.type];
-        unit.movesLeft = unitStats.move;
+        // Skip movement refresh for units captured in the previous turn
+        const wasJustCaptured = unit.capturedOnTurn != null && unit.capturedOnTurn > state.turn - 2;
+        if (!wasJustCaptured) {
+            unit.movesLeft = unitStats.move;
+        }
         unit.hasAttacked = false;
         // Preserve Fortified state set at end of previous turn until unit moves/attacks
     }
@@ -735,6 +770,16 @@ function advancePlayerTurn(state: GameState, playerId: string): GameState {
         city.workedTiles = ensureWorkedTiles(city, state);
 
         const yields = getCityYields(city, state);
+
+        // City Healing (only if not attacked in previous turn)
+        const maxHp = city.maxHp || BASE_CITY_HP;
+        const wasRecentlyAttacked = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn > state.turn - 2;
+        if (city.hp < maxHp && !wasRecentlyAttacked) {
+            console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)}`);
+            city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
+            // Ensure maxHp is saved if it was missing
+            if (!city.maxHp) city.maxHp = maxHp;
+        }
 
         // Food / Growth
         city.storedFood += yields.F;

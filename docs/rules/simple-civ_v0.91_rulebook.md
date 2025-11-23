@@ -612,6 +612,10 @@ Friendly tile: +3 HP
 
 Friendly city: +5 HP
 
+2.6.7.1 City Healing
+
+Cities automatically heal 2 HP at the start of their owner's turn, up to their Max HP.
+
 2.7 Technology
 2.7.1 Research Basics
 
