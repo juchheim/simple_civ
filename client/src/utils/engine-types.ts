@@ -123,6 +123,7 @@ export type Unit = {
     movesLeft: number;
     state: UnitState;
     hasAttacked: boolean;
+    capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
 };
 
 export type City = {
@@ -142,6 +143,7 @@ export type City = {
     isCapital: boolean;
     hasFiredThisTurn: boolean;
     milestones: ProjectId[];
+    lastDamagedOnTurn?: number; // Turn when city was last damaged (for healing prevention)
 };
 
 export type Player = {
