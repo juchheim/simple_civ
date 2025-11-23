@@ -123,23 +123,9 @@ const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisi
                     style={{ pointerEvents: "none" }}
                 />
                 <text
-                    x={-40}
+                    x={0}
                     y={-30}
-                    textAnchor="start"
-                    fill="white"
-                    fontSize={20}
-                    style={{
-                        pointerEvents: "none",
-                        fontWeight: "bold",
-                        textShadow: "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000"
-                    }}
-                >
-                    {city.name}
-                </text>
-                <text
-                    x={40}
-                    y={-30}
-                    textAnchor="end"
+                    textAnchor="middle"
                     fill="white"
                     fontSize={24}
                     style={{
@@ -148,7 +134,7 @@ const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisi
                         textShadow: "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000"
                     }}
                 >
-                    {city.pop}
+                    {city.name} {city.pop}
                 </text>
             </g>,
         );

@@ -137,6 +137,12 @@ function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: 
         cost = terrainData.moveCostNaval ?? 999;
     }
 
+    // Special Rule: Units with max movement 1 can always move 1 tile (if passable)
+    // effectively ignoring terrain cost > 1.
+    if (unitStats.move === 1) {
+        cost = 1;
+    }
+
     if (unit.movesLeft < cost) throw new Error("Not enough movement");
 
     // Occupancy check
@@ -570,8 +576,8 @@ function handleAcceptPeace(state: GameState, action: { type: "AcceptPeace"; play
     state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === b && o.to === a && o.type === "Peace"));
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
-        state.diplomacy[a][b] = DiplomacyState.Peace;
-        state.diplomacy[b][a] = DiplomacyState.Peace;
+    state.diplomacy[a][b] = DiplomacyState.Peace;
+    state.diplomacy[b][a] = DiplomacyState.Peace;
     return state;
 }
 
@@ -910,8 +916,8 @@ function disableSharedVision(state: GameState, a: string, b: string) {
 function ensureWar(state: GameState, a: string, b: string) {
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
-        state.diplomacy[a][b] = DiplomacyState.War;
-        state.diplomacy[b][a] = DiplomacyState.War;
+    state.diplomacy[a][b] = DiplomacyState.War;
+    state.diplomacy[b][a] = DiplomacyState.War;
     setContact(state, a, b);
     disableSharedVision(state, a, b);
     state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b) && !(o.from === b && o.to === a));

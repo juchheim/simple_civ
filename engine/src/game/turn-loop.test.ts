@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { applyAction } from "./turn-loop";
 import { generateWorld } from "../map/map-generator";
-import { Action, UnitType, UnitState, PlayerPhase, TechId, BuildingType } from "../core/types";
-import { hexNeighbor } from "../core/hex";
+import { Action, UnitType, UnitState, PlayerPhase, TechId, BuildingType, TerrainType } from "../core/types";
+import { hexNeighbor, hexEquals } from "../core/hex";
 
 describe("Turn Loop & Actions", () => {
     it("should allow moving a unit", () => {
@@ -74,6 +74,8 @@ describe("Turn Loop & Actions", () => {
             hp: 20,
             maxHp: 20,
             isCapital: true,
+            hasFiredThisTurn: false,
+            milestones: [],
         });
         // Force tile yield
         const tile = state.map.tiles.find(t => t.coord.q === 0 && t.coord.r === 0);
@@ -125,5 +127,69 @@ describe("Turn Loop & Actions", () => {
         expect(remainingUnits.length).toBe(initialUnits.length);
         expect(remainingUnits.some(u => u.type === UnitType.Settler)).toBe(true);
         expect(player?.isEliminated).toBe(false);
+    });
+
+    it("should allow 1-move units (Settler) to enter high-cost terrain (Hills)", () => {
+        const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+        const settler = state.units.find(u => u.type === UnitType.Settler && u.ownerId === "p1");
+        expect(settler).toBeDefined();
+
+        const targetCoord = hexNeighbor(settler!.coord, 0);
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, targetCoord));
+        if (tile) tile.terrain = TerrainType.Hills; // Cost 2
+
+        const action: Action = {
+            type: "MoveUnit",
+            playerId: "p1",
+            unitId: settler!.id,
+            to: targetCoord,
+        };
+
+        const nextState = applyAction(state, action);
+        const movedSettler = nextState.units.find(u => u.id === settler!.id);
+        expect(movedSettler!.coord).toEqual(targetCoord);
+        expect(movedSettler!.movesLeft).toBe(0); // 1 - 1 = 0
+    });
+
+    it("should apply movement penalty to >1 move units (Scout) entering high-cost terrain", () => {
+        const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+        const scout = state.units.find(u => u.type === UnitType.Scout && u.ownerId === "p1");
+        expect(scout).toBeDefined();
+
+        const targetCoord = hexNeighbor(scout!.coord, 0);
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, targetCoord));
+        if (tile) tile.terrain = TerrainType.Hills; // Cost 2
+
+        const action: Action = {
+            type: "MoveUnit",
+            playerId: "p1",
+            unitId: scout!.id,
+            to: targetCoord,
+        };
+
+        const nextState = applyAction(state, action);
+        const movedScout = nextState.units.find(u => u.id === scout!.id);
+        expect(movedScout!.coord).toEqual(targetCoord);
+        expect(movedScout!.movesLeft).toBe(0); // 2 - 2 = 0
+    });
+
+    it("should prevent >1 move units from entering high-cost terrain if they lack movement", () => {
+        const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+        const scout = state.units.find(u => u.type === UnitType.Scout && u.ownerId === "p1");
+        expect(scout).toBeDefined();
+        scout!.movesLeft = 1; // Reduce moves to 1
+
+        const targetCoord = hexNeighbor(scout!.coord, 0);
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, targetCoord));
+        if (tile) tile.terrain = TerrainType.Hills; // Cost 2
+
+        const action: Action = {
+            type: "MoveUnit",
+            playerId: "p1",
+            unitId: scout!.id,
+            to: targetCoord,
+        };
+
+        expect(() => applyAction(state, action)).toThrow("Not enough movement");
     });
 });

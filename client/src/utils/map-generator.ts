@@ -544,7 +544,17 @@ export function generateWorld(settings: WorldGenSettings): GameState {
                 id: `u_${p.id}_scout`,
                 type: UnitType.Scout,
                 ownerId: p.id,
-                coord: spot.coord, // Stacked initially? Rulebook says Settler can share with 1 military.
+                coord: (() => {
+                    const neighbors = getNeighbors(spot.coord);
+                    const validNeighbors = neighbors.filter(n => {
+                        const t = getTile(n);
+                        return t && t.terrain !== TerrainType.Mountain && t.terrain !== TerrainType.DeepSea && t.terrain !== TerrainType.Coast;
+                    });
+                    if (validNeighbors.length > 0) {
+                        return rng.choice(validNeighbors);
+                    }
+                    return spot.coord;
+                })(),
                 hp: 10,
                 maxHp: 10,
                 movesLeft: 2,
@@ -559,24 +569,24 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         turn: 1,
         players,
         currentPlayerId: players[0].id,
-    phase: PlayerPhase.StartOfTurn,
-    map: {
-        width,
-        height,
-        tiles,
-        rivers: riverEdges,
-        riverPolylines,
-    },
+        phase: PlayerPhase.StartOfTurn,
+        map: {
+            width,
+            height,
+            tiles,
+            rivers: riverEdges,
+            riverPolylines,
+        },
         units,
-    cities,
-    seed,
-    diplomacy: initDiplomacy(players),
-    sharedVision: initSharedVision(players),
-    contacts: initContacts(players),
-    visibility: initVisibility(players, tiles, units, cities),
-    revealed: initVisibility(players, tiles, units, cities),
-    diplomacyOffers: [],
-};
+        cities,
+        seed,
+        diplomacy: initDiplomacy(players),
+        sharedVision: initSharedVision(players),
+        contacts: initContacts(players),
+        visibility: initVisibility(players, tiles, units, cities),
+        revealed: initVisibility(players, tiles, units, cities),
+        diplomacyOffers: [],
+    };
 
     // Seed contacts if any civs can already see each other at start
     for (const p of players) {
