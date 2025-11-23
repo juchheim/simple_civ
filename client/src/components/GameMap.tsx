@@ -19,6 +19,8 @@ interface GameMapProps {
     selectedCoord: HexCoord | null;
     playerId: string;
     showShroud: boolean;
+    selectedUnitId: string | null;
+    reachableCoords: Set<string>;
 }
 
 type HexTileProps = {
@@ -31,9 +33,10 @@ type HexTileProps = {
     isShroud: boolean;
     isSelected: boolean;
     showShroud: boolean;
+    isReachable: boolean;
 };
 
-const HexTileBase: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, x, y, isVisible, isFogged, isShroud, isSelected, showShroud }) => {
+const HexTileBase: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, x, y, isVisible, isFogged, isShroud, isSelected, showShroud, isReachable }) => {
     if (isShroud && !showShroud) return null;
 
     const color = isVisible
@@ -43,6 +46,8 @@ const HexTileBase: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, x, y,
             : "#050505";
     const fillOpacity = isVisible ? 1 : isFogged ? 0.55 : 0.85;
     const terrainImageUrl = getTerrainImage(tile.terrain);
+    const strokeColor = isSelected ? "white" : isReachable ? "#4ade80" : isShroud ? "#222" : "rgba(0,0,0,0.2)";
+    const strokeWidth = isSelected ? 3 : isReachable ? 2 : 1.25;
 
     return (
         <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}>
@@ -50,18 +55,29 @@ const HexTileBase: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, x, y,
                 <polygon
                     points={hexPoints}
                     fill={`url(#terrain-pattern-${tile.terrain})`}
-                    stroke={isSelected ? "white" : "rgba(0,0,0,0.2)"}
-                    strokeWidth={isSelected ? 3 : 1.25}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
                     opacity={fillOpacity}
                 />
             ) : (
                 <polygon
                     points={hexPoints}
                     fill={color}
-                    stroke={isSelected ? "white" : isShroud ? "#222" : "rgba(0,0,0,0.2)"}
-                    strokeWidth={isSelected ? 3 : 1.25}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
                     strokeDasharray={isShroud ? "4 3" : undefined}
                     opacity={fillOpacity}
+                />
+            )}
+            {isReachable && !isSelected && (
+                <circle
+                    cx={0}
+                    cy={0}
+                    r={HEX_SIZE * 0.4}
+                    fill="rgba(34,197,94,0.18)"
+                    stroke="rgba(74,222,128,0.9)"
+                    strokeWidth={2}
+                    style={{ pointerEvents: "none" }}
                 />
             )}
             {isFogged && (
@@ -92,15 +108,12 @@ type HexTileOverlayProps = {
     x: number;
     y: number;
     isVisible: boolean;
-    unit?: Unit;
     city?: City;
 };
 
-const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisible, unit, city }) => {
+const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisible, city }) => {
     if (!isVisible) return null;
     const overlayElements: React.ReactNode[] = [];
-    const unitImageOffset = UNIT_IMAGE_SIZE / 2;
-
     if (city) {
         const cityLevel = Math.min(city.pop, 7);
         const cityImg = cityImages[cityLevel];
@@ -140,56 +153,83 @@ const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisi
         );
     }
 
-    if (unit) {
-        overlayElements.push(
-            <image
-                key="unit"
-                href={unitImages[unit.type] || ""}
-                x={-unitImageOffset}
-                y={-unitImageOffset}
-                width={UNIT_IMAGE_SIZE}
-                height={UNIT_IMAGE_SIZE}
-                style={{ pointerEvents: "none" }}
-            />,
-        );
-
-        // Health Bar
-        if (unit.type !== UnitType.Settler) {
-            const barWidth = 60;
-            const barHeight = 8;
-            const yOffset = -unitImageOffset - 15; // Above the unit
-            const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
-
-            overlayElements.push(
-                <g key="health-bar">
-                    {/* Background */}
-                    <rect
-                        x={-barWidth / 2}
-                        y={yOffset}
-                        width={barWidth}
-                        height={barHeight}
-                        fill="#333"
-                        stroke="black"
-                        strokeWidth={1}
-                    />
-                    {/* Health */}
-                    <rect
-                        x={-barWidth / 2}
-                        y={yOffset}
-                        width={barWidth * hpPct}
-                        height={barHeight}
-                        fill={hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#eab308" : "#ef4444"} // Green, Yellow, Red
-                    />
-                </g>
-            );
-        }
-    }
-
     if (!overlayElements.length) return null;
 
     return (
         <g transform={`translate(${x},${y})`} style={{ pointerEvents: "none" }}>
             {overlayElements}
+        </g>
+    );
+});
+
+type UnitSpriteProps = {
+    unit: Unit;
+    position: { x: number; y: number };
+    isSelected: boolean;
+    isLinkedPartner: boolean;
+    showLinkIcon: boolean;
+};
+
+const UnitSprite: React.FC<UnitSpriteProps> = React.memo(({ unit, position, isSelected, isLinkedPartner, showLinkIcon }) => {
+    const unitImageOffset = UNIT_IMAGE_SIZE / 2;
+    const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
+
+    return (
+        <g
+            style={{
+                pointerEvents: "none",
+                transform: `translate(${position.x}px, ${position.y}px)`,
+                transition: "transform 200ms linear",
+            }}
+        >
+            {(isSelected || isLinkedPartner) && (
+                <circle
+                    cx={0}
+                    cy={0}
+                    r={HEX_SIZE * 0.75}
+                    stroke={isSelected ? "#facc15" : "#38bdf8"}
+                    strokeWidth={4}
+                    fill="none"
+                    strokeDasharray={isLinkedPartner && !isSelected ? "6 4" : undefined}
+                />
+            )}
+
+            <image
+                href={unitImages[unit.type] || ""}
+                x={-unitImageOffset}
+                y={-unitImageOffset}
+                width={UNIT_IMAGE_SIZE}
+                height={UNIT_IMAGE_SIZE}
+            />
+
+            {showLinkIcon && (
+                <g transform={`translate(${unitImageOffset * 0.45}, ${-unitImageOffset * 0.6})`}>
+                    <circle cx={0} cy={0} r={9} stroke="#fef3c7" strokeWidth={2} fill="rgba(17,24,39,0.75)" />
+                    <circle cx={12} cy={6} r={9} stroke="#bfdbfe" strokeWidth={2} fill="rgba(17,24,39,0.9)" />
+                    <path d="M-4,0 L16,10" stroke="#fef3c7" strokeWidth={2} />
+                </g>
+            )}
+
+            {unit.type !== UnitType.Settler && (
+                <g>
+                    <rect
+                        x={-30}
+                        y={-unitImageOffset - 15}
+                        width={60}
+                        height={8}
+                        fill="#333"
+                        stroke="black"
+                        strokeWidth={1}
+                    />
+                    <rect
+                        x={-30}
+                        y={-unitImageOffset - 15}
+                        width={60 * hpPct}
+                        height={8}
+                        fill={hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#eab308" : "#ef4444"}
+                    />
+                </g>
+            )}
         </g>
     );
 });
@@ -241,8 +281,9 @@ function squaredDistance(a: { x: number; y: number }, b: { x: number; y: number 
     return dx * dx + dy * dy;
 }
 
-export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud }) => {
+export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords }) => {
     const { map, units, cities } = gameState;
+    const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
     const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState.visibility, playerId]);
     const revealedSet = useMemo(() => new Set(gameState.revealed?.[playerId] ?? []), [gameState.revealed, playerId]);
     const tileVisibility = useMemo(() => {
@@ -443,12 +484,6 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         setClickTarget(null);
     }, [isPanning, clickTarget, onTileClick]);
 
-    const unitsByCoord = useMemo(() => {
-        const coordMap = new Map<string, Unit>();
-        units.forEach(u => coordMap.set(`${u.coord.q},${u.coord.r}`, u));
-        return coordMap;
-    }, [units]);
-
     const citiesByCoord = useMemo(() => {
         const coordMap = new Map<string, City>();
         cities.forEach(c => coordMap.set(`${c.coord.q},${c.coord.r}`, c));
@@ -461,9 +496,9 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
             const visibility = tileVisibility.get(key) ?? { isVisible: false, isFogged: false, isShroud: true };
             const { x, y } = hexToPixel(tile.coord);
             const isSelected = !!(selectedCoord && tile.coord.q === selectedCoord.q && tile.coord.r === selectedCoord.r);
-            const unit = unitsByCoord.get(key);
             const city = citiesByCoord.get(key);
 
+            const isReachable = reachableCoords.has(key);
             return {
                 key,
                 base: (
@@ -478,6 +513,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                         isShroud={visibility.isShroud}
                         isSelected={isSelected}
                         showShroud={showShroud}
+                        isReachable={isReachable}
                     />
                 ),
                 overlay: (
@@ -486,13 +522,34 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                         x={x}
                         y={y}
                         isVisible={visibility.isVisible}
-                        unit={unit}
                         city={city}
                     />
                 ),
             };
         });
-    }, [map.tiles, tileVisibility, selectedCoord, showShroud, unitsByCoord, citiesByCoord, hexToPixel]);
+    }, [map.tiles, tileVisibility, selectedCoord, showShroud, citiesByCoord, hexToPixel, reachableCoords]);
+
+    const unitSprites = useMemo(() => {
+        const linkedPartnerId = selectedUnit?.linkedUnitId ?? null;
+        return units
+            .filter(unit => {
+                const key = `${unit.coord.q},${unit.coord.r}`;
+                return tileVisibility.get(key)?.isVisible;
+            })
+            .map(unit => {
+                const position = hexToPixel(unit.coord);
+                return (
+                    <UnitSprite
+                        key={unit.id}
+                        unit={unit}
+                        position={position}
+                        isSelected={selectedUnitId === unit.id}
+                        isLinkedPartner={linkedPartnerId === unit.id}
+                        showLinkIcon={!!unit.linkedUnitId}
+                    />
+                );
+            });
+    }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility]);
 
     useEffect(() => {
         if (map.riverPolylines && map.riverPolylines.length) {
@@ -702,6 +759,9 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                         })}
                     </g>
                     {renderedTiles.map(tile => tile.overlay)}
+                    <g style={{ pointerEvents: "none" }}>
+                        {unitSprites}
+                    </g>
                 </g>
             </svg>
         </div>

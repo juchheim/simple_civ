@@ -58,12 +58,59 @@ function bestNearbyTiles(tile: Tile, state: GameState | { map: { tiles: Tile[] }
     return scored.slice(0, count).map(s => s.t);
 }
 
-export function scoreCitySite(tile: Tile, state: GameState | { map: { tiles: Tile[] } }): number {
+/**
+ * Calculate distance penalty for city sites based on proximity to existing friendly cities.
+ * Penalizes sites that are too close (<4 tiles) or too far (>8 tiles) from existing cities.
+ */
+function cityDistancePenalty(
+    tile: Tile,
+    state: GameState | { map: { tiles: Tile[] } },
+    playerId?: string
+): number {
+    // Need access to cities - only works with full GameState
+    if (!('cities' in state)) return 0;
+
+    const gameState = state as GameState;
+
+    // Find all friendly cities (same player)
+    const friendlyCities = gameState.cities.filter(c => playerId ? c.ownerId === playerId : true);
+
+    // No penalty for first city
+    if (friendlyCities.length === 0) return 0;
+
+    // Find distance to nearest friendly city
+    let minDistance = Infinity;
+    for (const city of friendlyCities) {
+        const dist = hexDistance(tile.coord, city.coord);
+        if (dist < minDistance) {
+            minDistance = dist;
+        }
+    }
+
+    // Apply penalties based on distance
+    if (minDistance < 4) {
+        // Too close - cities will compete for tiles
+        return -10;
+    } else if (minDistance > 8) {
+        // Too far - harder to defend and support
+        return -5;
+    }
+
+    // Sweet spot: 4-8 tiles away
+    return 0;
+}
+
+export function scoreCitySite(
+    tile: Tile,
+    state: GameState | { map: { tiles: Tile[] } },
+    playerId?: string
+): number {
     const centerY = tileValue(tile, state, true);
     const best3 = bestNearbyTiles(tile, state, 3).reduce((s, t) => s + tileValue(t, state, false), 0);
     const riverBonus = isRiverCity(tile, state) ? 1 : 0;
     const overlayBonus = countNearbyOverlays(tile, state, 2);
-    return centerY + best3 + riverBonus + overlayBonus;
+    const distancePenalty = cityDistancePenalty(tile, state, playerId);
+    return centerY + best3 + riverBonus + overlayBonus + distancePenalty;
 }
 
 export function tileWorkingPriority(goal: AiVictoryGoal, city: City, state: GameState): YieldKey[] {

@@ -1,4 +1,4 @@
-## Doc Drift Report (v0.91)
+## Doc Drift Report (v0.92)
 
 - Scope: mismatches between the shipped code and the rules/spec docs in `docs/`.
 

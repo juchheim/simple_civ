@@ -1,4 +1,4 @@
-# Implementation Status - v0.91 codebase
+# Implementation Status - v0.92 codebase
 
 Last Updated: 2025-11-21
 

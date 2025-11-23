@@ -34,15 +34,15 @@ describe("Movement Logic", () => {
         };
     });
 
-    it("should allow a Scout with 1 move left to enter Forest (cost 2)", () => {
+    it("should allow a Settler with 1 move (max) to enter Forest (cost 2)", () => {
         state.units.push({
             id: "u1",
-            type: UnitType.Scout, // Move 2
+            type: UnitType.Settler, // Move 1 but ignores terrain penalties
             ownerId: "p1",
             coord: { q: 0, r: 0 },
             hp: 10,
             maxHp: 10,
-            movesLeft: 1, // Only 1 left
+            movesLeft: 1,
             state: UnitState.Normal,
             hasAttacked: false,
         });

@@ -1,4 +1,4 @@
-SIMPLE CIV — v0.91 RULEBOOK / DESIGN DOC
+SIMPLE CIV — v0.92 RULEBOOK / DESIGN DOC
 Table of Contents
 
 Vision & Design Pillars
@@ -915,7 +915,7 @@ At least one valid settlement tile within 1 tile.
 Starting Settlers must be at least 6 tiles apart (hex distance).
 If a start fails guarantees, regenerate that start zone until it passes (max 50 tries, then best-available by site score).
 
-4. Rules Priority (v0.91)
+4. Rules Priority (v0.92)
 
 If two rules conflict, resolve by priority:
 
@@ -933,7 +933,7 @@ Reference appendix + glossary
 
 If still unclear, the digital version follows the reference appendix.
 
-5. State Indicators (v0.91)
+5. State Indicators (v0.92)
 
 These are official game states the engine/UI may surface:
 
@@ -949,7 +949,7 @@ Milestone Complete — a Progress step finished by a civ.
 
 Eliminated — civ has 0 cities at end of round.
 
-6. UI Standards (v0.91)
+6. UI Standards (v0.92)
 
 6.1 Yield & Stat Icons
 
@@ -963,7 +963,7 @@ HP: red bar.
 
 Defense Strength: shield number on unit/city panel.
 
-6.2 Map Controls (v0.91)
+6.2 Map Controls (v0.92)
 
 The map view supports interactive navigation:
 
@@ -985,7 +985,7 @@ Planning Phase = builds/tech/tiles selection only.
 
 Action Phase = movement/attacks only.
 
-7. AI / Engine Hooks Appendix (v0.91, non-player)
+7. AI / Engine Hooks Appendix (v0.92, non-player)
 7.1 City Site Scoring (minimum AI)
 
 Score candidate tile:

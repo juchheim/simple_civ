@@ -14,3 +14,4 @@
 - Wired a `unitImages` asset map in the client, swapped unit circles for Settler PNG sprites, and staged a placeholder Settler image plus slot comments for future asset expansion.
 - Rivers now use the `map.rivers` edge graph with helpers for adjacency; generator biases rivers downhill toward coasts using elevation/water-distance heuristics, and the client renders connected river segments instead of per-tile dots (overlay fallback kept for legacy saves).
 - Rivers must be solved in the engine; client-side reconstruction attempts are unreliable. Always emit final river geometry from engine outputs.
+- Implemented Unit Linking: optional `linkedUnitId` on units, new Link/Unlink actions, slower-unit pacing with auto-unlink when separated, UI controls + chain icon/highlight, and coverage tests to keep engine/client behavior aligned.

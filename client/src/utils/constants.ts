@@ -10,7 +10,7 @@ import {
     OverlayType,
 } from "./engine-types";
 
-export const GAME_VERSION = "0.91";
+export const GAME_VERSION = "0.92";
 export const MAX_PLAYERS = 4;
 
 // Yields

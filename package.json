@@ -1,6 +1,6 @@
 {
-  "name": "simple-civ-v0.91",
-  "version": "0.91.0",
+  "name": "simple-civ-v0.92",
+  "version": "0.92.0",
   "private": true,
   "workspaces": [
     "engine",

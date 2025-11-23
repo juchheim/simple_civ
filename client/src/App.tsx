@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { GameState, Action, HexCoord, TechId } from "@simple-civ/engine";
 import { applyAction } from "./utils/turn-loop";
 import { generateWorld } from "./utils/map-generator";
-import { hexEquals, hexDistance } from "./utils/hex";
+import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { runAiTurn } from "./utils/ai";
 import { UNITS } from "./utils/constants";
 
@@ -43,20 +43,47 @@ function App() {
         }
     }, []);
 
-    const handleAction = (action: Action) => {
-        if (!gameState) return;
+    const reachablePaths = useMemo(() => {
+        if (!gameState || !selectedUnitId) return {};
+        const selectedUnit = gameState.units.find(u => u.id === selectedUnitId);
+        if (!selectedUnit || selectedUnit.ownerId !== playerId || selectedUnit.movesLeft <= 0) {
+            return {};
+        }
         try {
-            const nextState = applyAction(gameState, action);
-            setGameState(nextState);
+            return computeReachablePaths(gameState, playerId, selectedUnitId);
+        } catch (err) {
+            console.warn("[Movement] failed to compute reachable tiles", err);
+            return {};
+        }
+    }, [gameState, playerId, selectedUnitId]);
 
+    const reachableCoordSet = useMemo(() => new Set(Object.keys(reachablePaths)), [reachablePaths]);
+
+    const syncState = (nextState: GameState) => {
+        setGameState(nextState);
+        setPlayerId(prev => {
             const nextPlayer = nextState.players.find(p => p.id === nextState.currentPlayerId);
-            if (nextPlayer && !nextPlayer.isAI && nextState.currentPlayerId !== playerId) {
-                setPlayerId(nextState.currentPlayerId);
+            if (nextPlayer && !nextPlayer.isAI && nextState.currentPlayerId !== prev) {
+                return nextState.currentPlayerId;
             }
+            return prev;
+        });
+    };
+
+    const runActions = (actions: Action[]) => {
+        if (!gameState || actions.length === 0) return;
+        try {
+            let nextState = gameState;
+            for (const action of actions) {
+                nextState = applyAction(nextState, action);
+            }
+            syncState(nextState);
         } catch (e: any) {
             alert(e.message);
         }
     };
+
+    const handleAction = (action: Action) => runActions([action]);
 
     const handleChooseTech = (techId: TechId) => {
         handleAction({ type: "ChooseTech", playerId, techId });
@@ -90,7 +117,7 @@ function App() {
 
                 // Check for enemy city attack
                 const targetCity = gameState.cities.find(c => hexEquals(c.coord, coord));
-                if (targetCity && targetCity.ownerId !== playerId) {
+                if (targetCity && targetCity.ownerId !== playerId && targetCity.hp > 0) {
                     const unitStats = UNITS[unit.type];
                     const dist = hexDistance(unit.coord, coord);
                     if (dist <= unitStats.rng) {
@@ -107,25 +134,38 @@ function App() {
                     }
                 }
 
-                // Move
-                // Only if not clicking self
-                if (!hexEquals(coord, selectedCoord)) {
-                    handleAction({
+                const coordKey = hexToString(coord);
+                const plannedInfo = reachablePaths[coordKey];
+                const plannedPath = plannedInfo?.path;
+                if (plannedPath && plannedPath.length > 0) {
+                    runActions(plannedPath.map((step: HexCoord) => ({
                         type: "MoveUnit",
                         playerId,
                         unitId: unit.id,
-                        to: coord
-                    });
-                    setSelectedCoord(null); // Deselect after move
-                    setSelectedUnitId(null);
+                        to: step,
+                    })));
+                    setSelectedCoord(coord);
+                    setSelectedUnitId(unit.id);
                     return;
                 }
             }
         }
 
-        // Select - set coord and clear unit selection (HUD will handle unit selection)
+        // Select tile and auto-select a friendly unit (prefer linked pairs)
         setSelectedCoord(coord);
-        setSelectedUnitId(null);
+        const friendlyUnits = gameState.units.filter(
+            u => u.ownerId === playerId && hexEquals(u.coord, coord),
+        );
+        if (friendlyUnits.length === 0) {
+            setSelectedUnitId(null);
+            return;
+        }
+
+        // Prefer a unit that is linked with another unit on the tile
+        const linkedUnit = friendlyUnits.find(u =>
+            u.linkedUnitId && friendlyUnits.some(partner => partner.id === u.linkedUnitId),
+        );
+        setSelectedUnitId(linkedUnit?.id ?? friendlyUnits[0].id);
     };
 
     // Autoskip AI turns
@@ -189,6 +229,8 @@ function App() {
                 selectedCoord={selectedCoord}
                 playerId={playerId}
                 showShroud={showShroud}
+                selectedUnitId={selectedUnitId}
+                reachableCoords={reachableCoordSet}
             />
             <div style={{ position: "absolute", top: 10, left: 10, padding: "10px 12px", background: "rgba(0,0,0,0.65)", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1.4, minWidth: 200 }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>Vision Key</div>
@@ -226,3 +268,72 @@ function App() {
 }
 
 export default App;
+
+type PathInfo = { path: HexCoord[]; movesLeft: number };
+type PathMap = Record<string, PathInfo>;
+
+function computeReachablePaths(state: GameState, playerId: string, unitId: string): PathMap {
+    const unit = state.units.find(u => u.id === unitId);
+    if (!unit || unit.ownerId !== playerId || unit.movesLeft <= 0) {
+        return {};
+    }
+
+    const results: PathMap = {};
+    type QueueNode = { state: GameState; path: HexCoord[] };
+    const queue: QueueNode[] = [{ state, path: [] }];
+    const bestStateSeen = new Map<string, number>();
+
+    while (queue.length) {
+        const node = queue.shift()!;
+        const currentUnit = node.state.units.find(u => u.id === unitId);
+        if (!currentUnit) {
+            continue;
+        }
+        const partner = currentUnit.linkedUnitId
+            ? node.state.units.find(u => u.id === currentUnit.linkedUnitId)
+            : undefined;
+        const signature = serializeUnitState(currentUnit, partner);
+        const prevBest = bestStateSeen.get(signature);
+        if (prevBest !== undefined && prevBest >= currentUnit.movesLeft) {
+            continue;
+        }
+        bestStateSeen.set(signature, currentUnit.movesLeft);
+
+        if (node.path.length > 0) {
+            const key = hexToString(currentUnit.coord);
+            const existing = results[key];
+            if (!existing || existing.movesLeft < currentUnit.movesLeft) {
+                results[key] = { path: [...node.path], movesLeft: currentUnit.movesLeft };
+            }
+        }
+
+        if (currentUnit.movesLeft <= 0) {
+            continue;
+        }
+
+        for (const neighbor of getNeighbors(currentUnit.coord)) {
+            try {
+                const nextState = applyAction(node.state, {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId,
+                    to: neighbor,
+                });
+                queue.push({
+                    state: nextState,
+                    path: [...node.path, neighbor],
+                });
+            } catch {
+                // Ignore invalid moves
+            }
+        }
+    }
+
+    return results;
+}
+
+function serializeUnitState(unit: GameState["units"][number], partner?: GameState["units"][number]) {
+    const base = `${unit.id}:${unit.coord.q},${unit.coord.r}:${unit.movesLeft}`;
+    if (!partner) return base;
+    return `${base}|${partner.id}:${partner.coord.q},${partner.coord.r}:${partner.movesLeft}`;
+}

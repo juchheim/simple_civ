@@ -123,6 +123,7 @@ export type Unit = {
     movesLeft: number;
     state: UnitState;
     hasAttacked: boolean;
+    linkedUnitId?: string;
     capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
 };
 
@@ -220,6 +221,8 @@ export type MapSize = "Small" | "Standard" | "Large";
 export type Action =
     | { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord }
     | { type: "Attack"; playerId: string; attackerId: string; targetId: string; targetType: "Unit" | "City" }
+    | { type: "LinkUnits"; playerId: string; unitId: string; partnerId: string }
+    | { type: "UnlinkUnits"; playerId: string; unitId: string; partnerId?: string }
     | { type: "FoundCity"; playerId: string; unitId: string; name: string }
     | { type: "ChooseTech"; playerId: string; techId: TechId }
     | { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string }

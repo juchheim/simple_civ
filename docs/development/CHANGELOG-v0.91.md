@@ -43,3 +43,28 @@
 - Game version constant updated to "0.91"
 - Documentation references updated to v0.91
 
+## Unit Linking & Movement UX
+
+### Added
+- **Unit Linking System** (`engine/src/core/types.ts`, `engine/src/game/turn-loop.ts`, `client/src/utils/engine-types.ts`, `client/src/utils/turn-loop.ts`)
+  - Units now expose an optional `linkedUnitId` so two friendly units on the same hex can be paired.
+  - New `LinkUnits`/`UnlinkUnits` actions validate ownership, co-location, and combat state before toggling the relationship.
+  - Engine and client reducers keep both units synchronized, auto-move the partner with the slower move stat, and unlink when blocked or separated.
+- **HUD Controls** (`client/src/components/HUD.tsx`)
+  - Link/Unlink buttons appear when the selected unit meets the requirements, showing the current partner for quick reference.
+  - Tooling prefers already-linked units when auto-selecting from a stacked tile to reduce extra clicks.
+
+### Changed
+- **Movement Flow** (`client/src/App.tsx`, `client/src/components/GameMap.tsx`)
+  - Path preview now enumerates every reachable hex within the unit’s remaining movement and renders green highlights on the map.
+  - Clicking any highlighted hex issues the entire sequence of `MoveUnit` actions, enabling multi-hex moves in a single click.
+  - Destination selection respects capture rules so empty enemy cities (HP ≤ 0) can be entered directly once defenses fall.
+- **Visual Feedback**
+  - Unit sprites now animate between tiles using lightweight transform transitions instead of teleporting.
+  - Linked partners display glow rings plus a chain icon, and unit highlights update live while moving.
+  - Sprites render only on tiles that are currently visible, keeping hidden enemy units under fog.
+
+### Testing
+- `npm test -w engine`
+- `npm run build -w client`
+

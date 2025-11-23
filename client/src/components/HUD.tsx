@@ -33,6 +33,27 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         ? units.find(u => u.id === selectedUnitId)
         : null;
 
+    const linkedPartner = selectedUnit?.linkedUnitId
+        ? units.find(u => u.id === selectedUnit.linkedUnitId)
+        : null;
+
+    const linkCandidate = selectedUnit
+        ? unitsOnTile.find(u => u.id !== selectedUnit.id && !u.linkedUnitId)
+        : undefined;
+
+    const canLinkUnits =
+        isMyTurn &&
+        !!selectedUnit &&
+        !!linkCandidate &&
+        !selectedUnit.linkedUnitId &&
+        !selectedUnit.hasAttacked &&
+        !linkCandidate.hasAttacked;
+
+    const canUnlinkUnits =
+        isMyTurn &&
+        !!selectedUnit?.linkedUnitId &&
+        (!linkedPartner || linkedPartner.ownerId === playerId);
+
     const selectedCity = selectedCoord
         ? cities.find(c => c.coord.q === selectedCoord.q && c.coord.r === selectedCoord.r)
         : null;
@@ -44,6 +65,16 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
 
     const handleEndTurn = () => {
         onAction({ type: "EndTurn", playerId });
+    };
+
+    const handleLinkUnits = () => {
+        if (!selectedUnit || !linkCandidate) return;
+        onAction({ type: "LinkUnits", playerId, unitId: selectedUnit.id, partnerId: linkCandidate.id });
+    };
+
+    const handleUnlinkUnits = () => {
+        if (!selectedUnit || !selectedUnit.linkedUnitId) return;
+        onAction({ type: "UnlinkUnits", playerId, unitId: selectedUnit.id, partnerId: selectedUnit.linkedUnitId });
     };
 
     const handleFoundCity = () => {
@@ -153,6 +184,19 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                     <h4>Unit: {selectedUnit.type}</h4>
                     <p>Moves: {selectedUnit.movesLeft}</p>
                     <p>HP: {selectedUnit.hp}</p>
+                    {linkedPartner && (
+                        <p style={{ fontSize: 12, color: "#c6ddff" }}>
+                            Linked with {linkedPartner.type}
+                        </p>
+                    )}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                        <button onClick={handleLinkUnits} disabled={!canLinkUnits}>
+                            Link
+                        </button>
+                        <button onClick={handleUnlinkUnits} disabled={!canUnlinkUnits}>
+                            Unlink
+                        </button>
+                    </div>
                     {selectedUnit.type === "Settler" && isMyTurn && (
                         <button onClick={handleFoundCity}>Found City</button>
                     )}

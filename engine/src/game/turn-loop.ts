@@ -9,7 +9,9 @@ import {
     ProjectId,
     TechId,
     TerrainType,
+    Tile,
     Unit,
+    UnitDomain,
     UnitState,
     UnitType,
     Yields,
@@ -51,6 +53,7 @@ import {
     CAPTURED_CITY_HP_RESET,
     CITY_HEAL_PER_TURN,
 } from "../core/constants.js";
+import type { UnitStats } from "../core/constants.js";
 import { isTileAdjacentToRiver } from "../map/rivers.js";
 
 // --- Action Handlers ---
@@ -66,40 +69,67 @@ export function applyAction(state: GameState, action: Action): GameState {
         throw new Error("Not your turn");
     }
 
+    let updatedState: GameState;
+
     switch (action.type) {
         case "MoveUnit":
-            return handleMoveUnit(nextState, action);
+            updatedState = handleMoveUnit(nextState, action);
+            break;
         case "Attack":
-            return handleAttack(nextState, action);
+            updatedState = handleAttack(nextState, action);
+            break;
         case "CityAttack":
-            return handleCityAttack(nextState, action);
+            updatedState = handleCityAttack(nextState, action);
+            break;
         case "FoundCity":
-            return handleFoundCity(nextState, action);
+            updatedState = handleFoundCity(nextState, action);
+            break;
         case "ChooseTech":
-            return handleChooseTech(nextState, action);
+            updatedState = handleChooseTech(nextState, action);
+            break;
         case "SetCityBuild":
-            return handleSetCityBuild(nextState, action);
+            updatedState = handleSetCityBuild(nextState, action);
+            break;
         case "RazeCity":
-            return handleRazeCity(nextState, action);
+            updatedState = handleRazeCity(nextState, action);
+            break;
         case "SetWorkedTiles":
-            return handleSetWorkedTiles(nextState, action);
+            updatedState = handleSetWorkedTiles(nextState, action);
+            break;
         case "SetDiplomacy":
-            return handleSetDiplomacy(nextState, action);
+            updatedState = handleSetDiplomacy(nextState, action);
+            break;
         case "ProposePeace":
-            return handleProposePeace(nextState, action);
+            updatedState = handleProposePeace(nextState, action);
+            break;
         case "AcceptPeace":
-            return handleAcceptPeace(nextState, action);
+            updatedState = handleAcceptPeace(nextState, action);
+            break;
         case "ProposeVisionShare":
-            return handleProposeVisionShare(nextState, action);
+            updatedState = handleProposeVisionShare(nextState, action);
+            break;
         case "AcceptVisionShare":
-            return handleAcceptVisionShare(nextState, action);
+            updatedState = handleAcceptVisionShare(nextState, action);
+            break;
         case "RevokeVisionShare":
-            return handleRevokeVisionShare(nextState, action);
+            updatedState = handleRevokeVisionShare(nextState, action);
+            break;
+        case "LinkUnits":
+            updatedState = handleLinkUnits(nextState, action);
+            break;
+        case "UnlinkUnits":
+            updatedState = handleUnlinkUnits(nextState, action);
+            break;
         case "EndTurn":
-            return handleEndTurn(nextState, action);
+            updatedState = handleEndTurn(nextState, action);
+            break;
         default:
-            return nextState;
+            updatedState = nextState;
+            break;
     }
+
+    enforceLinkedUnitIntegrity(updatedState);
+    return updatedState;
 }
 
 function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord }): GameState {
@@ -108,90 +138,180 @@ function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: 
     if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
     if (unit.movesLeft <= 0) throw new Error("No moves left");
 
-    // Distance check (1 tile at a time for now, or pathfinding)
-    // For MVP, only allow adjacent moves.
     const dist = hexDistance(unit.coord, action.to);
     if (dist !== 1) throw new Error("Can only move 1 tile at a time");
 
-    // Terrain check
     const targetTile = state.map.tiles.find((t) => hexEquals(t.coord, action.to));
     if (!targetTile) throw new Error("Invalid target tile");
 
-    const terrainData = TERRAIN[targetTile.terrain];
+    const moveContext = createMoveContext(unit, targetTile);
 
-    // Domain check
-    const unitStats = UNITS[unit.type];
-    if (unitStats.domain === "Land" && (targetTile.terrain === TerrainType.Coast || targetTile.terrain === TerrainType.DeepSea)) {
+    let partner = resolveLinkedPartner(state, unit);
+    let partnerContext: MoveContext | null = null;
+    let partnerWillMove = false;
+
+    if (partner) {
+        try {
+            partnerContext = createMoveContext(partner, targetTile);
+            validateTileOccupancy(state, action.to, [
+                { unit, stats: moveContext.stats },
+                { unit: partner, stats: partnerContext.stats },
+            ], action.playerId);
+            partnerWillMove = true;
+        } catch (err) {
+            unlinkPair(unit, partner);
+            partner = undefined;
+            partnerContext = null;
+        }
+    }
+
+    if (!partnerWillMove) {
+        validateTileOccupancy(state, action.to, [{ unit, stats: moveContext.stats }], action.playerId);
+    }
+
+    executeUnitMove(state, unit, moveContext, action.to, action.playerId);
+
+    if (partnerWillMove && partner && partnerContext) {
+        try {
+            executeUnitMove(state, partner, partnerContext, action.to, action.playerId);
+            const sharedMoves = Math.min(unit.movesLeft, partner.movesLeft);
+            unit.movesLeft = sharedMoves;
+            partner.movesLeft = sharedMoves;
+        } catch (err) {
+            unlinkPair(unit, partner);
+        }
+    }
+
+    refreshPlayerVision(state, action.playerId);
+
+    return state;
+}
+
+function handleLinkUnits(state: GameState, action: { type: "LinkUnits"; playerId: string; unitId: string; partnerId: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    const partner = state.units.find(u => u.id === action.partnerId);
+    if (!unit || !partner) throw new Error("Unit not found");
+    if (unit.id === partner.id) throw new Error("Cannot link unit to itself");
+    if (unit.ownerId !== action.playerId || partner.ownerId !== action.playerId) throw new Error("Not your unit");
+    if (!hexEquals(unit.coord, partner.coord)) throw new Error("Units must share a tile to link");
+    if (unit.linkedUnitId || partner.linkedUnitId) throw new Error("Units already linked");
+    if (unit.hasAttacked || partner.hasAttacked) throw new Error("Units are combat-engaged");
+
+    unit.linkedUnitId = partner.id;
+    partner.linkedUnitId = unit.id;
+    return state;
+}
+
+function handleUnlinkUnits(state: GameState, action: { type: "UnlinkUnits"; playerId: string; unitId: string; partnerId?: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    if (!unit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
+    if (!unit.linkedUnitId) throw new Error("Unit is not linked");
+
+    const partner = state.units.find(u => u.id === unit.linkedUnitId);
+    if (partner && partner.ownerId !== action.playerId) throw new Error("Not your unit");
+    if (action.partnerId && partner && partner.id !== action.partnerId) throw new Error("Partner mismatch");
+
+    unlinkPair(unit, partner);
+    return state;
+}
+
+type MoveContext = {
+    stats: UnitStats;
+    cost: number;
+    isMilitary: boolean;
+};
+
+type MoveParticipant = {
+    unit: Unit;
+    stats: UnitStats;
+};
+
+function createMoveContext(unit: Unit, targetTile: Tile): MoveContext {
+    const stats = UNITS[unit.type];
+    ensureTerrainEntry(stats, targetTile);
+    const cost = computeMoveCost(unit, stats, targetTile);
+    return {
+        stats,
+        cost,
+        isMilitary: stats.domain !== UnitDomain.Civilian,
+    };
+}
+
+function ensureTerrainEntry(unitStats: UnitStats, targetTile: Tile) {
+    if (unitStats.domain === UnitDomain.Land && (targetTile.terrain === TerrainType.Coast || targetTile.terrain === TerrainType.DeepSea)) {
         throw new Error("Land units cannot enter water");
     }
-    if (unitStats.domain === "Naval" && (targetTile.terrain !== TerrainType.Coast && targetTile.terrain !== TerrainType.DeepSea)) {
-        // Exception: Can enter city?
-        // Rulebook 2.6.2: "Naval units may not enter land tiles (including city tiles)."
+    if (unitStats.domain === UnitDomain.Naval && (targetTile.terrain !== TerrainType.Coast && targetTile.terrain !== TerrainType.DeepSea)) {
         throw new Error("Naval units cannot enter land");
     }
-    if (targetTile.terrain === TerrainType.Mountain) throw new Error("Impassable terrain");
+    if (targetTile.terrain === TerrainType.Mountain) {
+        throw new Error("Impassable terrain");
+    }
+}
 
-    // Move Cost
+function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Tile): number {
+    if (unit.movesLeft <= 0) throw new Error("No moves left");
+
+    const terrainData = TERRAIN[targetTile.terrain];
     let cost = 1;
-    if (unitStats.domain === "Land") {
+    if (unitStats.domain === UnitDomain.Land) {
         cost = terrainData.moveCostLand ?? 999;
-    } else if (unitStats.domain === "Naval") {
+    } else if (unitStats.domain === UnitDomain.Naval) {
         cost = terrainData.moveCostNaval ?? 999;
     }
 
-    // Special Rule: Units with max movement 1 can always move 1 tile (if passable)
-    // effectively ignoring terrain cost > 1.
     if (unitStats.move === 1) {
         cost = 1;
     }
 
-    // Allow moving if we have ANY moves left, consuming all remaining moves if cost > movesLeft
-    if (unit.movesLeft > 0 && unit.movesLeft < cost) {
-        cost = unit.movesLeft;
+    if (unit.movesLeft < cost) {
+        throw new Error("Not enough movement");
     }
 
-    if (unit.movesLeft < cost) throw new Error("Not enough movement");
+    return cost;
+}
 
-    // Occupancy check
-    // "1 military unit per tile. Settlers may share with 1 friendly military."
-    const unitsOnTile = state.units.filter(u => hexEquals(u.coord, action.to));
-    const isMilitary = unitStats.domain !== "Civilian";
+function validateTileOccupancy(state: GameState, target: HexCoord, movers: MoveParticipant[], playerId: string) {
+    const unitsOnTile = state.units.filter(u => hexEquals(u.coord, target));
+    let friendlyMilitaryOnTile = unitsOnTile.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== UnitDomain.Civilian).length;
+    let friendlyCivilianOnTile = unitsOnTile.filter(u => u.ownerId === playerId && UNITS[u.type].domain === UnitDomain.Civilian).length;
+    const enemyUnitsOnTile = unitsOnTile.filter(u => u.ownerId !== playerId);
 
-    if (isMilitary) {
-        const hasMilitary = unitsOnTile.some(u => UNITS[u.type].domain !== "Civilian");
-        if (hasMilitary) throw new Error("Tile occupied by military unit");
-        // Enemy civilian? Capture logic is in Attack/Move?
-        // "Capturing Settlers: ... by an enemy military unit entering the tile."
-        // So we can enter if only enemy civilian is there.
-    } else {
-        // Civilian (Settler)
-        // Can share with 1 friendly military.
-        // Cannot share with another civilian? Rule doesn't explicitly say, but usually 1 civilian.
-        // Let's assume 1 civilian max.
-        const hasCivilian = unitsOnTile.some(u => UNITS[u.type].domain === "Civilian");
-        if (hasCivilian) throw new Error("Tile occupied by civilian unit");
+    const hasEnemyMilitary = enemyUnitsOnTile.some(u => UNITS[u.type].domain !== UnitDomain.Civilian);
+    const hasEnemyUnit = enemyUnitsOnTile.length > 0;
 
-        // Cannot enter enemy unit tile (blocked)
-        const hasEnemy = unitsOnTile.some(u => u.ownerId !== action.playerId);
-        if (hasEnemy) throw new Error("Cannot enter enemy tile");
+    for (const mover of movers) {
+        const isMilitary = mover.stats.domain !== UnitDomain.Civilian;
+        if (isMilitary) {
+            if (hasEnemyMilitary) throw new Error("Tile occupied by military unit");
+            if (friendlyMilitaryOnTile > 0) throw new Error("Tile occupied by military unit");
+            friendlyMilitaryOnTile += 1;
+        } else {
+            if (friendlyCivilianOnTile > 0) throw new Error("Tile occupied by civilian unit");
+            if (hasEnemyUnit) throw new Error("Cannot enter enemy tile");
+            friendlyCivilianOnTile += 1;
+        }
     }
+}
 
-    // Execute Move
-    unit.coord = action.to;
-    unit.movesLeft -= cost;
-    unit.state = UnitState.Normal; // Unfortify
+function executeUnitMove(state: GameState, unit: Unit, context: MoveContext, destination: HexCoord, playerId: string) {
+    const unitsOnTile = state.units.filter(u => hexEquals(u.coord, destination));
 
-    // Capture Civilian Logic
-    if (isMilitary) {
-        const enemyCivilian = unitsOnTile.find(u => u.ownerId !== action.playerId && UNITS[u.type].domain === "Civilian");
+    unit.coord = destination;
+    unit.movesLeft -= context.cost;
+    unit.state = UnitState.Normal;
+
+    if (context.isMilitary) {
+        const enemyCivilian = unitsOnTile.find(u => u.ownerId !== playerId && UNITS[u.type].domain === UnitDomain.Civilian);
         if (enemyCivilian) {
-            ensureWar(state, action.playerId, enemyCivilian.ownerId);
+            ensureWar(state, playerId, enemyCivilian.ownerId);
             state.units = state.units.filter(u => u.id !== enemyCivilian.id);
             state.units.push({
-                id: `u_${action.playerId}_captured_${Date.now()}`,
+                id: `u_${playerId}_captured_${Date.now()}`,
                 type: enemyCivilian.type,
-                ownerId: action.playerId,
-                coord: action.to,
+                ownerId: playerId,
+                coord: destination,
                 hp: 1,
                 maxHp: 1,
                 movesLeft: 0,
@@ -201,18 +321,51 @@ function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: 
         }
     }
 
-    // Capture city if eligible (city HP must already be 0)
-    const cityOnTile = state.cities.find(c => hexEquals(c.coord, action.to));
-    if (cityOnTile && cityOnTile.ownerId !== action.playerId) {
+    const cityOnTile = state.cities.find(c => hexEquals(c.coord, destination));
+    if (cityOnTile && cityOnTile.ownerId !== playerId) {
         if (cityOnTile.hp > 0) throw new Error("City not capturable");
-        if (!unitStats.canCaptureCity) throw new Error("Unit cannot capture cities");
-        ensureWar(state, action.playerId, cityOnTile.ownerId);
-        captureCity(state, cityOnTile, action.playerId);
+        if (!context.stats.canCaptureCity) throw new Error("Unit cannot capture cities");
+        ensureWar(state, playerId, cityOnTile.ownerId);
+        captureCity(state, cityOnTile, playerId);
     }
+}
 
-    refreshPlayerVision(state, action.playerId);
+function resolveLinkedPartner(state: GameState, unit: Unit): Unit | undefined {
+    if (!unit.linkedUnitId) return undefined;
+    const partner = state.units.find(u => u.id === unit.linkedUnitId);
+    if (!partner) {
+        unit.linkedUnitId = undefined;
+        return undefined;
+    }
+    if (partner.linkedUnitId !== unit.id || partner.ownerId !== unit.ownerId) {
+        unlinkPair(unit, partner);
+        return undefined;
+    }
+    if (!hexEquals(unit.coord, partner.coord)) {
+        unlinkPair(unit, partner);
+        return undefined;
+    }
+    return partner;
+}
 
-    return state;
+function unlinkPair(unit: Unit, partner?: Unit) {
+    unit.linkedUnitId = undefined;
+    if (partner && partner.linkedUnitId === unit.id) {
+        partner.linkedUnitId = undefined;
+    }
+}
+
+function enforceLinkedUnitIntegrity(state: GameState) {
+    const unitLookup = new Map<string, Unit>();
+    state.units.forEach(u => unitLookup.set(u.id, u));
+
+    state.units.forEach(unit => {
+        if (!unit.linkedUnitId) return;
+        const partner = unitLookup.get(unit.linkedUnitId);
+        if (!partner || partner.linkedUnitId !== unit.id || partner.ownerId !== unit.ownerId || !hexEquals(unit.coord, partner.coord)) {
+            unlinkPair(unit, partner);
+        }
+    });
 }
 
 function handleAttack(state: GameState, action: { type: "Attack"; playerId: string; attackerId: string; targetId: string; targetType: "Unit" | "City" }): GameState {
