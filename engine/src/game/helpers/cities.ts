@@ -1,14 +1,32 @@
 import { City, GameState, HexCoord } from "../../core/types.js";
 import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, UNITS } from "../../core/constants.js";
-import { hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
+import { TerrainType } from "../../core/types.js";
+import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
 import { getTileYields } from "../rules.js";
 import { isTileAdjacentToRiver } from "../../map/rivers.js";
 
-export function claimCityTerritory(city: City, state: GameState, ownerId: string) {
-    const territory = hexSpiral(city.coord, CITY_WORK_RADIUS_RINGS);
+export function maxClaimableRing(city: City): number {
+    if (city.pop >= 3) return Math.min(2, CITY_WORK_RADIUS_RINGS);
+    return 1;
+}
+
+export function getClaimedRing(city: City, state: GameState): number {
+    const ownedTiles = state.map.tiles.filter(t => t.ownerCityId === city.id);
+    if (ownedTiles.length === 0) return 0;
+    return Math.min(
+        CITY_WORK_RADIUS_RINGS,
+        Math.max(...ownedTiles.map(t => hexDistance(t.coord, city.coord)))
+    );
+}
+
+export function claimCityTerritory(city: City, state: GameState, ownerId: string, maxRing: number = CITY_WORK_RADIUS_RINGS) {
+    const territory = hexSpiral(city.coord, Math.min(maxRing, CITY_WORK_RADIUS_RINGS));
     for (const coord of territory) {
         const tile = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
         if (tile) {
+            const ownedByOtherCity = tile.ownerCityId && tile.ownerCityId !== city.id;
+            const ownedByOtherPlayer = tile.ownerId && tile.ownerId !== ownerId && tile.ownerCityId !== city.id;
+            if (ownedByOtherCity || ownedByOtherPlayer) continue;
             tile.ownerId = ownerId;
             tile.ownerCityId = city.id;
             tile.hasCityCenter = hexEquals(coord, city.coord);
@@ -54,7 +72,7 @@ export function ensureWorkedTiles(city: City, state: GameState): HexCoord[] {
         const workedKeys = new Set(worked.map(c => hexToString(c)));
         const candidates = ownedCoords
             .filter(c => !workedKeys.has(hexToString(c)))
-            .sort((a, b) => tileScore(b, state) - tileScore(a, state));
+            .sort((a, b) => tileScore(b, state, city) - tileScore(a, state, city));
         for (let i = 0; i < needed && i < candidates.length; i++) {
             worked.push(candidates[i]);
         }
@@ -63,23 +81,40 @@ export function ensureWorkedTiles(city: City, state: GameState): HexCoord[] {
     return worked;
 }
 
-export function tileScore(coord: HexCoord, state: GameState): number {
+export function tileScore(coord: HexCoord, state: GameState, city: City): number {
     const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
     if (!tile) return -999;
     const base = getTileYields(tile);
+    const player = state.players.find(p => p.id === city.ownerId);
+    const civ = player?.civName;
+
+    let food = base.F;
+    let production = base.P;
+    const science = base.S;
+
     const adjRiver = isTileAdjacentToRiver(state.map, coord);
-    const food = base.F + (adjRiver ? 1 : 0);
-    return food + base.P + base.S;
+    if (civ === "RiverLeague" && adjRiver) {
+        food += 1;
+    }
+    if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) {
+        production += 1;
+    }
+
+    const total = food + production + science;
+
+    // Prioritize overall yield; tie-breaker prefers Food, then Production, then Science.
+    return total * 100 + food * 10 + production * 2 + science;
 }
 
 export function captureCity(state: GameState, city: City, newOwnerId: string) {
-    claimCityTerritory(city, state, newOwnerId);
     city.ownerId = newOwnerId;
     city.hp = CAPTURED_CITY_HP_RESET;
     city.pop = Math.max(1, city.pop - 1);
     city.currentBuild = null;
     city.buildProgress = 0;
+    const currentRing = getClaimedRing(city, state);
+    const targetRing = Math.max(currentRing, maxClaimableRing(city));
+    claimCityTerritory(city, state, newOwnerId, targetRing);
     city.workedTiles = ensureWorkedTiles(city, state);
     city.hasFiredThisTurn = false;
 }
-

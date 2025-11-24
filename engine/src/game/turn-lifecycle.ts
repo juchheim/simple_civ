@@ -10,7 +10,7 @@ import {
     CITY_WORK_RADIUS_RINGS,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
-import { ensureWorkedTiles } from "./helpers/cities.js";
+import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
 import { hexDistance, hexEquals } from "../core/hex.js";
 import { Unit } from "../core/types.js";
 import { refreshPlayerVision } from "./vision.js";
@@ -60,6 +60,7 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     refreshPlayerVision(state, playerId);
 
     for (const city of state.cities.filter(c => c.ownerId === playerId)) {
+        const claimedRing = getClaimedRing(city, state);
         city.workedTiles = ensureWorkedTiles(city, state);
         const yields = getCityYields(city, state);
 
@@ -78,6 +79,12 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
             city.pop += 1;
             city.workedTiles = ensureWorkedTiles(city, state);
             growthCost = getGrowthCost(city.pop, city.buildings.includes(BuildingType.Farmstead));
+        }
+
+        const neededRing = Math.max(claimedRing, maxClaimableRing(city));
+        if (neededRing > claimedRing) {
+            claimCityTerritory(city, state, playerId, neededRing);
+            city.workedTiles = ensureWorkedTiles(city, state);
         }
 
         if (city.currentBuild) {
@@ -232,4 +239,3 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
     return baseScience + signalRelayBonus + grandAcademyBonus;
 }
-

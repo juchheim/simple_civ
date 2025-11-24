@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { terrainImages } from "../assets";
-import { City, GameState, HexCoord, Tile, Yields, getTileYields } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver } from "@simple-civ/engine";
 import { HexTile } from "./GameMap/HexTile";
 import { CityLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
 import { OverlayLayer } from "./GameMap/OverlayLayer";
@@ -45,6 +45,27 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
     const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
     const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState.visibility, playerId]);
     const revealedSet = useMemo(() => new Set(gameState.revealed?.[playerId] ?? []), [gameState.revealed, playerId]);
+    const playersById = useMemo(() => {
+        const playerMap = new Map<string, (typeof gameState.players)[number]>();
+        gameState.players.forEach(p => playerMap.set(p.id, p));
+        return playerMap;
+    }, [gameState.players]);
+
+    const getTileYieldsWithCiv = useCallback((tile: Tile): Yields => {
+        const owner = playersById.get(tile.ownerId ?? playerId) ?? playersById.get(playerId);
+        const civ = owner?.civName;
+        const base = getTileYields(tile);
+
+        let food = base.F;
+        let production = base.P;
+        const science = base.S;
+
+        const adjRiver = isTileAdjacentToRiver(map, tile.coord);
+        if (civ === "RiverLeague" && adjRiver) food += 1;
+        if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) production += 1;
+
+        return { F: food, P: production, S: science };
+    }, [playersById, playerId, map]);
     const tileVisibility = useMemo(() => {
         const info = new Map<string, { isVisible: boolean; isFogged: boolean; isShroud: boolean }>();
         map.tiles.forEach(tile => {
@@ -96,13 +117,13 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 tile,
                 position,
                 visibility,
-                yields: getTileYields(tile),
+                yields: getTileYieldsWithCiv(tile),
                 isSelected,
                 isReachable,
                 city,
             };
         });
-    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords]);
+    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords, getTileYieldsWithCiv]);
 
     const playerColorMap = useMemo(() => {
         const map = new Map<string, string>();
@@ -140,7 +161,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         const dedup = new Set<string>();
 
         tileRenderData
-            .filter(entry => entry.tile.ownerCityId && !(entry.visibility.isShroud && !showShroud))
+            .filter(entry => entry.tile.ownerCityId && entry.visibility.isVisible)
             .forEach(entry => {
                 const ownerCityId = entry.tile.ownerCityId!;
                 const corners = HEX_CORNER_OFFSETS.map(c => ({ x: entry.position.x + c.x, y: entry.position.y + c.y }));

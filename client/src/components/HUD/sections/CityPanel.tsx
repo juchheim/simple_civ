@@ -1,5 +1,5 @@
 import React from "react";
-import { City, GameState, HexCoord, Unit } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Unit, getCityYields } from "@simple-civ/engine";
 import { hexDistance } from "../../../utils/hex";
 import { CityBuildOptions } from "../hooks";
 
@@ -32,6 +32,10 @@ export const CityPanel: React.FC<CityPanelProps> = ({
         tile => tile.ownerId === city.ownerId && hexDistance(tile.coord, city.coord) <= 2,
     );
 
+    const yields = getCityYields(city, gameState);
+    const civ = gameState.players.find(p => p.id === city.ownerId)?.civName;
+    const scholarActive = civ === "ScholarKingdoms" && city.pop >= 3;
+
     const garrison = units.find(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
     const targets = units.filter(u => u.ownerId !== playerId && hexDistance(u.coord, city.coord) <= 2);
 
@@ -44,6 +48,12 @@ export const CityPanel: React.FC<CityPanelProps> = ({
             <p>Pop: {city.pop}</p>
             <p>Food: {city.storedFood}</p>
             <p>Prod: {city.storedProduction}</p>
+            <p>Yields (after perks): {yields.F}F / {yields.P}P / {yields.S}S</p>
+            {civ === "ScholarKingdoms" && (
+                <p style={{ fontSize: 12, color: scholarActive ? "#10b981" : "#f59e0b" }}>
+                    Scholar Kingdoms: +1 Science at pop 3+ ({scholarActive ? "active" : "inactive"})
+                </p>
+            )}
             <p>Building: {city.currentBuild ? city.currentBuild.id : "Idle"}</p>
             <p>Worked Tiles: {city.workedTiles.length}</p>
 
@@ -145,4 +155,3 @@ export const CityPanel: React.FC<CityPanelProps> = ({
         </div>
     );
 };
-

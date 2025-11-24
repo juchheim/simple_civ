@@ -128,3 +128,6 @@ data/
 *.cert
 .certificates/
 
+# Documentation screenshots
+docs/screencaps/
+

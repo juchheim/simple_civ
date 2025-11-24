@@ -105,7 +105,7 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         milestones: [],
     };
 
-    claimCityTerritory(newCity, state, action.playerId);
+    claimCityTerritory(newCity, state, action.playerId, 1);
     newCity.workedTiles = ensureWorkedTiles(newCity, state);
     state.cities.push(newCity);
     state.units = state.units.filter(u => u.id !== unit.id);
@@ -172,4 +172,3 @@ export function handleSetWorkedTiles(state: GameState, action: { type: "SetWorke
     city.workedTiles = ensureWorkedTiles({ ...city, workedTiles: coords }, state);
     return state;
 }
-

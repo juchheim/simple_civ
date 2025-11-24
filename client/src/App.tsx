@@ -1,15 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
-
-// Mock initial setup for single player
-const INITIAL_PLAYERS = [
-    { id: "p1", civName: "Red Empire", color: "red" },
-    { id: "p2", civName: "Blue Republic", color: "blue", ai: true }
-];
+import { CIV_OPTIONS, CivId, pickAiCiv, pickPlayerColor } from "./data/civs";
 
 function App() {
     const [gameState, setGameState] = useState<GameState | null>(null);
@@ -19,26 +14,35 @@ function App() {
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
     const [playerId, setPlayerId] = useState("p1"); // Local player
+    const [selectedCiv, setSelectedCiv] = useState<CivId>(CIV_OPTIONS[0].id);
+    const [seedInput, setSeedInput] = useState("");
     const SAVE_KEY = "simple-civ-save";
 
-    const initRef = useRef(false);
-
-    useEffect(() => {
-        if (initRef.current) return;
-        initRef.current = true;
-        // Init Game
+    const startNewGame = () => {
         try {
-            // const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS });
-            const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS, }); // seed: 41839,
+            const rawSeed = seedInput.trim() === "" ? undefined : Number(seedInput);
+            const parsedSeed = rawSeed != null && !Number.isNaN(rawSeed) ? rawSeed : undefined;
+            const aiCiv = pickAiCiv([selectedCiv], parsedSeed);
+            const usedColors = new Set<string>();
+            const humanColor = pickPlayerColor(selectedCiv, usedColors);
+            const aiColor = pickPlayerColor(aiCiv.id, usedColors);
+
+            const players = [
+                { id: "p1", civName: selectedCiv, color: humanColor },
+                { id: "p2", civName: aiCiv.id, color: aiColor, ai: true },
+            ];
+
+            const settings = { mapSize: "Small" as const, players, seed: parsedSeed };
+            const state = generateWorld(settings);
             console.info("[World] seed", state.seed);
             setGameState(state);
-            // Show tech tree on turn 1
+            setPlayerId("p1");
             setShowTechTree(true);
-        } catch (error) {
+        } catch (error: any) {
             console.error("App: Error generating world:", error);
-            alert(`Failed to initialize game: ${error}`);
+            alert(`Failed to start game: ${error?.message ?? error}`);
         }
-    }, []);
+    };
 
     const reachablePaths = useMemo(() => {
         if (!gameState || !selectedUnitId) return {};
@@ -216,7 +220,78 @@ function App() {
         }
     };
 
-    if (!gameState) return <div>Loading...</div>;
+    if (!gameState) {
+        return (
+            <div style={{ width: "100vw", height: "100vh", background: "#0b1021", color: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+                <div style={{ width: "min(960px, 100%)", background: "#111827", borderRadius: 12, padding: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.35)", border: "1px solid #1f2937" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                        <div style={{ flex: "1 1 320px" }}>
+                            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Choose your Civilization</div>
+                            <div style={{ color: "#cbd5e1", fontSize: 14, marginBottom: 12 }}>
+                                Pick a civ, optionally enter a seed, then start. The AI will grab a different civ automatically.
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                                {CIV_OPTIONS.map(option => {
+                                    const isSelected = option.id === selectedCiv;
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            onClick={() => setSelectedCiv(option.id)}
+                                            style={{
+                                                textAlign: "left",
+                                                background: isSelected ? "#1f2937" : "#0f172a",
+                                                border: `2px solid ${isSelected ? option.color : "#1f2937"}`,
+                                                borderRadius: 10,
+                                                padding: "10px 12px",
+                                                color: "#e5e7eb",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                                <span style={{ width: 10, height: 10, borderRadius: "50%", background: option.color, display: "inline-block" }} />
+                                                <span style={{ fontWeight: 700 }}>{option.title}</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 4 }}>{option.summary}</div>
+                                            <div style={{ fontSize: 12, color: "#a5b4fc" }}>{option.perk}</div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div style={{ width: 280, flex: "0 0 auto" }}>
+                            <div style={{ marginBottom: 12 }}>
+                                <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Optional seed</label>
+                                <input
+                                    type="text"
+                                    value={seedInput}
+                                    onChange={e => setSeedInput(e.target.value)}
+                                    placeholder="e.g. 83755"
+                                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #1f2937", background: "#0f172a", color: "#e5e7eb" }}
+                                />
+                                <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
+                                    Keep blank for a random seed. AI civ draw uses this seed too.
+                                </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                                <button
+                                    onClick={startNewGame}
+                                    style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "none", background: "#22c55e", color: "#0b1021", fontWeight: 700, cursor: "pointer" }}
+                                >
+                                    Start Game
+                                </button>
+                                <button
+                                    onClick={handleLoad}
+                                    style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #1f2937", background: "#0f172a", color: "#e5e7eb", cursor: "pointer" }}
+                                >
+                                    Load Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
