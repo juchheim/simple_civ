@@ -1,17 +1,30 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { unitImages, terrainImages, cityImages } from "../assets";
-import { City, GameState, HexCoord, TerrainType, Tile, Unit, UnitType } from "@simple-civ/engine";
-import { buildRiverPolylines } from "../utils/rivers";
+import React, { useCallback, useMemo } from "react";
+import { terrainImages } from "../assets";
+import { City, GameState, HexCoord, Tile } from "@simple-civ/engine";
+import { HexTile } from "./GameMap/HexTile";
+import { CityLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
+import { OverlayLayer } from "./GameMap/OverlayLayer";
+import { UnitLayer, UnitDescriptor } from "./GameMap/UnitLayer";
+import { getHexCornerOffsets, getHexPoints, hexToPixel as projectHexToPixel } from "./GameMap/geometry";
+import { useMapInteraction } from "./GameMap/useMapInteraction";
+import { useRiverPolylines } from "./GameMap/useRiverPolylines";
+import { HEX_SIZE, RIVER_OPACITY } from "./GameMap/constants";
 
-const HEX_SIZE = 75;
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 3.0;
-const ZOOM_SENSITIVITY = 0.1;
-const UNIT_IMAGE_SIZE = 110; // Much larger unit icons
-const DRAG_THRESHOLD = 3; // Pixels of movement before starting pan
-const HEX_POINTS = getHexPoints();
-const HEX_CORNER_OFFSETS = getHexCornerOffsets();
-const RIVER_OPACITY = 0.9;
+type TileVisibilityState = { isVisible: boolean; isFogged: boolean; isShroud: boolean };
+
+type TileRenderEntry = {
+    key: string;
+    tile: Tile;
+    position: { x: number; y: number };
+    visibility: TileVisibilityState;
+    isSelected: boolean;
+    isReachable: boolean;
+    city: City | null;
+};
+
+const HEX_POINTS = getHexPoints(HEX_SIZE);
+const HEX_CORNER_OFFSETS = getHexCornerOffsets(HEX_SIZE);
+const FALLBACK_VISIBILITY: TileVisibilityState = { isVisible: false, isFogged: false, isShroud: true };
 
 interface GameMapProps {
     gameState: GameState;
@@ -21,264 +34,6 @@ interface GameMapProps {
     showShroud: boolean;
     selectedUnitId: string | null;
     reachableCoords: Set<string>;
-}
-
-type HexTileProps = {
-    tile: Tile;
-    hexPoints: string;
-    x: number;
-    y: number;
-    isVisible: boolean;
-    isFogged: boolean;
-    isShroud: boolean;
-    isSelected: boolean;
-    showShroud: boolean;
-    isReachable: boolean;
-};
-
-const HexTileBase: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, x, y, isVisible, isFogged, isShroud, isSelected, showShroud, isReachable }) => {
-    if (isShroud && !showShroud) return null;
-
-    const color = isVisible
-        ? getTerrainColor(tile.terrain)
-        : isFogged
-            ? getTerrainColor(tile.terrain)
-            : "#050505";
-    const fillOpacity = isVisible ? 1 : isFogged ? 0.55 : 0.85;
-    const terrainImageUrl = getTerrainImage(tile.terrain);
-    const strokeColor = isSelected ? "white" : isReachable ? "#4ade80" : isShroud ? "#222" : "rgba(0,0,0,0.2)";
-    const strokeWidth = isSelected ? 3 : isReachable ? 2 : 1.25;
-
-    return (
-        <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}>
-            {terrainImageUrl && isVisible ? (
-                <polygon
-                    points={hexPoints}
-                    fill={`url(#terrain-pattern-${tile.terrain})`}
-                    stroke={strokeColor}
-                    strokeWidth={strokeWidth}
-                    opacity={fillOpacity}
-                />
-            ) : (
-                <polygon
-                    points={hexPoints}
-                    fill={color}
-                    stroke={strokeColor}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={isShroud ? "4 3" : undefined}
-                    opacity={fillOpacity}
-                />
-            )}
-            {isReachable && !isSelected && (
-                <circle
-                    cx={0}
-                    cy={0}
-                    r={HEX_SIZE * 0.4}
-                    fill="rgba(34,197,94,0.18)"
-                    stroke="rgba(74,222,128,0.9)"
-                    strokeWidth={2}
-                    style={{ pointerEvents: "none" }}
-                />
-            )}
-            {isFogged && (
-                <image
-                    href={terrainImages.Fog}
-                    x={-HEX_SIZE}
-                    y={-HEX_SIZE}
-                    width={HEX_SIZE * 2}
-                    height={HEX_SIZE * 2}
-                    style={{ pointerEvents: "none", opacity: 0.3 }}
-                />
-            )}
-            {isShroud && (
-                <image
-                    href={terrainImages.Fog}
-                    x={-HEX_SIZE}
-                    y={-HEX_SIZE}
-                    width={HEX_SIZE * 2}
-                    height={HEX_SIZE * 2}
-                    style={{ pointerEvents: "none", opacity: 1.0 }}
-                />
-            )}
-        </g>
-    );
-});
-
-type HexTileOverlayProps = {
-    x: number;
-    y: number;
-    isVisible: boolean;
-    city?: City;
-};
-
-const HexTileOverlay: React.FC<HexTileOverlayProps> = React.memo(({ x, y, isVisible, city }) => {
-    if (!isVisible) return null;
-    const overlayElements: React.ReactNode[] = [];
-    if (city) {
-        const cityLevel = Math.min(city.pop, 7);
-        const cityImg = cityImages[cityLevel];
-
-        overlayElements.push(
-            <g key="city">
-                <polygon
-                    points={HEX_POINTS}
-                    fill="none"
-                    stroke="#00ffff"
-                    strokeWidth={15}
-                    style={{ pointerEvents: "none" }}
-                />
-                <image
-                    href={cityImg}
-                    x={-75}
-                    y={-75}
-                    width={150}
-                    height={150}
-                    style={{ pointerEvents: "none" }}
-                />
-                <text
-                    x={0}
-                    y={-30}
-                    textAnchor="middle"
-                    fill="white"
-                    fontSize={24}
-                    style={{
-                        pointerEvents: "none",
-                        fontWeight: "bold",
-                        textShadow: "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000"
-                    }}
-                >
-                    {city.name} {city.pop}
-                </text>
-            </g>,
-        );
-    }
-
-    if (!overlayElements.length) return null;
-
-    return (
-        <g transform={`translate(${x},${y})`} style={{ pointerEvents: "none" }}>
-            {overlayElements}
-        </g>
-    );
-});
-
-type UnitSpriteProps = {
-    unit: Unit;
-    position: { x: number; y: number };
-    isSelected: boolean;
-    isLinkedPartner: boolean;
-    showLinkIcon: boolean;
-};
-
-const UnitSprite: React.FC<UnitSpriteProps> = React.memo(({ unit, position, isSelected, isLinkedPartner, showLinkIcon }) => {
-    const unitImageOffset = UNIT_IMAGE_SIZE / 2;
-    const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
-
-    return (
-        <g
-            style={{
-                pointerEvents: "none",
-                transform: `translate(${position.x}px, ${position.y}px)`,
-                transition: "transform 200ms linear",
-            }}
-        >
-            {(isSelected || isLinkedPartner) && (
-                <circle
-                    cx={0}
-                    cy={0}
-                    r={HEX_SIZE * 0.75}
-                    stroke={isSelected ? "#facc15" : "#38bdf8"}
-                    strokeWidth={4}
-                    fill="none"
-                    strokeDasharray={isLinkedPartner && !isSelected ? "6 4" : undefined}
-                />
-            )}
-
-            <image
-                href={unitImages[unit.type] || ""}
-                x={-unitImageOffset}
-                y={-unitImageOffset}
-                width={UNIT_IMAGE_SIZE}
-                height={UNIT_IMAGE_SIZE}
-            />
-
-            {showLinkIcon && (
-                <g transform={`translate(${unitImageOffset * 0.45}, ${-unitImageOffset * 0.6})`}>
-                    <circle cx={0} cy={0} r={9} stroke="#fef3c7" strokeWidth={2} fill="rgba(17,24,39,0.75)" />
-                    <circle cx={12} cy={6} r={9} stroke="#bfdbfe" strokeWidth={2} fill="rgba(17,24,39,0.9)" />
-                    <path d="M-4,0 L16,10" stroke="#fef3c7" strokeWidth={2} />
-                </g>
-            )}
-
-            {unit.type !== UnitType.Settler && (
-                <g>
-                    <rect
-                        x={-30}
-                        y={-unitImageOffset - 15}
-                        width={60}
-                        height={8}
-                        fill="#333"
-                        stroke="black"
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={-30}
-                        y={-unitImageOffset - 15}
-                        width={60 * hpPct}
-                        height={8}
-                        fill={hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#eab308" : "#ef4444"}
-                    />
-                </g>
-            )}
-        </g>
-    );
-});
-
-function getTerrainColor(type: TerrainType) {
-    switch (type) {
-        case "Plains": return "#86efac"; // Green-300
-        case "Hills": return "#fde047"; // Yellow-300
-        case "Forest": return "#166534"; // Green-800
-        case "Marsh": return "#14b8a6"; // Teal-500
-        case "Desert": return "#fcd34d"; // Amber-300
-        case "Mountain": return "#57534e"; // Stone-600
-        case "Coast": return "#60a5fa"; // Blue-400
-        case "DeepSea": return "#1e3a8a"; // Blue-900
-        default: return "#ccc";
-    }
-}
-
-function getTerrainImage(type: TerrainType): string | null {
-    return terrainImages[type] || null;
-}
-
-function getHexPoints() {
-    const points = [];
-    for (let i = 0; i < 6; i++) {
-        const angle_deg = 60 * i - 30;
-        const angle_rad = (Math.PI / 180) * angle_deg;
-        points.push(`${HEX_SIZE * Math.cos(angle_rad)},${HEX_SIZE * Math.sin(angle_rad)}`);
-    }
-    return points.join(" ");
-}
-
-function getHexCornerOffsets() {
-    const offsets = [];
-    for (let i = 0; i < 6; i++) {
-        const angle_deg = 60 * i - 30;
-        const angle_rad = (Math.PI / 180) * angle_deg;
-        offsets.push({
-            x: HEX_SIZE * Math.cos(angle_rad),
-            y: HEX_SIZE * Math.sin(angle_rad),
-        });
-    }
-    return offsets;
-}
-
-function squaredDistance(a: { x: number; y: number }, b: { x: number; y: number }) {
-    const dx = a.x - b.x;
-    const dy = a.y - b.y;
-    return dx * dx + dy * dy;
 }
 
 export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords }) => {
@@ -301,188 +56,21 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         return info;
     }, [map.tiles, visibleSet, revealedSet]);
 
-    // Pan and zoom state
-    const [pan, setPan] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1.0);
-    const [isPanning, setIsPanning] = useState(false);
-    const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-    const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
-    const [clickTarget, setClickTarget] = useState<HexCoord | null>(null);
-    const svgRef = useRef<SVGSVGElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const hasInitializedRef = useRef(false);
-
-    // Calculate pixel coordinates for a hex
-    const hexToPixel = useCallback((hex: HexCoord) => {
-        const x = HEX_SIZE * (Math.sqrt(3) * hex.q + (Math.sqrt(3) / 2) * hex.r);
-        const y = HEX_SIZE * ((3 / 2) * hex.r);
-        return { x, y };
-    }, []);
-
-    // Convert screen coordinates to world coordinates
-    const screenToWorld = useCallback((screenX: number, screenY: number) => {
-        return {
-            x: (screenX - pan.x) / zoom,
-            y: (screenY - pan.y) / zoom
-        };
-    }, [pan, zoom]);
-
-    // Find hex at screen coordinates
-    const findHexAtScreen = useCallback((screenX: number, screenY: number): HexCoord | null => {
-        const world = screenToWorld(screenX, screenY);
-        let closestHex: HexCoord | null = null;
-        let minDist = Infinity;
-
-        map.tiles.forEach(tile => {
-            const { x, y } = hexToPixel(tile.coord);
-            const dist = Math.sqrt((world.x - x) ** 2 + (world.y - y) ** 2);
-            if (dist < minDist && dist < HEX_SIZE) {
-                minDist = dist;
-                closestHex = tile.coord;
-            }
-        });
-
-        return closestHex;
-    }, [map.tiles, hexToPixel, screenToWorld]);
-
-    // Calculate map bounds and center on initial mount only
-    useEffect(() => {
-        // Only initialize once, don't reset on game state changes
-        if (hasInitializedRef.current || map.tiles.length === 0 || !containerRef.current) return;
-
-        // Calculate bounds of all tiles
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-        map.tiles.forEach(tile => {
-            const { x, y } = hexToPixel(tile.coord);
-            const hexRadius = HEX_SIZE;
-            minX = Math.min(minX, x - hexRadius);
-            minY = Math.min(minY, y - hexRadius);
-            maxX = Math.max(maxX, x + hexRadius);
-            maxY = Math.max(maxY, y + hexRadius);
-        });
-
-        const mapWidth = maxX - minX;
-        const mapHeight = maxY - minY;
-        const mapCenterX = (minX + maxX) / 2;
-        const mapCenterY = (minY + maxY) / 2;
-
-        // Get container dimensions
-        const container = containerRef.current;
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
-
-        // Calculate zoom to fit map with some padding
-        const padding = 50;
-        const scaleX = (containerWidth - padding * 2) / mapWidth;
-        const scaleY = (containerHeight - padding * 2) / mapHeight;
-        const initialZoom = Math.min(scaleX, scaleY, 1.0); // Don't zoom in beyond 1.0 initially
-
-        // Center the map
-        const centerX = containerWidth / 2 - mapCenterX * initialZoom;
-        const centerY = containerHeight / 2 - mapCenterY * initialZoom;
-
-        setPan({ x: centerX, y: centerY });
-        setZoom(initialZoom);
-        hasInitializedRef.current = true;
-    }, [map.tiles, hexToPixel]);
-
-    // Handle mouse wheel zoom with non-passive event listener
-    useEffect(() => {
-        const svg = svgRef.current;
-        if (!svg) return;
-
-        const handleWheel = (e: WheelEvent) => {
-            e.preventDefault();
-
-            const rect = svg.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            // Calculate zoom delta
-            const delta = e.deltaY > 0 ? -ZOOM_SENSITIVITY : ZOOM_SENSITIVITY;
-            setZoom(prevZoom => {
-                const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prevZoom + delta));
-
-                // Zoom towards mouse position
-                const zoomRatio = newZoom / prevZoom;
-                setPan(prevPan => ({
-                    x: mouseX - (mouseX - prevPan.x) * zoomRatio,
-                    y: mouseY - (mouseY - prevPan.y) * zoomRatio
-                }));
-
-                return newZoom;
-            });
-        };
-
-        // Attach event listener with passive: false to allow preventDefault
-        svg.addEventListener('wheel', handleWheel, { passive: false });
-
-        return () => {
-            svg.removeEventListener('wheel', handleWheel);
-        };
-    }, []); // Empty deps - we use functional state updates
-
-    // Handle mouse down
-    const handleMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-        if (e.button !== 0) return; // Only left button
-
-        if (!svgRef.current) return;
-        const svg = svgRef.current;
-        const rect = svg.getBoundingClientRect();
-        const screenX = e.clientX - rect.left;
-        const screenY = e.clientY - rect.top;
-
-        // Find if we clicked on a hex
-        const hex = findHexAtScreen(screenX, screenY);
-
-        setMouseDownPos({ x: e.clientX, y: e.clientY });
-        setClickTarget(hex);
-        setPanStart(pan);
-    }, [pan, findHexAtScreen]);
-
-    // Handle mouse move
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!mouseDownPos) return;
-
-        const deltaX = e.clientX - mouseDownPos.x;
-        const deltaY = e.clientY - mouseDownPos.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-        // If moved beyond threshold, start panning
-        if (distance > DRAG_THRESHOLD) {
-            if (!isPanning) {
-                setIsPanning(true);
-                setClickTarget(null); // Cancel click if we're panning
-            }
-
-            // Update pan
-            setPan({
-                x: panStart.x + deltaX,
-                y: panStart.y + deltaY
-            });
-        }
-    }, [mouseDownPos, panStart, isPanning]);
-
-    // Handle mouse up
-    const handleMouseUp = useCallback(() => {
-        // If we were panning, don't trigger click
-        if (isPanning) {
-            setIsPanning(false);
-            setMouseDownPos(null);
-            setClickTarget(null);
-            return;
-        }
-
-        // If we have a click target and didn't pan, trigger click
-        if (clickTarget) {
-            onTileClick(clickTarget);
-        }
-
-        setIsPanning(false);
-        setMouseDownPos(null);
-        setClickTarget(null);
-    }, [isPanning, clickTarget, onTileClick]);
+    const hexToPixel = useCallback((hex: HexCoord) => projectHexToPixel(hex, HEX_SIZE), []);
+    const {
+        pan,
+        zoom,
+        isPanning,
+        containerRef,
+        svgRef,
+        handleMouseDown,
+        handleMouseMove,
+        handleMouseUp,
+    } = useMapInteraction({
+        tiles: map.tiles,
+        hexToPixel,
+        onTileClick,
+    });
 
     const citiesByCoord = useMemo(() => {
         const coordMap = new Map<string, City>();
@@ -490,208 +78,59 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         return coordMap;
     }, [cities]);
 
-    const renderedTiles = useMemo(() => {
+    const tileRenderData = useMemo<TileRenderEntry[]>(() => {
         return map.tiles.map(tile => {
             const key = `${tile.coord.q},${tile.coord.r}`;
-            const visibility = tileVisibility.get(key) ?? { isVisible: false, isFogged: false, isShroud: true };
-            const { x, y } = hexToPixel(tile.coord);
+            const visibility = tileVisibility.get(key) ?? FALLBACK_VISIBILITY;
+            const position = hexToPixel(tile.coord);
             const isSelected = !!(selectedCoord && tile.coord.q === selectedCoord.q && tile.coord.r === selectedCoord.r);
-            const city = citiesByCoord.get(key);
-
+            const city = citiesByCoord.get(key) ?? null;
             const isReachable = reachableCoords.has(key);
+
             return {
                 key,
-                base: (
-                    <HexTileBase
-                        key={`base-${key}`}
-                        tile={tile}
-                        hexPoints={HEX_POINTS}
-                        x={x}
-                        y={y}
-                        isVisible={visibility.isVisible}
-                        isFogged={visibility.isFogged}
-                        isShroud={visibility.isShroud}
-                        isSelected={isSelected}
-                        showShroud={showShroud}
-                        isReachable={isReachable}
-                    />
-                ),
-                overlay: (
-                    <HexTileOverlay
-                        key={`overlay-${key}`}
-                        x={x}
-                        y={y}
-                        isVisible={visibility.isVisible}
-                        city={city}
-                    />
-                ),
+                tile,
+                position,
+                visibility,
+                isSelected,
+                isReachable,
+                city,
             };
         });
-    }, [map.tiles, tileVisibility, selectedCoord, showShroud, citiesByCoord, hexToPixel, reachableCoords]);
+    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords]);
 
-    const unitSprites = useMemo(() => {
+    const cityOverlayData = useMemo<CityOverlayDescriptor[]>(() => {
+        return tileRenderData
+            .filter(entry => entry.visibility.isVisible && !!entry.city)
+            .map(entry => ({
+                key: entry.key,
+                position: entry.position,
+                city: entry.city!,
+            }));
+    }, [tileRenderData]);
+
+    const unitRenderData = useMemo<UnitDescriptor[]>(() => {
         const linkedPartnerId = selectedUnit?.linkedUnitId ?? null;
         return units
             .filter(unit => {
                 const key = `${unit.coord.q},${unit.coord.r}`;
                 return tileVisibility.get(key)?.isVisible;
             })
-            .map(unit => {
-                const position = hexToPixel(unit.coord);
-                return (
-                    <UnitSprite
-                        key={unit.id}
-                        unit={unit}
-                        position={position}
-                        isSelected={selectedUnitId === unit.id}
-                        isLinkedPartner={linkedPartnerId === unit.id}
-                        showLinkIcon={!!unit.linkedUnitId}
-                    />
-                );
-            });
+            .map(unit => ({
+                unit,
+                position: hexToPixel(unit.coord),
+                isSelected: selectedUnitId === unit.id,
+                isLinkedPartner: linkedPartnerId === unit.id,
+                showLinkIcon: !!unit.linkedUnitId,
+            }));
     }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility]);
 
-    useEffect(() => {
-        if (map.riverPolylines && map.riverPolylines.length) {
-            const sample = map.riverPolylines[0]?.slice(0, 3);
-            console.log("[River Debug] using descriptor polylines", {
-                count: map.riverPolylines.length,
-                sample,
-            });
-        } else if (map.rivers && map.rivers.length) {
-            console.log("[River Debug] falling back to legacy river edges", {
-                count: map.rivers.length,
-            });
-        } else {
-            console.log("[River Debug] no river data available");
-        }
-    }, [map.riverPolylines, map.rivers]);
-
-    const riverLineSegments = useMemo(() => {
-        const segments: { id: string; start: { x: number; y: number }; end: { x: number; y: number }; isMouth?: boolean }[] = [];
-        const descriptorPolylines = map.riverPolylines && map.riverPolylines.length ? map.riverPolylines : null;
-
-        if (descriptorPolylines) {
-            descriptorPolylines.forEach((polyline, polyIdx) => {
-                polyline.forEach((segment, segIdx) => {
-                    const tileKey = `${segment.tile.q},${segment.tile.r}`;
-                    const isVisible = tileVisibility.get(tileKey)?.isVisible ?? false;
-                    if (!isVisible) return;
-
-                    if (polyIdx === 0 && segIdx < 3) {
-                        console.log("[River Debug] render check", {
-                            polyIdx,
-                            segIdx,
-                            tile: segment.tile,
-                        });
-                    }
-
-                    segments.push({
-                        id: `river-${polyIdx}-${segIdx}`,
-                        start: segment.start,
-                        end: segment.end,
-                        isMouth: segment.isMouth,
-                    });
-                });
-
-                if (polyIdx === 0 && polyline.length) {
-                    console.log("[River Debug] descriptor polyline points", polyline.slice(0, 3).map(seg => ({ start: seg.start, end: seg.end })));
-                }
-            });
-            return segments;
-        }
-
-        if (!map.rivers || map.rivers.length === 0) return segments;
-        const polylines = buildRiverPolylines(map.rivers);
-        const cornerCache = new Map<string, { coord: { x: number; y: number }; idx: number }[]>();
-
-        const getCorners = (tile: HexCoord) => {
-            const key = `${tile.q},${tile.r}`;
-            if (!cornerCache.has(key)) {
-                const center = hexToPixel(tile);
-                cornerCache.set(
-                    key,
-                    HEX_CORNER_OFFSETS.map((offset, idx) => ({
-                        coord: { x: center.x + offset.x, y: center.y + offset.y },
-                        idx,
-                    })),
-                );
-            }
-            return cornerCache.get(key)!;
-        };
-
-        polylines.forEach((polyline, polyIdx) => {
-            if (polyline.length < 2) return;
-            const points: { x: number; y: number; cornerIdx?: number }[] = [];
-            for (let i = 0; i < polyline.length - 1; i++) {
-                const a = polyline[i];
-                const b = polyline[i + 1];
-                const aKey = `${a.q},${a.r}`;
-                const bKey = `${b.q},${b.r}`;
-                const aVisible = tileVisibility.get(aKey)?.isVisible ?? false;
-                const bVisible = tileVisibility.get(bKey)?.isVisible ?? false;
-                if (!aVisible && !bVisible) continue;
-
-                const aCorners = getCorners(a);
-                const bCorners = getCorners(b);
-                const shared: { coord: { x: number; y: number }; idx: number }[] = [];
-
-                for (const cornerA of aCorners) {
-                    for (const cornerB of bCorners) {
-                        if (squaredDistance(cornerA.coord, cornerB.coord) < 1e-6) {
-                            shared.push({
-                                coord: cornerA.coord,
-                                idx: cornerA.idx,
-                            });
-                            break;
-                        }
-                    }
-                    if (shared.length === 2) break;
-                }
-
-                if (shared.length !== 2) {
-                    console.log("[River Debug] failed to find shared corners", { a, b, shared });
-                    continue;
-                }
-
-                const lastPoint = points[points.length - 1];
-                const lastIdx = lastPoint?.cornerIdx ?? null;
-                const [sharedA, sharedB] = shared;
-
-                const startShared =
-                    lastIdx !== null && sharedA.idx === lastIdx
-                        ? sharedA
-                        : lastIdx !== null && sharedB.idx === lastIdx
-                            ? sharedB
-                            : lastPoint && squaredDistance(lastPoint, sharedA.coord) <= squaredDistance(lastPoint, sharedB.coord)
-                                ? sharedA
-                                : sharedB;
-                const endShared = startShared === sharedA ? sharedB : sharedA;
-
-                const start = { ...startShared.coord, cornerIdx: startShared.idx };
-                const end = { ...endShared.coord, cornerIdx: endShared.idx };
-
-                if (!lastPoint || squaredDistance(lastPoint, start) > 1e-4) {
-                    points.push(start);
-                }
-                points.push(end);
-            }
-
-            if (polyIdx === 0) {
-                console.log("[River Debug] fallback polyline points", points.slice(0, 6));
-            }
-
-            for (let i = 0; i < points.length - 1; i++) {
-                segments.push({
-                    id: `river-${polyIdx}-${i}`,
-                    start: points[i],
-                    end: points[i + 1],
-                });
-            }
-        });
-
-        return segments;
-    }, [map.riverPolylines, map.rivers, hexToPixel, tileVisibility]);
+    const riverLineSegments = useRiverPolylines({
+        map,
+        tileVisibility,
+        hexToPixel,
+        hexCornerOffsets: HEX_CORNER_OFFSETS,
+    });
 
     return (
         <div
@@ -732,36 +171,28 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                     ))}
                 </defs>
                 <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-                    {renderedTiles.map(tile => tile.base)}
-                    <g style={{ pointerEvents: "none" }}>
-                        {riverLineSegments.map(segment => {
-                            const dx = segment.end.x - segment.start.x;
-                            const dy = segment.end.y - segment.start.y;
-                            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-                            const midX = (segment.start.x + segment.end.x) / 2;
-                            const midY = (segment.start.y + segment.end.y) / 2;
-                            const width = 90; // Asset width
-                            const height = 30; // Asset height
-                            const texture = segment.isMouth ? terrainImages.RiverMouth : terrainImages.RiverEdge;
-
-                            return (
-                                <image
-                                    key={segment.id}
-                                    href={texture}
-                                    x={midX - width / 2}
-                                    y={midY - height / 2}
-                                    width={width}
-                                    height={height}
-                                    transform={`rotate(${angle}, ${midX}, ${midY})`}
-                                    style={{ pointerEvents: "none", opacity: RIVER_OPACITY }}
-                                />
-                            );
-                        })}
-                    </g>
-                    {renderedTiles.map(tile => tile.overlay)}
-                    <g style={{ pointerEvents: "none" }}>
-                        {unitSprites}
-                    </g>
+                    {tileRenderData.map(entry => (
+                        <HexTile
+                            key={`base-${entry.key}`}
+                            tile={entry.tile}
+                            hexPoints={HEX_POINTS}
+                            hexSize={HEX_SIZE}
+                            position={entry.position}
+                            visibility={entry.visibility}
+                            isSelected={entry.isSelected}
+                            isReachable={entry.isReachable}
+                            showShroud={showShroud}
+                        />
+                    ))}
+                    <OverlayLayer
+                        riverSegments={riverLineSegments}
+                        riverOpacity={RIVER_OPACITY}
+                    />
+                    <CityLayer
+                        overlays={cityOverlayData}
+                        hexPoints={HEX_POINTS}
+                    />
+                    <UnitLayer units={unitRenderData} />
                 </g>
             </svg>
         </div>
