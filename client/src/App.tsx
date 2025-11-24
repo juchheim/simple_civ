@@ -4,7 +4,7 @@ import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
-import { CIV_OPTIONS, CivId, pickAiCiv, pickPlayerColor } from "./data/civs";
+import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 
 function App() {
     const [gameState, setGameState] = useState<GameState | null>(null);
@@ -231,7 +231,7 @@ function App() {
                                 Pick a civ, optionally enter a seed, then start. The AI will grab a different civ automatically.
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                                {CIV_OPTIONS.map(option => {
+                                {CIV_OPTIONS.map((option: CivOption) => {
                                     const isSelected = option.id === selectedCiv;
                                     return (
                                         <button

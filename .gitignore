@@ -117,7 +117,7 @@ out/
 .pnp.*
 
 # MongoDB data (if running locally)
-data/
+/data/
 *.db
 *.sqlite
 *.sqlite3
