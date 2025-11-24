@@ -28,7 +28,7 @@ function App() {
         // Init Game
         try {
             // const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS });
-            const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS, seed: 41839, });
+            const state = generateWorld({ mapSize: "Small", players: INITIAL_PLAYERS, }); // seed: 41839,
             console.info("[World] seed", state.seed);
             setGameState(state);
             // Show tech tree on turn 1
