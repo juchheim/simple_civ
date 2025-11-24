@@ -32,6 +32,7 @@ export const CityBoundsLayer: React.FC<CityBoundsLayerProps> = React.memo(({ til
                         opacity={baseOpacity}
                         strokeLinejoin="round"
                         strokeLinecap="round"
+                        strokeDasharray="8 14"
                     />
                 );
             })}
