@@ -23,7 +23,7 @@
 - Type shapes largely align again: `map.rivers` now exposes edge data alongside tile overlays, so spec hooks that consume river graphs can function.
 - City utilities from `cities.ts.md` (capture reset to 10 HP, pop loss, raze, project effects) and `states.ts.md` (fortify/heal helpers) are not present in the engine.
 - Diplomacy/visibility logic lives directly in the turn loop (war/peace state, auto-declare, FoW visibility/reveal, new mutual vision sharing), not in the dev-spec helper modules.
-- AI hooks (`aiHeuristics.ts.md`, `aiDecisions.ts.md`) are entirely absent; there is no AI turn logic.
+- ✅ AI hooks now live in `game/ai/{goals,tech,cities,city-heuristics,units,diplomacy,turn-runner}.ts`, with `ai-heuristics.ts` and `ai-decisions.ts` supplying the documented scoring/war heuristics and `game/ai.ts` delegating to the shared runner.
 
 ### Client/UI gaps against docs
 - Build menus now expose full unit/building/project lists; manual worked-tile selection has center enforcement/feedback; fog-of-war shows tinted fog for seen tiles, renders unseen shroud hexes (toggleable), and keeps a legend.

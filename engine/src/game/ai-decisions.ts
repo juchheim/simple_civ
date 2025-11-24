@@ -1,7 +1,6 @@
-import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, TECHS, UNITS } from "../core/constants.js";
+import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../core/constants.js";
 import { hexDistance } from "../core/hex.js";
 import {
-    AiVictoryGoal,
     BuildingType,
     City,
     DiplomacyState,
@@ -11,11 +10,6 @@ import {
 } from "../core/types.js";
 
 export type WarPeaceDecision = "DeclareWar" | "ProposePeace" | "AcceptPeace" | "None";
-
-function canResearch(playerTechs: TechId[], techId: TechId): boolean {
-    const data = TECHS[techId];
-    return data.prereqTechs.every(t => playerTechs.includes(t));
-}
 
 function estimateMilitaryPower(playerId: string, state: GameState): number {
     const units = state.units.filter(u => u.ownerId === playerId);
@@ -35,10 +29,6 @@ function estimateMilitaryPower(playerId: string, state: GameState): number {
     }, 0);
 
     return unitPower + cityPower;
-}
-
-function anyEnemyNearCity(city: City, state: GameState, ownerId: string, radius: number): boolean {
-    return state.units.some(u => u.ownerId !== ownerId && hexDistance(u.coord, city.coord) <= radius);
 }
 
 function progressRaceRiskHigh(playerId: string, state: GameState): boolean {
@@ -73,49 +63,6 @@ function enemyCityDistance(playerId: string, targetId: string, state: GameState)
     return best;
 }
 
-export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal {
-    const player = state.players.find(p => p.id === playerId);
-    if (!player) return "Balanced";
-    const capitals = state.cities.filter(c => c.ownerId === playerId && c.isCapital);
-    const capitalsSafe = capitals.every(c => c.hp >= c.maxHp * 0.6 && !anyEnemyNearCity(c, state, playerId, 2));
-    if (player.completedProjects.includes(ProjectId.Observatory) && capitalsSafe) {
-        return "Progress";
-    }
-
-    const hasArmies = state.units.some(u => u.ownerId === playerId && u.type.startsWith("Army"));
-    const enemyCapitalInStrikeRange = state.cities.some(c => {
-        if (c.ownerId === playerId || !c.isCapital) return false;
-        return state.units.some(u => u.ownerId === playerId && hexDistance(u.coord, c.coord) <= 4);
-    });
-    if (hasArmies && enemyCapitalInStrikeRange) {
-        return "Conquest";
-    }
-
-    return player.aiGoal ?? "Balanced";
-}
-
-export function aiChooseTech(playerId: string, state: GameState, goal: AiVictoryGoal): TechId | null {
-    const player = state.players.find(p => p.id === playerId);
-    if (!player || player.currentTech) return null;
-
-    const hasTech = (t: TechId) => player.techs.includes(t);
-    const progressPath: TechId[] = [TechId.ScriptLore, TechId.ScholarCourts, TechId.StarCharts];
-    const conquestPath: TechId[] = [TechId.FormationTraining, TechId.DrilledRanks, TechId.ArmyDoctrine];
-    const path = goal === "Progress" ? progressPath : goal === "Conquest" ? conquestPath : [];
-
-    for (const techId of path) {
-        if (!hasTech(techId) && canResearch(player.techs, techId)) {
-            return techId;
-        }
-    }
-
-    const available = Object.values(TechId)
-        .filter(t => !hasTech(t) && canResearch(player.techs, t))
-        .sort((a, b) => TECHS[a].cost - TECHS[b].cost);
-
-    return available[0] ?? null;
-}
-
 export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState): WarPeaceDecision {
     if (!state.contacts?.[playerId]?.[targetId]) return "None";
     const stance = state.diplomacy?.[playerId]?.[targetId] ?? DiplomacyState.Peace;
@@ -139,3 +86,6 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
 
     return "None";
 }
+
+export { aiVictoryBias } from "./ai/goals.js";
+export { aiChooseTech } from "./ai/tech.js";

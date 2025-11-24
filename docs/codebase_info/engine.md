@@ -55,7 +55,12 @@ stateDiagram-v2
 - Seeds per-player units (Settler + Scout), initializes visibility/contact/shared-vision/diplomacy matrices, assigns game id, and returns the initial `GameState`.
 
 ## AI Loop
-- `ai-heuristics.ts` scores city sites and threats; `ai-decisions.ts` plans build/move/tech choices; `ai.ts` orchestrates a turn by applying a sequence of actions through `applyAction`.
+- `game/ai/goals.ts` derives/records victory bias (Observatory → Progress, strike-range capital → Conquest); `game/ai/tech.ts` maps goals to tech paths and dispatches `ChooseTech`.
+- `game/ai/cities.ts` manages `SetCityBuild` queues and worked tiles, leaning on `game/ai/city-heuristics.ts` to rank yields per goal.
+- `game/ai/units.ts` combines settler founding, escort assignment, combat targeting, and wartime movement, reusing `ai/shared/actions.ts` (safe `applyAction`) and `ai/shared/metrics.ts` (distance sorting).
+- `game/ai/diplomacy.ts` loops opponents via `aiWarPeaceDecision` and emits `SetDiplomacy` / peace offers.
+- `game/ai/turn-runner.ts` sequences goal → tech → cities → units → diplomacy, while `game/ai.ts` simply invokes the runner and finishes with `EndTurn`.
+- `ai-heuristics.ts` still scores city sites; `ai-decisions.ts` now focuses on war/peace heuristics, re-exporting goal/tech helpers for compatibility.
 - Client auto-skips AI turns in `App.tsx` by repeatedly calling `runAiTurn` until a human is current (safety-limited to 10 iterations).
 
 ## Extending the Engine
