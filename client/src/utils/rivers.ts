@@ -6,7 +6,7 @@ export const EDGE_TO_CORNER_INDICES: [number, number][] = [
     [2, 3], // NW
     [1, 2], // NE
 ];
-import { GameState, HexCoord, OverlayType } from "./engine-types";
+import { GameState, HexCoord, OverlayType } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexNeighbor, hexToString } from "./hex";
 
 export type RiverEdge = { a: HexCoord; b: HexCoord };

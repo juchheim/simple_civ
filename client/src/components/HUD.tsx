@@ -1,6 +1,5 @@
 import React from "react";
-import { GameState, HexCoord, Action, UnitType, BuildingType, ProjectId, DiplomacyState } from "@simple-civ/engine";
-import { canBuild } from "../utils/rules";
+import { GameState, HexCoord, Action, UnitType, BuildingType, ProjectId, DiplomacyState, canBuild } from "@simple-civ/engine";
 import { hexDistance } from "../utils/hex";
 
 interface HUDProps {

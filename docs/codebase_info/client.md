@@ -1,6 +1,6 @@
 # Client (React + Vite)
 
-Single-page app that renders the map, HUD, and tech tree while delegating game logic to the engine package (or local mirrors in `src/utils`). Entry is `src/main.tsx`, which renders `App`.
+Single-page app that renders the map, HUD, and tech tree while delegating game logic to the engine package. Entry is `src/main.tsx`, which renders `App`.
 
 ## Component & State Flow
 ```mermaid
@@ -9,20 +9,20 @@ graph TD
   App --> GameMap[components/GameMap]
   App --> HUD[components/HUD]
   App --> TechTree[components/TechTree]
-  App --> AIWrap[utils/ai.ts\nrunAiTurn]
-  App --> TurnLoop[utils/turn-loop.ts]
-  App --> MapGen[utils/map-generator.ts]
+  App --> EngineLoop["@simple-civ/engine\napplyAction"]
+  App --> EngineMap["@simple-civ/engine\ngenerateWorld"]
+  App --> EngineAI["@simple-civ/engine\nrunAiTurn"]
 ```
-- `App.tsx` holds the authoritative `GameState`, selection (`selectedCoord`, `selectedUnitId`), and player id. It generates a world, applies actions, and auto-plays AI turns.
+- `App.tsx` holds the authoritative `GameState`, selection (`selectedCoord`, `selectedUnitId`), and player id. It calls `generateWorld` from `@simple-civ/engine`, applies actions, and auto-plays AI turns.
 - `GameMap` renders hexes in SVG using axial coords; respects `visibility` and `revealed` from `GameState` for fog/shroud. Selecting a tile triggers `onTileClick`.
-- `HUD` lets the player issue actions (movement is done from map selection; build/research/diplomacy/end-turn are buttons). It uses `canBuild` from `utils/rules` to gate options.
+- `HUD` lets the player issue actions (movement is done from map selection; build/research/diplomacy/end-turn are buttons). It uses `canBuild` from the engine to gate options.
 - `TechTree` surfaces research options, grouping techs by era with constraints based on prerequisites and era counts.
-- Utilities map: `utils/turn-loop.ts` (client-side actions), `utils/rules.ts` (yields/build gates), `utils/map-generator.ts` (world gen), `utils/hex.ts` (hex math), `utils/constants.ts` (copied engine constants), `utils/ai*.ts` (heuristics/decisions wrapper).
+- Utilities: only `utils/hex.ts` (SVG/interaction geometry) and `utils/rivers.ts` (client-side river rendering helpers) remain. All gameplay data (types, rules, constants, AI, map gen) now come straight from the engine package.
 
 ## Engine Integration Notes
-- Client imports types and helpers from `@simple-civ/engine`, but also ships synced copies in `src/utils/*` (turn loop, rules, map gen, AI). These exist to run fully in-browser. When changing engine logic, mirror updates here or switch imports to the shared package to avoid drift.
-- Actions: `applyAction` (client utils) mirrors engine’s handler list. HUD buttons dispatch typed `Action` objects; errors are surfaced via alerts in `App.tsx`.
-- AI: `utils/ai.ts` wraps engine `runAiTurn` to keep a single source of truth.
+- Client imports types and helpers directly from `@simple-civ/engine`; no gameplay mirrors remain in `src/utils`.
+- Actions: `applyAction` is imported directly from `@simple-civ/engine` (no more client duplicate). HUD buttons dispatch typed `Action` objects; errors are surfaced via alerts in `App.tsx`.
+- AI: `App.tsx` calls `runAiTurn` from `@simple-civ/engine`; there is no local wrapper.
 
 ## Rendering & Interaction
 - Hex sizing is fixed by `HEX_SIZE` in `GameMap.tsx`; adjust viewBox if map sizes change dramatically.

@@ -9,9 +9,9 @@
 
 ## Implemented in code
 - AI heuristics and decision helpers implemented per docs:
-  - `scoreCitySite` / `tileWorkingPriority` now exist in both engine and client (`engine/src/game/ai-heuristics.ts`, `client/src/utils/ai-heuristics.ts`) and match the rulebook weights/bonuses (center + best3 + river + overlay bonus, Progress vs Conquest tile priorities, food bias when behind curve).
-  - Decision helpers (`aiVictoryBias`, `aiChooseTech`, `aiWarPeaceDecision`) implemented (`engine/src/game/ai-decisions.ts`, `client/src/utils/ai-decisions.ts`) following the doc heuristics for tech paths, war/peace triggers, and victory-goal switching.
-- The AI turn loops now use those helpers (`client/src/utils/ai.ts` wraps `engine/src/game/ai.ts` so both client/engine share the same executor):
+  - `scoreCitySite` / `tileWorkingPriority` live in `engine/src/game/ai-heuristics.ts` (the client now consumes them via the engine package) and match the rulebook weights/bonuses (center + best3 + river + overlay bonus, Progress vs Conquest tile priorities, food bias when behind curve).
+  - Decision helpers (`aiVictoryBias`, `aiChooseTech`, `aiWarPeaceDecision`) live in `engine/src/game/ai-decisions.ts` and follow the doc heuristics for tech paths, war/peace triggers, and victory-goal switching.
+- The AI turn loops now use those helpers (`engine/src/game/ai.ts`, called directly from the client via `@simple-civ/engine`):
   - Chooses tech based on the current victory bias (Progress path to StarCharts, Conquest path to DrilledRanks/ArmyDoctrine, else cheapest available).
   - Sets city builds with bias-aware priorities (science projects/buildings for Progress, military/form-army projects for Conquest, settlers + basics for Balanced).
   - Assigns worked tiles using the doc tile-working priority per city, with a food catch-up bias when pop lags.
@@ -19,9 +19,9 @@
   - Diplomacy automation: declares war when an enemy city is within 8 tiles and AI power ≥ defender; proposes/accepts peace if losing or Progress race risk is high.
   - Military micro: attacks nearby cities/units, then advances toward war targets; captures adjacent 0-HP cities; war power now weights attack/defense heavier and gives armies extra weight.
   - Stores the AI victory goal on the player (`aiGoal`) so bias is visible/persisted.
-- Start placement now uses the documented city-site scoring heuristic instead of the prior ad-hoc formula in both map generators (`engine/src/map/map-generator.ts`, `client/src/utils/map-generator.ts`).
+- Start placement now uses the documented city-site scoring heuristic instead of the prior ad-hoc formula; the client now consumes the shared engine generator (`engine/src/map/map-generator.ts`).
 - AI turn autoskip loop remains in the client (`client/src/App.tsx:107-121`) and drives the new behavior for `isAI` players.
-- Tests cover the AI heuristics/decisions/executor to lock doc rules (`engine/src/game/ai.test.ts`, `engine/src/game/ai.e2e.test.ts`), and the client relies on the engine AI (`client/src/utils/ai.ts` wrapper; client has a wrapper test in `client/src/utils/ai.test.ts` but no client test runner is wired yet—only the engine Vitest suite runs via `npm test`).
+- Tests cover the AI heuristics/decisions/executor to lock doc rules (`engine/src/game/ai.test.ts`, `engine/src/game/ai.e2e.test.ts`), and the client simply imports the engine AI (no separate wrapper/tests remain).
 - Fog is refreshed immediately after a unit moves via `refreshPlayerVision`, so revealed tiles show up as soon as movement finishes rather than waiting for end-of-turn.
 
 ## Gaps vs docs

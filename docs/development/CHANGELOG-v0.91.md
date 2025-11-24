@@ -46,7 +46,7 @@
 ## Unit Linking & Movement UX
 
 ### Added
-- **Unit Linking System** (`engine/src/core/types.ts`, `engine/src/game/turn-loop.ts`, `client/src/utils/engine-types.ts`, `client/src/utils/turn-loop.ts`)
+- **Unit Linking System** (`engine/src/core/types.ts`, `engine/src/game/turn-loop.ts`, legacy `client/src/utils/engine-types.ts` shim, and legacy `client/src/utils/turn-loop.ts` prior to its removal in v0.92)
   - Units now expose an optional `linkedUnitId` so two friendly units on the same hex can be paired.
   - New `LinkUnits`/`UnlinkUnits` actions validate ownership, co-location, and combat state before toggling the relationship.
   - Engine and client reducers keep both units synchronized, auto-move the partner with the slower move stat, and unlink when blocked or separated.

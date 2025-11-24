@@ -1,6 +1,5 @@
 import React from "react";
-import { GameState, TechId, EraId } from "@simple-civ/engine";
-import { TECHS } from "../utils/constants";
+import { GameState, TechId, EraId, TECHS } from "@simple-civ/engine";
 
 interface TechTreeProps {
     gameState: GameState;

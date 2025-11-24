@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { applyAction } from "./turn-loop";
 import { generateWorld } from "../map/map-generator";
-import { Action, UnitType, UnitState, PlayerPhase, TechId, BuildingType, TerrainType } from "../core/types";
+import { Action, UnitType, UnitState, PlayerPhase, TechId, BuildingType, TerrainType, DiplomacyState } from "../core/types";
 import { hexNeighbor, hexEquals } from "../core/hex";
 
 describe("Turn Loop & Actions", () => {
@@ -191,5 +191,187 @@ describe("Turn Loop & Actions", () => {
         };
 
         expect(() => applyAction(state, action)).toThrow("Not enough movement");
+    });
+
+    it("should move linked stacks together and unlink when the partner cannot follow", () => {
+        const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+        state.currentPlayerId = "p1";
+        state.map.width = 3;
+        state.map.height = 1;
+        state.map.tiles = [
+            { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 1, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 2, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+        ];
+
+        const leaderId = "u_link_leader";
+        const partnerId = "u_link_partner";
+        state.units = [
+            {
+                id: leaderId,
+                type: UnitType.Scout,
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 2,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: partnerId,
+                type: UnitType.Settler,
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                hp: 10,
+                maxHp: 1,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+        ];
+
+        const linked = applyAction(state, { type: "LinkUnits", playerId: "p1", unitId: leaderId, partnerId });
+        const firstStep = { q: 1, r: 0 };
+        const afterPairedMove = applyAction(linked, { type: "MoveUnit", playerId: "p1", unitId: leaderId, to: firstStep });
+
+        const movedLeader = afterPairedMove.units.find(u => u.id === leaderId)!;
+        const movedPartner = afterPairedMove.units.find(u => u.id === partnerId)!;
+        expect(movedLeader.coord).toEqual(firstStep);
+        expect(movedPartner.coord).toEqual(firstStep);
+        expect(movedLeader.linkedUnitId).toBe(partnerId);
+        expect(movedPartner.linkedUnitId).toBe(leaderId);
+        expect(movedLeader.movesLeft).toBe(movedPartner.movesLeft);
+
+        movedLeader.movesLeft = 1;
+        movedPartner.movesLeft = 0; // Force an invalid move for partner
+        const secondStep = { q: 2, r: 0 };
+        const afterForcedUnlink = applyAction(afterPairedMove, { type: "MoveUnit", playerId: "p1", unitId: leaderId, to: secondStep });
+        const finalLeader = afterForcedUnlink.units.find(u => u.id === leaderId)!;
+        const finalPartner = afterForcedUnlink.units.find(u => u.id === partnerId)!;
+
+        expect(finalLeader.coord).toEqual(secondStep);
+        expect(finalLeader.linkedUnitId).toBeUndefined();
+        expect(finalPartner.coord).toEqual(firstStep);
+        expect(finalPartner.linkedUnitId).toBeUndefined();
+    });
+
+    it("should enforce city attack LOS and clamp damage to at least the minimum", () => {
+        const state = generateWorld({
+            mapSize: "Small",
+            players: [
+                { id: "p1", civName: "A", color: "red" },
+                { id: "p2", civName: "B", color: "blue" },
+            ],
+        });
+        state.currentPlayerId = "p1";
+        const origin = { q: 0, r: 0 };
+        const blocker = { q: 1, r: 0 };
+        const targetCoord = { q: 2, r: 0 };
+        state.map.width = 3;
+        state.map.height = 1;
+        state.map.tiles = [
+            { coord: origin, terrain: TerrainType.Plains, overlays: [] },
+            { coord: blocker, terrain: TerrainType.Hills, overlays: [] }, // blocks LOS initially
+            { coord: targetCoord, terrain: TerrainType.Hills, overlays: [] },
+        ];
+
+        state.cities = [
+            {
+                id: "c1",
+                name: "Capital",
+                ownerId: "p1",
+                coord: origin,
+                pop: 3,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [],
+                workedTiles: [origin],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            },
+        ];
+
+        state.units = [
+            {
+                id: "u_garrison",
+                type: UnitType.SpearGuard,
+                ownerId: "p1",
+                coord: origin,
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Garrisoned,
+                hasAttacked: false,
+            },
+            {
+                id: "u_enemy",
+                type: UnitType.ArmySpearGuard,
+                ownerId: "p2",
+                coord: targetCoord,
+                hp: 15,
+                maxHp: 15,
+                movesLeft: 1,
+                state: UnitState.Fortified,
+                hasAttacked: false,
+            },
+        ];
+
+        const enemyPlayer = state.players.find(p => p.id === "p2");
+        if (enemyPlayer && !enemyPlayer.techs.includes(TechId.FormationTraining)) {
+            enemyPlayer.techs.push(TechId.FormationTraining);
+        }
+        state.seed = 0; // deterministic lowest roll for attack power
+
+        const action: Action = { type: "CityAttack", playerId: "p1", cityId: "c1", targetUnitId: "u_enemy" };
+
+        expect(() => applyAction(state, action)).toThrow("Line of sight blocked");
+
+        const blockingTile = state.map.tiles.find(t => hexEquals(t.coord, blocker))!;
+        blockingTile.terrain = TerrainType.Plains; // clear LOS
+
+        const resolved = applyAction(state, action);
+        const updatedCity = resolved.cities.find(c => c.id === "c1")!;
+        const damagedTarget = resolved.units.find(u => u.id === "u_enemy")!;
+
+        expect(updatedCity.hasFiredThisTurn).toBe(true);
+        expect(damagedTarget.hp).toBe(14); // clamp guarantees at least 1 damage
+    });
+
+    it("should enable shared vision on acceptance and revoke it automatically on war", () => {
+        const state = generateWorld({
+            mapSize: "Small",
+            players: [
+                { id: "p1", civName: "A", color: "red" },
+                { id: "p2", civName: "B", color: "blue" },
+            ],
+        });
+        state.currentPlayerId = "p1";
+
+        state.contacts = {
+            p1: { p2: true },
+            p2: { p1: true },
+        };
+        state.diplomacy = {
+            p1: { p2: DiplomacyState.Peace },
+            p2: { p1: DiplomacyState.Peace },
+        };
+        state.sharedVision = { p1: {}, p2: {} };
+        state.diplomacyOffers = [{ from: "p2", to: "p1", type: "Vision" }];
+
+        const accepted = applyAction(state, { type: "AcceptVisionShare", playerId: "p1", targetPlayerId: "p2" });
+        expect(accepted.sharedVision.p1?.p2).toBe(true);
+        expect(accepted.sharedVision.p2?.p1).toBe(true);
+        expect(accepted.diplomacyOffers.some(o => o.type === "Vision")).toBe(false);
+
+        const atWar = applyAction(accepted, { type: "SetDiplomacy", playerId: "p1", targetPlayerId: "p2", state: DiplomacyState.War });
+        expect(atWar.diplomacy.p1?.p2).toBe(DiplomacyState.War);
+        expect(atWar.sharedVision.p1?.p2).toBe(false);
+        expect(atWar.sharedVision.p2?.p1).toBe(false);
     });
 });

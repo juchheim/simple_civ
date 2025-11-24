@@ -2,12 +2,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
-import { GameState, Action, HexCoord, TechId } from "@simple-civ/engine";
-import { applyAction } from "./utils/turn-loop";
-import { generateWorld } from "./utils/map-generator";
+import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
-import { runAiTurn } from "./utils/ai";
-import { UNITS } from "./utils/constants";
 
 // Mock initial setup for single player
 const INITIAL_PLAYERS = [

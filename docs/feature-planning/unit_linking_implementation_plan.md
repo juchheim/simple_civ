@@ -28,13 +28,13 @@ move
  stats). If the partner cannot move (blocked or out of movement), automatically unlink both units.
 Ensure auto‑unlink when linked units end up on different hexes after any action.
 Client (frontend)
-[MODIFY] 
+[LEGACY NOTE] 
 client/src/utils/engine-types.ts
-Mirror the linkedUnitId?: string addition to the Unit interface.
+This shim previously mirrored engine types for the browser build; the client now imports types directly from `@simple-civ/engine`, so no further updates are needed here.
 [MODIFY] 
-client/src/utils/turn-loop.ts
-Add client‑side handling for the new actions LinkUnits and UnlinkUnits mirroring the engine logic.
-Update the moveUnit reducer to handle linked movement and auto‑unlink.
+client/src/utils/turn-loop.ts (legacy – superseded by importing `applyAction` from `@simple-civ/engine` in v0.92)
+Add client-side handling for the new actions LinkUnits and UnlinkUnits mirroring the engine logic. (Historical reference; the current client now consumes the shared engine implementation directly.)
+Update the moveUnit reducer to handle linked movement and auto-unlink.
 UI Additions
 HUD / Unit Panel (
 client/src/components/HUD.tsx

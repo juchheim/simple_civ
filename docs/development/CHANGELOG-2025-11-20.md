@@ -23,7 +23,7 @@
   - Modal can be opened/closed anytime
 
 ### Changed
-- **Starting Techs** (`client/src/utils/map-generator.ts`)
+- **Starting Techs** (`client/src/utils/map-generator.ts`, file removed in v0.92 now that the client uses `@simple-civ/engine/generateWorld`)
   - Players now start with `techs: []` (no starting technologies)
   - Forces players to choose their first tech on turn 1
   - Creates more strategic early-game decisions
@@ -40,13 +40,13 @@
   - **Issue**: Player 1's scout only had 1 move on turn 1 instead of 2
   - **Cause**: Units were never refreshed for the first player at game start
   - **Fix**: Added unit initialization in `map-generator.ts` that properly refreshes Player 1's units using UNITS constants
-  - **File**: `client/src/utils/map-generator.ts`
+  - **File**: `client/src/utils/map-generator.ts` (legacy client mirror; removed once the shared engine generator shipped)
 
 - **Move After Attack Bug**
   - **Issue**: Units could move after attacking, which should not be allowed
   - **Cause**: Missing `hasAttacked` check in `handleMoveUnit` function
   - **Fix**: Added validation to prevent movement after attacking
-  - **File**: `client/src/utils/turn-loop.ts`
+  - **File**: `client/src/utils/turn-loop.ts` (legacy reducer removed in v0.92 once the client switched to the shared engine turn loop)
 
 ## Tech Research Flow
 
@@ -81,8 +81,8 @@
 ### Modified Files
 - `client/src/App.tsx` - Tech tree integration and state management
 - `client/src/components/HUD.tsx` - Research display and build filtering
-- `client/src/utils/map-generator.ts` - Removed starting tech, added unit initialization
-- `client/src/utils/turn-loop.ts` - Fixed move-after-attack bug
+- `client/src/utils/map-generator.ts` - Removed starting tech, added unit initialization (file later removed when the client adopted the engine generator)
+- `client/src/utils/turn-loop.ts` - Fixed move-after-attack bug (file later removed in v0.92 when the client adopted `@simple-civ/engine/applyAction`)
 
 ## Impact on Gameplay
 

@@ -10,7 +10,7 @@
   - `game/turn-loop.test.ts` and `game/ai.e2e.test.ts`: action flow, combat/movement, AI integration
   - `game/rules.test.ts`: yield/city growth/build gating
   - `map/map-generator.test.ts`: world generation constraints
-- Client has a placeholder AI test in `client/src/utils/ai.test.ts`; expand with component tests if adding UI logic.
+- Client currently has no automated tests; add Vitest/RTL suites as UI logic grows.
 
 ## What to Cover
 - New actions: happy-path applyAction, invalid input/turn-order, side effects (visibility, diplomacy offers, production/tech progress).

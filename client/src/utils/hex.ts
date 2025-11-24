@@ -1,4 +1,4 @@
-import { HexCoord } from "./engine-types";
+import { HexCoord } from "@simple-civ/engine";
 
 export const DIRECTIONS: HexCoord[] = [
     { q: 1, r: 0 },

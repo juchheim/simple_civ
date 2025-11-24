@@ -48,10 +48,10 @@ stateDiagram-v2
 - Growth costs depend on population, `GROWTH_FACTORS`, and city yields; city work radius is constrained by `CITY_WORK_RADIUS_RINGS`.
 
 ## Map Generation (`map/map-generator.ts`)
-- Seedable PRNG; reproducible when `settings.seed` is provided.
-- Builds hex grid sized by `MAP_DIMS`; biases coasts to edges, randomizes interior biomes (Forest/Hills/Marsh/Desert), and sprinkles overlays (RichSoil/OreVein/SacredSite).
-- Traces river edges by stepping through land tiles and recording edge pairs (`rivers`); overlays tiles touched with `RiverEdge`.
-- Picks starting spots with guarantees (food/prod tiles in radius 2, workable land nearby) and min separation; scores candidates with `scoreCitySite`.
+- Seedable PRNG via `generation/seeding.ts` (`WorldRng` + `resolveSeed`); reproducible when `settings.seed` is provided.
+- Builds hex grid sized by `MAP_DIMS`, then defers to `generation/terrain.ts` for coast bias, biome noise, mountain clusters, and overlay placement.
+- River workflow lives in `generation/rivers.ts`: selects high-elevation starts, runs constrained A* toward distinct coasts, records edge graphs, emits corner-based polylines, and tags land tiles with `RiverEdge` overlays.
+- `generation/starts.ts` enforces start guarantees (food/prod tiles in radius 2, workable land) and spacing before `map-generator.ts` spawns Settlers/Scouts.
 - Seeds per-player units (Settler + Scout), initializes visibility/contact/shared-vision/diplomacy matrices, assigns game id, and returns the initial `GameState`.
 
 ## AI Loop
@@ -65,3 +65,15 @@ stateDiagram-v2
 
 ## Testing
 - Vitest specs live beside code: `game/turn-loop.test.ts`, `game/ai.e2e.test.ts`, `map/map-generator.test.ts`, `game/rules.test.ts`. Add new cases adjacent to the module you change and seed randomness when possible.***
+
+## Turn Loop Modules (2025-11-24)
+
+- `game/turn-loop.ts`: owns `applyAction` and `ChooseTech`, re-exporting helper namespaces for downstream use.
+- `game/actions/units.ts`: `MoveUnit`, `Attack`, `LinkUnits`, `UnlinkUnits`, including shared-move logic and post-move vision refresh.
+- `game/actions/cities.ts`: city-specific actions (`CityAttack`, `FoundCity`, build queue management, `RazeCity`, `SetWorkedTiles`).
+- `game/actions/diplomacy.ts`: peace/vision offers plus diplomacy state changes (war wipes shared vision).
+- `game/turn-lifecycle.ts`: `EndTurn`, per-player refresh/growth, round-end victory checks.
+- `game/vision.ts`: visibility recomputation, shared-vision enforcement, contact discovery.
+- `game/helpers/`: shared `movement`, `combat`, `cities`, and `diplomacy` utilities consumed across action modules.
+
+This split keeps behavior identical to the previous monolith while letting clients import targeted helpers instead of duplicating the entire loop.
