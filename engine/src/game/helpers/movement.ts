@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
 import { hexEquals } from "../../core/hex.js";
@@ -50,7 +50,7 @@ export function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Ti
         cost = terrainData.moveCostNaval ?? 999;
     }
 
-    if (unitStats.move === 1) {
+    if (unitStats.move === 1 || unit.type === UnitType.Titan) {
         cost = 1;
     }
 

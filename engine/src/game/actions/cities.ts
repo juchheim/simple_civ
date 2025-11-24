@@ -23,7 +23,7 @@ import {
 } from "../../core/constants.js";
 import { hexEquals, hexDistance, hexSpiral } from "../../core/hex.js";
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
-import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles } from "../helpers/cities.js";
+import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
 import { canBuild } from "../rules.js";
 
 export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
@@ -88,7 +88,7 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     const cityId = `c_${action.playerId}_${Date.now()}`;
     const newCity: City = {
         id: cityId,
-        name: action.name,
+        name: action.name || getCityName(state, state.players.find(p => p.id === action.playerId)?.civName || "", action.playerId),
         ownerId: action.playerId,
         coord: unit.coord,
         pop: 1,

@@ -33,8 +33,8 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
 
     const handleFoundCity = React.useCallback(() => {
         if (!selectedUnit) return;
-        const name = window.prompt("City Name:", "New City");
-        if (name) {
+        const name = window.prompt("City Name (leave blank for auto-generated):", "");
+        if (name !== null) {
             onAction({ type: "FoundCity", playerId, unitId: selectedUnit.id, name });
         }
     }, [selectedUnit, playerId, onAction]);

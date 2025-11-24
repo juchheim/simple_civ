@@ -32,6 +32,7 @@ export enum UnitType {
     ArmySpearGuard = "ArmySpearGuard",
     ArmyBowGuard = "ArmyBowGuard",
     ArmyRiders = "ArmyRiders",
+    Titan = "Titan",
 }
 
 export enum UnitDomain {
@@ -57,6 +58,7 @@ export enum BuildingType {
     CityWard = "CityWard",
     Forgeworks = "Forgeworks",
     CitySquare = "CitySquare",
+    TitansCore = "TitansCore",
 }
 
 export type AiVictoryGoal = "Progress" | "Conquest" | "Balanced";

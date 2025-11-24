@@ -15,6 +15,20 @@ type CityLayerProps = {
     hexPoints: string;
 };
 
+
+const darkenColor = (color: string, amount: number = 0.3): string => {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    const newR = Math.max(0, Math.floor(r * (1 - amount)));
+    const newG = Math.max(0, Math.floor(g * (1 - amount)));
+    const newB = Math.max(0, Math.floor(b * (1 - amount)));
+
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+};
+
 export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPoints }) => {
     const imageOffset = CITY_IMAGE_SIZE / 2;
 
@@ -23,6 +37,7 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
             {overlays.map(overlay => {
                 const cityLevel = Math.min(overlay.city.pop, 7);
                 const cityImg = cityImages[cityLevel];
+                const darkColor = darkenColor(overlay.strokeColor, 0.5);
 
                 return (
                     <g key={`city-${overlay.key}`} transform={`translate(${overlay.position.x},${overlay.position.y})`}>
@@ -39,9 +54,30 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
                             width={CITY_IMAGE_SIZE}
                             height={CITY_IMAGE_SIZE}
                         />
+                        <circle
+                            cx={0}
+                            cy={-CITY_LABEL_OFFSET - 30}
+                            r={20}
+                            fill={darkColor}
+                            stroke="white"
+                            strokeWidth={2}
+                        />
                         <text
                             x={0}
-                            y={-CITY_LABEL_OFFSET}
+                            y={-CITY_LABEL_OFFSET - 22}
+                            textAnchor="middle"
+                            fill="white"
+                            fontSize={22}
+                            style={{
+                                pointerEvents: "none",
+                                fontWeight: "bold"
+                            }}
+                        >
+                            {overlay.city.pop}
+                        </text>
+                        <text
+                            x={0}
+                            y={-CITY_LABEL_OFFSET + 5}
                             textAnchor="middle"
                             fill="white"
                             fontSize={24}
@@ -51,7 +87,7 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
                                 textShadow: "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000"
                             }}
                         >
-                            {overlay.city.name} {overlay.city.pop}
+                            {overlay.city.name}
                         </text>
                     </g>
                 );
@@ -59,3 +95,4 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
         </g>
     );
 });
+

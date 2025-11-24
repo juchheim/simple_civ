@@ -22,6 +22,7 @@ export const unitImages: Record<string, string> = {
     ArmySpearGuard: ArmySpearGuardImg,
     ArmyBowGuard: ArmyBowGuardImg,
     ArmyRiders: ArmyRidersImg,
+    Titan: ArmySpearGuardImg,
 };
 
 // Terrain asset imports

@@ -1,4 +1,4 @@
-export type CivId = "ForgeClans" | "ScholarKingdoms" | "RiverLeague";
+export type CivId = "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "AetherianVanguard";
 
 export type CivOption = {
     id: CivId;
@@ -29,6 +29,13 @@ export const CIV_OPTIONS: CivOption[] = [
         summary: "Breadbasket along the waterways.",
         perk: "+1 Food from each worked river-adjacent tile.",
         color: "#22c55e",
+    },
+    {
+        id: "AetherianVanguard",
+        title: "The Aetherian Vanguard",
+        summary: "Ancient guardians who seek to awaken a dormant power.",
+        perk: "Can build The Titan's Core to summon a legendary unit.",
+        color: "#a855f7",
     },
 ];
 

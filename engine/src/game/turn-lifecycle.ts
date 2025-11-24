@@ -133,7 +133,22 @@ function completeBuild(state: GameState, city: City) {
             city.workedTiles = ensureWorkedTiles(city, state);
         }
     } else if (build.type === "Building") {
-        city.buildings.push(build.id as BuildingType);
+        if (build.id === BuildingType.TitansCore) {
+            // Special case: TitansCore spawns a Titan and is consumed (not added to buildings)
+            state.units.push({
+                id: `u_${city.ownerId}_titan_${Date.now()}`,
+                type: UnitType.Titan,
+                ownerId: city.ownerId,
+                coord: city.coord,
+                hp: UNITS[UnitType.Titan].hp,
+                maxHp: UNITS[UnitType.Titan].hp,
+                movesLeft: UNITS[UnitType.Titan].move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            });
+        } else {
+            city.buildings.push(build.id as BuildingType);
+        }
     } else if (build.type === "Project") {
         const pId = build.id as ProjectId;
         const player = state.players.find(p => p.id === city.ownerId);
@@ -219,6 +234,13 @@ function eliminationSweep(state: GameState) {
 function healUnitsAtStart(state: GameState, playerId: string) {
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
         const stats = UNITS[unit.type];
+
+        // Titan regeneration: always heals 5 HP
+        if (unit.type === UnitType.Titan) {
+            unit.hp = Math.min(unit.maxHp, unit.hp + 5);
+            continue;
+        }
+
         const rested = unit.hasAttacked === false && unit.movesLeft === stats.move;
         if (!rested) continue;
 

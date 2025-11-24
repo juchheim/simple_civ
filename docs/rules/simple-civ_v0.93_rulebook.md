@@ -222,7 +222,15 @@ Traits are in 3.6 Civilizations & Traits.
 2.3 Setup
 2.3.1 Starting the Game
 
-Choose map size: Small / Standard / Large (dimensions in 3.7.1).
+Choose map size: Tiny / Small / Standard / Large / Huge (dimensions in 3.7.1).
+
+Choose number of civilizations (2-4):
+
+- Tiny maps support maximum 2 civilizations.
+
+- Small maps support maximum 3 civilizations.
+
+- Standard, Large, and Huge maps support maximum 4 civilizations.
 
 Generate map:
 
@@ -314,6 +322,18 @@ When founded:
 The tile becomes the City Center.
 
 City starts at Pop 1 with 0 stored Food/Production.
+
+City Name:
+
+- Each civilization has a unique list of 20 thematic city names.
+
+- The first city founded (capital) always receives a fixed name specific to that civilization.
+
+- Subsequent cities receive random unique names from the remaining list.
+
+- If all 20 names are exhausted, cities are named "New [Capital Name] [number]".
+
+- Players may override the auto-generated name with a custom name when founding.
 
 City immediately works its Center (2.5.2).
 
@@ -785,6 +805,7 @@ Spear Guard (Melee)	2	2	1	1	10	30	Capture cities
 Bow Guard (Ranged)	2	1	2	1	10	30	Ranged damage
 Riders (Cavalry)	2	2	1	2	10	40	Fast capture
 River Boat (Naval)	2	2	1	3	10	35	Water only
+Titan (Elite)	25	25	1	3	50	—	See 3.2.4
 3.2.3 Armies (Elite)
 
 After Army Doctrine, a city may build Form Army (Unit Type):
@@ -797,6 +818,18 @@ On completion, choose an eligible unit; it becomes an Army:
 
 +2 Atk, +2 Def, HP 15.
 
+3.2.4 Unique Units
+
+**Titan** (Aetherian Vanguard only)
+
+- Atk 25 / Def 25 / Range 1 / Move 3 / HP 50
+
+- Cannot be built directly; summoned by completing The Titan's Core wonder.
+
+- **Juggernaut**: Ignores all terrain movement costs (always costs 1 movement per tile).
+
+- **Regeneration**: Heals 5 HP at the start of every turn, regardless of actions taken.
+
 3.3 Buildings
 Building	Era	Tech	Cost	Effect
 Farmstead	Hearth	Fieldcraft	40	+1F city; −10% GrowthCost
@@ -808,6 +841,21 @@ Academy	Banner	Scholar Courts	60	+2S city
 City Ward	Banner	City Wards	60	+4 CityDefense; CityAttack +1
 Forgeworks	Engine	Steam Forges	80	+2P city
 City Square	Engine	Urban Plans	80	+1F +1P city
+The Titan's Core	Engine	Steam Forges	200	Summons The Titan (see 3.3.1)
+3.3.1 Unique Buildings
+
+**The Titan's Core** (Aetherian Vanguard only)
+
+- Era: Engine
+
+- Tech Requirement: Steam Forges
+
+- Cost: 200 Production
+
+- Effect: Upon completion, summons **The Titan** unit at the city's location. The wonder itself is consumed (not added to the city's building list).
+
+- Availability: Can only be built by the Aetherian Vanguard civilization.
+
 3.4 Tech Tree (v0.8 tuned costs)
 3.4.1 Hearth Age (cost 20 each)
 
@@ -884,14 +932,21 @@ Each city at Pop 3+ gains +1 Science.
 River League — River Larders
 Each river-adjacent tile you own gains +1 Food when worked.
 
+The Aetherian Vanguard — The Awakening
+No passive bonuses. Can build The Titan's Core wonder (requires Steam Forges) to summon The Titan, a legendary unit.
+
 3.7 Map Sizes & Generation (v0.6/v0.7 completed)
 3.7.1 Map Sizes (Hex)
 
-Small: 16×12
+Tiny: 12×8 (Max 2 Civs)
 
-Standard: 20×14
+Small: 16×12 (Max 3 Civs)
 
-Large: 24×18
+Standard: 20×14 (Max 4 Civs)
+
+Large: 24×18 (Max 4 Civs)
+
+Huge: 32×24 (Max 4 Civs)
 
 3.7.2 Light Generation Recipe
 

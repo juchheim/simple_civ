@@ -135,6 +135,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 4, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 4, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyRiders]: { atk: 4, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.Titan]: { atk: 25, def: 10, rng: 1, move: 3, hp: 50, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
 };
 
 export type BuildingData = {
@@ -158,6 +159,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 4, cityAttackBonus: 1 },
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 200, conditional: "Summons The Titan upon completion" },
 };
 
 export type TechData = {
@@ -238,4 +240,31 @@ export const PROJECTS: Record<ProjectId, ProjectData> = {
         oneCityAtATime: false,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.Riders, armyUnit: UnitType.ArmyRiders } },
     },
+};
+
+export const CITY_NAMES: Record<string, string[]> = {
+    ForgeClans: [
+        "Ironhold", "Blackanvil", "Deepforge", "Stonehearth", "Grimpeak",
+        "Moltenrock", "Steelgard", "Hammerfall", "Ashvein", "Emberpit",
+        "Craghome", "Orebreach", "Slagdepths", "Bronzegate", "Coalheart",
+        "Smelter's Rise", "Granitekeep", "Ironroot", "Bellowsbreath", "Sparkcleft"
+    ],
+    ScholarKingdoms: [
+        "Savantia", "Lumina", "Scribesrest", "Wisdom's Port", "Celestia",
+        "Scrollhaven", "Inkwell", "Prismara", "Lexicon", "Thoughtspire",
+        "Clarity", "Epiphany", "Sagefield", "Mindreach", "Veritas",
+        "Quillpoint", "Archive's End", "Logic's Bay", "Reason's Peak", "Thesis"
+    ],
+    RiverLeague: [
+        "Verdantia", "Greenfield", "Fairhaven", "Bountiful", "Tradewind",
+        "Harvest Home", "Meadowford", "Prospera", "Fertile Crescent", "Bloom",
+        "Grainhold", "Marketcross", "Abundance", "Richfield", "Goldenleaf",
+        "Sunvalley", "Growthpoint", "Vitalis", "Plenty", "Everspring"
+    ],
+    AetherianVanguard: [
+        "Xylos", "Zenthor", "Vexia", "Aethelos", "Nyxara",
+        "Kryos", "Onyxia", "Voidreach", "Starfall", "Nebula",
+        "Zenith", "Vortex", "Quasar", "Eclipse", "Horizon's Edge",
+        "Umbra", "Solara", "Lunaris", "Astral", "Cosmos"
+    ],
 };

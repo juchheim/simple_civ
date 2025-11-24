@@ -1,5 +1,5 @@
 import { City, GameState, HexCoord } from "../../core/types.js";
-import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, UNITS } from "../../core/constants.js";
+import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, UNITS, CITY_NAMES } from "../../core/constants.js";
 import { TerrainType } from "../../core/types.js";
 import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
 import { getTileYields } from "../rules.js";
@@ -117,4 +117,26 @@ export function captureCity(state: GameState, city: City, newOwnerId: string) {
     claimCityTerritory(city, state, newOwnerId, targetRing);
     city.workedTiles = ensureWorkedTiles(city, state);
     city.hasFiredThisTurn = false;
+}
+
+export function getCityName(state: GameState, civName: string, ownerId: string): string {
+    const playerCities = state.cities.filter(c => c.ownerId === ownerId);
+    const nameList = CITY_NAMES[civName] || [];
+
+    // First city is always the Capital (first name in list)
+    if (playerCities.length === 0) {
+        return nameList[0] || "Capital";
+    }
+
+    // Filter out used names
+    const usedNames = new Set(state.cities.map(c => c.name));
+    const availableNames = nameList.slice(1).filter(name => !usedNames.has(name));
+
+    if (availableNames.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableNames.length);
+        return availableNames[randomIndex];
+    }
+
+    // Fallback if all names used
+    return `New ${nameList[0] || "City"} ${playerCities.length + 1}`;
 }
