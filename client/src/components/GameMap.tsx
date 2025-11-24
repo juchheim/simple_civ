@@ -1,14 +1,16 @@
 import React, { useCallback, useMemo } from "react";
 import { terrainImages } from "../assets";
-import { City, GameState, HexCoord, Tile } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Tile, Yields, getTileYields } from "@simple-civ/engine";
 import { HexTile } from "./GameMap/HexTile";
 import { CityLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
 import { OverlayLayer } from "./GameMap/OverlayLayer";
 import { UnitLayer, UnitDescriptor } from "./GameMap/UnitLayer";
+import { CityBoundsLayer, CityBoundsDescriptor } from "./GameMap/CityBoundsLayer";
 import { getHexCornerOffsets, getHexPoints, hexToPixel as projectHexToPixel } from "./GameMap/geometry";
 import { useMapInteraction } from "./GameMap/useMapInteraction";
 import { useRiverPolylines } from "./GameMap/useRiverPolylines";
 import { HEX_SIZE, RIVER_OPACITY } from "./GameMap/constants";
+import { getNeighbors } from "../utils/hex";
 
 type TileVisibilityState = { isVisible: boolean; isFogged: boolean; isShroud: boolean };
 
@@ -17,6 +19,7 @@ type TileRenderEntry = {
     tile: Tile;
     position: { x: number; y: number };
     visibility: TileVisibilityState;
+    yields: Yields;
     isSelected: boolean;
     isReachable: boolean;
     city: City | null;
@@ -34,9 +37,10 @@ interface GameMapProps {
     showShroud: boolean;
     selectedUnitId: string | null;
     reachableCoords: Set<string>;
+    showTileYields: boolean;
 }
 
-export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords }) => {
+export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields }) => {
     const { map, units, cities } = gameState;
     const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
     const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState.visibility, playerId]);
@@ -92,12 +96,19 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 tile,
                 position,
                 visibility,
+                yields: getTileYields(tile),
                 isSelected,
                 isReachable,
                 city,
             };
         });
     }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords]);
+
+    const playerColorMap = useMemo(() => {
+        const map = new Map<string, string>();
+        gameState.players.forEach(p => map.set(p.id, p.color));
+        return map;
+    }, [gameState.players]);
 
     const cityOverlayData = useMemo<CityOverlayDescriptor[]>(() => {
         return tileRenderData
@@ -106,8 +117,60 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 key: entry.key,
                 position: entry.position,
                 city: entry.city!,
+                strokeColor: playerColorMap.get(entry.city!.ownerId) ?? "#22d3ee",
             }));
+    }, [tileRenderData, playerColorMap]);
+
+    const tileByKey = useMemo(() => {
+        const map = new Map<string, TileRenderEntry>();
+        tileRenderData.forEach(entry => map.set(entry.key, entry));
+        return map;
     }, [tileRenderData]);
+
+    const cityBounds = useMemo<CityBoundsDescriptor[]>(() => {
+        const segments: CityBoundsDescriptor[] = [];
+        const EDGE_TO_CORNER_INDICES: [number, number][] = [
+            [0, 1], // E
+            [5, 0], // NE
+            [4, 5], // NW
+            [3, 4], // W
+            [2, 3], // SW
+            [1, 2], // SE
+        ];
+        const dedup = new Set<string>();
+
+        tileRenderData
+            .filter(entry => entry.tile.ownerCityId && !(entry.visibility.isShroud && !showShroud))
+            .forEach(entry => {
+                const ownerCityId = entry.tile.ownerCityId!;
+                const corners = HEX_CORNER_OFFSETS.map(c => ({ x: entry.position.x + c.x, y: entry.position.y + c.y }));
+                const neighbors = getNeighbors(entry.tile.coord);
+
+                neighbors.forEach((neighborCoord, dir) => {
+                    const neighborKey = `${neighborCoord.q},${neighborCoord.r}`;
+                    const neighborEntry = tileByKey.get(neighborKey);
+                    if (neighborEntry?.tile.ownerCityId === ownerCityId) return; // interior edge
+                    if (neighborEntry?.tile.ownerCityId) return; // edge touches another city: skip drawing shared boundary
+
+                    const [cornerA, cornerB] = EDGE_TO_CORNER_INDICES[dir];
+                    const start = corners[cornerA];
+                    const end = corners[cornerB];
+                    const edgeKey = `${entry.key}|${neighborKey}|${ownerCityId}`;
+                    if (dedup.has(edgeKey)) return;
+                    dedup.add(edgeKey);
+                    segments.push({
+                        key: `${entry.key}-${dir}`,
+                        start,
+                        end,
+                        strokeColor: playerColorMap.get(entry.tile.ownerId ?? "") ?? "#22d3ee",
+                        isVisible: entry.visibility.isVisible,
+                        isFogged: entry.visibility.isFogged,
+                    });
+                });
+            });
+
+        return segments;
+    }, [tileRenderData, playerColorMap, showShroud, tileByKey]);
 
     const unitRenderData = useMemo<UnitDescriptor[]>(() => {
         const linkedPartnerId = selectedUnit?.linkedUnitId ?? null;
@@ -182,12 +245,15 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                             isSelected={entry.isSelected}
                             isReachable={entry.isReachable}
                             showShroud={showShroud}
+                            yields={entry.yields}
+                            showTileYields={showTileYields}
                         />
                     ))}
                     <OverlayLayer
                         riverSegments={riverLineSegments}
                         riverOpacity={RIVER_OPACITY}
                     />
+                    <CityBoundsLayer tiles={cityBounds} />
                     <CityLayer
                         overlays={cityOverlayData}
                         hexPoints={HEX_POINTS}

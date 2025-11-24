@@ -320,6 +320,45 @@ describe("ai regression safeguards", () => {
         expect(after.cities[0].workedTiles).toEqual([cityCoord]);
     });
 
+    it("founds a city on the best available valid tile", () => {
+        const state = baseState();
+        state.currentPlayerId = "p";
+        state.players = [
+            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ] as any;
+
+        const start = hex(0, 0); // invalid (coast)
+        const target = hex(1, 0); // best valid tile
+        const blocker = hex(0, 1); // unworkable terrain to avoid ties
+
+        state.map.tiles = [
+            { coord: start, terrain: TerrainType.Coast, overlays: [], hasCityCenter: false },
+            { coord: target, terrain: TerrainType.Plains, overlays: [OverlayType.RichSoil], hasCityCenter: false },
+            { coord: blocker, terrain: TerrainType.Mountain, overlays: [], hasCityCenter: false },
+        ] as any;
+        state.units = [
+            {
+                id: "settler",
+                ownerId: "p",
+                type: UnitType.Settler,
+                coord: start,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: UnitState.Normal,
+            },
+        ] as any;
+
+        const after = moveSettlersAndFound(state as any, "p");
+
+        expect(after.cities).toHaveLength(1);
+        const city = after.cities[0];
+        expect(city.coord).toEqual(target);
+
+        const cityTile = after.map.tiles.find(t => hexEquals(t.coord, target));
+        expect(cityTile?.hasCityCenter).toBe(true);
+        expect(cityTile?.ownerId).toBe("p");
+    });
+
     it("moves settlers toward the best scoring city site", () => {
         const state = baseState();
         state.currentPlayerId = "p";
@@ -348,8 +387,9 @@ describe("ai regression safeguards", () => {
         ] as any;
 
         const after = moveSettlersAndFound(state as any, "p");
-        const movedSettler = after.units.find(u => u.id === "settler");
-        expect(movedSettler?.coord).toEqual(rich);
+        const foundedCity = after.cities.find(c => hexEquals(c.coord, rich));
+        expect(foundedCity).toBeDefined();
+        expect(foundedCity?.ownerId).toBe("p");
     });
 
     it("attacks the lowest HP enemy city within range first", () => {

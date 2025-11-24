@@ -92,12 +92,15 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
     let next = state;
     const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
     for (const settler of settlers) {
-        let currentTile = next.map.tiles.find(t => hexEquals(t.coord, settler.coord));
+        const liveSettler = next.units.find(u => u.id === settler.id);
+        if (!liveSettler) continue;
+
+        let currentTile = next.map.tiles.find(t => hexEquals(t.coord, liveSettler.coord));
         if (!currentTile) continue;
 
-        const danger = detectNearbyDanger(settler.coord, playerId, next);
+        const danger = detectNearbyDanger(liveSettler.coord, playerId, next);
         if (danger) {
-            const neighbors = getNeighbors(settler.coord);
+            const neighbors = getNeighbors(liveSettler.coord);
             const neighborsWithSafety = neighbors
                 .map(coord => ({
                     coord,
@@ -110,7 +113,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                 const moveResult = tryAction(next, {
                     type: "MoveUnit",
                     playerId,
-                    unitId: settler.id,
+                    unitId: liveSettler.id,
                     to: neighbor.coord
                 });
                 if (moveResult !== next) {
@@ -125,7 +128,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
         if (validCityTile(currentTile) && settleHereIsBest(currentTile, next, playerId)) {
             const name = `AI City ${next.cities.length + 1}`;
-            const afterFound = tryAction(next, { type: "FoundCity", playerId, unitId: settler.id, name });
+            const afterFound = tryAction(next, { type: "FoundCity", playerId, unitId: liveSettler.id, name });
             if (afterFound !== next) {
                 next = afterFound;
                 continue;
@@ -133,19 +136,19 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         }
 
         const searchRadius = 8;
-        const nearbyCoords = hexSpiral(settler.coord, searchRadius);
+        const nearbyCoords = hexSpiral(liveSettler.coord, searchRadius);
         const potentialSites = nearbyCoords
             .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
             .filter(({ coord, tile }) =>
                 tile &&
                 validCityTile(tile) &&
-                !hexEquals(coord, settler.coord)
+                !hexEquals(coord, liveSettler.coord)
             )
             .map(({ coord, tile }) => ({
                 coord,
                 tile,
                 score: tile ? scoreCitySite(tile, next, playerId) : -Infinity,
-                distance: hexDistance(settler.coord, coord)
+                distance: hexDistance(liveSettler.coord, coord)
             }))
             .sort((a, b) => {
                 if (Math.abs(a.score - b.score) > 0.1) {
@@ -156,13 +159,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
         let moved = false;
         for (const site of potentialSites) {
-            const neighbors = getNeighbors(settler.coord);
+            const neighbors = getNeighbors(liveSettler.coord);
             const neighborsWithDistance = sortByDistance(site.coord, neighbors, coord => coord);
             for (const neighbor of neighborsWithDistance) {
                 const moveResult = tryAction(next, {
                     type: "MoveUnit",
                     playerId,
-                    unitId: settler.id,
+                    unitId: liveSettler.id,
                     to: neighbor
                 });
                 if (moveResult !== next) {
@@ -176,7 +179,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         }
 
         if (!moved) {
-            const neighborOptions = getNeighbors(settler.coord)
+            const neighborOptions = getNeighbors(liveSettler.coord)
                 .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
                 .filter(({ tile }) => tile && validCityTile(tile));
             const scored = neighborOptions
@@ -187,7 +190,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                 .sort((a, b) => b.score - a.score);
 
             for (const candidate of scored) {
-                const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: settler.id, to: candidate.coord });
+                const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: liveSettler.id, to: candidate.coord });
                 if (moveResult !== next) {
                     next = moveResult;
                     break;
@@ -195,10 +198,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             }
         }
 
-        currentTile = next.map.tiles.find(t => hexEquals(t.coord, settler.coord));
+        const updatedSettler = next.units.find(u => u.id === settler.id);
+        if (!updatedSettler) continue;
+
+        currentTile = next.map.tiles.find(t => hexEquals(t.coord, updatedSettler.coord));
         if (currentTile && validCityTile(currentTile) && settleHereIsBest(currentTile, next, playerId)) {
             const name = `AI City ${next.cities.length + 1}`;
-            next = tryAction(next, { type: "FoundCity", playerId, unitId: settler.id, name });
+            next = tryAction(next, { type: "FoundCity", playerId, unitId: updatedSettler.id, name });
         }
     }
     return next;
@@ -376,4 +382,3 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
     }
     return next;
 }
-

@@ -17,6 +17,7 @@ function App() {
     const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
     const [showTechTree, setShowTechTree] = useState(false);
     const [showShroud, setShowShroud] = useState(true);
+    const [showTileYields, setShowTileYields] = useState(false);
     const [playerId, setPlayerId] = useState("p1"); // Local player
     const SAVE_KEY = "simple-civ-save";
 
@@ -227,6 +228,7 @@ function App() {
                 showShroud={showShroud}
                 selectedUnitId={selectedUnitId}
                 reachableCoords={reachableCoordSet}
+                showTileYields={showTileYields}
             />
             <div style={{ position: "absolute", top: 10, left: 10, padding: "10px 12px", background: "rgba(0,0,0,0.65)", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1.4, minWidth: 200 }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>Vision Key</div>
@@ -236,6 +238,10 @@ function App() {
                 <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11 }}>
                     <input type="checkbox" checked={showShroud} onChange={e => setShowShroud(e.target.checked)} />
                     Show unseen shroud
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: 11 }}>
+                    <input type="checkbox" checked={showTileYields} onChange={e => setShowTileYields(e.target.checked)} />
+                    Show terrain yields
                 </label>
                 <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                     <button onClick={handleSave} style={{ fontSize: 11 }}>Save</button>

@@ -7,6 +7,7 @@ export type CityOverlayDescriptor = {
     key: string;
     position: { x: number; y: number };
     city: City;
+    strokeColor: string;
 };
 
 type CityLayerProps = {
@@ -28,7 +29,7 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
                         <polygon
                             points={hexPoints}
                             fill="none"
-                            stroke="#00ffff"
+                            stroke={overlay.strokeColor}
                             strokeWidth={15}
                         />
                         <image
@@ -58,4 +59,3 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
         </g>
     );
 });
-
