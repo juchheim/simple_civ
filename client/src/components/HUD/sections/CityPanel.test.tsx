@@ -1,0 +1,136 @@
+import { describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType } from "@simple-civ/engine";
+import { CityPanel } from "./CityPanel";
+import { CityBuildOptions } from "../hooks";
+
+const tile = (q: number, r: number, extras: Partial<GameState["map"]["tiles"][number]> = {}) => ({
+    coord: { q, r },
+    terrain: TerrainType.Plains,
+    overlays: [],
+    ...extras,
+});
+
+const baseCity = (): City => ({
+    id: "city-1",
+    name: "Capital",
+    ownerId: "p1",
+    coord: { q: 0, r: 0 },
+    pop: 2,
+    storedFood: 5,
+    storedProduction: 3,
+    buildings: [],
+    workedTiles: [{ q: 0, r: 0 }],
+    currentBuild: null,
+    buildProgress: 0,
+    hp: 20,
+    maxHp: 20,
+    isCapital: false,
+    hasFiredThisTurn: false,
+    milestones: [],
+});
+
+const baseGameState = (city: City, units: Unit[] = []): GameState => ({
+    id: "game-1",
+    turn: 1,
+    players: [
+        {
+            id: "p1",
+            civName: "Alpha",
+            color: "#fff",
+            techs: [],
+            currentTech: { id: TechId.Fieldcraft, progress: 0, cost: 10 },
+            completedProjects: [],
+            isEliminated: false,
+        },
+        {
+            id: "p2",
+            civName: "Beta",
+            color: "#0ff",
+            techs: [],
+            currentTech: null,
+            completedProjects: [],
+            isEliminated: false,
+        },
+    ],
+    currentPlayerId: "p1",
+    phase: PlayerPhase.Action,
+    map: {
+        width: 2,
+        height: 2,
+        tiles: [
+            tile(0, 0, { ownerId: "p1", ownerCityId: city.id, hasCityCenter: true }),
+            tile(0, 1, { ownerId: "p1", ownerCityId: city.id }),
+        ],
+    },
+    units,
+    cities: [city],
+    seed: 1,
+    visibility: { p1: [], p2: [] },
+    revealed: { p1: [], p2: [] },
+    diplomacy: {
+        p1: { p2: DiplomacyState.Peace },
+        p2: { p1: DiplomacyState.Peace },
+    },
+    sharedVision: {},
+    contacts: { p1: { p2: true }, p2: { p1: true } },
+    diplomacyOffers: [],
+});
+
+const defaultBuildOptions: CityBuildOptions = {
+    units: [{ id: UnitType.Scout, name: "Scout" }],
+    buildings: [],
+    projects: [],
+};
+
+describe("CityPanel", () => {
+    it("renders build buttons and fires onBuild when clicked", () => {
+        const city = baseCity();
+        const onBuild = vi.fn();
+        render(
+            <CityPanel
+                city={city}
+                isMyTurn={true}
+                playerId="p1"
+                gameState={baseGameState(city)}
+                units={[]}
+                buildOptions={defaultBuildOptions}
+                onBuild={onBuild}
+                onRazeCity={vi.fn()}
+                onCityAttack={vi.fn()}
+                onSetWorkedTiles={vi.fn()}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: "Build Scout" }));
+        expect(onBuild).toHaveBeenCalledWith("Unit", UnitType.Scout);
+    });
+
+    it("sends updated worked tiles via onSetWorkedTiles when toggling tiles", () => {
+        const city = baseCity();
+        const onSetWorkedTiles = vi.fn();
+
+        render(
+            <CityPanel
+                city={city}
+                isMyTurn={true}
+                playerId="p1"
+                gameState={baseGameState(city)}
+                units={[]}
+                buildOptions={defaultBuildOptions}
+                onBuild={vi.fn()}
+                onRazeCity={vi.fn()}
+                onCityAttack={vi.fn()}
+                onSetWorkedTiles={onSetWorkedTiles}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: /0,1 Plains/ }));
+
+        expect(onSetWorkedTiles).toHaveBeenCalledWith(
+            "city-1",
+            expect.arrayContaining([{ q: 0, r: 1 }]),
+        );
+    });
+});
+

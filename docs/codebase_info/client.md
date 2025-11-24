@@ -16,6 +16,7 @@ graph TD
 - `App.tsx` holds the authoritative `GameState`, selection (`selectedCoord`, `selectedUnitId`), and player id. It calls `generateWorld` from `@simple-civ/engine`, applies actions, and auto-plays AI turns.
 - `GameMap` renders hexes in SVG using axial coords; respects `visibility` and `revealed` from `GameState` for fog/shroud. Selecting a tile triggers `onTileClick`.
 - `HUD` lets the player issue actions (movement is done from map selection; build/research/diplomacy/end-turn are buttons). It uses `canBuild` from the engine to gate options.
+- `HUD.tsx` is now just a compositor for `components/HUD/sections` (ActionBar, TechButton, UnitList, UnitPanel, CityPanel, DiplomacySummary) plus shared hooks/helpers in `components/HUD/hooks|helpers`, keeping per-feature logic isolated and unit-tested with Vitest/RTL smoke specs.
 - `TechTree` surfaces research options, grouping techs by era with constraints based on prerequisites and era counts.
 - Utilities: only `utils/hex.ts` (SVG/interaction geometry) and `utils/rivers.ts` (client-side river rendering helpers) remain. All gameplay data (types, rules, constants, AI, map gen) now come straight from the engine package.
 
