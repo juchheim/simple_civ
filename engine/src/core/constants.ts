@@ -10,7 +10,7 @@ import {
     OverlayType,
 } from "./types.js";
 
-export const GAME_VERSION = "0.92";
+export const GAME_VERSION = "0.93";
 export const MAX_PLAYERS = 4;
 
 // Yields
@@ -71,9 +71,11 @@ export const CITY_ATTACK_RANGE = 2;
 
 // Map Sizes
 export const MAP_DIMS = {
+    Tiny: { w: 12, h: 8 },
     Small: { w: 16, h: 12 },
     Standard: { w: 20, h: 14 },
     Large: { w: 24, h: 18 },
+    Huge: { w: 32, h: 24 },
 };
 
 // Data Tables

@@ -317,7 +317,12 @@ City starts at Pop 1 with 0 stored Food/Production.
 
 City immediately works its Center (2.5.2).
 
-Each city controls tiles within 2 rings.
+Territory growth:
+
+- On founding (Pop 1): claim Center + Ring 1 only.
+- At Pop 3+: automatically claim Ring 2 (no shrink if population drops later).
+- No shared tiles: a tile belongs to only one city; claiming never steals from another city.
+- When new tiles are claimed automatically, the city auto-selects the highest-yield available tile, with tie-breakers Food > Production > Science.
 
 No shared tiles: a tile belongs to only one city.
 
@@ -1034,4 +1039,3 @@ An AI settler should use an escort if:
 - Prioritize nearby military units that are not actively engaged in combat
 - The escort should move with the settler toward the target site
 - Once the settler founds a city or reaches safety, the escort may be reassigned
-

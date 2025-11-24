@@ -55,7 +55,7 @@ export function applyTerrainNoise(context: TerrainContext) {
         }
     });
 
-    const clusterBySize: Record<MapSize, number> = { Small: 2, Standard: 3, Large: 4 };
+    const clusterBySize: Record<MapSize, number> = { Tiny: 1, Small: 2, Standard: 3, Large: 4, Huge: 6 };
     const clusterCount = clusterBySize[mapSize] ?? 2;
     for (let i = 0; i < clusterCount; i++) {
         const candidates = tiles.filter(t => isLand(t));

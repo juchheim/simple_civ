@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
-import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS } from "@simple-civ/engine";
+import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
+
 
 function App() {
     const [gameState, setGameState] = useState<GameState | null>(null);
@@ -15,24 +16,46 @@ function App() {
     const [showTileYields, setShowTileYields] = useState(false);
     const [playerId, setPlayerId] = useState("p1"); // Local player
     const [selectedCiv, setSelectedCiv] = useState<CivId>(CIV_OPTIONS[0].id);
+    const [selectedMapSize, setSelectedMapSize] = useState<MapSize>("Small");
+    const [numCivs, setNumCivs] = useState(2);
     const [seedInput, setSeedInput] = useState("");
     const SAVE_KEY = "simple-civ-save";
+
+    // Enforce constraints when map size changes
+    useEffect(() => {
+        const maxForMap = selectedMapSize === "Tiny" ? 2 : selectedMapSize === "Small" ? 3 : 4;
+        const maxForCivs = CIV_OPTIONS.length;
+        const effectiveMax = Math.min(maxForMap, maxForCivs);
+        if (numCivs > effectiveMax) {
+            setNumCivs(effectiveMax);
+        }
+    }, [selectedMapSize, numCivs]);
 
     const startNewGame = () => {
         try {
             const rawSeed = seedInput.trim() === "" ? undefined : Number(seedInput);
             const parsedSeed = rawSeed != null && !Number.isNaN(rawSeed) ? rawSeed : undefined;
-            const aiCiv = pickAiCiv([selectedCiv], parsedSeed);
+
             const usedColors = new Set<string>();
             const humanColor = pickPlayerColor(selectedCiv, usedColors);
-            const aiColor = pickPlayerColor(aiCiv.id, usedColors);
 
-            const players = [
-                { id: "p1", civName: selectedCiv, color: humanColor },
-                { id: "p2", civName: aiCiv.id, color: aiColor, ai: true },
-            ];
+            const players = [];
 
-            const settings = { mapSize: "Small" as const, players, seed: parsedSeed };
+            // Human player
+            players.push({ id: "p1", civName: selectedCiv, color: humanColor });
+
+            // AI players
+
+            // If we run out of unique civs, we might need to duplicate (though requirement says max <= unique)
+            // The constraint logic should prevent this, but let's be safe or just pick from available.
+
+            for (let i = 1; i < numCivs; i++) {
+                const aiCiv = pickAiCiv([selectedCiv, ...players.slice(1).map(p => p.civName as CivId)], parsedSeed ? parsedSeed + i : undefined);
+                const aiColor = pickPlayerColor(aiCiv.id, usedColors);
+                players.push({ id: `p${i + 1}`, civName: aiCiv.id, color: aiColor, ai: true });
+            }
+
+            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed };
             const state = generateWorld(settings);
             console.info("[World] seed", state.seed);
             setGameState(state);
@@ -272,6 +295,59 @@ function App() {
                                     Keep blank for a random seed. AI civ draw uses this seed too.
                                 </div>
                             </div>
+                            <div style={{ marginBottom: 12 }}>
+                                <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Map Size</label>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
+                                        <button
+                                            key={size}
+                                            onClick={() => setSelectedMapSize(size)}
+                                            style={{
+                                                padding: "6px 10px",
+                                                fontSize: 12,
+                                                borderRadius: 6,
+                                                border: `1px solid ${selectedMapSize === size ? "#3b82f6" : "#1f2937"}`,
+                                                background: selectedMapSize === size ? "#1e3a8a" : "#0f172a",
+                                                color: selectedMapSize === size ? "#93c5fd" : "#94a3b8",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            {size}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: 12 }}>
+                                <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Number of Civilizations</label>
+                                <div style={{ display: "flex", gap: 8 }}>
+                                    {[2, 3, 4].map((count) => {
+                                        const maxForMap = selectedMapSize === "Tiny" ? 2 : selectedMapSize === "Small" ? 3 : 4;
+                                        const maxForCivs = CIV_OPTIONS.length;
+                                        const effectiveMax = Math.min(maxForMap, maxForCivs);
+                                        const isDisabled = count > effectiveMax;
+
+                                        return (
+                                            <button
+                                                key={count}
+                                                onClick={() => !isDisabled && setNumCivs(count)}
+                                                disabled={isDisabled}
+                                                style={{
+                                                    padding: "6px 12px",
+                                                    fontSize: 12,
+                                                    borderRadius: 6,
+                                                    border: `1px solid ${numCivs === count ? "#3b82f6" : "#1f2937"}`,
+                                                    background: numCivs === count ? "#1e3a8a" : isDisabled ? "#111827" : "#0f172a",
+                                                    color: numCivs === count ? "#93c5fd" : isDisabled ? "#4b5563" : "#94a3b8",
+                                                    cursor: isDisabled ? "not-allowed" : "pointer",
+                                                    opacity: isDisabled ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {count}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                                 <button
                                     onClick={startNewGame}
@@ -290,6 +366,7 @@ function App() {
                     </div>
                 </div>
             </div>
+
         );
     }
 

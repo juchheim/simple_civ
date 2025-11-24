@@ -25,7 +25,7 @@ import { generateRivers } from "./generation/rivers.js";
 
 
 export type WorldGenSettings = {
-    mapSize: "Small" | "Standard" | "Large";
+    mapSize: MapSize;
     players: { id: string; civName: string; color: string; ai?: boolean }[];
     seed?: number;
 };

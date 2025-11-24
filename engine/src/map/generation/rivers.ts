@@ -83,9 +83,11 @@ export function generateRivers(context: RiverGenerationContext): RiverGeneration
     const riverEdges: RiverEdge[] = [];
     const riverPolylines: RiverSegmentDescriptor[][] = [];
     const riverTargetsBySize: Record<MapSize, [number, number]> = {
+        Tiny: [2, 4],
         Small: [4, 7],
         Standard: [8, 13],
         Large: [10, 15],
+        Huge: [14, 20],
     };
     const [riverMin, riverMax] = riverTargetsBySize[mapSize];
     const riverCount = Math.max(1, rng.int(riverMin, riverMax));

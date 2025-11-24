@@ -1,4 +1,4 @@
-# Simple Civ v0.92
+# Simple Civ v0.93
 
 A digital board game / light 4X strategy game built with TypeScript.
 
@@ -44,7 +44,7 @@ npm test -w engine
 
 - **[Implementation Status](docs/IMPLEMENTATION_STATUS.md)** - Track what's implemented, in progress, and planned
 - **[Changelog](docs/development/CHANGELOG-2025-11-20.md)** - Recent changes and updates
-- **[Game Rules](docs/rules/simple-civ_v0.92_rulebook.md)** - Official v0.92 rulebook
+- **[Game Rules](docs/rules/simple-civ_v0.93_rulebook.md)** - Official v0.93 rulebook
 - **[Dev Spec](docs/dev-spec/v0.9/README.md)** - Technical specifications
 
 ## Deployment

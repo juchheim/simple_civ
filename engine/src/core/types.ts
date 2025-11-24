@@ -216,7 +216,7 @@ export type GameState = {
     winnerId?: string;
 };
 
-export type MapSize = "Small" | "Standard" | "Large";
+export type MapSize = "Tiny" | "Small" | "Standard" | "Large" | "Huge";
 
 export type Action =
     | { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord }
