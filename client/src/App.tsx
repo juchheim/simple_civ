@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
+import { TitleScreen } from "./components/TitleScreen";
 import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
@@ -19,8 +20,10 @@ function App() {
     const [selectedMapSize, setSelectedMapSize] = useState<MapSize>("Small");
     const [numCivs, setNumCivs] = useState(2);
     const [seedInput, setSeedInput] = useState("");
+    const [showTitleScreen, setShowTitleScreen] = useState(true);
     const SAVE_KEY = "simple-civ-save";
     const AUTOSAVE_KEY = "simple-civ-autosave";
+    const SESSION_SAVE_KEY = "simple-civ-session";
 
     interface SavedGame {
         timestamp: number;
@@ -36,6 +39,36 @@ function App() {
             setNumCivs(effectiveMax);
         }
     }, [selectedMapSize, numCivs]);
+
+    // Session persistence: Save on every state change
+    useEffect(() => {
+        if (gameState) {
+            localStorage.setItem(SESSION_SAVE_KEY, JSON.stringify(gameState));
+        }
+    }, [gameState]);
+
+    // Session persistence: Load on mount
+    useEffect(() => {
+        const sessionData = localStorage.getItem(SESSION_SAVE_KEY);
+        if (sessionData) {
+            try {
+                const parsedState = JSON.parse(sessionData);
+                setGameState(parsedState);
+                setShowTitleScreen(false);
+
+                // Restore player ID
+                const currentPlayer = parsedState.players.find((p: any) => p.id === parsedState.currentPlayerId);
+                const fallbackPlayer = parsedState.players.find((p: any) => !p.isAI);
+                const nextPlayerId = currentPlayer && !currentPlayer.isAI
+                    ? parsedState.currentPlayerId
+                    : fallbackPlayer?.id ?? parsedState.currentPlayerId;
+                setPlayerId(nextPlayerId);
+            } catch (e) {
+                console.warn("Failed to restore session", e);
+                localStorage.removeItem(SESSION_SAVE_KEY);
+            }
+        }
+    }, []);
 
     const startNewGame = () => {
         try {
@@ -310,6 +343,10 @@ function App() {
             setPlayerId(nextPlayerId);
             setSelectedCoord(null);
             setSelectedUnitId(null);
+            setPlayerId(nextPlayerId);
+            setSelectedCoord(null);
+            setSelectedUnitId(null);
+            setShowTitleScreen(false);
             alert(`Loaded game (Turn ${parsed.turn})`);
         } catch (e) {
             alert("Failed to load game.");
@@ -317,6 +354,15 @@ function App() {
     };
 
     if (!gameState) {
+        if (showTitleScreen) {
+            return (
+                <TitleScreen
+                    onNewGame={() => setShowTitleScreen(false)}
+                    onLoadGame={handleLoad}
+                />
+            );
+        }
+
         return (
             <div style={{ width: "100vw", height: "100vh", background: "#0b1021", color: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
                 <div style={{ width: "min(960px, 100%)", background: "#111827", borderRadius: 12, padding: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.35)", border: "1px solid #1f2937" }}>
@@ -465,7 +511,11 @@ function App() {
                 playerId={playerId}
                 onSave={handleSave}
                 onLoad={handleLoad}
-                onQuit={() => setGameState(null)}
+                onQuit={() => {
+                    setGameState(null);
+                    setShowTitleScreen(true);
+                    localStorage.removeItem(SESSION_SAVE_KEY);
+                }}
                 showShroud={showShroud}
                 onToggleShroud={() => setShowShroud(prev => !prev)}
                 showYields={showTileYields}
