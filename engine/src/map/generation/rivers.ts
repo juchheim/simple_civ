@@ -662,3 +662,13 @@ function reconstructPath(
     return path;
 }
 
+export function isTileAdjacentToRiver(map: { riverPolylines?: RiverSegmentDescriptor[][] }, coord: HexCoord): boolean {
+    if (!map.riverPolylines) return false;
+    const coordKey = hexToString(coord);
+    for (const polyline of map.riverPolylines) {
+        for (const segment of polyline) {
+            if (hexToString(segment.tile) === coordKey) return true;
+        }
+    }
+    return false;
+}

@@ -131,6 +131,7 @@ export type Unit = {
     hasAttacked: boolean;
     linkedUnitId?: string;
     capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
+    autoMoveTarget?: HexCoord;
 };
 
 export type City = {
@@ -241,4 +242,6 @@ export type Action =
     | { type: "ProposeVisionShare"; playerId: string; targetPlayerId: string }
     | { type: "AcceptVisionShare"; playerId: string; targetPlayerId: string }
     | { type: "RevokeVisionShare"; playerId: string; targetPlayerId: string }
+    | { type: "SetAutoMoveTarget"; playerId: string; unitId: string; target: HexCoord }
+    | { type: "ClearAutoMoveTarget"; playerId: string; unitId: string }
     | { type: "EndTurn"; playerId: string };

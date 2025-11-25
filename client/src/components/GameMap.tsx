@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from "react";
 import { terrainImages } from "../assets";
-import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver, findPath } from "@simple-civ/engine";
 import { HexTile } from "./GameMap/HexTile";
 import { CityLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
 import { OverlayLayer } from "./GameMap/OverlayLayer";
 import { UnitLayer, UnitDescriptor } from "./GameMap/UnitLayer";
 import { CityBoundsLayer, CityBoundsDescriptor } from "./GameMap/CityBoundsLayer";
+import { PathLayer } from "./GameMap/PathLayer";
 import { getHexCornerOffsets, getHexPoints, hexToPixel as projectHexToPixel } from "./GameMap/geometry";
 import { useMapInteraction } from "./GameMap/useMapInteraction";
 import { useRiverPolylines } from "./GameMap/useRiverPolylines";
@@ -38,9 +39,11 @@ interface GameMapProps {
     selectedUnitId: string | null;
     reachableCoords: Set<string>;
     showTileYields: boolean;
+    hoveredCoord: HexCoord | null;
+    onHoverTile: (coord: HexCoord | null) => void;
 }
 
-export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields }) => {
+export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, hoveredCoord, onHoverTile }) => {
     const { map, units, cities } = gameState;
     const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
     const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState.visibility, playerId]);
@@ -95,6 +98,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         tiles: map.tiles,
         hexToPixel,
         onTileClick,
+        onHoverTile,
     });
 
     const citiesByCoord = useMemo(() => {
@@ -216,6 +220,13 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         hexCornerOffsets: HEX_CORNER_OFFSETS,
     });
 
+    const pathData = useMemo(() => {
+        if (!selectedUnit || !hoveredCoord) return [];
+        // Don't pathfind to self
+        if (selectedUnit.coord.q === hoveredCoord.q && selectedUnit.coord.r === hoveredCoord.r) return [];
+        return findPath(selectedUnit.coord, hoveredCoord, selectedUnit, gameState);
+    }, [selectedUnit, hoveredCoord, gameState]);
+
     return (
         <div
             ref={containerRef}
@@ -280,6 +291,13 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                         hexPoints={HEX_POINTS}
                     />
                     <UnitLayer units={unitRenderData} />
+                    {selectedUnit && hoveredCoord && (
+                        <PathLayer
+                            path={pathData}
+                            hexToPixel={hexToPixel}
+                            movesLeft={selectedUnit.movesLeft}
+                        />
+                    )}
                 </g>
             </svg>
         </div>

@@ -213,3 +213,26 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
     return state;
 }
 
+export function handleSetAutoMoveTarget(state: GameState, action: { type: "SetAutoMoveTarget"; playerId: string; unitId: string; target: HexCoord }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    if (!unit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
+
+    // Validate target is on map
+    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, action.target));
+    if (!targetTile) throw new Error("Invalid target tile");
+
+    unit.autoMoveTarget = action.target;
+    return state;
+}
+
+export function handleClearAutoMoveTarget(state: GameState, action: { type: "ClearAutoMoveTarget"; playerId: string; unitId: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    if (!unit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
+
+    unit.autoMoveTarget = undefined;
+    return state;
+}
+
+

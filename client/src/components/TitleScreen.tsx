@@ -23,7 +23,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({ onNewGame, onLoadGame 
             paddingBottom: '10vh',
             zIndex: 1000, // Ensure it's on top
         }}>
-            <div style={{ display: 'flex', gap: '2rem', marginBottom: '140px' }}>
+            <div style={{ display: 'flex', gap: '2rem', marginBottom: '100px' }}>
                 <button
                     onClick={onNewGame}
                     style={{

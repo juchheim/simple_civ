@@ -15,6 +15,8 @@ import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing
 import { hexDistance, hexEquals } from "../core/hex.js";
 import { Unit } from "../core/types.js";
 import { refreshPlayerVision } from "./vision.js";
+import { findPath } from "./helpers/pathfinding.js";
+import { handleMoveUnit } from "./actions/units.js";
 
 export function handleEndTurn(state: GameState, action: Extract<Action, { type: "EndTurn" }>): GameState {
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
@@ -59,6 +61,8 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     }
 
     refreshPlayerVision(state, playerId);
+
+    processAutoMovement(state, playerId);
 
     for (const city of state.cities.filter(c => c.ownerId === playerId)) {
         const claimedRing = getClaimedRing(city, state);
@@ -162,13 +166,13 @@ function completeBuild(state: GameState, city: City) {
                     player.techs.push(player.currentTech.id);
                     player.currentTech = null;
                 }
-                
+
                 // Grant one free tech (auto-select best available for Progress path)
                 const freeTech = pickBestAvailableTech(player);
                 if (freeTech) {
                     player.techs.push(freeTech);
                 }
-                
+
                 // Track completion - grants Observatory milestone
                 player.completedProjects.push(ProjectId.Observatory);
                 city.milestones.push(ProjectId.Observatory);
@@ -183,7 +187,7 @@ function completeBuild(state: GameState, city: City) {
             if (player) {
                 // Track completion
                 player.completedProjects.push(ProjectId.JadeGranaryComplete);
-                
+
                 // Every city gains +1 Pop
                 for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
                     c.pop += 1;
@@ -316,24 +320,24 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
  */
 function pickBestAvailableTech(player: Player): TechId | null {
     const allTechs = Object.keys(TECHS) as TechId[];
-    
+
     // Filter to techs the player doesn't have and meets prerequisites for
     const available = allTechs.filter(techId => {
         if (player.techs.includes(techId)) return false;
         const tech = TECHS[techId];
-        
+
         // Check era gate (need 2 techs from previous era)
         const hearthCount = player.techs.filter(t => TECHS[t].era === "Hearth").length;
         const bannerCount = player.techs.filter(t => TECHS[t].era === "Banner").length;
         if (tech.era === "Banner" && hearthCount < 2) return false;
         if (tech.era === "Engine" && bannerCount < 2) return false;
-        
+
         // Check specific prerequisites
         return tech.prereqTechs.every(prereq => player.techs.includes(prereq));
     });
-    
+
     if (available.length === 0) return null;
-    
+
     // Priority order for Progress-focused civs:
     // 1. Star Charts (unlocks Progress chain)
     // 2. Scholar Courts (unlocks Academy, prereq for Signal Relay)
@@ -348,15 +352,60 @@ function pickBestAvailableTech(player: Player): TechId | null {
         TechId.SignalRelay,
         TechId.ScriptLore,
     ];
-    
+
     for (const techId of priorityOrder) {
         if (available.includes(techId)) return techId;
     }
-    
+
     // Fall back to any available Engine tech, then Banner, then Hearth
     const engine = available.find(t => TECHS[t].era === "Engine");
     if (engine) return engine;
     const banner = available.find(t => TECHS[t].era === "Banner");
     if (banner) return banner;
     return available[0];
+}
+
+function processAutoMovement(state: GameState, playerId: string) {
+    const unitsWithTargets = state.units.filter(u => u.ownerId === playerId && u.autoMoveTarget);
+
+    for (const unit of unitsWithTargets) {
+        // Safety break
+        let moves = 0;
+        const MAX_MOVES = 10;
+
+        while (unit.movesLeft > 0 && unit.autoMoveTarget && moves < MAX_MOVES) {
+            moves++;
+
+            // 1. Calculate Path with current vision
+            const path = findPath(unit.coord, unit.autoMoveTarget, unit, state);
+
+            // 2. Check if path exists
+            if (path.length === 0) {
+                // Target unreachable or already there
+                if (hexEquals(unit.coord, unit.autoMoveTarget)) {
+                    unit.autoMoveTarget = undefined;
+                } else {
+                    // Path blocked? Keep target and try again next turn
+                    // Don't clear unit.autoMoveTarget
+                }
+                break;
+            }
+
+            // 3. Try to move to next step
+            const nextStep = path[0];
+            try {
+                handleMoveUnit(state, {
+                    type: "MoveUnit",
+                    playerId: unit.ownerId,
+                    unitId: unit.id,
+                    to: nextStep
+                });
+                // handleMoveUnit calls refreshPlayerVision internally, so vision is up to date for next iteration
+            } catch (e) {
+                // Move failed (blocked by unit, etc)
+                // Stop for this turn, but keep target to try again next turn
+                break;
+            }
+        }
+    }
 }

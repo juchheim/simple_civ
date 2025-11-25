@@ -16,13 +16,14 @@ type MapInteractionParams = {
     tiles: Tile[];
     hexToPixel: (hex: HexCoord) => { x: number; y: number };
     onTileClick: (coord: HexCoord) => void;
+    onHoverTile: (coord: HexCoord | null) => void;
 };
 
 type PanState = { x: number; y: number };
 type PointerSample = { x: number; y: number; time: number };
 type Velocity = { vx: number; vy: number };
 
-export const useMapInteraction = ({ tiles, hexToPixel, onTileClick }: MapInteractionParams) => {
+export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile }: MapInteractionParams) => {
     const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1.0);
     const [isPanning, setIsPanning] = useState(false);
@@ -254,6 +255,13 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick }: MapInterac
     }, [findHexAtScreen]);
 
     const handleMouseMove = useCallback((e: ReactMouseEvent) => {
+        if (!svgRef.current) return;
+        const rect = svgRef.current.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const hex = findHexAtScreen(screenX, screenY);
+        onHoverTile(hex);
+
         if (!mouseDownPos) return;
 
         const deltaX = e.clientX - mouseDownPos.x;

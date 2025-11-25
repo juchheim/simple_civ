@@ -3,7 +3,7 @@ import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
-import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE } from "@simple-civ/engine";
+import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, findPath } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 
@@ -12,6 +12,7 @@ function App() {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [selectedCoord, setSelectedCoord] = useState<HexCoord | null>(null);
     const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+    const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);
     const [showTechTree, setShowTechTree] = useState(false);
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
@@ -196,6 +197,22 @@ function App() {
                         return;
                     }
                 }
+                // Check if clicking on a friendly unit (that isn't self) -> Select it instead of moving
+                const friendlyUnitOnTile = gameState.units.find(u => hexEquals(u.coord, coord) && u.ownerId === playerId);
+                if (friendlyUnitOnTile && friendlyUnitOnTile.id !== unit.id) {
+                    // Fall through to selection logic
+                    setSelectedCoord(coord);
+                    setSelectedUnitId(friendlyUnitOnTile.id);
+                    return;
+                }
+
+                // If clicking self -> Deselect
+                if (hexEquals(unit.coord, coord)) {
+                    setSelectedUnitId(null);
+                    setSelectedCoord(null);
+                    return;
+                }
+
 
                 const coordKey = hexToString(coord);
                 const plannedInfo = reachablePaths[coordKey];
@@ -207,9 +224,70 @@ function App() {
                         unitId: unit.id,
                         to: step,
                     })));
-                    setSelectedCoord(coord);
-                    setSelectedUnitId(unit.id);
+
+                    // Auto-deselect if unit will have 0 moves left
+                    // Check if the plannedInfo indicates moves remaining
+                    if (plannedInfo.movesLeft === 0) {
+                        setSelectedCoord(null);
+                        setSelectedUnitId(null);
+                    } else {
+                        setSelectedCoord(coord);
+                        setSelectedUnitId(unit.id);
+                    }
                     return;
+                }
+
+                // Fallback: If neighbor and not in reachablePaths (maybe cache issue), try direct move
+                // But only if the unit has moves left
+                if (hexDistance(unit.coord, coord) === 1 && unit.movesLeft > 0) {
+                    handleAction({
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: unit.id,
+                        to: coord
+                    });
+                    // Auto-deselect if unit had only 1 move left
+                    if (unit.movesLeft === 1) {
+                        setSelectedCoord(null);
+                        setSelectedUnitId(null);
+                    } else {
+                        setSelectedCoord(coord);
+                        setSelectedUnitId(unit.id);
+                    }
+                    return;
+                }
+
+                // If not immediately reachable (or no moves left), try to set auto-move target
+                const autoPath = findPath(unit.coord, coord, unit, gameState);
+                if (autoPath.length > 0) {
+                    // Batch actions together to avoid state batching issues
+                    const actions: Action[] = [{
+                        type: "SetAutoMoveTarget",
+                        playerId,
+                        unitId: unit.id,
+                        target: coord
+                    }];
+
+                    // Try to move the first step if it's a neighbor AND we have moves
+                    const firstStep = autoPath[0];
+                    if (firstStep && hexDistance(unit.coord, firstStep) === 1 && unit.movesLeft > 0) {
+                        actions.push({
+                            type: "MoveUnit",
+                            playerId,
+                            unitId: unit.id,
+                            to: firstStep
+                        });
+                    }
+
+                    runActions(actions);
+                    // Fully deselect (clear both coordinate and unit)
+                    setSelectedCoord(null);
+                    setSelectedUnitId(null);
+                    return;
+                } else {
+                    console.log("Auto-path not found");
+                    // Optional: Feedback to user
+                    // alert("Cannot reach target");
                 }
             }
         }
@@ -500,6 +578,8 @@ function App() {
                 selectedUnitId={selectedUnitId}
                 reachableCoords={reachableCoordSet}
                 showTileYields={showTileYields}
+                hoveredCoord={hoveredCoord}
+                onHoverTile={setHoveredCoord}
             />
             <HUD
                 gameState={gameState}
