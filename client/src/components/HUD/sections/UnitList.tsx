@@ -12,17 +12,13 @@ export const UnitList: React.FC<UnitListProps> = ({ units, selectedUnitId, onSel
 
     return (
         <div>
-            <h4>Units on Tile:</h4>
-            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            <div className="hud-section-title">Units on Tile</div>
+            <div className="hud-chip-row">
                 {units.map(unit => (
                     <button
                         key={unit.id}
                         onClick={() => onSelectUnit(unit.id)}
-                        style={{
-                            background: selectedUnitId === unit.id ? "#4CAF50" : "#666",
-                            border: selectedUnitId === unit.id ? "2px solid white" : "1px solid #999",
-                            padding: "5px 10px",
-                        }}
+                        className={`hud-chip-button ${selectedUnitId === unit.id ? "active" : ""}`}
                     >
                         {unit.type} (M:{unit.movesLeft})
                     </button>
@@ -31,4 +27,3 @@ export const UnitList: React.FC<UnitListProps> = ({ units, selectedUnitId, onSel
         </div>
     );
 };
-

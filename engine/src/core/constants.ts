@@ -10,8 +10,17 @@ import {
     OverlayType,
 } from "./types.js";
 
-export const GAME_VERSION = "0.93";
-export const MAX_PLAYERS = 4;
+export const GAME_VERSION = "0.94";
+export const MAX_PLAYERS = 6;
+
+// Max civilizations per map size
+export const MAX_CIVS_BY_MAP_SIZE: Record<string, number> = {
+    Tiny: 2,
+    Small: 3,
+    Standard: 4,
+    Large: 6,
+    Huge: 6,
+};
 
 // Yields
 export const BASE_CITY_SCIENCE = 1;
@@ -47,6 +56,7 @@ export const GROWTH_FACTORS = [
     { min: 11, max: 999, f: 1.42 },
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
+export const JADE_GRANARY_GROWTH_MULT = 0.85;
 
 // Tech Costs
 export const TECH_COST_HEARTH = 20;
@@ -160,6 +170,8 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 200, conditional: "Summons The Titan upon completion" },
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 200, conditional: "The Revelation: completes current tech, grants free tech, +2 Science per city, counts as Observatory milestone" },
+    [BuildingType.JadeGranary]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 150, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" },
 };
 
 export type TechData = {
@@ -240,6 +252,13 @@ export const PROJECTS: Record<ProjectId, ProjectData> = {
         oneCityAtATime: false,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.Riders, armyUnit: UnitType.ArmyRiders } },
     },
+    // Marker project for tracking Jade Granary completion (not buildable directly)
+    [ProjectId.JadeGranaryComplete]: {
+        cost: 0,
+        oncePerCiv: true,
+        oneCityAtATime: false,
+        onComplete: { type: "Milestone", payload: { marker: "JadeGranary" } },
+    },
 };
 
 export const CITY_NAMES: Record<string, string[]> = {
@@ -266,5 +285,17 @@ export const CITY_NAMES: Record<string, string[]> = {
         "Kryos", "Onyxia", "Voidreach", "Starfall", "Nebula",
         "Zenith", "Vortex", "Quasar", "Eclipse", "Horizon's Edge",
         "Umbra", "Solara", "Lunaris", "Astral", "Cosmos"
+    ],
+    StarborneSeekers: [
+        "Skywhisper", "Starhollow", "Moondance", "Dreamwalk", "Spiritsong",
+        "Thundercloud", "Eaglereach", "Ghostwind", "Starfire", "Sunblaze",
+        "Ravenstone", "Wolfhowl", "Dawnwatch", "Nightsky", "Spiritcall",
+        "Stormveil", "Visionheart", "Cloudrest", "Whisperwind", "Starpath"
+    ],
+    JadeCovenant: [
+        "Jadehall", "Silkveil", "Serene Dawn", "Golden Crane", "Moonlit Shrine",
+        "Pearlfold", "Harmony", "Goldenwish", "Ancestor's Keep", "Lantern Gate",
+        "Tranquil Heart", "Phoenix Rise", "Crimson Pavilion", "Jade Throne", "Eternal Gate",
+        "Pagoda Heights", "Porcelain Court", "Dragon's Rest", "Silken Path", "Blessed Fortune"
     ],
 };

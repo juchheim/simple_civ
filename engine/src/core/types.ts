@@ -59,6 +59,8 @@ export enum BuildingType {
     Forgeworks = "Forgeworks",
     CitySquare = "CitySquare",
     TitansCore = "TitansCore",
+    SpiritObservatory = "SpiritObservatory",
+    JadeGranary = "JadeGranary",
 }
 
 export type AiVictoryGoal = "Progress" | "Conquest" | "Balanced";
@@ -97,6 +99,8 @@ export enum ProjectId {
     FormArmy_SpearGuard = "FormArmy_SpearGuard",
     FormArmy_BowGuard = "FormArmy_BowGuard",
     FormArmy_Riders = "FormArmy_Riders",
+    // Markers for unique wonder completions
+    JadeGranaryComplete = "JadeGranaryComplete",
 }
 
 export type Yields = {

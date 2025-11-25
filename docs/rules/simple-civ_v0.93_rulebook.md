@@ -230,7 +230,9 @@ Choose number of civilizations (2-4):
 
 - Small maps support maximum 3 civilizations.
 
-- Standard, Large, and Huge maps support maximum 4 civilizations.
+- Standard maps support maximum 4 civilizations.
+
+- Large and Huge maps support maximum 6 civilizations.
 
 Generate map:
 
@@ -842,6 +844,8 @@ City Ward	Banner	City Wards	60	+4 CityDefense; CityAttack +1
 Forgeworks	Engine	Steam Forges	80	+2P city
 City Square	Engine	Urban Plans	80	+1F +1P city
 The Titan's Core	Engine	Steam Forges	200	Summons The Titan (see 3.3.1)
+Spirit Observatory	Engine	Star Charts	200	The Revelation (see 3.3.1)
+Jade Granary	Banner	Wellworks	150	The Great Harvest (see 3.3.1)
 3.3.1 Unique Buildings
 
 **The Titan's Core** (Aetherian Vanguard only)
@@ -855,6 +859,37 @@ The Titan's Core	Engine	Steam Forges	200	Summons The Titan (see 3.3.1)
 - Effect: Upon completion, summons **The Titan** unit at the city's location. The wonder itself is consumed (not added to the city's building list).
 
 - Availability: Can only be built by the Aetherian Vanguard civilization.
+
+**Spirit Observatory** (Starborne Seekers only)
+
+- Era: Engine
+
+- Tech Requirement: Star Charts
+
+- Cost: 200 Production
+
+- Effect: Upon completion, triggers **The Revelation**:
+  1. Instantly completes your current researching tech (if any).
+  2. Grants one free tech (auto-selected from available techs meeting prerequisites).
+  3. All cities permanently gain +2 Science.
+  4. Counts as the **Observatory milestone** for Progress victory chain — unlocks Grand Academy.
+
+- Availability: Can only be built by the Starborne Seekers civilization. Once per civilization.
+
+**Jade Granary** (Jade Covenant only)
+
+- Era: Banner
+
+- Tech Requirement: Wellworks
+
+- Cost: 150 Production
+
+- Effect: Upon completion, triggers **The Great Harvest**:
+  1. Every city in your empire immediately gains +1 Population.
+  2. Growth Costs are permanently reduced by 15% for all cities (stacks with Farmstead's 10% for 25% total reduction).
+  3. All cities permanently gain +1 Food.
+
+- Availability: Can only be built by the Jade Covenant civilization. Once per civilization.
 
 3.4 Tech Tree (v0.8 tuned costs)
 3.4.1 Hearth Age (cost 20 each)
@@ -935,6 +970,12 @@ Each river-adjacent tile you own gains +1 Food when worked.
 The Aetherian Vanguard — The Awakening
 No passive bonuses. Can build The Titan's Core wonder (requires Steam Forges) to summon The Titan, a legendary unit.
 
+The Starborne Seekers — The Great Vision
+No passive bonuses. Can build the Spirit Observatory wonder (requires Star Charts) which triggers The Revelation: completes current tech, grants a free tech, +2 Science per city permanently, and counts as the Observatory milestone for Progress victory.
+
+The Jade Covenant — The Abundant Path
+No passive bonuses. Can build the Jade Granary wonder (requires Wellworks) which triggers The Great Harvest: +1 Population to all cities, 15% cheaper growth permanently, and +1 Food per city permanently.
+
 3.7 Map Sizes & Generation (v0.6/v0.7 completed)
 3.7.1 Map Sizes (Hex)
 
@@ -944,9 +985,9 @@ Small: 16×12 (Max 3 Civs)
 
 Standard: 20×14 (Max 4 Civs)
 
-Large: 24×18 (Max 4 Civs)
+Large: 24×18 (Max 6 Civs)
 
-Huge: 32×24 (Max 4 Civs)
+Huge: 32×24 (Max 6 Civs)
 
 3.7.2 Light Generation Recipe
 

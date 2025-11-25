@@ -18,6 +18,10 @@
 - Indentation uses 4 spaces; double quotes are standard; keep semicolons consistent with existing files.
 - Components use PascalCase filenames (`client/src/components/TechTree.tsx`); utilities and engine modules favor kebab-case (`map-generator.ts`).
 - Run ESLint before committing; Prettier is available—use default formatting when files drift.
+- Rulebook/Codex conventions:
+  - The latest `docs/rules/simple-civ_vX.Y_rulebook.md` is the single source of truth and is auto-rendered in the Codex.
+  - Use clear headings and bullets (no mid-sentence hard breaks) so the Codex stays readable.
+  - For developer-only notes inside the rulebook, wrap them in `<!-- CODEX_SKIP_START --> ... <!-- CODEX_SKIP_END -->` or prefix headings with `[DEV-ONLY]`; the Codex will hide these from players.
 
 ## Testing Guidelines
 - Vitest powers engine tests; place unit/feature specs next to implementation as `<feature>.test.ts` and longer flows as `.e2e.test.ts`.

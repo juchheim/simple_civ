@@ -17,6 +17,7 @@ import {
     CITY_CENTER_MIN_FOOD,
     CITY_CENTER_MIN_PROD,
     FARMSTEAD_GROWTH_MULT,
+    JADE_GRANARY_GROWTH_MULT,
     GROWTH_FACTORS,
     OVERLAY,
     TERRAIN,
@@ -123,6 +124,12 @@ export function getCityYields(city: City, state: GameState): Yields {
         total.F += riverAdjacencyCount(state.map, city.workedTiles);
     }
 
+    // Jade Granary effect: +1 Food per city
+    const player = state.players.find(p => p.id === city.ownerId);
+    if (player?.completedProjects.includes(ProjectId.JadeGranaryComplete)) {
+        total.F += 1;
+    }
+
     return total;
 }
 
@@ -137,7 +144,7 @@ function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "Schola
 
 // --- Growth ---
 
-export function getGrowthCost(pop: number, hasFarmstead: boolean): number {
+export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary: boolean = false): number {
     if (pop < 1) return 0; // Should not happen
 
     let cost = BASECOST_POP2; // Cost for 1 -> 2
@@ -149,8 +156,13 @@ export function getGrowthCost(pop: number, hasFarmstead: boolean): number {
         cost = Math.ceil(cost * f);
     }
 
-    if (hasFarmstead) {
-        return Math.ceil(cost * FARMSTEAD_GROWTH_MULT);
+    // Apply building/wonder modifiers (multiplicative)
+    let mult = 1.0;
+    if (hasFarmstead) mult *= FARMSTEAD_GROWTH_MULT;
+    if (hasJadeGranary) mult *= JADE_GRANARY_GROWTH_MULT;
+
+    if (mult < 1.0) {
+        return Math.ceil(cost * mult);
     }
 
     return cost;
@@ -169,12 +181,27 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (!data) return false;
 
         // Tech check
-        // Need to check if player has the tech.
-        // But wait, Hearth techs are available?
-        // "Hearth Age (early) ... Each tech ... Unlocks ... A building"
-        // So you need the tech.
-        // Exception: Are there starting buildings? No.
         if (!player.techs.includes(data.techReq)) return false;
+
+        // Civ-specific unique wonders (consumed on completion, once per civ)
+        if (bId === BuildingType.TitansCore && player.civName !== "AetherianVanguard") return false;
+        if (bId === BuildingType.SpiritObservatory && player.civName !== "StarborneSeekers") return false;
+        if (bId === BuildingType.JadeGranary && player.civName !== "JadeCovenant") return false;
+
+        // Spirit Observatory: once per civ, replaces Observatory in Progress chain
+        // Check if already completed (tracked via Observatory milestone)
+        if (bId === BuildingType.SpiritObservatory) {
+            if (player.completedProjects.includes(ProjectId.Observatory)) return false;
+            const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
+            if (isBuilding) return false;
+        }
+        
+        // Jade Granary: once per civ (tracked via JadeGranaryComplete marker)
+        if (bId === BuildingType.JadeGranary) {
+            if (player.completedProjects.includes(ProjectId.JadeGranaryComplete)) return false;
+            const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
+            if (isBuilding) return false;
+        }
 
         // Era/Gate checks are implicit in tech tree, but building itself just needs tech.
         return true;

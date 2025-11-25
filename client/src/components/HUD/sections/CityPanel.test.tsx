@@ -102,7 +102,7 @@ describe("CityPanel", () => {
             />,
         );
 
-        fireEvent.click(screen.getByRole("button", { name: "Build Scout" }));
+        fireEvent.click(screen.getByRole("button", { name: "Train Scout" }));
         expect(onBuild).toHaveBeenCalledWith("Unit", UnitType.Scout);
     });
 
@@ -125,7 +125,7 @@ describe("CityPanel", () => {
             />,
         );
 
-        fireEvent.click(screen.getByRole("button", { name: /0,1 Plains/ }));
+        fireEvent.click(screen.getByRole("button", { name: /\(0,1\) Plains/ }));
 
         expect(onSetWorkedTiles).toHaveBeenCalledWith(
             "city-1",
@@ -133,4 +133,3 @@ describe("CityPanel", () => {
         );
     });
 });
-

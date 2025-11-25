@@ -123,6 +123,13 @@ describe("HUD", () => {
                 onSelectUnit={vi.fn()}
                 onShowTechTree={vi.fn()}
                 playerId="p1"
+                onSave={vi.fn()}
+                onLoad={vi.fn()}
+                onQuit={vi.fn()}
+                showShroud={true}
+                onToggleShroud={vi.fn()}
+                showYields={false}
+                onToggleYields={vi.fn()}
             />,
         );
 
@@ -148,10 +155,17 @@ describe("HUD", () => {
                 onSelectUnit={vi.fn()}
                 onShowTechTree={vi.fn()}
                 playerId="p1"
+                onSave={vi.fn()}
+                onLoad={vi.fn()}
+                onQuit={vi.fn()}
+                showShroud={true}
+                onToggleShroud={vi.fn()}
+                showYields={false}
+                onToggleYields={vi.fn()}
             />,
         );
 
-        const scoutButton = screen.getByRole("button", { name: "Build Scout" });
+        const scoutButton = screen.getByRole("button", { name: "Train Scout" });
         expect(scoutButton).toBeInTheDocument();
         fireEvent.click(scoutButton);
 
@@ -184,9 +198,17 @@ describe("HUD", () => {
                 onSelectUnit={vi.fn()}
                 onShowTechTree={vi.fn()}
                 playerId="p1"
+                onSave={vi.fn()}
+                onLoad={vi.fn()}
+                onQuit={vi.fn()}
+                showShroud={true}
+                onToggleShroud={vi.fn()}
+                showYields={false}
+                onToggleYields={vi.fn()}
             />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: "Diplomacy" }));
         expect(screen.getByRole("button", { name: "At War" })).toBeDisabled();
         const acceptButton = screen.getByRole("button", { name: "Accept Peace" });
         fireEvent.click(acceptButton);
@@ -198,4 +220,3 @@ describe("HUD", () => {
         });
     });
 });
-

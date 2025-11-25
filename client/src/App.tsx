@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { GameMap } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
-import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS } from "@simple-civ/engine";
+import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE } from "@simple-civ/engine";
 import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 
@@ -20,10 +20,16 @@ function App() {
     const [numCivs, setNumCivs] = useState(2);
     const [seedInput, setSeedInput] = useState("");
     const SAVE_KEY = "simple-civ-save";
+    const AUTOSAVE_KEY = "simple-civ-autosave";
+
+    interface SavedGame {
+        timestamp: number;
+        gameState: GameState;
+    }
 
     // Enforce constraints when map size changes
     useEffect(() => {
-        const maxForMap = selectedMapSize === "Tiny" ? 2 : selectedMapSize === "Small" ? 3 : 4;
+        const maxForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
         const maxForCivs = CIV_OPTIONS.length;
         const effectiveMax = Math.min(maxForMap, maxForCivs);
         if (numCivs > effectiveMax) {
@@ -211,10 +217,31 @@ function App() {
         }
     }, [gameState, playerId]);
 
+    // Autosave every 5th turn
+    useEffect(() => {
+        if (!gameState) return;
+        if (gameState.turn > 0 && gameState.turn % 5 === 0 && gameState.currentPlayerId === playerId) {
+            const saveData: SavedGame = {
+                timestamp: Date.now(),
+                gameState: gameState,
+            };
+            try {
+                localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
+                console.log("Autosave created at turn", gameState.turn);
+            } catch (e) {
+                console.warn("Failed to autosave", e);
+            }
+        }
+    }, [gameState?.turn, gameState?.currentPlayerId, playerId]);
+
     const handleSave = () => {
         if (!gameState) return;
         try {
-            localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+            const saveData: SavedGame = {
+                timestamp: Date.now(),
+                gameState: gameState,
+            };
+            localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
             alert("Game saved.");
         } catch (e) {
             alert("Failed to save game.");
@@ -223,13 +250,58 @@ function App() {
 
     const handleLoad = () => {
         try {
-            const raw = localStorage.getItem(SAVE_KEY);
-            if (!raw) {
+            const rawManual = localStorage.getItem(SAVE_KEY);
+            const rawAuto = localStorage.getItem(AUTOSAVE_KEY);
+
+            if (!rawManual && !rawAuto) {
                 alert("No saved game found.");
                 return;
             }
-            const parsed = JSON.parse(raw) as GameState;
-            setGameState(parsed);
+
+            let manualSave: SavedGame | null = null;
+            let autoSave: SavedGame | null = null;
+
+            if (rawManual) {
+                try {
+                    const parsed = JSON.parse(rawManual);
+                    // Handle legacy saves without timestamp
+                    if (!parsed.timestamp) {
+                        manualSave = { timestamp: 0, gameState: parsed };
+                    } else {
+                        manualSave = parsed;
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse manual save");
+                }
+            }
+
+            if (rawAuto) {
+                try {
+                    const parsed = JSON.parse(rawAuto);
+                    if (!parsed.timestamp) {
+                        autoSave = { timestamp: 0, gameState: parsed };
+                    } else {
+                        autoSave = parsed;
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse autosave");
+                }
+            }
+
+            let bestSave = manualSave;
+            if (autoSave) {
+                if (!manualSave || autoSave.timestamp > manualSave.timestamp) {
+                    bestSave = autoSave;
+                }
+            }
+
+            if (!bestSave) {
+                alert("Failed to load any valid save.");
+                return;
+            }
+
+            setGameState(bestSave.gameState);
+            const parsed = bestSave.gameState;
             const currentPlayer = parsed.players.find(p => p.id === parsed.currentPlayerId);
             const fallbackPlayer = parsed.players.find(p => !p.isAI);
             const nextPlayerId = currentPlayer && !currentPlayer.isAI
@@ -238,6 +310,7 @@ function App() {
             setPlayerId(nextPlayerId);
             setSelectedCoord(null);
             setSelectedUnitId(null);
+            alert(`Loaded game (Turn ${parsed.turn})`);
         } catch (e) {
             alert("Failed to load game.");
         }
@@ -319,9 +392,9 @@ function App() {
                             </div>
                             <div style={{ marginBottom: 12 }}>
                                 <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Number of Civilizations</label>
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    {[2, 3, 4].map((count) => {
-                                        const maxForMap = selectedMapSize === "Tiny" ? 2 : selectedMapSize === "Small" ? 3 : 4;
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    {[2, 3, 4, 5, 6].map((count) => {
+                                        const maxForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
                                         const maxForCivs = CIV_OPTIONS.length;
                                         const effectiveMax = Math.min(maxForMap, maxForCivs);
                                         const isDisabled = count > effectiveMax;
@@ -382,24 +455,6 @@ function App() {
                 reachableCoords={reachableCoordSet}
                 showTileYields={showTileYields}
             />
-            <div style={{ position: "absolute", top: 10, left: 10, padding: "10px 12px", background: "rgba(0,0,0,0.65)", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1.4, minWidth: 200 }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Vision Key</div>
-                <div><span style={{ display: "inline-block", width: 12, height: 12, background: "#86efac", marginRight: 6 }} />Visible</div>
-                <div><span style={{ display: "inline-block", width: 12, height: 12, background: "#86efac", marginRight: 6, opacity: 0.45, border: "1px solid #111" }} />Fogged (seen, not visible)</div>
-                <div><span style={{ display: "inline-block", width: 12, height: 12, background: "#050505", marginRight: 6, border: "1px dashed #555" }} />Shroud (unseen)</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11 }}>
-                    <input type="checkbox" checked={showShroud} onChange={e => setShowShroud(e.target.checked)} />
-                    Show unseen shroud
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: 11 }}>
-                    <input type="checkbox" checked={showTileYields} onChange={e => setShowTileYields(e.target.checked)} />
-                    Show terrain yields
-                </label>
-                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button onClick={handleSave} style={{ fontSize: 11 }}>Save</button>
-                    <button onClick={handleLoad} style={{ fontSize: 11 }}>Load</button>
-                </div>
-            </div>
             <HUD
                 gameState={gameState}
                 selectedCoord={selectedCoord}
@@ -408,6 +463,13 @@ function App() {
                 onSelectUnit={setSelectedUnitId}
                 onShowTechTree={() => setShowTechTree(true)}
                 playerId={playerId}
+                onSave={handleSave}
+                onLoad={handleLoad}
+                onQuit={() => setGameState(null)}
+                showShroud={showShroud}
+                onToggleShroud={() => setShowShroud(prev => !prev)}
+                showYields={showTileYields}
+                onToggleYields={() => setShowTileYields(prev => !prev)}
             />
             {showTechTree && (
                 <TechTree

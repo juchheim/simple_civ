@@ -4,3 +4,5 @@
 - For diagrams, use Mermaid where helpful (flows, dependency graphs); store them inline in Markdown.
 - When marking drift fixes, update `docs/doc_drift_report*.md` accordingly.
 - Avoid duplicating content—link to existing sections in `docs/codebase_info/` where possible.
+- Rulebook upkeep: the latest `docs/rules/simple-civ_vX.Y_rulebook.md` is the source of truth and is ingested by the in-game Codex. Use clean headings/bullets (no mid-sentence hard breaks) and keep all rules/tables intact.
+- Dev-only notes in rulebook: wrap in `<!-- CODEX_SKIP_START --> ... <!-- CODEX_SKIP_END -->` or prefix headings with `[DEV-ONLY]`; the Codex parser strips these, but developers can still read them in the file.

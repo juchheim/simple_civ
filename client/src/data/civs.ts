@@ -1,4 +1,4 @@
-export type CivId = "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "AetherianVanguard";
+export type CivId = "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "AetherianVanguard" | "StarborneSeekers" | "JadeCovenant";
 
 export type CivOption = {
     id: CivId;
@@ -36,6 +36,20 @@ export const CIV_OPTIONS: CivOption[] = [
         summary: "Ancient guardians who seek to awaken a dormant power.",
         perk: "Can build The Titan's Core to summon a legendary unit.",
         color: "#a855f7",
+    },
+    {
+        id: "StarborneSeekers",
+        title: "The Starborne Seekers",
+        summary: "Sky watchers who seek cosmic enlightenment.",
+        perk: "Can build Spirit Observatory for The Revelation (free techs + permanent science).",
+        color: "#14b8a6",
+    },
+    {
+        id: "JadeCovenant",
+        title: "The Jade Covenant",
+        summary: "Masters of prosperity and harmonious growth.",
+        perk: "Can build Jade Granary for The Great Harvest (population boom + growth bonus).",
+        color: "#eab308",
     },
 ];
 

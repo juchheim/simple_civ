@@ -22,26 +22,28 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
     onUnlinkUnits,
     onFoundCity,
 }) => (
-    <div>
-        <h4>Unit: {unit.type}</h4>
-        <p>Moves: {unit.movesLeft}</p>
-        <p>HP: {unit.hp}</p>
-        {linkedPartner && (
-            <p style={{ fontSize: 12, color: "#c6ddff" }}>
-                Linked with {linkedPartner.type}
-            </p>
-        )}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-            <button onClick={onLinkUnits} disabled={!canLinkUnits}>
+    <div style={{ marginTop: 10 }}>
+        <div className="hud-section-title">Selected Unit</div>
+        <p className="hud-title-sm" style={{ margin: "2px 0 8px 0" }}>
+            Unit: {unit.type}
+        </p>
+        <div className="hud-chip-row">
+            <span className="hud-chip">Moves: {unit.movesLeft}</span>
+            <span className="hud-chip">HP: {unit.hp}</span>
+            {linkedPartner && <span className="hud-chip success">Linked with {linkedPartner.type}</span>}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+            <button className="hud-button small" onClick={onLinkUnits} disabled={!canLinkUnits}>
                 Link
             </button>
-            <button onClick={onUnlinkUnits} disabled={!canUnlinkUnits}>
+            <button className="hud-button small ghost" onClick={onUnlinkUnits} disabled={!canUnlinkUnits}>
                 Unlink
             </button>
         </div>
         {unit.type === UnitType.Settler && isMyTurn && (
-            <button onClick={onFoundCity}>Found City</button>
+            <button className="hud-button small" style={{ marginTop: 8 }} onClick={onFoundCity}>
+                Found City
+            </button>
         )}
     </div>
 );
-

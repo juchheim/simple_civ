@@ -6,22 +6,36 @@ type TechButtonProps = {
     onShowTechTree: () => void;
 };
 
-export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }) => (
-    <div>
-        <h4>Research</h4>
-        {player?.currentTech ? (
-            <div>
-                <p style={{ margin: "5px 0" }}>{player.currentTech.id}</p>
-                <p style={{ margin: "5px 0", fontSize: "12px" }}>
-                    Progress: {player.currentTech.progress}/{player.currentTech.cost}
-                </p>
-            </div>
-        ) : (
-            <p style={{ margin: "5px 0", color: "#ff9800" }}>No active research</p>
-        )}
-        <button onClick={onShowTechTree} style={{ marginTop: "10px" }}>
-            Tech Tree
-        </button>
-    </div>
-);
+export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }) => {
+    const tech = player?.currentTech;
+    const progress = tech ? Math.min(100, Math.round((tech.progress / tech.cost) * 100)) : 0;
 
+    return (
+        <div>
+            <div className="hud-section-title">Research</div>
+            <div className="hud-menu-header">
+                <div>
+                    <div className="hud-subtext" style={{ margin: 0 }}>
+                        {tech ? "Currently studying" : "Pick your next technology"}
+                    </div>
+                    <p className="hud-title" style={{ marginTop: 2 }}>
+                        {tech ? tech.id : "No active research"}
+                    </p>
+                </div>
+                <button className="hud-button ghost" onClick={onShowTechTree}>
+                    Tech Tree
+                </button>
+            </div>
+            {tech ? (
+                <>
+                    <div className="hud-progress">
+                        <div className="hud-progress-fill" style={{ width: `${progress}%` }} />
+                    </div>
+                    <div className="hud-subtext">Progress: {tech.progress}/{tech.cost}</div>
+                </>
+            ) : (
+                <div className="hud-subtext warn">Research is paused until you pick a tech.</div>
+            )}
+        </div>
+    );
+};

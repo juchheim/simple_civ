@@ -1,4 +1,4 @@
-import { Action, BuildingType, City, GameState, PlayerPhase, ProjectId, TechId, UnitState, UnitType } from "../core/types.js";
+import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType } from "../core/types.js";
 import {
     BASE_CITY_HP,
     CITY_HEAL_PER_TURN,
@@ -8,6 +8,7 @@ import {
     SETTLER_POP_LOSS_ON_BUILD,
     UNITS,
     CITY_WORK_RADIUS_RINGS,
+    TECHS,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
@@ -73,12 +74,14 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
         }
 
         city.storedFood += yields.F;
-        let growthCost = getGrowthCost(city.pop, city.buildings.includes(BuildingType.Farmstead));
+        const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
+        const hasJadeGranary = player.completedProjects.includes(ProjectId.JadeGranaryComplete);
+        let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary);
         while (city.storedFood >= growthCost) {
             city.storedFood -= growthCost;
             city.pop += 1;
             city.workedTiles = ensureWorkedTiles(city, state);
-            growthCost = getGrowthCost(city.pop, city.buildings.includes(BuildingType.Farmstead));
+            growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary);
         }
 
         const neededRing = Math.max(claimedRing, maxClaimableRing(city));
@@ -146,6 +149,48 @@ function completeBuild(state: GameState, city: City) {
                 state: UnitState.Normal,
                 hasAttacked: false,
             });
+        } else if (build.id === BuildingType.SpiritObservatory) {
+            // Spirit Observatory: The Revelation
+            // 1. Complete current tech instantly
+            // 2. Grant one free tech (auto-select best available)
+            // 3. +2 Science per city permanently (tracked via marker)
+            // 4. Counts as Observatory milestone for Progress chain
+            const player = state.players.find(p => p.id === city.ownerId);
+            if (player) {
+                // Complete current tech if any
+                if (player.currentTech) {
+                    player.techs.push(player.currentTech.id);
+                    player.currentTech = null;
+                }
+                
+                // Grant one free tech (auto-select best available for Progress path)
+                const freeTech = pickBestAvailableTech(player);
+                if (freeTech) {
+                    player.techs.push(freeTech);
+                }
+                
+                // Track completion - grants Observatory milestone
+                player.completedProjects.push(ProjectId.Observatory);
+                city.milestones.push(ProjectId.Observatory);
+            }
+            // Note: +2 Science per city is applied via getSciencePerTurn checking for Observatory milestone
+        } else if (build.id === BuildingType.JadeGranary) {
+            // Jade Granary: The Great Harvest
+            // 1. Every city gains +1 Pop
+            // 2. 15% cheaper growth permanently (tracked via marker)
+            // 3. +1 Food per city permanently (tracked via marker)
+            const player = state.players.find(p => p.id === city.ownerId);
+            if (player) {
+                // Track completion
+                player.completedProjects.push(ProjectId.JadeGranaryComplete);
+                
+                // Every city gains +1 Pop
+                for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
+                    c.pop += 1;
+                    c.workedTiles = ensureWorkedTiles(c, state);
+                }
+            }
+            // Note: +1 Food and 15% growth reduction applied via getCityYields/getGrowthCost checking marker
         } else {
             city.buildings.push(build.id as BuildingType);
         }
@@ -259,5 +304,59 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     const baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state).S, 0);
     const signalRelayBonus = player?.techs.includes(TechId.SignalRelay) ? cities.length : 0;
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
-    return baseScience + signalRelayBonus + grandAcademyBonus;
+    // Spirit Observatory grants +2 Science per city (tracked via Observatory milestone in completedProjects)
+    // Note: This bonus is part of the base Spirit Observatory effect, separate from the normal Observatory project bonus
+    const spiritObservatoryBonus = (player?.completedProjects.includes(ProjectId.Observatory) && player?.civName === "StarborneSeekers") ? cities.length * 2 : 0;
+    return baseScience + signalRelayBonus + grandAcademyBonus + spiritObservatoryBonus;
+}
+
+/**
+ * Pick the best available tech for the Starborne Seekers' free tech bonus.
+ * Prioritizes techs useful for Progress victory path.
+ */
+function pickBestAvailableTech(player: Player): TechId | null {
+    const allTechs = Object.keys(TECHS) as TechId[];
+    
+    // Filter to techs the player doesn't have and meets prerequisites for
+    const available = allTechs.filter(techId => {
+        if (player.techs.includes(techId)) return false;
+        const tech = TECHS[techId];
+        
+        // Check era gate (need 2 techs from previous era)
+        const hearthCount = player.techs.filter(t => TECHS[t].era === "Hearth").length;
+        const bannerCount = player.techs.filter(t => TECHS[t].era === "Banner").length;
+        if (tech.era === "Banner" && hearthCount < 2) return false;
+        if (tech.era === "Engine" && bannerCount < 2) return false;
+        
+        // Check specific prerequisites
+        return tech.prereqTechs.every(prereq => player.techs.includes(prereq));
+    });
+    
+    if (available.length === 0) return null;
+    
+    // Priority order for Progress-focused civs:
+    // 1. Star Charts (unlocks Progress chain)
+    // 2. Scholar Courts (unlocks Academy, prereq for Signal Relay)
+    // 3. Signal Relay (+1 Science per city)
+    // 4. Script Lore (prereq for Star Charts)
+    // 5. Any Engine tech
+    // 6. Any Banner tech
+    // 7. Any Hearth tech
+    const priorityOrder: TechId[] = [
+        TechId.StarCharts,
+        TechId.ScholarCourts,
+        TechId.SignalRelay,
+        TechId.ScriptLore,
+    ];
+    
+    for (const techId of priorityOrder) {
+        if (available.includes(techId)) return techId;
+    }
+    
+    // Fall back to any available Engine tech, then Banner, then Hearth
+    const engine = available.find(t => TECHS[t].era === "Engine");
+    if (engine) return engine;
+    const banner = available.find(t => TECHS[t].era === "Banner");
+    if (banner) return banner;
+    return available[0];
 }
