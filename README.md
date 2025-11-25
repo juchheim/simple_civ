@@ -1,4 +1,4 @@
-# Simple Civ v0.94
+# Simple Civ v0.95
 
 A digital board game / light 4X strategy game built with TypeScript.
 

@@ -61,6 +61,7 @@ Each task carries metadata: `type`, `severity` (blocking/attention), `entityIds`
 - **Motion:** 150–180ms ease slide/fade from collapsed pill; chevron rotates to indicate state.
 - **Badges:** matching dots on the End Turn card edge indicating blocking count; when zero, show a muted checkmark.
 - **Responsiveness:** On narrow screens, the pill sits above the End Turn card and the expanded card grows upward; on wider screens it sits to the left and expands leftward to avoid covering the End Turn button.
+- **Auto-collapse:** If both blocking and attention lists are empty, the panel auto-collapses; it auto-expands when new blocking tasks appear.
 
 ## Flow Walkthrough
 1. **Start of Turn (current player):**
