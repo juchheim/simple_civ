@@ -22,7 +22,7 @@ Increase AI unit competence across peace and war by adding defensive posture, ga
 
 ## Testing notes
 - Add/regress AI unit tests that assert: (1) empty cities get garrisoned when a defender is adjacent; (2) threats pull a defender within 2 tiles; (3) the new pass runs before attacks so city fire is enabled. Keep seeds deterministic.
-- Coverage added for: garrison rotation (ring-3 pull with threat check), ranged reposition, capture routing, naval coastal targeting, and multi-turn AI rules compliance. Future: add persistence checks for siege focus/stack filters under varied seeds.
+- Coverage added for: garrison rotation (ring-3 pull with threat check), ranged reposition, capture routing, naval coastal targeting, and multi-turn AI rules compliance with trace logging. Future: add persistence checks for siege focus/stack filters under varied seeds and richer combat scenarios.
 - Add coverage for stack filters and ranged repositioning (no >2 adjacent friends; avoid ending adjacent to enemies).
 
 ## Progress
@@ -38,3 +38,4 @@ Increase AI unit competence across peace and war by adding defensive posture, ga
 - Siege focus now persists per AI: a primary target city is remembered across turns for movement/attacks; ranged pathing prefers less-crowded, better-defense tiles when distances tie.
 - Added choke/stack controls: war marching filters out steps with >2 adjacent friendlies; ranged units reposition out of crowds or adjacency to enemies when possible and avoid non-lethal shots when adjacent enemies remain.
 - Naval parity improvements: naval units target coastal cities, pathfind, and honor spacing rules similarly to land units.
+- Added trace harness (`runAiTurnSequenceWithTrace`) and compliance test to log per-action decisions; diplomacy can be bypassed in tests to observe sustained movement/combat without peace spam.

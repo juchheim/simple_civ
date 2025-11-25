@@ -73,14 +73,18 @@ Called within `advancePlayerTurn`.
         5.  **Update Vision:** Vision updates immediately.
         6.  **Repeat:** The loop continues. The next `findPath` call (Step 1) will now use the *new* vision data, allowing the unit to react to what it just saw.
 
-### 4. Client & UI (`src/components/GameMap.tsx`)
+### 4. Client & UI (`src/components/GameMap.tsx` & `src/App.tsx`)
 
 #### Interaction
 *   **Hover:** When a unit is selected and the user hovers over a tile:
     *   Run `findPath` locally using the client's `gameState`.
     *   This provides immediate visual feedback of the "Optimistic" path.
 *   **Click:**
-    *   Dispatch `SetAutoMoveTarget` action with the clicked coordinate.
+    *   If the unit has moves left and the target is adjacent, it moves immediately.
+    *   If the target is distant OR the unit has 0 moves left:
+        *   Calculate path.
+        *   **Batch Actions:** Dispatch `SetAutoMoveTarget` AND `MoveUnit` (if moves remain) in a single batch to ensure state consistency.
+        *   **Auto-Deselect:** The unit is immediately deselected to indicate the "order is received."
 
 #### Visualization
 *   **Path Rendering:**
@@ -95,4 +99,5 @@ Called within `advancePlayerTurn`.
 *   **Combat Interrupt:** If a unit is attacked or attacks, `autoMoveTarget` should be cleared to give the player control.
 *   **Manual Override:** If the player issues a manual `MoveUnit` command, `autoMoveTarget` is cleared.
 *   **Fog Traps:** If a unit walks into a cul-de-sac of mountains, the pathfinder will eventually return "no path," and the unit will stop.
-*   **Friendly Collision:** If a friendly unit blocks the path, the auto-mover simply stops for the turn. It does *not* clear the target, assuming the friend will move later.
+*   **Friendly Collision (Persistence):** If a friendly unit blocks the path, the auto-mover simply stops for the turn. It does *not* clear the target, assuming the friend will move later. It will retry on the next turn.
+*   **Zero-Move Queuing:** Players can issue move orders to units with 0 moves left. The order is queued and execution begins on the next turn.

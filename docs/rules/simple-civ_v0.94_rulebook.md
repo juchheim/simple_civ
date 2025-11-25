@@ -153,6 +153,11 @@
 - **Movement**:
   - Spend move points per tile; terrain move costs apply (land vs naval). Cannot enter impassable.
   - Linked units move together.
+- **Auto-Movement**:
+  - Click any valid tile (even in Fog) to set a destination. Unit will auto-path each turn until arrival.
+  - **Queuing**: You may issue move orders to units with 0 moves left; they will start moving next turn.
+  - **Persistence**: If blocked by a friendly unit, the unit waits and retries next turn.
+  - **Interrupts**: Combat or manual move commands cancel auto-movement.
 - **Attacking**:
   - One attack per unit per turn; ranged must respect range; melee requires adjacency.
   - Cities can be attacked; only capture-capable units take cities.
