@@ -1,15 +1,16 @@
 import React from "react";
-import { HexCoord, Unit } from "@simple-civ/engine";
+import { HexCoord, Unit, City, hexEquals } from "@simple-civ/engine";
 
 type UseSelectedUnitsArgs = {
     selectedCoord: HexCoord | null;
     units: Unit[];
+    cities: City[];
     playerId: string;
     selectedUnitId: string | null;
     onSelectUnit: (unitId: string | null) => void;
 };
 
-export const useSelectedUnits = ({ selectedCoord, units, playerId, selectedUnitId, onSelectUnit }: UseSelectedUnitsArgs) => {
+export const useSelectedUnits = ({ selectedCoord, units, cities, playerId, selectedUnitId, onSelectUnit }: UseSelectedUnitsArgs) => {
     const unitsOnTile = React.useMemo(
         () =>
             selectedCoord
@@ -23,11 +24,17 @@ export const useSelectedUnits = ({ selectedCoord, units, playerId, selectedUnitI
         [selectedCoord, units, playerId],
     );
 
+    const hasCityOnTile = React.useMemo(
+        () => selectedCoord ? cities.some(c => hexEquals(c.coord, selectedCoord)) : false,
+        [selectedCoord, cities],
+    );
+
     React.useEffect(() => {
-        if (unitsOnTile.length === 1 && !selectedUnitId) {
+        // Don't auto-select unit if there's a city on the tile (city menu should take priority)
+        if (unitsOnTile.length === 1 && !selectedUnitId && !hasCityOnTile) {
             onSelectUnit(unitsOnTile[0].id);
         }
-    }, [unitsOnTile, selectedUnitId, onSelectUnit]);
+    }, [unitsOnTile, selectedUnitId, hasCityOnTile, onSelectUnit]);
 
     const selectedUnit = selectedUnitId ? units.find(u => u.id === selectedUnitId) ?? null : null;
 

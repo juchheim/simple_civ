@@ -294,6 +294,14 @@ function App() {
 
         // Select tile and auto-select a friendly unit (prefer linked pairs)
         setSelectedCoord(coord);
+
+        // Check if there's a city on this tile - if so, prioritize showing city UI over unit selection
+        const cityOnTile = gameState.cities.find(c => hexEquals(c.coord, coord));
+        if (cityOnTile) {
+            setSelectedUnitId(null);
+            return;
+        }
+
         const friendlyUnits = gameState.units.filter(
             u => u.ownerId === playerId && hexEquals(u.coord, coord),
         );
@@ -587,6 +595,7 @@ function App() {
                 selectedUnitId={selectedUnitId}
                 onAction={handleAction}
                 onSelectUnit={setSelectedUnitId}
+                onSelectCoord={setSelectedCoord}
                 onShowTechTree={() => setShowTechTree(true)}
                 playerId={playerId}
                 onSave={handleSave}

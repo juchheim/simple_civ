@@ -1,0 +1,96 @@
+import { describe, it, expect } from "vitest";
+import { applyAction } from "./turn-loop.js";
+import { PlayerPhase, TerrainType, UnitType } from "../core/types.js";
+import { hexEquals } from "../core/hex.js";
+import { claimCityTerritory, ensureWorkedTiles } from "./helpers/cities.js";
+
+type HexCoord = { q: number; r: number };
+function hex(q: number, r: number): HexCoord { return { q, r }; }
+
+function baseState() {
+    return {
+        id: "g",
+        turn: 1,
+        players: [
+            { id: "p1", civName: "Civ1", color: "#f00", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+            { id: "p2", civName: "Civ2", color: "#00f", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ],
+        currentPlayerId: "p1",
+        phase: PlayerPhase.Planning,
+        map: { width: 10, height: 10, tiles: [] as any[], rivers: [] as any[] },
+        units: [] as any[],
+        cities: [] as any[],
+        seed: 1,
+        visibility: {},
+        revealed: {},
+        diplomacy: {},
+        sharedVision: {},
+        contacts: {},
+        diplomacyOffers: [],
+    };
+}
+
+describe("FoundCity validation", () => {
+    it("throws generic error when too close to enemy territory (current behavior)", () => {
+        const state = baseState();
+        const p1Center = hex(0, 0);
+        const p2Center = hex(0, 3); // Distance 3
+
+        // Setup map
+        for (let r = 0; r < 5; r++) {
+            for (let q = 0; q < 5; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        // P1 founds city at (0,0)
+        state.units.push({
+            id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+
+        // P2 tries to found city at (0,3)
+        next.units.push({
+            id: "u2", ownerId: "p2", type: UnitType.Settler, coord: p2Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        // Switch to P2
+        next.currentPlayerId = "p2";
+
+        // Expect specific enemy error
+        expect(() => {
+            applyAction(next as any, { type: "FoundCity", playerId: "p2", unitId: "u2", name: "City2" });
+        }).toThrow("Too close to enemy territory");
+    });
+
+    it("throws specific error when too close to friendly city", () => {
+        const state = baseState();
+        const p1Center = hex(0, 0);
+        const p1SecondCity = hex(0, 3); // Distance 3
+
+        // Setup map
+        for (let r = 0; r < 5; r++) {
+            for (let q = 0; q < 5; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        // P1 founds city at (0,0)
+        state.units.push({
+            id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+
+        // P1 tries to found another city at (0,3)
+        next.units.push({
+            id: "u2", ownerId: "p1", type: UnitType.Settler, coord: p1SecondCity, movesLeft: 1, state: "Normal"
+        } as any);
+
+        // Expect friendly error
+        expect(() => {
+            applyAction(next as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "City2" });
+        }).toThrow("Too close to friendly city");
+    });
+});

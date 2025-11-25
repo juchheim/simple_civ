@@ -130,6 +130,7 @@ describe("HUD", () => {
                 onToggleShroud={vi.fn()}
                 showYields={false}
                 onToggleYields={vi.fn()}
+                onSelectCoord={vi.fn()}
             />,
         );
 
@@ -162,6 +163,7 @@ describe("HUD", () => {
                 onToggleShroud={vi.fn()}
                 showYields={false}
                 onToggleYields={vi.fn()}
+                onSelectCoord={vi.fn()}
             />,
         );
 
@@ -205,6 +207,7 @@ describe("HUD", () => {
                 onToggleShroud={vi.fn()}
                 showYields={false}
                 onToggleYields={vi.fn()}
+                onSelectCoord={vi.fn()}
             />,
         );
 

@@ -1,8 +1,8 @@
 import React from "react";
-import { GameState, HexCoord, Action } from "@simple-civ/engine";
+import { GameState, HexCoord, Action, UnitState } from "@simple-civ/engine";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
-import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, UnitList, UnitPanel } from "./HUD/sections";
+import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel } from "./HUD/sections";
 import "./HUD/hud.css";
 
 interface HUDProps {
@@ -11,6 +11,7 @@ interface HUDProps {
     selectedUnitId: string | null;
     onAction: (action: Action) => void;
     onSelectUnit: (unitId: string | null) => void;
+    onSelectCoord: (coord: HexCoord | null) => void;
     onShowTechTree: () => void;
     playerId: string;
     onSave: () => void;
@@ -22,7 +23,7 @@ interface HUDProps {
     onToggleYields: () => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
@@ -34,12 +35,13 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
     const { unitsOnTile, selectedUnit, linkedPartner, linkCandidate } = useSelectedUnits({
         selectedCoord,
         units,
+        cities,
         playerId,
         selectedUnitId,
         onSelectUnit,
     });
 
-    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity } = useUnitActions({
+    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore } = useUnitActions({
         isMyTurn,
         selectedUnit,
         linkCandidate,
@@ -93,6 +95,67 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
     const cityBuildOptions = useCityBuildOptions(selectedCity, gameState);
     const diplomacyRows = React.useMemo(() => buildDiplomacyRows(gameState, playerId), [gameState, playerId]);
     const showUnitStack = !!selectedUnit || unitsOnTile.length > 1;
+    const blockingTasks = React.useMemo(() => {
+        if (!isMyTurn || !player) return [];
+        const required: { id: string; kind: "research" | "city"; label: string; coord?: HexCoord }[] = [];
+        if (!player.currentTech) {
+            required.push({ id: "research", kind: "research", label: "Select new research" });
+        }
+        for (const city of cities) {
+            if (city.ownerId !== playerId) continue;
+            if (!city.currentBuild) {
+                required.push({
+                    id: `city-${city.id}`,
+                    kind: "city",
+                    label: `Choose production: ${city.name}`,
+                    coord: city.coord,
+                });
+            }
+        }
+        return required;
+    }, [cities, isMyTurn, player, playerId]);
+
+    const attentionTasks = React.useMemo(() => {
+        if (!isMyTurn) return [];
+        const optional: { id: string; kind: "unit"; label: string; coord: HexCoord; unitId: string }[] = [];
+        for (const unit of units) {
+            if (unit.ownerId !== playerId) continue;
+            if (unit.movesLeft <= 0) continue;
+            if (unit.state !== UnitState.Normal) continue;
+            if (unit.autoMoveTarget) continue;
+            optional.push({
+                id: `unit-${unit.id}`,
+                kind: "unit",
+                label: `Unit idle: ${unit.type}`,
+                coord: unit.coord,
+                unitId: unit.id,
+            });
+        }
+        return optional;
+    }, [isMyTurn, playerId, units]);
+
+    const handleFocusCity = React.useCallback(
+        (coord: HexCoord) => {
+            onSelectCoord(coord);
+            onSelectUnit(null);
+        },
+        [onSelectCoord, onSelectUnit],
+    );
+
+    const handleFocusUnit = React.useCallback(
+        (unitId: string, coord: HexCoord) => {
+            onSelectCoord(coord);
+            onSelectUnit(unitId);
+        },
+        [onSelectCoord, onSelectUnit],
+    );
+
+    const canEndTurn = isMyTurn && blockingTasks.length === 0;
+    const endTurnMessage = !isMyTurn
+        ? "Waiting for opponents"
+        : blockingTasks.length > 0
+            ? "Resolve blocking tasks to end turn"
+            : undefined;
 
     return (
         <div className="hud-layer">
@@ -174,6 +237,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                                 onLinkUnits={handleLinkUnits}
                                 onUnlinkUnits={handleUnlinkUnits}
                                 onFoundCity={handleFoundCity}
+                                onToggleAutoExplore={handleToggleAutoExplore}
                             />
                         )}
                     </div>
@@ -197,8 +261,26 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                 </div>
             )}
 
-            <div className="hud-card hud-turn-panel">
-                <TurnSummary turn={turn} currentPlayerId={currentPlayerId} isMyTurn={isMyTurn} onEndTurn={handleEndTurn} />
+            <div className="hud-turn-stack">
+                <TurnTasks
+                    blockingTasks={blockingTasks}
+                    attentionTasks={attentionTasks}
+                    isMyTurn={isMyTurn}
+                    onOpenTechTree={onShowTechTree}
+                    onFocusCity={handleFocusCity}
+                    onFocusUnit={handleFocusUnit}
+                />
+                <div className="hud-card hud-turn-panel">
+                    <TurnSummary
+                        turn={turn}
+                        currentPlayerId={currentPlayerId}
+                        isMyTurn={isMyTurn}
+                        canEndTurn={canEndTurn}
+                        blockingCount={blockingTasks.length}
+                        disableReason={endTurnMessage}
+                        onEndTurn={handleEndTurn}
+                    />
+                </div>
             </div>
         </div>
     );

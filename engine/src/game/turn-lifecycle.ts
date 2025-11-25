@@ -12,7 +12,7 @@ import {
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
-import { hexDistance, hexEquals } from "../core/hex.js";
+import { hexDistance, hexEquals, hexToString } from "../core/hex.js";
 import { Unit } from "../core/types.js";
 import { refreshPlayerVision } from "./vision.js";
 import { findPath } from "./helpers/pathfinding.js";
@@ -61,6 +61,8 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     }
 
     refreshPlayerVision(state, playerId);
+
+    processAutoExplore(state, playerId);
 
     processAutoMovement(state, playerId);
 
@@ -398,7 +400,8 @@ function processAutoMovement(state: GameState, playerId: string) {
                     type: "MoveUnit",
                     playerId: unit.ownerId,
                     unitId: unit.id,
-                    to: nextStep
+                    to: nextStep,
+                    isAuto: true
                 });
                 // handleMoveUnit calls refreshPlayerVision internally, so vision is up to date for next iteration
             } catch (e) {
@@ -406,6 +409,57 @@ function processAutoMovement(state: GameState, playerId: string) {
                 // Stop for this turn, but keep target to try again next turn
                 break;
             }
+        }
+    }
+}
+
+function processAutoExplore(state: GameState, playerId: string) {
+    const explorers = state.units.filter(u => u.ownerId === playerId && u.isAutoExploring);
+    if (explorers.length === 0) return;
+
+    const revealedSet = new Set(state.revealed[playerId] || []);
+
+    // Find all unexplored tiles
+    const unexploredTiles = state.map.tiles.filter(t => !revealedSet.has(hexToString(t.coord)));
+
+    if (unexploredTiles.length === 0) {
+        // Map fully explored, stop all auto-explorers
+        explorers.forEach(u => {
+            u.isAutoExploring = false;
+            u.autoMoveTarget = undefined;
+        });
+        return;
+    }
+
+    for (const unit of explorers) {
+        // Check if current target is still valid (unexplored)
+        if (unit.autoMoveTarget) {
+            const targetKey = hexToString(unit.autoMoveTarget);
+            if (!revealedSet.has(targetKey)) {
+                // Target is still unexplored, keep going
+                continue;
+            }
+            // Target became explored, find new one
+            unit.autoMoveTarget = undefined;
+        }
+
+        // Find closest unexplored tile
+        let bestTile = null;
+        let minDist = Infinity;
+
+        for (const tile of unexploredTiles) {
+            const dist = hexDistance(unit.coord, tile.coord);
+            if (dist < minDist) {
+                minDist = dist;
+                bestTile = tile;
+            }
+        }
+
+        if (bestTile) {
+            unit.autoMoveTarget = bestTile.coord;
+        } else {
+            // Should be covered by the initial check, but just in case
+            unit.isAutoExploring = false;
         }
     }
 }

@@ -6,11 +6,20 @@ type ActionBarProps = {
     currentPlayerId: string;
     isMyTurn: boolean;
     onEndTurn: () => void;
+    canEndTurn: boolean;
+    blockingCount: number;
 };
 
-export const ActionBar: React.FC<ActionBarProps> = ({ turn, currentPlayerId, isMyTurn, onEndTurn }) => (
+export const ActionBar: React.FC<ActionBarProps> = ({ turn, currentPlayerId, isMyTurn, onEndTurn, canEndTurn, blockingCount }) => (
     <div>
-        <TurnSummary turn={turn} currentPlayerId={currentPlayerId} isMyTurn={isMyTurn} onEndTurn={onEndTurn} />
+        <TurnSummary
+            turn={turn}
+            currentPlayerId={currentPlayerId}
+            isMyTurn={isMyTurn}
+            onEndTurn={onEndTurn}
+            canEndTurn={canEndTurn}
+            blockingCount={blockingCount}
+        />
     </div>
 );
 

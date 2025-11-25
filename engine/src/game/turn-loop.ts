@@ -7,6 +7,8 @@ import {
     handleUnlinkUnits,
     handleSetAutoMoveTarget,
     handleClearAutoMoveTarget,
+    handleSetAutoExplore,
+    handleClearAutoExplore,
 } from "./actions/units.js";
 import {
     handleCityAttack,
@@ -89,6 +91,12 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "ClearAutoMoveTarget":
             updatedState = handleClearAutoMoveTarget(nextState, action);
+            break;
+        case "SetAutoExplore":
+            updatedState = handleSetAutoExplore(nextState, action);
+            break;
+        case "ClearAutoExplore":
+            updatedState = handleClearAutoExplore(nextState, action);
             break;
         case "EndTurn":
             updatedState = handleEndTurn(nextState, action);

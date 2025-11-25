@@ -23,11 +23,17 @@ import {
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { ensureWar } from "../helpers/diplomacy.js";
 
-export function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord }): GameState {
+export function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord; isAuto?: boolean }): GameState {
     const unit = state.units.find(u => u.id === action.unitId);
     if (!unit) throw new Error("Unit not found");
     if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
     if (unit.movesLeft <= 0) throw new Error("No moves left");
+
+    // Manual move cancels auto-explore
+    if (unit.isAutoExploring && !action.isAuto) {
+        unit.isAutoExploring = false;
+        unit.autoMoveTarget = undefined;
+    }
 
     const dist = hexDistance(unit.coord, action.to);
     if (dist !== 1) throw new Error("Can only move 1 tile at a time");
@@ -223,6 +229,7 @@ export function handleSetAutoMoveTarget(state: GameState, action: { type: "SetAu
     if (!targetTile) throw new Error("Invalid target tile");
 
     unit.autoMoveTarget = action.target;
+    unit.isAutoExploring = false; // Setting specific target cancels auto-explore
     return state;
 }
 
@@ -231,6 +238,26 @@ export function handleClearAutoMoveTarget(state: GameState, action: { type: "Cle
     if (!unit) throw new Error("Unit not found");
     if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
 
+    unit.autoMoveTarget = undefined;
+    return state;
+}
+
+export function handleSetAutoExplore(state: GameState, action: { type: "SetAutoExplore"; playerId: string; unitId: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    if (!unit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
+
+    unit.isAutoExploring = true;
+    unit.autoMoveTarget = undefined; // Will be calculated next turn or immediately if moves left
+    return state;
+}
+
+export function handleClearAutoExplore(state: GameState, action: { type: "ClearAutoExplore"; playerId: string; unitId: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    if (!unit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
+
+    unit.isAutoExploring = false;
     unit.autoMoveTarget = undefined;
     return state;
 }

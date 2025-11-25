@@ -39,12 +39,22 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
         }
     }, [selectedUnit, playerId, onAction]);
 
+    const handleToggleAutoExplore = React.useCallback(() => {
+        if (!selectedUnit) return;
+        if (selectedUnit.isAutoExploring) {
+            onAction({ type: "ClearAutoExplore", playerId, unitId: selectedUnit.id });
+        } else {
+            onAction({ type: "SetAutoExplore", playerId, unitId: selectedUnit.id });
+        }
+    }, [selectedUnit, playerId, onAction]);
+
     return {
         canLinkUnits,
         canUnlinkUnits,
         handleLinkUnits,
         handleUnlinkUnits,
         handleFoundCity,
+        handleToggleAutoExplore,
     };
 };
 

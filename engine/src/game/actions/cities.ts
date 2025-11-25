@@ -82,7 +82,13 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     const territory = hexSpiral(unit.coord, CITY_WORK_RADIUS_RINGS);
     for (const coord of territory) {
         const t = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
-        if (t?.ownerId) throw new Error("Tile already owned");
+        if (t?.ownerId) {
+            if (t.ownerId === action.playerId) {
+                throw new Error("Too close to friendly city");
+            } else {
+                throw new Error("Too close to enemy territory");
+            }
+        }
     }
 
     const cityId = `c_${action.playerId}_${Date.now()}`;

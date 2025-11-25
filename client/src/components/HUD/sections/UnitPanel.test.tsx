@@ -29,6 +29,7 @@ describe("UnitPanel", () => {
                 onLinkUnits={vi.fn()}
                 onUnlinkUnits={vi.fn()}
                 onFoundCity={vi.fn()}
+                onToggleAutoExplore={vi.fn()}
             />,
         );
 
@@ -53,6 +54,7 @@ describe("UnitPanel", () => {
                 onLinkUnits={onLink}
                 onUnlinkUnits={onUnlink}
                 onFoundCity={onFoundCity}
+                onToggleAutoExplore={vi.fn()}
             />,
         );
 

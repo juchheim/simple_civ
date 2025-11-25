@@ -132,6 +132,7 @@ export type Unit = {
     linkedUnitId?: string;
     capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
     autoMoveTarget?: HexCoord;
+    isAutoExploring?: boolean;
 };
 
 export type City = {
@@ -226,7 +227,7 @@ export type GameState = {
 export type MapSize = "Tiny" | "Small" | "Standard" | "Large" | "Huge";
 
 export type Action =
-    | { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord }
+    | { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord; isAuto?: boolean }
     | { type: "Attack"; playerId: string; attackerId: string; targetId: string; targetType: "Unit" | "City" }
     | { type: "LinkUnits"; playerId: string; unitId: string; partnerId: string }
     | { type: "UnlinkUnits"; playerId: string; unitId: string; partnerId?: string }
@@ -244,4 +245,6 @@ export type Action =
     | { type: "RevokeVisionShare"; playerId: string; targetPlayerId: string }
     | { type: "SetAutoMoveTarget"; playerId: string; unitId: string; target: HexCoord }
     | { type: "ClearAutoMoveTarget"; playerId: string; unitId: string }
+    | { type: "SetAutoExplore"; playerId: string; unitId: string }
+    | { type: "ClearAutoExplore"; playerId: string; unitId: string }
     | { type: "EndTurn"; playerId: string };

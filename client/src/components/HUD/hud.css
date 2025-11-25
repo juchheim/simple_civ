@@ -64,12 +64,21 @@
     width: min(540px, 48vw);
 }
 
-.hud-turn-panel {
+.hud-turn-stack {
     position: absolute;
     bottom: 14px;
     right: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.hud-turn-panel {
     width: 220px;
     text-align: center;
+    pointer-events: auto;
 }
 
 .hud-section-title {
@@ -245,6 +254,119 @@
     border-color: #ef4444;
     color: #fecdd3;
     background: rgba(127, 29, 29, 0.35);
+}
+
+.hud-tasks-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    pointer-events: none;
+}
+
+.hud-tasks-pill {
+    pointer-events: auto;
+    background: rgba(8, 10, 18, 0.9);
+    border: 1px solid #1f2937;
+    color: #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 120ms ease, border-color 150ms ease, background 150ms ease;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+}
+
+.hud-tasks-pill:hover {
+    transform: translateY(-1px);
+    border-color: #60a5fa;
+    background: rgba(15, 23, 42, 0.95);
+}
+
+.hud-tasks-pill:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.hud-pill-count {
+    font-size: 12px;
+}
+
+.hud-pill-divider {
+    opacity: 0.5;
+}
+
+.hud-pill-chevron {
+    font-size: 12px;
+    transition: transform 140ms ease;
+}
+
+.hud-pill-chevron.open {
+    transform: rotate(180deg);
+}
+
+.hud-tasks-card {
+    min-width: 240px;
+    max-width: 320px;
+    pointer-events: auto;
+}
+
+.hud-task-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hud-task-section__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.hud-task-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #1f2937;
+}
+
+.hud-task-row:last-of-type {
+    border-bottom: none;
+}
+
+.hud-task-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hud-task-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 11px;
+}
+
+.hud-task-tag.danger {
+    border-color: #ef4444;
+    color: #fecdd3;
+}
+
+.hud-task-divider {
+    height: 1px;
+    background: #1f2937;
+    margin: 6px 0;
 }
 
 .hud-progress {

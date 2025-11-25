@@ -10,6 +10,7 @@ type UnitPanelProps = {
     onLinkUnits: () => void;
     onUnlinkUnits: () => void;
     onFoundCity: () => void;
+    onToggleAutoExplore: () => void;
 };
 
 export const UnitPanel: React.FC<UnitPanelProps> = ({
@@ -21,6 +22,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
     onLinkUnits,
     onUnlinkUnits,
     onFoundCity,
+    onToggleAutoExplore,
 }) => (
     <div style={{ marginTop: 10 }}>
         <div className="hud-section-title">Selected Unit</div>
@@ -31,6 +33,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
             <span className="hud-chip">Moves: {unit.movesLeft}</span>
             <span className="hud-chip">HP: {unit.hp}</span>
             {linkedPartner && <span className="hud-chip success">Linked with {linkedPartner.type}</span>}
+            {unit.isAutoExploring && <span className="hud-chip success">Auto Exploring</span>}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
             <button className="hud-button small" onClick={onLinkUnits} disabled={!canLinkUnits}>
@@ -43,6 +46,11 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
         {unit.type === UnitType.Settler && isMyTurn && (
             <button className="hud-button small" style={{ marginTop: 8 }} onClick={onFoundCity}>
                 Found City
+            </button>
+        )}
+        {unit.type === UnitType.Scout && isMyTurn && (
+            <button className="hud-button small" style={{ marginTop: 8 }} onClick={onToggleAutoExplore}>
+                {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
             </button>
         )}
     </div>
