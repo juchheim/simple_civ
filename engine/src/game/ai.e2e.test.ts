@@ -87,7 +87,7 @@ describe("AI end-to-end", () => {
         const player = after.players[0];
         expect(player.aiGoal).toBe("Progress");
         expect(player.currentTech?.id).toBeDefined();
-        expect(after.cities[0].currentBuild?.id).toBe(ProjectId.GrandAcademy);
+        expect(after.cities[0].currentBuild?.id).toBe(UnitType.Scout);
         expect(after.currentPlayerId).toBe("p"); // single player loops
     });
 

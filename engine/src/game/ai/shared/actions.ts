@@ -18,7 +18,12 @@ export function tryAction(state: GameState, action: Action): GameState {
             return tracedApply(state, action, traceContext.trace, traceContext.playerId);
         }
         return applyAction(state, action);
-    } catch {
+    } catch (e) {
+        // Action failed - invalid move, not enough resources, etc.
+        // This is expected during AI exploration of options
+        if ((e as Error).message !== "No moves left" && (e as Error).message !== "Unit not found") {
+            console.error(`[AI ACTION FAILED] ${action.type}: ${(e as Error).message}`);
+        }
         return state;
     }
 }

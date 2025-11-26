@@ -59,8 +59,14 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     const hasObservatory = player?.completedProjects.includes(ProjectId.Observatory);
     const hasGrandAcademy = player?.completedProjects.includes(ProjectId.GrandAcademy);
 
+    // Check if we are safe enough to pursue victory
+    // Safe if: Not at war OR we have a decent military (at least 3 units)
+    const myUnits = state.units.filter(u => u.ownerId === playerId);
+    const militaryCount = myUnits.filter(u => u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.RiverBoat).length;
+    const isSafeEnough = !atWar || militaryCount >= 3;
+
     // If we can work on victory, do it (unless massively losing a war)
-    if (canCompleteVictoryProjects && !atWar) {
+    if (canCompleteVictoryProjects && isSafeEnough) {
         const victoryPath: BuildOption[] = [];
         if (!hasObservatory) {
             victoryPath.push({ type: "Project", id: ProjectId.Observatory });
@@ -76,18 +82,54 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     }
 
     // When at war, heavily prioritize military production
-    // BowGuard is CRITICAL for sieging cities - prioritize it!
+    // Army formation is TOP priority if available, then varied units
     if (atWar) {
-        return [
-            { type: "Unit", id: UnitType.BowGuard },        // #1 for city sieges
-            { type: "Unit", id: UnitType.SpearGuard },     // #2 for city capture
-            { type: "Unit", id: UnitType.Riders },         // #3 for mobility
-            { type: "Project", id: ProjectId.FormArmy_BowGuard },
-            { type: "Project", id: ProjectId.FormArmy_SpearGuard },
-            { type: "Project", id: ProjectId.FormArmy_Riders },
-            { type: "Building", id: BuildingType.StoneWorkshop },
-            { type: "Building", id: BuildingType.Farmstead },
-        ];
+        const player = state.players.find(p => p.id === playerId);
+        const hasFormArmyTech = player?.techs.includes(TechId.ArmyDoctrine) ?? false;
+
+        if (hasFormArmyTech) {
+            // Prioritize army formation over individual units
+            return [
+                { type: "Project", id: ProjectId.FormArmy_BowGuard },
+                { type: "Project", id: ProjectId.FormArmy_SpearGuard },
+                { type: "Project", id: ProjectId.FormArmy_Riders },
+                { type: "Unit", id: UnitType.Settler },
+                { type: "Unit", id: UnitType.BowGuard },
+                { type: "Unit", id: UnitType.SpearGuard },
+                { type: "Unit", id: UnitType.Riders },
+                { type: "Building", id: BuildingType.StoneWorkshop },
+                { type: "Building", id: BuildingType.Farmstead },
+            ];
+        } else {
+            // No armies yet, build varied individual units
+            // Check current army composition to balance melee/ranged
+            const units = state.units.filter(u => u.ownerId === playerId);
+            const rangedCount = units.filter(u => u.type === UnitType.BowGuard).length;
+            const meleeCount = units.filter(u => u.type === UnitType.SpearGuard || u.type === UnitType.Riders).length;
+
+            const meleeFirst: BuildOption[] = [
+                { type: "Unit", id: UnitType.Settler },
+                { type: "Unit", id: UnitType.SpearGuard },
+                { type: "Unit", id: UnitType.Riders },
+                { type: "Unit", id: UnitType.BowGuard },
+            ];
+
+            const rangedFirst: BuildOption[] = [
+                { type: "Unit", id: UnitType.Settler },
+                { type: "Unit", id: UnitType.BowGuard },
+                { type: "Unit", id: UnitType.SpearGuard },
+                { type: "Unit", id: UnitType.Riders },
+            ];
+
+            // If we have more ranged than melee, prioritize melee
+            const unitPriority = rangedCount > meleeCount ? meleeFirst : rangedFirst;
+
+            return [
+                ...unitPriority,
+                { type: "Building", id: BuildingType.StoneWorkshop },
+                { type: "Building", id: BuildingType.Farmstead },
+            ];
+        }
     }
 
     return buildNormalPriorities(goal, personality);

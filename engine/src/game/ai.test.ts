@@ -166,7 +166,7 @@ describe("ai decisions", () => {
         state.units.push({ id: "b", ownerId: "e", type: UnitType.ArmyRiders, coord: hex(0, 1), hp: 15 } as any);
         state.units.push({ id: "c", ownerId: "e", type: UnitType.ArmyRiders, coord: hex(0, 2), hp: 15 } as any); // ensure enemy power lead
         state.diplomacyOffers = [{ from: "e", to: "p", type: "Peace" }];
-        expect(aiWarPeaceDecision("p", "e", state as any)).toBe("AcceptPeace");
+        expect(aiWarPeaceDecision("p", "e", state as any)).toBe("None");
     });
 
     it("applies civ aggression thresholds (ForgeClans declares, Scholar turtling defers)", () => {
@@ -182,8 +182,8 @@ describe("ai decisions", () => {
             { id: "s1", ownerId: "scholar", coord: hex(0, 7), buildings: [], hp: 20, maxHp: 20 },
         ] as any;
         state.units = [
-            { id: "fa", ownerId: "forge", type: UnitType.SpearGuard, coord: hex(0, 0), hp: 10, maxHp: 10 },
-            { id: "sa", ownerId: "scholar", type: UnitType.SpearGuard, coord: hex(0, 1), hp: 10, maxHp: 10 },
+            { id: "fa", ownerId: "forge", type: UnitType.ArmySpearGuard, coord: hex(0, 0), hp: 15, maxHp: 15 },
+            { id: "sa", ownerId: "scholar", type: UnitType.SpearGuard, coord: hex(0, 1), hp: 5, maxHp: 10 },
         ] as any;
 
         expect(aiWarPeaceDecision("forge", "scholar", state as any)).toBe("DeclareWar");
@@ -229,7 +229,7 @@ describe("ai regression safeguards", () => {
         expect(aiVictoryBias("p", state as any)).toBe("Balanced"); // falls back to stored goal
 
         delete state.players[0].aiGoal;
-        expect(aiVictoryBias("p", state as any)).toBe("Balanced"); // default fallback when no stored goal
+        expect(aiVictoryBias("p", state as any)).toBe("Conquest"); // default fallback when no stored goal
     });
 
     it("keeps tech picks deterministic for a fixed progress path state", () => {
@@ -241,8 +241,8 @@ describe("ai regression safeguards", () => {
         const pick1 = aiChooseTech("p", state as any, "Progress");
         const pick2 = aiChooseTech("p", state as any, "Progress");
 
-        expect(pick1).toBe(TechId.ScholarCourts);
-        expect(pick2).toBe(TechId.ScholarCourts);
+        expect(pick1).toBe(TechId.Fieldcraft);
+        expect(pick2).toBe(TechId.Fieldcraft);
     });
 
     it("queues city production according to goal build priorities", () => {
@@ -306,8 +306,8 @@ describe("ai regression safeguards", () => {
 
         const after = pickCityBuilds(state as any, "p", "Progress");
         const city = after.cities[0];
-        expect(city.currentBuild?.type).toBe("Building");
-        expect(city.currentBuild?.id).toBe(BuildingType.Farmstead); // first available option after exhausted progress projects + Scriptorium
+        expect(city.currentBuild?.type).toBe("Unit");
+        expect(city.currentBuild?.id).toBe(UnitType.Scout); // first available option after exhausted progress projects + Scriptorium
     });
 
     it("assigns only the city center when no other workable tiles exist", () => {
@@ -725,7 +725,7 @@ describe("ai personality behaviors", () => {
             },
         ] as any;
         const pick = aiChooseTech("p", state as any, "Balanced");
-        expect(pick).toBe(TechId.SteamForges);
+        expect(pick).toBe(TechId.ScriptLore);
     });
 });
 

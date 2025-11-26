@@ -59,7 +59,7 @@ const defaultPersonality: AiPersonality = {
 const personalities: Record<CivName, AiPersonality> = {
     ForgeClans: {
         aggression: {
-            warPowerThreshold: 0.45,  // Ultra-aggressive for early wars
+            warPowerThreshold: 0.45,  // Very aggressive - warmonger civ
             warDistanceMax: 14,
             peacePowerThreshold: 0.85,
         },
@@ -72,7 +72,7 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     ScholarKingdoms: {
         aggression: {
-            warPowerThreshold: 0.5,  // More defensive but still aggressive
+            warPowerThreshold: 0.75,  // Defensive - focus on progress victory
             warDistanceMax: 12,
             peacePowerThreshold: 1.0,
         },
@@ -86,7 +86,7 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     RiverLeague: {
         aggression: {
-            warPowerThreshold: 0.45,  // Ultra-aggressive
+            warPowerThreshold: 0.55,  // Moderately aggressive - expansionist
             warDistanceMax: 14,
             peacePowerThreshold: 0.9,
         },
@@ -99,8 +99,8 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     AetherianVanguard: {
         aggression: {
-            warPowerThreshold: 0.5,  // Aggressive
-            warPowerThresholdLate: 0.4,  // Very aggressive with titan
+            warPowerThreshold: 0.6,  // Balanced, spikes with titan
+            warPowerThresholdLate: 0.45,  // Very aggressive with titan
             warDistanceMax: 14,
             peacePowerThreshold: 0.9,
             aggressionSpikeTrigger: "TitanBuilt",
@@ -115,7 +115,7 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     StarborneSeekers: {
         aggression: {
-            warPowerThreshold: 0.5,  // More defensive
+            warPowerThreshold: 0.7,  // Defensive - focus on progress
             warDistanceMax: 12,
             peacePowerThreshold: 1.0,
         },
@@ -129,7 +129,7 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     JadeCovenant: {
         aggression: {
-            warPowerThreshold: 0.5,  // Aggressive
+            warPowerThreshold: 0.55,  // Moderately aggressive
             warDistanceMax: 14,
             peacePowerThreshold: 0.95,
         },

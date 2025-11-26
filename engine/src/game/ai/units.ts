@@ -455,7 +455,12 @@ function captureIfPossible(state: GameState, playerId: string, unitId: string): 
     const adjCities = state.cities.filter(
         c => c.ownerId !== playerId && hexDistance(c.coord, unit.coord) === 1 && c.hp <= 0
     );
+    if (adjCities.length > 0) {
+        console.info(`[AI CAPTURE ATTEMPT] ${playerId} ${unit.type} attempting to capture ${adjCities.length} cities at HP <=0`);
+    }
     for (const city of adjCities) {
+        const unitsOnCity = state.units.filter(u => hexEquals(u.coord, city.coord));
+        console.info(`[AI CAPTURE] ${playerId} ${unit.type} capturing ${city.name} (${city.ownerId}) at ${city.hp} HP. Units on city: ${unitsOnCity.map(u => u.type).join(", ") || "None"}`);
         const moved = tryAction(state, { type: "MoveUnit", playerId, unitId: unit.id, to: city.coord });
         if (moved !== state) return moved;
     }
@@ -897,7 +902,7 @@ export function attackTargets(state: GameState, playerId: string): GameState {
         if (unit.hasAttacked) continue;
 
         const cityTargets = warCities
-            .filter(c => hexDistance(c.coord, unit.coord) <= stats.rng)
+            .filter(c => hexDistance(c.coord, unit.coord) <= stats.rng && c.hp > 0)
             .map(c => ({ city: c, dmg: expectedDamageToCity(unit, c, next) }))
             .sort((a, b) => {
                 const aKill = a.dmg >= a.city.hp ? 0 : 1;
@@ -974,6 +979,16 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
         .filter(c => warTargets.some(w => w.id === c.ownerId))
         .sort((a, b) => a.hp - b.hp);
     const armyUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+
+    // Debug: Count unit types
+    const unitCounts = armyUnits.reduce((acc, u) => {
+        acc[u.type] = (acc[u.type] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+    if (targetCities.some(c => c.hp <= 0)) {
+        console.info(`[AI SIEGE DEBUG] ${playerId} has units: ${JSON.stringify(unitCounts)}. Targets with <=0 HP: ${targetCities.filter(c => c.hp <= 0).map(c => c.name).join(", ")}`);
+    }
+
     const rangedIds = new Set(
         armyUnits.filter(u => UNITS[u.type].rng > 1).map(u => u.id)
     );
@@ -998,25 +1013,65 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                 ? targetCities.filter(c => cityIsCoastal(next, c))
                 : targetCities;
 
-            const nearest = nearestByDistance(
-                current.coord,
-                primaryCity ? [primaryCity] : unitTargets,
-                city => city.coord
-            );
+            // Priority 1: Capture 0 HP cities if we can
+            let nearest: any = null;
+            if (UNITS[current.type].canCaptureCity) {
+                const capturable = unitTargets.filter(c => c.hp <= 0);
+                if (capturable.length > 0) {
+                    nearest = nearestByDistance(current.coord, capturable, city => city.coord);
+                    console.info(`[AI CAPTURE MOVE] ${playerId} ${current.type} moving to capture ${nearest.name} (HP ${nearest.hp})`);
+                }
+            }
+
+            // Priority 2: Primary siege target or nearest target
+            if (!nearest) {
+                nearest = nearestByDistance(
+                    current.coord,
+                    primaryCity ? [primaryCity] : unitTargets,
+                    city => city.coord
+                );
+            }
+
             if (!nearest) break;
             if (hexDistance(nearest.coord, current.coord) === 0) break;
 
-            const path = findPath(current.coord, nearest.coord, current, next);
+            let path = findPath(current.coord, nearest.coord, current, next);
+
+            // If direct path is blocked (e.g. garrisoned city), try to move adjacent
+            if (path.length === 0 && hexDistance(current.coord, nearest.coord) > 1) {
+                const neighbors = getNeighbors(nearest.coord);
+                const validNeighbors = neighbors
+                    .map(n => ({ coord: n, path: findPath(current.coord, n, current, next) }))
+                    .filter(n => n.path.length > 0)
+                    .sort((a, b) => a.path.length - b.path.length);
+
+                if (validNeighbors.length > 0) {
+                    path = validNeighbors[0].path;
+                }
+            }
+
             let moved = false;
             if (path.length > 0) {
                 const step = path[0];
                 const desiredRange = UNITS[current.type].rng;
                 const currentDist = hexDistance(current.coord, nearest.coord);
-                // Ranged units: get within range but prefer distance 2 for safety  
-                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2) {
-                    // In optimal range (2 hex away); hold position
+
+                // Count nearby friendly units to ensure we form a siege group
+                const friendliesNearTarget = armyUnits.filter(u =>
+                    hexDistance(u.coord, nearest.coord) <= 3
+                ).length;
+
+                // Ranged units: only hold position if we have a siege group (3+ units)
+                // Otherwise keep moving to converge on the target
+                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2 && friendliesNearTarget >= 3) {
+                    // Siege group formed, hold position
+                    console.info(`[AI SIEGE] ${playerId} ${current.type} holding at range ${currentDist} from ${nearest.name} (${friendliesNearTarget} units nearby)`);
                     moved = true;
                 } else {
+                    // Not enough units yet, keep moving
+                    if (rangedIds.has(current.id) && currentDist <= desiredRange) {
+                        console.info(`[AI SIEGE] ${playerId} ${current.type} at range ${currentDist} from ${nearest.name}, waiting for group (${friendliesNearTarget}/3 units)`);
+                    }
                     const stepDist = hexDistance(step, nearest.coord);
                     if (rangedIds.has(current.id) && desiredRange > 1 && stepDist === 0) {
                         // avoid stepping adjacent if ranged can soon fire

@@ -13,6 +13,7 @@ Last Updated: 2025-11-24
 - Number of civilizations selection (2-4) with map size constraints enforced.
 - Unique city names: each civ has 20 thematic names, capital is fixed, subsequent names are random and unique.
 - Unit linking: players can link two units on the same hex for synchronized movement, with automatic unlinking on separation.
+- AI heuristics/personality: Full implementation including city site scoring, war/peace decisions, victory bias switching, and civ-specific personalities.
 
 ## 🔧 Partially Implemented
 - Map generation: coast-biased edges, terrain variation, mountain clusters, river overlays with edge list, and best-fit start selection (≥6 spacing, nearby food/prod), but no mapGenParams tunables, advanced smoothing, or true edge-driven river gen.
@@ -21,7 +22,7 @@ Last Updated: 2025-11-24
 - Multiplayer: hotseat only; networking/server exists but not wired to client.
 
 ## ❌ Missing/Not Yet Implemented
-- AI heuristics/personality (only a minimal auto-turn AI exists).
+
 - Save/Load beyond local browser storage (no persistence service).
 - Embark/naval-transport rules, Great People, districts, additional unit/building content beyond v0.9 core list.
 - Dev-spec helper modules (cities/states/ai) are not present; logic lives in turn-loop.

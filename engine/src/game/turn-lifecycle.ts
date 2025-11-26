@@ -1,3 +1,4 @@
+
 import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType } from "../core/types.js";
 import {
     BASE_CITY_HP,
@@ -12,7 +13,7 @@ import {
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
-import { hexDistance, hexEquals, hexToString } from "../core/hex.js";
+import { hexDistance, hexEquals, hexToString, hexSpiral } from "../core/hex.js";
 import { Unit } from "../core/types.js";
 import { refreshPlayerVision } from "./vision.js";
 import { findPath } from "./helpers/pathfinding.js";
@@ -81,10 +82,13 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
 
         const maxHp = city.maxHp || BASE_CITY_HP;
         const wasRecentlyAttacked = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn > state.turn - 2;
-        if (city.hp < maxHp && !wasRecentlyAttacked) {
-            console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)}`);
+        // Cities at 0 or negative HP should NOT heal - they are capturable!
+        if (city.hp > 0 && city.hp < maxHp && !wasRecentlyAttacked) {
+            console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
             city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
             if (!city.maxHp) city.maxHp = maxHp;
+        } else if (city.hp <= 0) {
+            console.log(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
         }
 
         city.storedFood += yields.F;
@@ -130,14 +134,39 @@ function completeBuild(state: GameState, city: City) {
 
     const build = city.currentBuild;
     const overflow = city.buildProgress - build.cost;
+    const player = state.players.find(p => p.id === city.ownerId);
 
     if (build.type === "Unit") {
         const uType = build.id as UnitType;
+
+        // Find valid spawn location (spiral out from city)
+        // Units cannot stack, so we must find a free tile
+        let spawnCoord = city.coord;
+        const maxRing = 2; // Search up to 2 rings out
+        const area = hexSpiral(city.coord, maxRing);
+
+        for (const coord of area) {
+            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+            if (!tile) continue;
+
+            // Check terrain validity
+            const stats = UNITS[uType];
+            if (stats.domain === "Land" && (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain")) continue;
+            if (stats.domain === "Naval" && (tile.terrain !== "Coast" && tile.terrain !== "DeepSea")) continue;
+
+            // Check occupancy
+            const occupied = state.units.some(u => hexEquals(u.coord, coord));
+            if (!occupied) {
+                spawnCoord = coord;
+                break;
+            }
+        }
+
         state.units.push({
-            id: `u_${city.ownerId}_${Date.now()}`,
+            id: `u_${city.ownerId}_${Date.now()} `,
             type: uType,
             ownerId: city.ownerId,
-            coord: city.coord,
+            coord: spawnCoord,
             hp: UNITS[uType].hp,
             maxHp: UNITS[uType].hp,
             movesLeft: UNITS[uType].move,
@@ -150,10 +179,12 @@ function completeBuild(state: GameState, city: City) {
             city.workedTiles = ensureWorkedTiles(city, state);
         }
     } else if (build.type === "Building") {
+        city.buildings.push(build.id as BuildingType);
+
         if (build.id === BuildingType.TitansCore) {
             // Special case: TitansCore spawns a Titan and is consumed (not added to buildings)
             state.units.push({
-                id: `u_${city.ownerId}_titan_${Date.now()}`,
+                id: `u_${city.ownerId}_titan_${Date.now()} `,
                 type: UnitType.Titan,
                 ownerId: city.ownerId,
                 coord: city.coord,
@@ -169,7 +200,6 @@ function completeBuild(state: GameState, city: City) {
             // 2. Grant one free tech (auto-select best available)
             // 3. +2 Science per city permanently (tracked via marker)
             // 4. Counts as Observatory milestone for Progress chain
-            const player = state.players.find(p => p.id === city.ownerId);
             if (player) {
                 // Complete current tech if any
                 if (player.currentTech) {
@@ -193,10 +223,10 @@ function completeBuild(state: GameState, city: City) {
             // 1. Every city gains +1 Pop
             // 2. 15% cheaper growth permanently (tracked via marker)
             // 3. +1 Food per city permanently (tracked via marker)
-            const player = state.players.find(p => p.id === city.ownerId);
             if (player) {
                 // Track completion
                 player.completedProjects.push(ProjectId.JadeGranaryComplete);
+                city.milestones.push(ProjectId.JadeGranaryComplete);
 
                 // Every city gains +1 Pop
                 for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
@@ -204,17 +234,13 @@ function completeBuild(state: GameState, city: City) {
                     c.workedTiles = ensureWorkedTiles(c, state);
                 }
             }
-            // Note: +1 Food and 15% growth reduction applied via getCityYields/getGrowthCost checking marker
-        } else {
-            city.buildings.push(build.id as BuildingType);
         }
     } else if (build.type === "Project") {
         const pId = build.id as ProjectId;
-        const player = state.players.find(p => p.id === city.ownerId);
-        if (player) player.completedProjects.push(pId);
-        if (PROJECTS[pId].onComplete.type === "Victory") {
-            state.winnerId = player?.id;
+        if (player) {
+            player.completedProjects.push(pId);
         }
+
         if (pId === ProjectId.Observatory) {
             city.milestones.push(pId);
         }

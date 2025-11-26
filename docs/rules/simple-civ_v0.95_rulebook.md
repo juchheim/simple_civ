@@ -84,7 +84,7 @@
 - **Only three yields**: Food (growth), Production (build progress), Science (research). No gold/happiness/upkeep/trade.
 - **City center minimums**: enforce ≥2 Food and ≥1 Production after terrain/overlay/civ modifiers; base city Science +1 per city.
 - **Storage & overflow**: Food and Production overflow carry after growth/completion.
-- **Growth cost**: base 20 for Pop 2; scales by Pop range multipliers:
+- **Growth cost**: base 30 for Pop 2; scales by Pop range multipliers:
   - Pop 2–4: ×1.20, Pop 5–6: ×1.27, Pop 7–8: ×1.32, Pop 9–10: ×1.37, Pop 11+: ×1.42.
   - Modifiers: Farmstead ×0.9, Jade Granary ×0.85 (stack multiplicatively on base formula).
 - **Production**: stored per city; switching builds discards current progress.
@@ -107,9 +107,10 @@
 - **Production & Builds**:
   - At Start of Turn: add Production; if stored Production ≥ build cost, complete build, consume cost, keep overflow.
   - Build categories: Unit, Building, Project (one active slot). Switching clears progress.
+  - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
-  - Base city HP 20; capture resets to 10. Base defense strength 5.
-  - City heal 2 HP/turn if not damaged that turn; friendly city heal for units: +5 HP/turn.
+  - Base city HP 20; capture resets to 8. Base defense strength 5.
+  - City heal 1 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
   - Garrison enables city attack; City Ward adds +4 defense and +1 city attack.
 - **City Attack**:
   - Base city attack strength 3; range 2; one shot/turn if unfired and garrisoned.
@@ -175,7 +176,7 @@
   - Cities heal 2 HP/turn if not damaged that turn.
   - Captured units may have healing delay; cities track last damaged turn to gate healing.
 - **Capture**:
-  - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 10.
+  - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
 
 ## 11. Technology
 - **Costs by era**: Hearth 20, Banner 50, Engine 85 Science.

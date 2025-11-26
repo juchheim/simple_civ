@@ -83,14 +83,14 @@ describe("Rules", () => {
 
     describe("Growth", () => {
         it("should calculate growth cost correctly", () => {
-            // Pop 1 -> 2: 20
-            expect(getGrowthCost(1, false)).toBe(20);
+            // Pop 1 -> 2: 30
+            expect(getGrowthCost(1, false)).toBe(30);
 
-            // Pop 2 -> 3: 24
-            expect(getGrowthCost(2, false)).toBe(24);
+            // Pop 2 -> 3: 39
+            expect(getGrowthCost(2, false)).toBe(39);
 
-            // With Farmstead (Pop 1 -> 2): ceil(20 * 0.9) = 18
-            expect(getGrowthCost(1, true)).toBe(18);
+            // With Farmstead (Pop 1 -> 2): ceil(30 * 0.9) = 27
+            expect(getGrowthCost(1, true)).toBe(27);
         });
     });
 

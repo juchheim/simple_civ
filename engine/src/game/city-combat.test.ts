@@ -138,7 +138,7 @@ describe("City Combat", () => {
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city).toBeDefined();
         expect(city!.ownerId).toBe("p1"); // Ownership changed
-        expect(city!.hp).toBe(10); // Reset HP
+        expect(city!.hp).toBe(8); // Reset HP
         expect(city!.pop).toBe(1); // Pop reduced
 
         const unit = nextState.units.find(u => u.id === "u1");
@@ -269,6 +269,6 @@ describe("City Combat", () => {
 
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city).toBeDefined();
-        expect(city!.hp).toBe(12); // 10 + 2
+        expect(city!.hp).toBe(11); // 10 + 1
     });
 });

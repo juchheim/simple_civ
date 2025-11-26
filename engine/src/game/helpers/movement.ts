@@ -73,8 +73,14 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
     for (const mover of movers) {
         const isMilitary = mover.stats.domain !== UnitDomain.Civilian;
         if (isMilitary) {
-            if (hasEnemyMilitary) throw new Error("Tile occupied by military unit");
-            if (friendlyMilitaryOnTile > 0) throw new Error("Tile occupied by military unit");
+            if (hasEnemyMilitary) {
+                console.log(`[VALIDATION FAIL] Enemy military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}`);
+                throw new Error("Tile occupied by military unit");
+            }
+            if (friendlyMilitaryOnTile > 0) {
+                console.log(`[VALIDATION FAIL] Friendly military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}. Movers: ${movers.length}`);
+                throw new Error("Tile occupied by military unit");
+            }
             friendlyMilitaryOnTile += 1;
         } else {
             if (friendlyCivilianOnTile > 0) throw new Error("Tile occupied by civilian unit");
