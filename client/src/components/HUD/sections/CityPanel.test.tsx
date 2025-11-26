@@ -99,6 +99,8 @@ describe("CityPanel", () => {
                 onRazeCity={vi.fn()}
                 onCityAttack={vi.fn()}
                 onSetWorkedTiles={vi.fn()}
+                onSelectUnit={vi.fn()}
+                onClose={vi.fn()}
             />,
         );
 
@@ -122,6 +124,8 @@ describe("CityPanel", () => {
                 onRazeCity={vi.fn()}
                 onCityAttack={vi.fn()}
                 onSetWorkedTiles={onSetWorkedTiles}
+                onSelectUnit={vi.fn()}
+                onClose={vi.fn()}
             />,
         );
 

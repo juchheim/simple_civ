@@ -210,6 +210,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 isSelected: selectedUnitId === unit.id,
                 isLinkedPartner: linkedPartnerId === unit.id,
                 showLinkIcon: !!unit.linkedUnitId,
+                color: playerColorMap.get(unit.ownerId) ?? "#22d3ee",
             }));
     }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility]);
 

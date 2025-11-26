@@ -108,6 +108,26 @@ describe("ai decisions", () => {
         expect(aiChooseTech("p", state as any, "Conquest")).toBe(TechId.FormationTraining);
     });
 
+    it("respects era gates when choosing techs", () => {
+        const state = baseState();
+        state.players = [{ id: "p", techs: [TechId.ScriptLore], currentTech: null }] as any;
+        const pick = aiChooseTech("p", state as any, "Balanced");
+        expect(pick).toBeDefined();
+        // Only Hearth techs are legal until 2 Hearth are owned
+        const hearth = new Set([
+            TechId.Fieldcraft,
+            TechId.StoneworkHalls,
+            TechId.FormationTraining,
+            TechId.TrailMaps,
+            TechId.ScriptLore,
+        ]);
+        expect(hearth.has(pick!)).toBe(true);
+
+        state.players[0].techs = [TechId.Fieldcraft, TechId.ScriptLore, TechId.StoneworkHalls]; // 3 Hearth
+        const pickBanner = aiChooseTech("p", state as any, "Balanced");
+        expect(pickBanner).not.toBe(TechId.SteamForges); // Needs 2 Banner before Engine
+    });
+
     it("switches victory bias after Observatory or strike-range capital with Armies", () => {
         const state = baseState();
         state.players = [{ id: "p", aiGoal: "Balanced", completedProjects: [ProjectId.Observatory] }] as any;
@@ -130,8 +150,8 @@ describe("ai decisions", () => {
     it("declares war at <=8 tiles when stronger and accepts peace when losing", () => {
         const state = baseState();
         state.players = [
-            { id: "p", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
-            { id: "e", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
+            { id: "p", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
+            { id: "e", civName: "RiverLeague", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
         ] as any;
         state.contacts = { p: { e: true }, e: { p: true } };
         state.diplomacy = { p: { e: DiplomacyState.Peace }, e: { p: DiplomacyState.Peace } } as any;
@@ -147,6 +167,27 @@ describe("ai decisions", () => {
         state.units.push({ id: "c", ownerId: "e", type: UnitType.ArmyRiders, coord: hex(0, 2), hp: 15 } as any); // ensure enemy power lead
         state.diplomacyOffers = [{ from: "e", to: "p", type: "Peace" }];
         expect(aiWarPeaceDecision("p", "e", state as any)).toBe("AcceptPeace");
+    });
+
+    it("applies civ aggression thresholds (ForgeClans declares, Scholar turtling defers)", () => {
+        const state = baseState();
+        state.players = [
+            { id: "forge", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
+            { id: "scholar", civName: "ScholarKingdoms", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
+        ] as any;
+        state.contacts = { forge: { scholar: true }, scholar: { forge: true } };
+        state.diplomacy = { forge: { scholar: DiplomacyState.Peace }, scholar: { forge: DiplomacyState.Peace } } as any;
+        state.cities = [
+            { id: "f1", ownerId: "forge", coord: hex(0, 0), buildings: [], hp: 20, maxHp: 20 },
+            { id: "s1", ownerId: "scholar", coord: hex(0, 7), buildings: [], hp: 20, maxHp: 20 },
+        ] as any;
+        state.units = [
+            { id: "fa", ownerId: "forge", type: UnitType.SpearGuard, coord: hex(0, 0), hp: 10, maxHp: 10 },
+            { id: "sa", ownerId: "scholar", type: UnitType.SpearGuard, coord: hex(0, 1), hp: 10, maxHp: 10 },
+        ] as any;
+
+        expect(aiWarPeaceDecision("forge", "scholar", state as any)).toBe("DeclareWar");
+        expect(aiWarPeaceDecision("scholar", "forge", state as any)).toBe("None");
     });
 });
 
@@ -402,7 +443,7 @@ describe("ai regression safeguards", () => {
         const attacker = {
             id: "bow",
             ownerId: "p",
-            type: UnitType.BowGuard,
+            type: UnitType.ArmyBowGuard,
             coord: hex(0, 0),
             movesLeft: 2,
             hasAttacked: false,
@@ -611,6 +652,17 @@ describe("ai regression safeguards", () => {
                     hasAttacked: false,
                     state: UnitState.Normal,
                 },
+                {
+                    id: "garrison",
+                    ownerId: "p",
+                    type: UnitType.SpearGuard,
+                    coord: playerCity,
+                    hp: 10,
+                    maxHp: 10,
+                    movesLeft: 0,
+                    hasAttacked: false,
+                    state: UnitState.Normal,
+                },
             ] as any;
             battleState.diplomacy = { p: { e: DiplomacyState.War }, e: { p: DiplomacyState.War } } as any;
             battleState.contacts = { p: { e: true }, e: { p: true } } as any;
@@ -633,6 +685,47 @@ describe("ai regression safeguards", () => {
         const afterPeace = runAiTurn(peaceState as any, "p");
         const peaceUnit = afterPeace.units.find(u => u.id === "spear");
         expect(peaceUnit?.coord).toEqual(hex(0, 0)); // no war ⇒ stays put (fortify equivalent)
+    });
+});
+
+describe("ai personality behaviors", () => {
+    it("prefers river-biased settling for River League", () => {
+        const state = baseState();
+        state.currentPlayerId = "p";
+        state.players = [
+            { id: "p", civName: "RiverLeague", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ] as any;
+        const coast = hex(0, 0);
+        const riverTile = hex(1, 0);
+        const dryTile = hex(2, 0);
+        state.map.tiles = [
+            { coord: coast, terrain: TerrainType.Coast, overlays: [], hasCityCenter: false },
+            { coord: riverTile, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: dryTile, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+        ] as any;
+        state.map.rivers = [{ a: riverTile, b: dryTile }];
+        state.units = [
+            { id: "settler", ownerId: "p", type: UnitType.Settler, coord: coast, movesLeft: 2, hasAttacked: false, state: UnitState.Normal },
+        ] as any;
+
+        const after = moveSettlersAndFound(state as any, "p");
+        const city = after.cities[0];
+        expect(city.coord).toEqual(riverTile);
+    });
+
+    it("rushes Steam Forges for Aetherian Vanguard", () => {
+        const state = baseState();
+        state.players = [
+            {
+                id: "p",
+                civName: "AetherianVanguard",
+                techs: [TechId.Fieldcraft, TechId.StoneworkHalls, TechId.TimberMills],
+                currentTech: null,
+                completedProjects: [],
+            },
+        ] as any;
+        const pick = aiChooseTech("p", state as any, "Balanced");
+        expect(pick).toBe(TechId.SteamForges);
     });
 });
 

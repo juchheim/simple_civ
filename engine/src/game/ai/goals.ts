@@ -1,5 +1,6 @@
 import { hexDistance } from "../../core/hex.js";
-import { AiVictoryGoal, City, GameState, ProjectId } from "../../core/types.js";
+import { AiVictoryGoal, BuildingType, City, GameState, ProjectId } from "../../core/types.js";
+import { getPersonalityForPlayer } from "./personality.js";
 
 export function setAiGoal(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
     return {
@@ -15,6 +16,12 @@ function anyEnemyNearCity(city: City, state: GameState, ownerId: string, radius:
 export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return "Balanced";
+    const personality = getPersonalityForPlayer(state, playerId);
+    const prefersProgress = personality.projectRush?.type === "Building"
+        ? personality.projectRush.id === BuildingType.SpiritObservatory
+        : personality.projectRush?.id === ProjectId.Observatory;
+    const aggressionForward = personality.aggression.warPowerThreshold < 1;
+    const fallback = player.aiGoal ?? (prefersProgress ? "Progress" : aggressionForward ? "Conquest" : "Balanced");
     const capitals = state.cities.filter(c => c.ownerId === playerId && c.isCapital);
     const capitalsSafe = capitals.every(c => c.hp >= c.maxHp * 0.6 && !anyEnemyNearCity(c, state, playerId, 2));
     if (player.completedProjects.includes(ProjectId.Observatory) && capitalsSafe) {
@@ -30,6 +37,5 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
         return "Conquest";
     }
 
-    return player.aiGoal ?? "Balanced";
+    return fallback;
 }
-

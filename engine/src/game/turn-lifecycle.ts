@@ -45,6 +45,14 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
 
     state.phase = PlayerPhase.StartOfTurn;
 
+    // If no tech is selected, auto-pick the cheapest available to avoid research stalls.
+    if (!player.currentTech) {
+        const autoTech = pickBestAvailableTech(player);
+        if (autoTech) {
+            player.currentTech = { id: autoTech, progress: 0, cost: TECHS[autoTech].cost };
+        }
+    }
+
     healUnitsAtStart(state, playerId);
 
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {

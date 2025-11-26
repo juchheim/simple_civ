@@ -31,10 +31,10 @@ function baseState() {
 }
 
 describe("FoundCity validation", () => {
-    it("throws generic error when too close to enemy territory (current behavior)", () => {
+    it("throws error when too close to enemy city", () => {
         const state = baseState();
         const p1Center = hex(0, 0);
-        const p2Center = hex(0, 3); // Distance 3
+        const p2Center = hex(0, 2); // Distance 2 - too close!
 
         // Setup map
         for (let r = 0; r < 5; r++) {
@@ -50,7 +50,7 @@ describe("FoundCity validation", () => {
 
         let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
 
-        // P2 tries to found city at (0,3)
+        // P2 tries to found city at (0,2) - distance 2, should fail
         next.units.push({
             id: "u2", ownerId: "p2", type: UnitType.Settler, coord: p2Center, movesLeft: 1, state: "Normal"
         } as any);
@@ -61,13 +61,13 @@ describe("FoundCity validation", () => {
         // Expect specific enemy error
         expect(() => {
             applyAction(next as any, { type: "FoundCity", playerId: "p2", unitId: "u2", name: "City2" });
-        }).toThrow("Too close to enemy territory");
+        }).toThrow("Too close to enemy city");
     });
 
-    it("throws specific error when too close to friendly city", () => {
+    it("throws error when too close to friendly city", () => {
         const state = baseState();
         const p1Center = hex(0, 0);
-        const p1SecondCity = hex(0, 3); // Distance 3
+        const p1SecondCity = hex(0, 2); // Distance 2 - too close!
 
         // Setup map
         for (let r = 0; r < 5; r++) {
@@ -83,7 +83,7 @@ describe("FoundCity validation", () => {
 
         let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
 
-        // P1 tries to found another city at (0,3)
+        // P1 tries to found another city at (0,2) - distance 2, should fail
         next.units.push({
             id: "u2", ownerId: "p1", type: UnitType.Settler, coord: p1SecondCity, movesLeft: 1, state: "Normal"
         } as any);
@@ -92,5 +92,68 @@ describe("FoundCity validation", () => {
         expect(() => {
             applyAction(next as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "City2" });
         }).toThrow("Too close to friendly city");
+    });
+
+    it("allows founding at distance 3 from friendly city", () => {
+        const state = baseState();
+        const p1Center = hex(0, 0);
+        const p1SecondCity = hex(0, 3); // Distance 3 - valid!
+
+        // Setup map
+        for (let r = 0; r < 6; r++) {
+            for (let q = 0; q < 6; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        // P1 founds city at (0,0)
+        state.units.push({
+            id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+
+        // P1 tries to found another city at (0,3) - distance 3, should succeed
+        next.units.push({
+            id: "u2", ownerId: "p1", type: UnitType.Settler, coord: p1SecondCity, movesLeft: 1, state: "Normal"
+        } as any);
+
+        // Should not throw
+        expect(() => {
+            applyAction(next as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "City2" });
+        }).not.toThrow();
+    });
+
+    it("allows founding at distance 3 from enemy city", () => {
+        const state = baseState();
+        const p1Center = hex(0, 0);
+        const p2Center = hex(0, 3); // Distance 3 - valid!
+
+        // Setup map
+        for (let r = 0; r < 6; r++) {
+            for (let q = 0; q < 6; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        // P1 founds city at (0,0)
+        state.units.push({
+            id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+
+        // P2 tries to found city at (0,3) - distance 3, should succeed
+        next.units.push({
+            id: "u2", ownerId: "p2", type: UnitType.Settler, coord: p2Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        // Switch to P2
+        next.currentPlayerId = "p2";
+
+        // Should not throw
+        expect(() => {
+            applyAction(next as any, { type: "FoundCity", playerId: "p2", unitId: "u2", name: "City2" });
+        }).not.toThrow();
     });
 });

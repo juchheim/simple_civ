@@ -22,7 +22,15 @@ export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }
                         {tech ? tech.id : "No active research"}
                     </p>
                 </div>
-                <button className="hud-button ghost" onClick={onShowTechTree}>
+                <button
+                    className="hud-button"
+                    style={{
+                        background: "var(--color-highlight-strong)",
+                        color: "var(--color-bg-main)",
+                        borderColor: "var(--color-highlight-strong)"
+                    }}
+                    onClick={onShowTechTree}
+                >
                     Tech Tree
                 </button>
             </div>

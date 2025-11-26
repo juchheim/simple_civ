@@ -71,6 +71,19 @@ function App() {
         }
     }, []);
 
+    // Global key listener for shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                setSelectedCoord(null);
+                setSelectedUnitId(null);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, []);
+
     const startNewGame = () => {
         try {
             const rawSeed = seedInput.trim() === "" ? undefined : Number(seedInput);
@@ -158,7 +171,7 @@ function App() {
         if (!gameState) return;
 
         // If unit selected and clicking another tile -> Move?
-        if (selectedCoord && selectedUnitId) {
+        if (selectedUnitId) {
             const unit = gameState.units.find(u => u.id === selectedUnitId);
             if (unit && unit.ownerId === playerId) {
                 // Try to move
@@ -450,12 +463,12 @@ function App() {
         }
 
         return (
-            <div style={{ width: "100vw", height: "100vh", background: "#0b1021", color: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-                <div style={{ width: "min(960px, 100%)", background: "#111827", borderRadius: 12, padding: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.35)", border: "1px solid #1f2937" }}>
+            <div style={{ width: "100vw", height: "100vh", background: "var(--color-bg-deep)", color: "var(--color-text-main)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+                <div style={{ width: "min(960px, 100%)", background: "var(--color-bg-panel)", borderRadius: 12, padding: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.5)", border: "1px solid var(--color-border)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
                         <div style={{ flex: "1 1 320px" }}>
                             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Choose your Civilization</div>
-                            <div style={{ color: "#cbd5e1", fontSize: 14, marginBottom: 12 }}>
+                            <div style={{ color: "var(--color-text-muted)", fontSize: 14, marginBottom: 12 }}>
                                 Pick a civ, optionally enter a seed, then start. The AI will grab a different civ automatically.
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
@@ -467,11 +480,11 @@ function App() {
                                             onClick={() => setSelectedCiv(option.id)}
                                             style={{
                                                 textAlign: "left",
-                                                background: isSelected ? "#1f2937" : "#0f172a",
-                                                border: `2px solid ${isSelected ? option.color : "#1f2937"}`,
+                                                background: isSelected ? "var(--color-bg-deep)" : "transparent",
+                                                border: `2px solid ${isSelected ? "var(--color-highlight)" : "var(--color-border)"}`,
                                                 borderRadius: 10,
                                                 padding: "10px 12px",
-                                                color: "#e5e7eb",
+                                                color: "var(--color-text-main)",
                                                 cursor: "pointer",
                                             }}
                                         >
@@ -479,8 +492,8 @@ function App() {
                                                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: option.color, display: "inline-block" }} />
                                                 <span style={{ fontWeight: 700 }}>{option.title}</span>
                                             </div>
-                                            <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 4 }}>{option.summary}</div>
-                                            <div style={{ fontSize: 12, color: "#a5b4fc" }}>{option.perk}</div>
+                                            <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>{option.summary}</div>
+                                            <div style={{ fontSize: 12, color: "var(--color-highlight)" }}>{option.perk}</div>
                                         </button>
                                     );
                                 })}
@@ -488,20 +501,20 @@ function App() {
                         </div>
                         <div style={{ width: 280, flex: "0 0 auto" }}>
                             <div style={{ marginBottom: 12 }}>
-                                <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Optional seed</label>
+                                <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 6 }}>Optional seed</label>
                                 <input
                                     type="text"
                                     value={seedInput}
                                     onChange={e => setSeedInput(e.target.value)}
                                     placeholder="e.g. 83755"
-                                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #1f2937", background: "#0f172a", color: "#e5e7eb" }}
+                                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg-deep)", color: "var(--color-text-main)" }}
                                 />
-                                <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
+                                <div style={{ marginTop: 6, fontSize: 12, color: "var(--color-text-muted)" }}>
                                     Keep blank for a random seed. AI civ draw uses this seed too.
                                 </div>
                             </div>
                             <div style={{ marginBottom: 12 }}>
-                                <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Map Size</label>
+                                <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 6 }}>Map Size</label>
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                     {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
                                         <button
@@ -511,9 +524,9 @@ function App() {
                                                 padding: "6px 10px",
                                                 fontSize: 12,
                                                 borderRadius: 6,
-                                                border: `1px solid ${selectedMapSize === size ? "#3b82f6" : "#1f2937"}`,
-                                                background: selectedMapSize === size ? "#1e3a8a" : "#0f172a",
-                                                color: selectedMapSize === size ? "#93c5fd" : "#94a3b8",
+                                                border: `1px solid ${selectedMapSize === size ? "var(--color-highlight)" : "var(--color-border)"}`,
+                                                background: selectedMapSize === size ? "rgba(170, 130, 80, 0.2)" : "transparent",
+                                                color: selectedMapSize === size ? "var(--color-highlight)" : "var(--color-text-muted)",
                                                 cursor: "pointer",
                                             }}
                                         >
@@ -523,7 +536,7 @@ function App() {
                                 </div>
                             </div>
                             <div style={{ marginBottom: 12 }}>
-                                <label style={{ display: "block", fontSize: 13, color: "#cbd5e1", marginBottom: 6 }}>Number of Civilizations</label>
+                                <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 6 }}>Number of Civilizations</label>
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                     {[2, 3, 4, 5, 6].map((count) => {
                                         const maxForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
@@ -540,9 +553,9 @@ function App() {
                                                     padding: "6px 12px",
                                                     fontSize: 12,
                                                     borderRadius: 6,
-                                                    border: `1px solid ${numCivs === count ? "#3b82f6" : "#1f2937"}`,
-                                                    background: numCivs === count ? "#1e3a8a" : isDisabled ? "#111827" : "#0f172a",
-                                                    color: numCivs === count ? "#93c5fd" : isDisabled ? "#4b5563" : "#94a3b8",
+                                                    border: `1px solid ${numCivs === count ? "var(--color-highlight)" : "var(--color-border)"}`,
+                                                    background: numCivs === count ? "rgba(170, 130, 80, 0.2)" : isDisabled ? "rgba(0,0,0,0.2)" : "transparent",
+                                                    color: numCivs === count ? "var(--color-highlight)" : isDisabled ? "rgba(255,255,255,0.2)" : "var(--color-text-muted)",
                                                     cursor: isDisabled ? "not-allowed" : "pointer",
                                                     opacity: isDisabled ? 0.5 : 1,
                                                 }}
@@ -556,13 +569,31 @@ function App() {
                             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                                 <button
                                     onClick={startNewGame}
-                                    style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "none", background: "#22c55e", color: "#0b1021", fontWeight: 700, cursor: "pointer" }}
+                                    style={{
+                                        flex: 1,
+                                        padding: "10px 12px",
+                                        borderRadius: 8,
+                                        border: "none",
+                                        background: "var(--color-highlight-strong)",
+                                        color: "var(--color-bg-main)",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        transition: "transform 0.1s ease, filter 0.1s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1.02)';
+                                        e.currentTarget.style.filter = 'brightness(1.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                        e.currentTarget.style.filter = 'brightness(1)';
+                                    }}
                                 >
                                     Start Game
                                 </button>
                                 <button
                                     onClick={handleLoad}
-                                    style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #1f2937", background: "#0f172a", color: "#e5e7eb", cursor: "pointer" }}
+                                    style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-main)", cursor: "pointer" }}
                                 >
                                     Load Save
                                 </button>

@@ -9,8 +9,11 @@ function ensureContactMaps(state: GameState, a: string, b: string) {
 
 export function setContact(state: GameState, a: string, b: string) {
     ensureContactMaps(state, a, b);
+    const now = state.turn ?? 0;
     state.contacts[a][b] = true;
     state.contacts[b][a] = true;
+    (state.contacts[a] as any)[`metTurn_${b}`] = (state.contacts[a] as any)[`metTurn_${b}`] ?? now;
+    (state.contacts[b] as any)[`metTurn_${a}`] = (state.contacts[b] as any)[`metTurn_${a}`] ?? now;
     if (!state.diplomacy[a][b]) state.diplomacy[a][b] = DiplomacyState.Peace;
     if (!state.diplomacy[b][a]) state.diplomacy[b][a] = DiplomacyState.Peace;
 }
@@ -53,4 +56,3 @@ export function assertCanShareVision(state: GameState, a: string, b: string) {
     const stance = state.diplomacy[a]?.[b];
     if (stance !== DiplomacyState.Peace) throw new Error("Vision sharing requires peace");
 }
-

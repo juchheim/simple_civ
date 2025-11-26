@@ -1,11 +1,12 @@
 import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
-import { pickTech } from "./tech.js";
+import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds } from "./cities.js";
 import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
 import { tracedApply, TraceEntry, safeClone } from "./trace.js";
 import { setTraceContext, clearTraceContext } from "./shared/actions.js";
+import { tryAction } from "./shared/actions.js";
 
 export function runAiTurnSequence(initialState: GameState, playerId: string): GameState {
     let state = initialState;
@@ -13,6 +14,13 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = setAiGoal(state, playerId, goal);
 
     state = pickTech(state, playerId, goal);
+    const player = state.players.find(p => p.id === playerId);
+    if (player?.isAI && !player.currentTech) {
+        const fallbackTech = chooseFallbackTech(playerId, state);
+        if (fallbackTech) {
+            state = tryAction(state, { type: "ChooseTech", playerId, techId: fallbackTech });
+        }
+    }
     state = pickCityBuilds(state, playerId, goal);
     state = assignWorkedTiles(state, playerId, goal);
     state = moveSettlersAndFound(state, playerId);

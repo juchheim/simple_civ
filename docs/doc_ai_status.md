@@ -23,6 +23,9 @@
 - AI turn autoskip loop remains in the client (`client/src/App.tsx:107-121`) and drives the new behavior for `isAI` players.
 - Tests cover the AI heuristics/decisions/executor to lock doc rules (`engine/src/game/ai.test.ts`, `engine/src/game/ai.e2e.test.ts`), and the client simply imports the engine AI (no separate wrapper/tests remain).
 - Fog is refreshed immediately after a unit moves via `refreshPlayerVision`, so revealed tiles show up as soon as movement finishes rather than waiting for end-of-turn.
+- Civ-flavored AI personalities (data-only) added in `engine/src/game/ai/personality.ts`:
+  - Aggression thresholds/distances, peace thresholds, settle/expansion biases, tech weights, project rush targets, and unit prefs per civ (ForgeClans hills/aggression, Scholar peace/science, River river/naval, Aetherian Titan spike, Starborne progress rush, Jade wide growth).
+  - War/peace decisions, tech picks, city builds, and settler site scoring pull from the personality map; defaults remain neutral for new civs.
 
 ## Gaps vs docs
 - Remaining approximations to tighten:

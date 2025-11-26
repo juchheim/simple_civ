@@ -22,7 +22,13 @@ export const TurnSummary: React.FC<TurnSummaryProps> = ({ turn, currentPlayerId,
                 </div>
                 <button
                     className="hud-button"
-                    style={{ width: "100%", marginTop: 10 }}
+                    style={{
+                        width: "100%",
+                        marginTop: 10,
+                        background: canEndTurn ? "var(--color-highlight-strong)" : undefined,
+                        color: canEndTurn ? "var(--color-bg-main)" : undefined,
+                        borderColor: canEndTurn ? "var(--color-highlight-strong)" : undefined
+                    }}
                     onClick={onEndTurn}
                     disabled={!canEndTurn}
                     title={disableReason}

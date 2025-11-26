@@ -218,6 +218,7 @@ export type GameState = {
     visibility: Record<string, string[]>;
     revealed: Record<string, string[]>;
     diplomacy: Record<string, Record<string, DiplomacyState>>;
+    diplomacyChangeTurn?: Record<string, Record<string, number>>; // Tracks when war/peace started
     sharedVision: SharedVisionState;
     contacts: ContactState;
     diplomacyOffers: DiplomacyOffer[];

@@ -37,7 +37,13 @@ export const BASE_CITY_HP = 20;
 export const CAPTURED_CITY_HP_RESET = 10;
 export const DAMAGE_MIN = 1;
 export const DAMAGE_MAX = 7;
-export const DAMAGE_BASE = 3;
+
+// Diplomacy Constants
+export const MIN_WAR_DURATION = 15; // Minimum turns a war must last
+export const MIN_PEACE_DURATION = 15; // Minimum turns peace must last before declaring war
+
+// Damage Constants
+export const DAMAGE_BASE = 4;
 export const ATTACK_RANDOM_BAND = [-1, 0, 1];
 
 // Fortify / Healing

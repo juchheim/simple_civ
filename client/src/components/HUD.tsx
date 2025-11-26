@@ -257,6 +257,8 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         onRazeCity={handleRazeCity}
                         onCityAttack={handleCityAttack}
                         onSetWorkedTiles={handleSetWorkedTiles}
+                        onSelectUnit={onSelectUnit}
+                        onClose={() => onSelectCoord(null)}
                     />
                 </div>
             )}

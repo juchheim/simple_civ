@@ -35,7 +35,10 @@ describe("ai unit behaviors", () => {
     it("pulls healthier defenders from ring 3 toward empty garrisons when safe", () => {
         const state = baseState();
         const cityCoord = hex(0, 0);
-        state.players = [{ id: "p" }] as any;
+        state.players = [{ id: "p", isEliminated: false }] as any;
+        state.diplomacy = { p: {} } as any;
+        state.diplomacy.p["e"] = DiplomacyState.War;
+        state.players.push({ id: "e", isEliminated: false } as any);
         state.cities = [{ id: "c1", ownerId: "p", coord: cityCoord, hp: 20, maxHp: 20, buildings: [] }] as any;
         state.map.tiles = [
             tile(cityCoord),
@@ -44,7 +47,7 @@ describe("ai unit behaviors", () => {
             tile(hex(3, 0)),
         ];
         state.units = [
-            { id: "garrison", ownerId: "p", type: UnitType.SpearGuard, coord: cityCoord, hp: 2, maxHp: 10, movesLeft: 0 },
+            { id: "garrison", ownerId: "p", type: UnitType.SpearGuard, coord: cityCoord, hp: 2, maxHp: 10, movesLeft: 1 },
             { id: "def", ownerId: "p", type: UnitType.SpearGuard, coord: hex(3, 0), hp: 10, maxHp: 10, movesLeft: 1 },
         ] as any;
 
@@ -58,7 +61,23 @@ describe("ai unit behaviors", () => {
         state.players = [{ id: "p" }, { id: "e" }] as any;
         state.diplomacy = { p: { e: DiplomacyState.War }, e: { p: DiplomacyState.War } } as any;
         state.map.tiles = [tile(hex(0, 0)), tile(hex(1, 0))];
-        state.cities = [{ id: "ec", ownerId: "e", coord: hex(1, 0), hp: 0, maxHp: 20, buildings: [] }] as any;
+        state.cities = [{
+            id: "ec",
+            ownerId: "e",
+            coord: hex(1, 0),
+            hp: 0,
+            maxHp: 20,
+            pop: 1,
+            storedFood: 0,
+            storedProduction: 0,
+            buildProgress: 0,
+            currentBuild: null,
+            workedTiles: [hex(1, 0)],
+            milestones: [],
+            buildings: [],
+            isCapital: false,
+            hasFiredThisTurn: false,
+        }] as any;
         state.units = [
             { id: "capper", ownerId: "p", type: UnitType.SpearGuard, coord: hex(0, 0), hp: 10, maxHp: 10, movesLeft: 1 },
         ] as any;
@@ -79,13 +98,15 @@ describe("ai unit behaviors", () => {
             tile(hex(2, 0), TerrainType.Coast),
             tile(hex(1, 1), TerrainType.Coast),
             tile(hex(0, 1), TerrainType.Coast),
+            tile(hex(0, 2), TerrainType.Coast),
+            tile(hex(1, 2), TerrainType.Coast),
         ];
         state.cities = [
             { id: "coast-city", ownerId: "e", coord: hex(1, 1), hp: 20, maxHp: 20, buildings: [], isCapital: false },
         ] as any;
         state.units = [
             { id: "bow", ownerId: "p", type: UnitType.BowGuard, coord: hex(0, 0), hp: 10, maxHp: 10, movesLeft: 1 },
-            { id: "boat", ownerId: "p", type: UnitType.RiverBoat, coord: hex(0, 1), hp: 10, maxHp: 10, movesLeft: 3 },
+            { id: "boat", ownerId: "p", type: UnitType.RiverBoat, coord: hex(0, 2), hp: 10, maxHp: 10, movesLeft: 3 },
             { id: "enemy", ownerId: "e", type: UnitType.SpearGuard, coord: hex(1, 0), hp: 10, maxHp: 10, movesLeft: 1 },
         ] as any;
 
@@ -95,6 +116,6 @@ describe("ai unit behaviors", () => {
 
         const moved = moveMilitaryTowardTargets(afterRanged as any, "p");
         const boat = moved.units.find(u => u.id === "boat");
-        expect(boat && !hexEquals(boat.coord, hex(0, 1))).toBe(true);
+        expect(boat && !hexEquals(boat.coord, hex(0, 2))).toBe(true);
     });
 });

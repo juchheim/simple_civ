@@ -15,12 +15,14 @@ import {
     DAMAGE_MIN,
     UNITS,
     TERRAIN,
+    CITY_NAMES,
 } from "../../core/constants.js";
 import { scoreCitySite } from "../ai-heuristics.js";
 import { tryAction } from "./shared/actions.js";
 import { nearestByDistance, sortByDistance } from "./shared/metrics.js";
 import { findPath } from "../helpers/pathfinding.js";
 import { getEffectiveUnitStats } from "../helpers/combat.js";
+import { getPersonalityForPlayer } from "./personality.js";
 
 const primarySiegeMemory = new Map<string, string>();
 
@@ -43,11 +45,12 @@ function validCityTile(tile: any): boolean {
 }
 
 function settleHereIsBest(tile: any, state: GameState, playerId: string): boolean {
-    const currentScore = scoreCitySite(tile, state, playerId);
+    const personality = getPersonalityForPlayer(state, playerId);
+    const currentScore = scoreCitySite(tile, state, playerId, personality);
     const neighborScores = getNeighbors(tile.coord)
         .map(c => state.map.tiles.find(t => hexEquals(t.coord, c)))
         .filter((t): t is any => !!t && validCityTile(t))
-        .map(t => scoreCitySite(t, state, playerId));
+        .map(t => scoreCitySite(t, state, playerId, personality));
     const bestNeighbor = neighborScores.length ? Math.max(...neighborScores) : -Infinity;
     return currentScore >= bestNeighbor - 1;
 }
@@ -307,6 +310,7 @@ export function patrolAndExplore(state: GameState, playerId: string): GameState 
 
 export function moveSettlersAndFound(state: GameState, playerId: string): GameState {
     let next = state;
+    const personality = getPersonalityForPlayer(next, playerId);
     const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
     for (const settler of settlers) {
         const liveSettler = next.units.find(u => u.id === settler.id);
@@ -344,15 +348,20 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         }
 
         if (validCityTile(currentTile) && settleHereIsBest(currentTile, next, playerId)) {
-            const name = `AI City ${next.cities.length + 1}`;
+            const player = next.players.find(p => p.id === playerId);
+            const civNames = player ? CITY_NAMES[player.civName] : [];
+            const usedNames = new Set(next.cities.map(c => c.name));
+            const name = civNames?.find(n => !usedNames.has(n)) ?? `AI City ${next.cities.length + 1}`;
+
             const afterFound = tryAction(next, { type: "FoundCity", playerId, unitId: liveSettler.id, name });
             if (afterFound !== next) {
+                console.info(`[AI Found] ${playerId} founded ${name} at ${hexToString(liveSettler.coord)}`);
                 next = afterFound;
                 continue;
             }
         }
 
-        const searchRadius = 8;
+        const searchRadius = 6;
         const nearbyCoords = hexSpiral(liveSettler.coord, searchRadius);
         const potentialSites = nearbyCoords
             .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
@@ -364,11 +373,11 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             .map(({ coord, tile }) => ({
                 coord,
                 tile,
-                score: tile ? scoreCitySite(tile, next, playerId) : -Infinity,
+                score: tile ? scoreCitySite(tile, next, playerId, personality) : -Infinity,
                 distance: hexDistance(liveSettler.coord, coord)
             }))
             .sort((a, b) => {
-                if (Math.abs(a.score - b.score) > 0.1) {
+                if (Math.abs(a.score - b.score) > 1) {
                     return b.score - a.score;
                 }
                 return a.distance - b.distance;
@@ -402,7 +411,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             const scored = neighborOptions
                 .map(({ coord, tile }) => ({
                     coord,
-                    score: tile ? scoreCitySite(tile, next, playerId) : -Infinity,
+                    score: tile ? scoreCitySite(tile, next, playerId, personality) : -Infinity,
                 }))
                 .sort((a, b) => b.score - a.score);
 
@@ -420,8 +429,18 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
         currentTile = next.map.tiles.find(t => hexEquals(t.coord, updatedSettler.coord));
         if (currentTile && validCityTile(currentTile) && settleHereIsBest(currentTile, next, playerId)) {
-            const name = `AI City ${next.cities.length + 1}`;
-            next = tryAction(next, { type: "FoundCity", playerId, unitId: updatedSettler.id, name });
+            const player = next.players.find(p => p.id === playerId);
+            const civNames = player ? CITY_NAMES[player.civName] : [];
+            const usedNames = new Set(next.cities.map(c => c.name));
+            const name = civNames?.find(n => !usedNames.has(n)) ?? `AI City ${next.cities.length + 1}`;
+
+            const after = tryAction(next, { type: "FoundCity", playerId, unitId: updatedSettler.id, name });
+            if (after !== next) {
+                console.info(`[AI Found] ${playerId} founded ${name} at ${hexToString(updatedSettler.coord)}`);
+                next = after;
+            } else {
+                console.info(`[AI Found Fail] ${playerId} could not found at ${hexToString(updatedSettler.coord)}`);
+            }
         }
     }
     return next;

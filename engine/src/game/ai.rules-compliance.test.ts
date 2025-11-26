@@ -107,18 +107,6 @@ describe("ai rules compliance", () => {
             state.cities.some((c: any) => c.ownerId === u.ownerId && hexEquals(c.coord, u.coord))
         );
         expect(garrisoned).toBe(true);
-        // Emit trace with key action details for debugging the run
-        const summary = trace.map(entry => {
-            const act: any = entry.action;
-            const type = act.type;
-            if (type === "MoveUnit") return `${entry.playerId}:Move ${act.unitId}->(${act.to.q},${act.to.r})`;
-            if (type === "Attack") return `${entry.playerId}:Attack ${act.attackerId}->${act.targetType}:${act.targetId}`;
-            if (type === "ProposePeace") return `${entry.playerId}:Peace->${act.targetPlayerId}`;
-            if (type === "ChooseTech") return `${entry.playerId}:Tech ${act.techId ?? ""}`;
-            if (type === "SetCityBuild") return `${entry.playerId}:Build ${act.cityId}:${act.buildId}`;
-            return `${entry.playerId}:${type}`;
-        });
-        console.info("AI trace:", summary.join(" | "));
         for (const pid of ["p1", "p2"]) {
             const occupancy = new Map<string, { military: number; civilian: number }>();
             const owned = state.units.filter((u: any) => u.ownerId === pid);

@@ -9,13 +9,14 @@ export type UnitDescriptor = {
     isSelected: boolean;
     isLinkedPartner: boolean;
     showLinkIcon: boolean;
+    color: string;
 };
 
 type UnitLayerProps = {
     units: UnitDescriptor[];
 };
 
-const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSelected, isLinkedPartner, showLinkIcon }) => {
+const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSelected, isLinkedPartner, showLinkIcon, color }) => {
     const unitImageOffset = UNIT_IMAGE_SIZE / 2;
     const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
 
@@ -45,6 +46,9 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 y={-unitImageOffset}
                 width={UNIT_IMAGE_SIZE}
                 height={UNIT_IMAGE_SIZE}
+                style={{
+                    filter: `drop-shadow(0 0 2px ${color}) drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color})`,
+                }}
             />
 
             {showLinkIcon && (

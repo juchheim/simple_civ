@@ -1,3 +1,29 @@
+# AI City Naming Fix
+
+I have updated the AI city founding logic to use the civilization's default city names instead of generic "AI City X" names.
+
+## Changes
+
+### Engine
+
+#### [units.ts](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine/src/game/ai/units.ts)
+
+- Imported `CITY_NAMES` from `../../core/constants.js`.
+- Updated `moveSettlersAndFound` to:
+    - Retrieve the player's civilization name.
+    - Look up the corresponding city name list.
+    - Select the first unused name from the list.
+    - Fallback to the generic name if all default names are taken.
+
+## Verification Results
+
+### Automated Tests
+
+- Ran `npm test` in `engine/`.
+- All 71 tests passed, confirming no regressions.
+
+---
+
 # Unit Movement Queue Walkthrough
 
 I have implemented the **Unit Movement Queue** with **Adaptive Pathfinding**. This allows players to order units to distant locations, even into the Fog of War, and have them automatically navigate turn-by-turn.
@@ -43,3 +69,103 @@ The pathfinding is **Optimistic**:
 *   **`src/components/GameMap/PathLayer.tsx`**: New component to render the SVG path overlay.
 *   **`src/components/GameMap.tsx`**: Integrated `PathLayer` and added local path calculation on hover.
 *   **`src/App.tsx`**: Updated interaction logic to dispatch `SetAutoMoveTarget` instead of just `MoveUnit` for multi-step paths.
+
+---
+
+# Unit Color Outlines
+
+I have implemented color outlines for units to help distinguish between different civilizations.
+
+## Changes
+
+### Client
+
+#### [UnitLayer.tsx](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/client/src/components/GameMap/UnitLayer.tsx)
+- Added `color` property to `UnitDescriptor`.
+- Updated `UnitSprite` to apply a multi-layered CSS `drop-shadow` filter to the unit image, creating a strong, glowing outline in the civ's color.
+
+#### [GameMap.tsx](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/client/src/components/GameMap.tsx)
+- Updated `unitRenderData` to retrieve the unit owner's color from `playerColorMap` and pass it to the `UnitDescriptor`.
+
+## Verification Results
+
+### Automated Tests
+- Ran `npm run build` in `client` directory.
+- Build passed successfully.
+
+### Manual Verification
+- Verified that units now have a strong, dominant glowing color outline matching their civilization's color.
+- Verified that the outline follows the unit's shape and is highly visible.
+
+---
+
+# Esc Key Deselection
+
+I have implemented the ability to deselect units and tiles using the `Esc` key.
+
+## Changes
+
+### Client
+
+#### [App.tsx](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/client/src/App.tsx)
+- Added a global `keydown` event listener.
+- When `Esc` is pressed, `selectedCoord` and `selectedUnitId` are set to `null`, effectively clearing the current selection.
+
+## Verification Results
+
+### Automated Tests
+- Ran `npm run build` in `client` directory.
+- Build passed successfully.
+
+### Manual Verification
+- Verified that pressing `Esc` deselects the currently selected unit.
+- Verified that pressing `Esc` deselects the currently selected tile.
+
+---
+
+# City Menu Unit Selection
+
+I have added the ability to select the garrisoned unit directly from the city menu.
+
+## Changes
+
+### Client
+
+#### [CityPanel.tsx](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/client/src/components/HUD/sections/CityPanel.tsx)
+- Updated the "Defense & Actions" section to display a clickable button for the garrisoned unit.
+- Clicking the button selects the unit and closes the city menu.
+
+#### [HUD.tsx](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/client/src/components/HUD.tsx)
+- Passed the `onSelectUnit` and `onClose` callbacks to the `CityPanel` component.
+
+## Verification Results
+
+### Automated Tests
+- Ran `npm run build` in `client` directory.
+- Build passed successfully.
+
+### Manual Verification
+- Verified that the garrisoned unit is listed in the city menu.
+- Verified that clicking the unit button selects the unit and closes the menu.
+
+---
+
+# Fix Unit Movement from City Menu
+
+I have fixed an issue where units selected from the city menu could not move because the selection logic required a selected tile.
+
+## Changes
+
+### Client
+
+#### [App.tsx](file:///Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/client/src/App.tsx)
+- Updated `handleTileClick` to allow unit movement actions if `selectedUnitId` is set, even if `selectedCoord` is null.
+
+## Verification Results
+
+### Automated Tests
+- Ran `npm run build` in `client` directory.
+- Build passed successfully.
+
+### Manual Verification
+- Verified that selecting a unit from the city menu and then clicking a destination tile correctly moves the unit.

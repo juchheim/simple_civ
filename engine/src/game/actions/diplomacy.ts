@@ -8,6 +8,14 @@ export function handleSetDiplomacy(state: GameState, action: { type: "SetDiploma
     assertContact(state, a, b);
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
+
+    // Track when diplomacy state changed
+    if (!state.diplomacyChangeTurn) state.diplomacyChangeTurn = {};
+    if (!state.diplomacyChangeTurn[a]) state.diplomacyChangeTurn[a] = {};
+    if (!state.diplomacyChangeTurn[b]) state.diplomacyChangeTurn[b] = {};
+    state.diplomacyChangeTurn[a][b] = state.turn;
+    state.diplomacyChangeTurn[b][a] = state.turn;
+
     state.diplomacy[a][b] = action.state;
     state.diplomacy[b][a] = action.state;
     if (action.state === DiplomacyState.Peace) {
@@ -30,6 +38,14 @@ export function handleProposePeace(state: GameState, action: { type: "ProposePea
         state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === b && o.to === a && o.type === "Peace"));
         if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
         if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
+
+        // Track when peace was established
+        if (!state.diplomacyChangeTurn) state.diplomacyChangeTurn = {};
+        if (!state.diplomacyChangeTurn[a]) state.diplomacyChangeTurn[a] = {};
+        if (!state.diplomacyChangeTurn[b]) state.diplomacyChangeTurn[b] = {};
+        state.diplomacyChangeTurn[a][b] = state.turn;
+        state.diplomacyChangeTurn[b][a] = state.turn;
+
         state.diplomacy[a][b] = DiplomacyState.Peace;
         state.diplomacy[b][a] = DiplomacyState.Peace;
         return state;
@@ -49,6 +65,14 @@ export function handleAcceptPeace(state: GameState, action: { type: "AcceptPeace
     state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === b && o.to === a && o.type === "Peace"));
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
+
+    // Track when peace was established
+    if (!state.diplomacyChangeTurn) state.diplomacyChangeTurn = {};
+    if (!state.diplomacyChangeTurn[a]) state.diplomacyChangeTurn[a] = {};
+    if (!state.diplomacyChangeTurn[b]) state.diplomacyChangeTurn[b] = {};
+    state.diplomacyChangeTurn[a][b] = state.turn;
+    state.diplomacyChangeTurn[b][a] = state.turn;
+
     state.diplomacy[a][b] = DiplomacyState.Peace;
     state.diplomacy[b][a] = DiplomacyState.Peace;
     return state;

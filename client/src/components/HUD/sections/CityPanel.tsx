@@ -14,6 +14,8 @@ type CityPanelProps = {
     onRazeCity: () => void;
     onCityAttack: (targetUnitId: string) => void;
     onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
+    onSelectUnit: (unitId: string) => void;
+    onClose: () => void;
 };
 
 export const CityPanel: React.FC<CityPanelProps> = ({
@@ -27,6 +29,8 @@ export const CityPanel: React.FC<CityPanelProps> = ({
     onRazeCity,
     onCityAttack,
     onSetWorkedTiles,
+    onSelectUnit,
+    onClose,
 }) => {
     const tilesForCity = gameState.map.tiles.filter(
         tile => tile.ownerId === city.ownerId && hexDistance(tile.coord, city.coord) <= 2,
@@ -142,8 +146,8 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                                         center
                                             ? "City center must always be worked"
                                             : isWorked
-                                              ? "Unassign tile"
-                                              : `Assign tile (${city.workedTiles.length}/${city.pop})`
+                                                ? "Unassign tile"
+                                                : `Assign tile (${city.workedTiles.length}/${city.pop})`
                                     }
                                 >
                                     ({tile.coord.q},{tile.coord.r}) {tile.terrain}
@@ -159,7 +163,20 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                 <div className="city-panel__section">
                     <h5>Defense & Actions</h5>
                     <div className="hud-chip-row" style={{ marginBottom: 8 }}>
-                        {garrison ? <span className="hud-chip success">Garrisoned</span> : <span className="hud-chip warn">No garrison</span>}
+                        {garrison ? (
+                            <button
+                                className="hud-chip success clickable"
+                                onClick={() => {
+                                    onSelectUnit(garrison.id);
+                                    onClose();
+                                }}
+                                style={{ cursor: "pointer", border: "1px solid var(--color-success)", background: "rgba(34, 197, 94, 0.1)" }}
+                            >
+                                Garrison: {garrison.type}
+                            </button>
+                        ) : (
+                            <span className="hud-chip warn">No garrison</span>
+                        )}
                         {city.hasFiredThisTurn && <span className="hud-chip warn">Fired this turn</span>}
                     </div>
                     {isMyTurn && city.ownerId === playerId && (

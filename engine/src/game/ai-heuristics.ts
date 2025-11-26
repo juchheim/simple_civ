@@ -1,8 +1,9 @@
 import { CITY_CENTER_MIN_FOOD, CITY_CENTER_MIN_PROD, TERRAIN } from "../core/constants.js";
 import { getTileYields } from "./rules.js";
 import { hexSpiral, hexDistance, hexEquals } from "../core/hex.js";
-import { GameState, OverlayType, Tile } from "../core/types.js";
+import { GameState, OverlayType, Tile, TerrainType } from "../core/types.js";
 import { isTileAdjacentToRiver } from "../map/rivers.js";
+import { AiPersonality } from "./ai/personality.js";
 
 function isRiverCity(
     tile: Tile,
@@ -70,15 +71,15 @@ function cityDistancePenalty(
 
     const gameState = state as GameState;
 
-    // Find all friendly cities (same player)
-    const friendlyCities = gameState.cities.filter(c => playerId ? c.ownerId === playerId : true);
+    // Find ALL cities (to match validation rules that check all cities, not just friendly)
+    const allCities = gameState.cities;
 
     // No penalty for first city
-    if (friendlyCities.length === 0) return 0;
+    if (allCities.length === 0) return 0;
 
-    // Find distance to nearest friendly city
+    // Find distance to nearest city (any player)
     let minDistance = Infinity;
-    for (const city of friendlyCities) {
+    for (const city of allCities) {
         const dist = hexDistance(tile.coord, city.coord);
         if (dist < minDistance) {
             minDistance = dist;
@@ -87,7 +88,7 @@ function cityDistancePenalty(
 
     // Apply penalties based on distance
     if (minDistance < 4) {
-        // Too close - cities will compete for tiles
+        // Too close - cities will compete for tiles or validation will block
         return -10;
     } else if (minDistance > 8) {
         // Too far - harder to defend and support
@@ -101,14 +102,18 @@ function cityDistancePenalty(
 export function scoreCitySite(
     tile: Tile,
     state: GameState | { map: { tiles: Tile[] } },
-    playerId?: string
+    playerId?: string,
+    personality?: AiPersonality
 ): number {
     const centerY = tileValue(tile, state, true);
     const best3 = bestNearbyTiles(tile, state, 3).reduce((s, t) => s + tileValue(t, state, false), 0);
     const riverBonus = isRiverCity(tile, state) ? 1 : 0;
     const overlayBonus = countNearbyOverlays(tile, state, 2);
     const distancePenalty = cityDistancePenalty(tile, state, playerId);
-    return centerY + best3 + riverBonus + overlayBonus + distancePenalty;
+    const settleBias = personality?.settleBias ?? {};
+    const hillBias = settleBias.hills && tile.terrain === TerrainType.Hills ? settleBias.hills : 0;
+    const riverBias = settleBias.rivers && isRiverCity(tile, state) ? settleBias.rivers : 0;
+    return centerY + best3 + riverBonus + overlayBonus + distancePenalty + hillBias + riverBias;
 }
 
 export function nearestEnemyCityDistance(playerId: string, state: GameState): number | null {

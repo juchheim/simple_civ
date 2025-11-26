@@ -79,14 +79,19 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         throw new Error("Invalid terrain for city");
     }
 
-    const territory = hexSpiral(unit.coord, CITY_WORK_RADIUS_RINGS);
-    for (const coord of territory) {
-        const t = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
-        if (t?.ownerId) {
-            if (t.ownerId === action.playerId) {
+    // Check if founding tile is owned or has a city center
+    if (tile.ownerId) throw new Error("Tile already owned");
+    if (tile.hasCityCenter) throw new Error("City already exists here");
+
+    // Check minimum distance to any existing city (distance 3 minimum)
+    const MIN_CITY_DISTANCE = 3;
+    for (const city of state.cities) {
+        const distance = hexDistance(unit.coord, city.coord);
+        if (distance < MIN_CITY_DISTANCE) {
+            if (city.ownerId === action.playerId) {
                 throw new Error("Too close to friendly city");
             } else {
-                throw new Error("Too close to enemy territory");
+                throw new Error("Too close to enemy city");
             }
         }
     }
