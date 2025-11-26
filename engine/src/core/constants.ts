@@ -10,7 +10,7 @@ import {
     OverlayType,
 } from "./types.js";
 
-export const GAME_VERSION = "0.95";
+export const GAME_VERSION = "0.96";
 export const MAX_PLAYERS = 6;
 
 // Max civilizations per map size
@@ -57,8 +57,8 @@ export const BASECOST_POP2 = 30;
 export const GROWTH_FACTORS = [
     { min: 2, max: 4, f: 1.30 },
     { min: 5, max: 6, f: 1.40 },
-    { min: 7, max: 8, f: 1.50 },
-    { min: 9, max: 10, f: 1.60 },
+    { min: 7, max: 8, f: 1.58 },  // Increased from 1.50 (+5.3%) to slow growth for pop 7-8
+    { min: 9, max: 10, f: 1.68 }, // Increased from 1.60 (+5.0%) to slow growth for pop 9-10
     { min: 11, max: 999, f: 2.00 },
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
@@ -85,13 +85,13 @@ export const CITY_ATTACK_BASE = 3;
 export const CITY_WARD_ATTACK_BONUS = 1;
 export const CITY_ATTACK_RANGE = 2;
 
-// Map Sizes
+// Map Sizes (v0.96 balance: Increased smaller map sizes to reduce stalls)
 export const MAP_DIMS = {
-    Tiny: { w: 12, h: 8 },
-    Small: { w: 16, h: 12 },
-    Standard: { w: 20, h: 14 },
-    Large: { w: 24, h: 18 },
-    Huge: { w: 32, h: 24 },
+    Tiny: { w: 14, h: 10 },      // Was 12×8 (96 tiles), now 140 tiles (+46%)
+    Small: { w: 18, h: 14 },     // Was 16×12 (192 tiles), now 252 tiles (+31%)
+    Standard: { w: 22, h: 16 },  // Was 20×14 (280 tiles), now 352 tiles (+26%)
+    Large: { w: 24, h: 18 },     // Unchanged (432 tiles)
+    Huge: { w: 32, h: 24 },      // Unchanged (768 tiles)
 };
 
 // Data Tables
@@ -205,7 +205,8 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.SteamForges]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } },
     [TechId.SignalRelay]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+1 Science per city" } },
     [TechId.UrbanPlans]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
-    [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "Enable Form Army projects" } },
+    // v0.96 balance: Moved from Engine era to Banner era for earlier army access
+    [TechId.ArmyDoctrine]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } },
     [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScriptLore, TechId.ScholarCourts], unlock: { type: "Project", id: ProjectId.Observatory } },
 };
 

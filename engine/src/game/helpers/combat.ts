@@ -1,5 +1,5 @@
-import { GameState, HexCoord, Tile, Unit, UnitType } from "../../core/types.js";
-import { UNITS, TERRAIN } from "../../core/constants.js";
+import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId } from "../../core/types.js";
+import { UNITS, TERRAIN, TECHS } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
 import { hexLine, hexToString } from "../../core/hex.js";
 
@@ -14,6 +14,32 @@ const RANGED_TYPES = new Set<UnitType>([
     UnitType.BowGuard,
     UnitType.ArmyBowGuard,
 ]);
+
+/**
+ * Count the number of eras the player has researched at least one tech in.
+ * Returns 0-3 (Hearth=1, Banner=2, Engine=3)
+ */
+export function countErasResearched(player: Player): number {
+    let count = 0;
+    const hasHearth = player.techs.some(t => TECHS[t]?.era === EraId.Hearth);
+    const hasBanner = player.techs.some(t => TECHS[t]?.era === EraId.Banner);
+    const hasEngine = player.techs.some(t => TECHS[t]?.era === EraId.Engine);
+    if (hasHearth) count++;
+    if (hasBanner) count++;
+    if (hasEngine) count++;
+    return count;
+}
+
+/**
+ * Get the HP bonus for AetherianVanguard's "Battle Hardened" passive.
+ * Military units gain +1 HP per era researched (max +3).
+ */
+export function getAetherianHpBonus(player: Player, unitType: UnitType): number {
+    if (player.civName !== "AetherianVanguard") return 0;
+    // Only military units get the bonus
+    if (UNITS[unitType].domain === "Civilian") return 0;
+    return countErasResearched(player);
+}
 
 export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     const base = UNITS[unit.type];

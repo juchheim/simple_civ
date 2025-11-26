@@ -119,7 +119,8 @@ export function getCityYields(city: City, state: GameState): Yields {
         });
         if (worksHills) total.P += 1;
     } else if (trait === "ScholarKingdoms") {
-        if (city.pop >= 3) total.S += 1;
+        // v0.96 balance: Changed from Pop >= 3 to Pop >= 5 to reduce early-game snowball
+        if (city.pop >= 5) total.S += 1;
     } else if (trait === "RiverLeague") {
         total.F += riverAdjacencyCount(state.map, city.workedTiles);
     }

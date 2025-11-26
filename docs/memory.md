@@ -1,5 +1,16 @@
 # Working Memory
 
+- **v0.96 Balance Update (Nov 26, 2025):** Implemented comprehensive balance changes based on 50 AI vs AI simulation analysis:
+  - Fixed settler escort logic: reordered manageSettlerEscorts before moveSettlersAndFound, enhanced assessSettlerSafety to check ALL enemy military within 4 tiles (not just war enemies), require escorts to be adjacent (distance 1), settlers wait for escorts in high threat.
+  - Nerfed ScholarKingdoms: Changed +1 Science bonus threshold from Pop ≥3 to Pop ≥5.
+  - Added AetherianVanguard passive "Battle Hardened": +1 HP to military units per era researched (max +3).
+  - Added JadeCovenant passive "Bountiful Harvest": Cities start with +5 stored Food when founded.
+  - Increased smaller map sizes: Tiny (14×10), Small (18×14), Standard (22×16) to reduce stalls.
+  - Moved Army Doctrine from Engine era to Banner era (cost 50, prereq FormationTraining) for earlier army access.
+  - Added AI razing logic: considerRazing() evaluates isolated/threatened/low-value cities for strategic razing.
+  - Improved AI army formation priority: prioritizes Form Army when 2+ base units available, even in peacetime.
+  - Updated GAME_VERSION to "0.96".
+
 - Added river generation (RiverEdge overlays) in engine and client map generation; marked the river gap as completed in docs/doc_drift_report.md.
 - Implemented city territory claim (radius 2, no-sharing) and auto tile working with multi-growth support; marked corresponding drift items as done.
 - Added city capture/raze flow and fortify/heal behavior in engine and client; city ranged attack implemented via CityAttack action.

@@ -97,13 +97,18 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     }
 
     const cityId = `c_${action.playerId}_${Date.now()}`;
+    const player = state.players.find(p => p.id === action.playerId);
+    
+    // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
+    const startingFood = player?.civName === "JadeCovenant" ? 5 : 0;
+    
     const newCity: City = {
         id: cityId,
-        name: action.name || getCityName(state, state.players.find(p => p.id === action.playerId)?.civName || "", action.playerId),
+        name: action.name || getCityName(state, player?.civName || "", action.playerId),
         ownerId: action.playerId,
         coord: unit.coord,
         pop: 1,
-        storedFood: 0,
+        storedFood: startingFood,
         storedProduction: 0,
         buildings: [],
         workedTiles: [unit.coord],

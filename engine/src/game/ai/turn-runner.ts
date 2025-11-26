@@ -1,7 +1,7 @@
 import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
 import { pickTech, chooseFallbackTech } from "./tech.js";
-import { assignWorkedTiles, pickCityBuilds } from "./cities.js";
+import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
 import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
 import { tracedApply, TraceEntry, safeClone } from "./trace.js";
@@ -27,8 +27,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     }
     state = pickCityBuilds(state, playerId, goal);
     state = assignWorkedTiles(state, playerId, goal);
-    state = moveSettlersAndFound(state, playerId);
+    // CRITICAL: Manage escorts BEFORE settlers move, so settlers have protection
     state = manageSettlerEscorts(state, playerId);
+    state = moveSettlersAndFound(state, playerId);
     state = patrolAndExplore(state, playerId);
     state = defendCities(state, playerId);
     state = rotateGarrisons(state, playerId);
@@ -38,6 +39,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = routeCityCaptures(state, playerId);
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
+    
+    // Consider razing poorly situated cities (v0.96 balance)
+    state = considerRazing(state, playerId);
 
     // Clear validation context at end of turn
     clearValidationContext();
@@ -61,8 +65,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     state = assignWorkedTiles(state, playerId, goal);
 
     // Units + diplomacy (wrapped via traced actions where applicable)
-    state = moveSettlersAndFound(state, playerId);
+    // CRITICAL: Manage escorts BEFORE settlers move, so settlers have protection
     state = manageSettlerEscorts(state, playerId);
+    state = moveSettlersAndFound(state, playerId);
     state = patrolAndExplore(state, playerId);
     state = defendCities(state, playerId);
     state = rotateGarrisons(state, playerId);
@@ -74,6 +79,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     state = routeCityCaptures(state, playerId);
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
+    
+    // Consider razing poorly situated cities (v0.96 balance)
+    state = considerRazing(state, playerId);
 
     trace.push({ playerId, action: { type: "EndTurn" }, before: safeClone(initialState), after: safeClone(state) });
     clearTraceContext();

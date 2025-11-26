@@ -13,6 +13,7 @@ import {
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
+import { getAetherianHpBonus } from "./helpers/combat.js";
 import { hexDistance, hexEquals, hexToString, hexSpiral } from "../core/hex.js";
 import { Unit } from "../core/types.js";
 import { refreshPlayerVision } from "./vision.js";
@@ -162,13 +163,17 @@ function completeBuild(state: GameState, city: City) {
             }
         }
 
+        // Apply AetherianVanguard "Battle Hardened" HP bonus
+        const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
+        const unitHp = UNITS[uType].hp + hpBonus;
+        
         state.units.push({
             id: `u_${city.ownerId}_${Date.now()} `,
             type: uType,
             ownerId: city.ownerId,
             coord: spawnCoord,
-            hp: UNITS[uType].hp,
-            maxHp: UNITS[uType].hp,
+            hp: unitHp,
+            maxHp: unitHp,
             movesLeft: UNITS[uType].move,
             state: UnitState.Normal,
             hasAttacked: false,
@@ -183,13 +188,17 @@ function completeBuild(state: GameState, city: City) {
 
         if (build.id === BuildingType.TitansCore) {
             // Special case: TitansCore spawns a Titan and is consumed (not added to buildings)
+            // Apply AetherianVanguard "Battle Hardened" HP bonus (Titans are their unique unit!)
+            const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
+            const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
+            
             state.units.push({
                 id: `u_${city.ownerId}_titan_${Date.now()} `,
                 type: UnitType.Titan,
                 ownerId: city.ownerId,
                 coord: city.coord,
-                hp: UNITS[UnitType.Titan].hp,
-                maxHp: UNITS[UnitType.Titan].hp,
+                hp: titanHp,
+                maxHp: titanHp,
                 movesLeft: UNITS[UnitType.Titan].move,
                 state: UnitState.Normal,
                 hasAttacked: false,
