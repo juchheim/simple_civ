@@ -7,8 +7,12 @@ import { handleDiplomacy } from "./diplomacy.js";
 import { tracedApply, TraceEntry, safeClone } from "./trace.js";
 import { setTraceContext, clearTraceContext } from "./shared/actions.js";
 import { tryAction } from "./shared/actions.js";
+import { initValidationContext, clearValidationContext } from "./shared/validation.js";
 
 export function runAiTurnSequence(initialState: GameState, playerId: string): GameState {
+    // Initialize validation context for efficient pre-checks
+    initValidationContext(initialState, playerId);
+    
     let state = initialState;
     const goal = aiVictoryBias(playerId, state);
     state = setAiGoal(state, playerId, goal);
@@ -35,10 +39,16 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
 
+    // Clear validation context at end of turn
+    clearValidationContext();
+    
     return state;
 }
 
 export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: string, trace: TraceEntry[], options?: { skipDiplomacy?: boolean }): GameState {
+    // Initialize validation context for efficient pre-checks
+    initValidationContext(initialState, playerId);
+    
     let state = initialState;
     trace.push({ playerId, action: { type: "StartTurn" }, before: safeClone(state), after: safeClone(state) });
     setTraceContext(trace, playerId);
@@ -67,5 +77,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
 
     trace.push({ playerId, action: { type: "EndTurn" }, before: safeClone(initialState), after: safeClone(state) });
     clearTraceContext();
+    
+    // Clear validation context at end of turn
+    clearValidationContext();
+    
     return state;
 }
