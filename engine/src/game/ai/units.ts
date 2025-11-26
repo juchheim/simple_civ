@@ -33,15 +33,24 @@ function cityIsCoastal(state: GameState, city: any): boolean {
     });
 }
 
-function validCityTile(tile: any): boolean {
+function validCityTile(tile: any, state: GameState): boolean {
     if (!tile) return false;
     if (tile.hasCityCenter) return false;
+    if (tile.ownerId) return false; // Tile already owned - can't found here
     const terrain = tile.terrain as TerrainType;
-    return (
-        TERRAIN[terrain].workable &&
-        terrain !== TerrainType.Coast &&
-        terrain !== TerrainType.DeepSea
-    );
+    if (!TERRAIN[terrain].workable) return false;
+    if (terrain === TerrainType.Coast || terrain === TerrainType.DeepSea) return false;
+    
+    // Check minimum distance to any existing city (distance 3 minimum)
+    const MIN_CITY_DISTANCE = 3;
+    for (const city of state.cities) {
+        const distance = hexDistance(tile.coord, city.coord);
+        if (distance < MIN_CITY_DISTANCE) {
+            return false; // Too close to a city
+        }
+    }
+    
+    return true;
 }
 
 function settleHereIsBest(tile: any, state: GameState, playerId: string): boolean {
@@ -49,7 +58,7 @@ function settleHereIsBest(tile: any, state: GameState, playerId: string): boolea
     const currentScore = scoreCitySite(tile, state, playerId, personality);
     const neighborScores = getNeighbors(tile.coord)
         .map(c => state.map.tiles.find(t => hexEquals(t.coord, c)))
-        .filter((t): t is any => !!t && validCityTile(t))
+        .filter((t): t is any => !!t && validCityTile(t, state))
         .map(t => scoreCitySite(t, state, playerId, personality));
     const bestNeighbor = neighborScores.length ? Math.max(...neighborScores) : -Infinity;
     return currentScore >= bestNeighbor - 1;
@@ -347,7 +356,10 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             if (escaped) continue;
         }
 
-        if (validCityTile(currentTile) && settleHereIsBest(currentTile, next, playerId)) {
+        // Verify unit is still a settler before attempting to found
+        if (liveSettler.type !== UnitType.Settler) continue;
+        
+        if (validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
             const player = next.players.find(p => p.id === playerId);
             const civNames = player ? CITY_NAMES[player.civName] : [];
             const usedNames = new Set(next.cities.map(c => c.name));
@@ -367,7 +379,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
             .filter(({ coord, tile }) =>
                 tile &&
-                validCityTile(tile) &&
+                validCityTile(tile, next) &&
                 !hexEquals(coord, liveSettler.coord)
             )
             .map(({ coord, tile }) => ({
@@ -407,7 +419,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         if (!moved) {
             const neighborOptions = getNeighbors(liveSettler.coord)
                 .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
-                .filter(({ tile }) => tile && validCityTile(tile));
+                .filter(({ tile }) => tile && validCityTile(tile, next));
             const scored = neighborOptions
                 .map(({ coord, tile }) => ({
                     coord,
@@ -426,9 +438,12 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
         const updatedSettler = next.units.find(u => u.id === settler.id);
         if (!updatedSettler) continue;
+        
+        // Verify unit is still a settler before attempting to found
+        if (updatedSettler.type !== UnitType.Settler) continue;
 
         currentTile = next.map.tiles.find(t => hexEquals(t.coord, updatedSettler.coord));
-        if (currentTile && validCityTile(currentTile) && settleHereIsBest(currentTile, next, playerId)) {
+        if (currentTile && validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
             const player = next.players.find(p => p.id === playerId);
             const civNames = player ? CITY_NAMES[player.civName] : [];
             const usedNames = new Set(next.cities.map(c => c.name));
@@ -936,13 +951,21 @@ export function attackTargets(state: GameState, playerId: string): GameState {
                 u,
                 d: hexDistance(u.coord, unit.coord),
                 dmg: expectedDamageToUnit(unit, u, next),
-                counter: expectedDamageFrom(u, unit, next)
+                counter: expectedDamageFrom(u, unit, next),
+                isSettler: u.type === UnitType.Settler
             }))
-            .filter(({ d }) => d <= stats.rng)
+            .filter(({ d, isSettler }) => {
+                // Settlers require adjacency (distance 1) to attack
+                if (isSettler) return d === 1;
+                // Other units can attack within range
+                return d <= stats.rng;
+            })
             .sort((a, b) => {
                 const aKill = a.dmg >= a.u.hp ? 0 : 1;
                 const bKill = b.dmg >= b.u.hp ? 0 : 1;
                 if (aKill !== bKill) return aKill - bKill;
+                // Prioritize settlers (they're valuable captures)
+                if (a.isSettler !== b.isSettler) return a.isSettler ? -1 : 1;
                 if (a.d !== b.d) return a.d - b.d;
                 return a.u.hp - b.u.hp;
             });
@@ -954,13 +977,66 @@ export function attackTargets(state: GameState, playerId: string): GameState {
             (target.dmg >= 2 && target.dmg >= target.counter) ||
             (unit.hp > target.counter + 2 && target.dmg >= 2)
         ) && !rangedAndUnsafe) {
+            // If target is a settler and we're not adjacent, move adjacent first
+            if (target.isSettler && target.d > 1 && unit.movesLeft > 0) {
+                const neighbors = getNeighbors(target.u.coord);
+                const bestNeighbor = neighbors
+                    .map(coord => ({
+                        coord,
+                        dist: hexDistance(unit.coord, coord),
+                        path: findPath(unit.coord, coord, unit, next)
+                    }))
+                    .filter(n => n.path.length > 0)
+                    .sort((a, b) => a.dist - b.dist)[0];
+                
+                if (bestNeighbor) {
+                    const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: bestNeighbor.coord });
+                    if (moved !== next) {
+                        next = moved;
+                        // Get updated unit and target after move
+                        const updatedUnit = next.units.find(u => u.id === unit.id);
+                        const updatedTarget = next.units.find(u => u.id === target.u.id);
+                        if (!updatedUnit || updatedUnit.movesLeft <= 0 || !updatedTarget) continue;
+                        // Recalculate distance after move
+                        const newDist = hexDistance(updatedUnit.coord, updatedTarget.coord);
+                        if (newDist > 1) continue; // Still not adjacent, skip this turn
+                        // Recalculate target info with updated positions
+                        const newTarget = {
+                            u: updatedTarget,
+                            d: newDist,
+                            dmg: expectedDamageToUnit(updatedUnit, updatedTarget, next),
+                            counter: expectedDamageFrom(updatedTarget, updatedUnit, next),
+                            isSettler: true
+                        };
+                        // Now attempt attack with updated unit
+                        const attacked = tryAction(next, { type: "Attack", playerId, attackerId: updatedUnit.id, targetId: updatedTarget.id, targetType: "Unit" });
+                        if (attacked !== next) {
+                            console.info(`[AI ATTACK UNIT] ${playerId} ${updatedUnit.type} attacks ${updatedTarget.ownerId} ${updatedTarget.type}, dealing ${newTarget.dmg} damage (HP: ${updatedTarget.hp})`);
+                            next = attacked;
+                            const finalUnit = next.units.find(u => u.id === unit.id);
+                            if (finalUnit) {
+                                const adjAfter = enemiesWithin(next, playerId, finalUnit.coord, 1);
+                                if (UNITS[finalUnit.type].rng > 1 && adjAfter > 0) {
+                                    next = repositionRanged(next, playerId);
+                                }
+                            }
+                        }
+                        continue; // Skip the normal attack path since we handled it
+                    }
+                }
+            }
+            
+            // Normal attack path (not a settler, or already adjacent to settler)
             const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: target.u.id, targetType: "Unit" });
             if (attacked !== next) {
                 console.info(`[AI ATTACK UNIT] ${playerId} ${unit.type} attacks ${target.u.ownerId} ${target.u.type}, dealing ${target.dmg} damage (HP: ${target.u.hp})`);
                 next = attacked;
-                const adjAfter = enemiesWithin(next, playerId, unit.coord, 1);
-                if (UNITS[unit.type].rng > 1 && adjAfter > 0) {
-                    next = repositionRanged(next, playerId);
+                const updatedUnitAfterAttack = next.units.find(u => u.id === unit.id);
+                if (updatedUnitAfterAttack) {
+                    const adjAfter = enemiesWithin(next, playerId, updatedUnitAfterAttack.coord, 1);
+                    if (UNITS[updatedUnitAfterAttack.type].rng > 1 && adjAfter > 0) {
+                        next = repositionRanged(next, playerId);
+                    }
                 }
             }
         }

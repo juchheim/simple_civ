@@ -10,6 +10,7 @@ import ArmyScoutImg from "../public/units/ArmyScout.png";
 import ArmySpearGuardImg from "../public/units/ArmySpearGuard.png";
 import ArmyBowGuardImg from "../public/units/ArmyBowGuard.png";
 import ArmyRidersImg from "../public/units/ArmyRiders.png";
+import TitanImg from "../public/units/Titan.png";
 
 export const unitImages: Record<string, string> = {
     Settler: SettlerImg,
@@ -22,7 +23,7 @@ export const unitImages: Record<string, string> = {
     ArmySpearGuard: ArmySpearGuardImg,
     ArmyBowGuard: ArmyBowGuardImg,
     ArmyRiders: ArmyRidersImg,
-    Titan: ArmySpearGuardImg,
+    Titan: TitanImg,
 };
 
 // Terrain asset imports
