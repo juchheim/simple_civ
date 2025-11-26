@@ -243,14 +243,16 @@
 - **Vision**: see section 2 for states; shared vision via diplomacy applies after acceptance.
 
 ## 16. Diplomacy
-- **States**: Peace or War.
-- **Contact required**: must have met civ to interact.
-- **Actions**:
-  - Declare War (sets state to War).
-  - Propose Peace (while at War); accept incoming Peace to end War.
-  - Offer Vision Share (only at Peace); accept to share maps; revoke anytime.
-- **Shared vision**: reveals explored tiles mutually until revoked or state changes.
-- **Offers tracking**: incoming/outgoing Peace and Vision offers persist until accepted/declined or state change invalidates them.
+- **Contact**: You must have met another player (units/cities visible) before declaring war or sharing vision.
+- **War**: Sets stance to War. Both players can attack each other's units and cities.
+- **Peace**: Default stance after contact. Players cannot attack each other.
+- **Propose Peace**: If you are at war, you may propose peace. If the other player also proposes peace (or has an incoming proposal from you), peace is established.
+- **Shared Vision**: At Peace, you may propose sharing vision. Both players see each other's explored tiles.
+
+### Diplomatic State Durations
+- **War Duration**: Once war is declared between two civilizations, it must last a **minimum of 15 turns** before either party can propose peace. This ensures wars are sustained conflicts rather than brief skirmishes.
+- **Peace Duration**: After establishing peace (or at initial contact), at least **15 turns** must pass before either civilization can declare war on the other. This creates stable periods for diplomacy and prevents immediate re-hostilities.
+- **Purpose**: These minimum durations make diplomatic states meaningful and prevent rapid oscillation between war and peace.
 
 ## 17. Victory, Ties, Elimination
 - **Conquest Victory**: you control all enemy capitals.
