@@ -1,5 +1,5 @@
 import React from "react";
-import { City, GameState, HexCoord, Unit, getCityYields } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Unit, getCityYields, getTileYields, getCityCenterYields, isTileAdjacentToRiver } from "@simple-civ/engine";
 import { hexDistance } from "../../../utils/hex";
 import { CityBuildOptions } from "../hooks";
 
@@ -125,6 +125,13 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                             const canAdd = city.workedTiles.length < city.pop;
                             const disabled = (!isWorked && !canAdd) || !tile.ownerId || (city.ownerId !== tile.ownerId && !isWorked) || center;
 
+                            // Calculate yields for this tile
+                            let tileYields = center ? getCityCenterYields(city, tile) : getTileYields(tile);
+                            if (isTileAdjacentToRiver(gameState.map, tile.coord)) {
+                                tileYields = { ...tileYields, F: tileYields.F + 1 };
+                            }
+                            const yieldText = `${tileYields.F}F ${tileYields.P}P ${tileYields.S}S`;
+
                             return (
                                 <button
                                     key={`${tile.coord.q},${tile.coord.r}`}
@@ -150,7 +157,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                                                 : `Assign tile (${city.workedTiles.length}/${city.pop})`
                                     }
                                 >
-                                    ({tile.coord.q},{tile.coord.r}) {tile.terrain}
+                                    {yieldText} {tile.terrain}
                                 </button>
                             );
                         })}

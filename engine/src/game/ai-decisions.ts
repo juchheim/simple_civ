@@ -129,10 +129,12 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         return "None";
     }
 
-    // Minimum peace duration check
+    // Minimum peace duration check - but only if there was a previous war
+    // Don't block initial wars!
     const MIN_PEACE_DURATION = 15;
-    if (stateChangedTurn > 0 && turnsSinceChange < MIN_PEACE_DURATION) {
-        // Peace must last at least 15 turns before declaring war
+    const hadPriorDiplomacyChange = stateChangedTurn > 0;
+    if (hadPriorDiplomacyChange && !inWar && turnsSinceChange < MIN_PEACE_DURATION) {
+        // Peace must last at least 15 turns before declaring war AGAIN
         logVeto(`Peace too recent: ${playerId}->${targetId} turns since peace: ${turnsSinceChange}/${MIN_PEACE_DURATION}`);
         return "None";
     }

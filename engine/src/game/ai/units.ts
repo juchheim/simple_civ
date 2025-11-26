@@ -912,9 +912,11 @@ export function attackTargets(state: GameState, playerId: string): GameState {
             });
         let acted = false;
         for (const { city, dmg } of cityTargets) {
-            if (dmg < 2 && dmg < city.hp) continue;
+            // ALWAYS attack cities when in range - even with low damage!
+            // Cities are the primary objective, chip away at them
             const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: city.id, targetType: "City" });
             if (attacked !== next) {
+                console.info(`[AI ATTACK CITY] ${playerId} attacks ${city.name} (${city.ownerId}) with ${unit.type}, dealing ${dmg} damage (HP: ${city.hp}→${city.hp - dmg})`);
                 next = attacked;
                 next = captureIfPossible(next, playerId, unit.id);
                 acted = true;
@@ -949,6 +951,7 @@ export function attackTargets(state: GameState, playerId: string): GameState {
         ) && !rangedAndUnsafe) {
             const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: target.u.id, targetType: "Unit" });
             if (attacked !== next) {
+                console.info(`[AI ATTACK UNIT] ${playerId} ${unit.type} attacks ${target.u.ownerId} ${target.u.type}, dealing ${target.dmg} damage (HP: ${target.u.hp})`);
                 next = attacked;
                 const adjAfter = enemiesWithin(next, playerId, unit.coord, 1);
                 if (UNITS[unit.type].rng > 1 && adjAfter > 0) {
@@ -1009,8 +1012,9 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                 const step = path[0];
                 const desiredRange = UNITS[current.type].rng;
                 const currentDist = hexDistance(current.coord, nearest.coord);
-                if (rangedIds.has(current.id) && currentDist <= desiredRange) {
-                    // Already in range; hold position to maintain standoff
+                // Ranged units: get within range but prefer distance 2 for safety  
+                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2) {
+                    // In optimal range (2 hex away); hold position
                     moved = true;
                 } else {
                     const stepDist = hexDistance(step, nearest.coord);

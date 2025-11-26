@@ -4,8 +4,10 @@ import {
     BuildingType,
     GameState,
     ProjectId,
+    TechId,
     UnitType,
     TerrainType,
+    DiplomacyState,
 } from "../../core/types.js";
 import { canBuild } from "../rules.js";
 import { tryAction } from "./shared/actions.js";
@@ -13,6 +15,12 @@ import { tileWorkingPriority, tilesByPriority } from "./city-heuristics.js";
 import { AiPersonality, getPersonalityForPlayer } from "./personality.js";
 import { hexSpiral } from "../../core/hex.js";
 import { CITY_WORK_RADIUS_RINGS } from "../../core/constants.js";
+
+function isAtWar(state: GameState, playerId: string): boolean {
+    return state.players.some(
+        p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+}
 
 type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
@@ -43,8 +51,51 @@ function hasAvailableCitySite(state: GameState, playerId: string): boolean {
     return false;
 }
 
-function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality): BuildOption[] {
+function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar: boolean, state: GameState, playerId: string): BuildOption[] {
+    const player = state.players.find(p => p.id === playerId);
+
+    // Check if player can complete victory projects - if so, prioritize them!
+    const canCompleteVictoryProjects = player && player.techs.includes(TechId.StarCharts);
+    const hasObservatory = player?.completedProjects.includes(ProjectId.Observatory);
+    const hasGrandAcademy = player?.completedProjects.includes(ProjectId.GrandAcademy);
+
+    // If we can work on victory, do it (unless massively losing a war)
+    if (canCompleteVictoryProjects && !atWar) {
+        const victoryPath: BuildOption[] = [];
+        if (!hasObservatory) {
+            victoryPath.push({ type: "Project", id: ProjectId.Observatory });
+        } else if (!hasGrandAcademy) {
+            victoryPath.push({ type: "Project", id: ProjectId.GrandAcademy });
+        } else {
+            victoryPath.push({ type: "Project", id: ProjectId.GrandExperiment });
+        }
+
+        // Prepend victory projects to normal priorities
+        const normalPriorities = buildNormalPriorities(goal, personality);
+        return [...victoryPath, ...normalPriorities];
+    }
+
+    // When at war, heavily prioritize military production
+    // BowGuard is CRITICAL for sieging cities - prioritize it!
+    if (atWar) {
+        return [
+            { type: "Unit", id: UnitType.BowGuard },        // #1 for city sieges
+            { type: "Unit", id: UnitType.SpearGuard },     // #2 for city capture
+            { type: "Unit", id: UnitType.Riders },         // #3 for mobility
+            { type: "Project", id: ProjectId.FormArmy_BowGuard },
+            { type: "Project", id: ProjectId.FormArmy_SpearGuard },
+            { type: "Project", id: ProjectId.FormArmy_Riders },
+            { type: "Building", id: BuildingType.StoneWorkshop },
+            { type: "Building", id: BuildingType.Farmstead },
+        ];
+    }
+
+    return buildNormalPriorities(goal, personality);
+}
+
+function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality): BuildOption[] {
     const progress: BuildOption[] = [
+        { type: "Unit", id: UnitType.Scout },          // Early exploration
         { type: "Project", id: ProjectId.Observatory },
         { type: "Project", id: ProjectId.GrandAcademy },
         { type: "Project", id: ProjectId.GrandExperiment },
@@ -56,6 +107,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality): Build
         { type: "Unit", id: UnitType.Riders },
     ];
     const conquest: BuildOption[] = [
+        { type: "Unit", id: UnitType.Scout },          // Early exploration
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Unit", id: UnitType.Riders },
         { type: "Unit", id: UnitType.BowGuard },
@@ -67,6 +119,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality): Build
         { type: "Unit", id: UnitType.Settler },
     ];
     const balanced: BuildOption[] = [
+        { type: "Unit", id: UnitType.Scout },          // Early exploration
         { type: "Unit", id: UnitType.Settler },
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Building", id: BuildingType.Farmstead },
@@ -117,8 +170,9 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
     let settlersInFlight = activeSettlers + settlersQueued;
     const openCitySite = hasAvailableCitySite(next, playerId);
     const settlerCap = Math.max(1, Math.ceil(desiredShortfall / 2));
-    const cityOrder = next.cities.filter(c => c.ownerId === playerId);
-    const priorities = buildPriorities(goal, personality);
+    const cityOrder = state.cities.filter(c => c.ownerId === playerId);
+    const atWar = isAtWar(next, playerId);
+    const priorities = buildPriorities(goal, personality, atWar, next, playerId);
     for (const city of cityOrder) {
         if (city.currentBuild) continue;
         for (const option of priorities) {

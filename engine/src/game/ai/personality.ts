@@ -59,7 +59,7 @@ const defaultPersonality: AiPersonality = {
 const personalities: Record<CivName, AiPersonality> = {
     ForgeClans: {
         aggression: {
-            warPowerThreshold: 0.75,
+            warPowerThreshold: 0.45,  // Ultra-aggressive for early wars
             warDistanceMax: 14,
             peacePowerThreshold: 0.85,
         },
@@ -68,11 +68,11 @@ const personalities: Record<CivName, AiPersonality> = {
         desiredCities: 5,
         techWeights: { [TechId.DrilledRanks]: 1.1, [TechId.SteamForges]: 1.05 },
         unitBias: { hillHold: true },
-        declareAfterContactTurns: 2,
+        declareAfterContactTurns: 1,
     },
     ScholarKingdoms: {
         aggression: {
-            warPowerThreshold: 0.95,
+            warPowerThreshold: 0.5,  // More defensive but still aggressive
             warDistanceMax: 12,
             peacePowerThreshold: 1.0,
         },
@@ -82,11 +82,11 @@ const personalities: Record<CivName, AiPersonality> = {
         techWeights: { [TechId.ScriptLore]: 1.2, [TechId.ScholarCourts]: 1.2, [TechId.StarCharts]: 1.1 },
         projectRush: { type: "Project", id: ProjectId.Observatory },
         unitBias: { rangedSafety: 1 },
-        declareAfterContactTurns: 3,
+        declareAfterContactTurns: 2,
     },
     RiverLeague: {
         aggression: {
-            warPowerThreshold: 0.8,
+            warPowerThreshold: 0.45,  // Ultra-aggressive
             warDistanceMax: 14,
             peacePowerThreshold: 0.9,
         },
@@ -95,12 +95,12 @@ const personalities: Record<CivName, AiPersonality> = {
         desiredCities: 6,
         techWeights: { [TechId.TrailMaps]: 1.15, [TechId.Wellworks]: 1.1 },
         unitBias: { navalWeight: 1 },
-        declareAfterContactTurns: 3,
+        declareAfterContactTurns: 2,
     },
     AetherianVanguard: {
         aggression: {
-            warPowerThreshold: 0.9,
-            warPowerThresholdLate: 0.65,
+            warPowerThreshold: 0.5,  // Aggressive
+            warPowerThresholdLate: 0.4,  // Very aggressive with titan
             warDistanceMax: 14,
             peacePowerThreshold: 0.9,
             aggressionSpikeTrigger: "TitanBuilt",
@@ -111,11 +111,11 @@ const personalities: Record<CivName, AiPersonality> = {
         techWeights: { [TechId.SteamForges]: 1.5 },
         projectRush: { type: "Building", id: BuildingType.TitansCore },
         unitBias: {},
-        declareAfterContactTurns: 3,
+        declareAfterContactTurns: 2,
     },
     StarborneSeekers: {
         aggression: {
-            warPowerThreshold: 0.95,
+            warPowerThreshold: 0.5,  // More defensive
             warDistanceMax: 12,
             peacePowerThreshold: 1.0,
         },
@@ -125,11 +125,11 @@ const personalities: Record<CivName, AiPersonality> = {
         techWeights: { [TechId.ScriptLore]: 1.2, [TechId.ScholarCourts]: 1.2, [TechId.StarCharts]: 1.5 },
         projectRush: { type: "Building", id: BuildingType.SpiritObservatory },
         unitBias: { rangedSafety: 1 },
-        declareAfterContactTurns: 4,
+        declareAfterContactTurns: 3,
     },
     JadeCovenant: {
         aggression: {
-            warPowerThreshold: 0.9,
+            warPowerThreshold: 0.5,  // Aggressive
             warDistanceMax: 14,
             peacePowerThreshold: 0.95,
         },
@@ -139,7 +139,7 @@ const personalities: Record<CivName, AiPersonality> = {
         techWeights: { [TechId.Wellworks]: 1.5, [TechId.UrbanPlans]: 1.05 },
         projectRush: { type: "Building", id: BuildingType.JadeGranary },
         unitBias: {},
-        declareAfterContactTurns: 3,
+        declareAfterContactTurns: 2,
     },
 };
 

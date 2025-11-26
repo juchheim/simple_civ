@@ -33,8 +33,8 @@ export const CITY_WORK_RADIUS_RINGS = 2;
 // HP / Combat
 export const BASE_UNIT_HP = 10;
 export const ARMY_UNIT_HP = 15;
-export const BASE_CITY_HP = 20;
-export const CAPTURED_CITY_HP_RESET = 10;
+export const BASE_CITY_HP = 15;  // Was 20 - easier to capture
+export const CAPTURED_CITY_HP_RESET = 8;  // Was 10 - proportional reduction
 export const DAMAGE_MIN = 1;
 export const DAMAGE_MAX = 7;
 
@@ -50,29 +50,29 @@ export const ATTACK_RANDOM_BAND = [-1, 0, 1];
 export const FORTIFY_DEF_BONUS = 1;
 export const HEAL_FRIENDLY_TILE = 3;
 export const HEAL_FRIENDLY_CITY = 5;
-export const CITY_HEAL_PER_TURN = 2;
+export const CITY_HEAL_PER_TURN = 1;  // Was 2 - slower regen
 
 // Growth
-export const BASECOST_POP2 = 20;
+export const BASECOST_POP2 = 30;
 export const GROWTH_FACTORS = [
-    { min: 2, max: 4, f: 1.20 },
-    { min: 5, max: 6, f: 1.27 },
-    { min: 7, max: 8, f: 1.32 },
-    { min: 9, max: 10, f: 1.37 },
-    { min: 11, max: 999, f: 1.42 },
+    { min: 2, max: 4, f: 1.30 },
+    { min: 5, max: 6, f: 1.40 },
+    { min: 7, max: 8, f: 1.50 },
+    { min: 9, max: 10, f: 1.60 },
+    { min: 11, max: 999, f: 2.00 },
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 
 // Tech Costs
 export const TECH_COST_HEARTH = 20;
-export const TECH_COST_BANNER = 50;
-export const TECH_COST_ENGINE = 85;
+export const TECH_COST_BANNER = 40;
+export const TECH_COST_ENGINE = 65;
 
 // Projects
-export const OBSERVATORY_COST = 120;
-export const GRAND_ACADEMY_COST = 165;
-export const GRAND_EXPERIMENT_COST = 210;
+export const OBSERVATORY_COST = 60;
+export const GRAND_ACADEMY_COST = 85;
+export const GRAND_EXPERIMENT_COST = 105;
 
 // Settler
 export const SETTLER_COST = 70;
