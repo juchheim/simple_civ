@@ -21,9 +21,10 @@ interface HUDProps {
     onToggleShroud: () => void;
     showYields: boolean;
     onToggleYields: () => void;
+    onCenterCity: (coord: HexCoord) => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
@@ -156,6 +157,13 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         : blockingTasks.length > 0
             ? "Resolve blocking tasks to end turn"
             : undefined;
+
+    // Center camera on city when city panel is displayed
+    React.useEffect(() => {
+        if (selectedCity) {
+            onCenterCity(selectedCity.coord);
+        }
+    }, [selectedCity, onCenterCity]);
 
     return (
         <div className="hud-layer">

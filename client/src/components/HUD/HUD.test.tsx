@@ -131,6 +131,7 @@ describe("HUD", () => {
                 showYields={false}
                 onToggleYields={vi.fn()}
                 onSelectCoord={vi.fn()}
+                onCenterCity={vi.fn()}
             />,
         );
 
@@ -164,6 +165,7 @@ describe("HUD", () => {
                 showYields={false}
                 onToggleYields={vi.fn()}
                 onSelectCoord={vi.fn()}
+                onCenterCity={vi.fn()}
             />,
         );
 
@@ -208,6 +210,7 @@ describe("HUD", () => {
                 showYields={false}
                 onToggleYields={vi.fn()}
                 onSelectCoord={vi.fn()}
+                onCenterCity={vi.fn()}
             />,
         );
 

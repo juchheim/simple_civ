@@ -22,6 +22,7 @@ function App() {
     const [numCivs, setNumCivs] = useState(2);
     const [seedInput, setSeedInput] = useState("");
     const [showTitleScreen, setShowTitleScreen] = useState(true);
+    const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
     const SAVE_KEY = "simple-civ-save";
     const AUTOSAVE_KEY = "simple-civ-autosave";
     const SESSION_SAVE_KEY = "simple-civ-session";
@@ -452,6 +453,14 @@ function App() {
         }
     };
 
+    // Reset cityToCenter after a brief delay to allow re-centering on same city
+    useEffect(() => {
+        if (cityToCenter) {
+            const timeout = setTimeout(() => setCityToCenter(null), 100);
+            return () => clearTimeout(timeout);
+        }
+    }, [cityToCenter]);
+
     if (!gameState) {
         if (showTitleScreen) {
             return (
@@ -619,6 +628,7 @@ function App() {
                 showTileYields={showTileYields}
                 hoveredCoord={hoveredCoord}
                 onHoverTile={setHoveredCoord}
+                cityToCenter={cityToCenter}
             />
             <HUD
                 gameState={gameState}
@@ -640,6 +650,7 @@ function App() {
                 onToggleShroud={() => setShowShroud(prev => !prev)}
                 showYields={showTileYields}
                 onToggleYields={() => setShowTileYields(prev => !prev)}
+                onCenterCity={setCityToCenter}
             />
             {showTechTree && (
                 <TechTree

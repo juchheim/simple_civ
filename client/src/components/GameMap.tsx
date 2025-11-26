@@ -41,9 +41,10 @@ interface GameMapProps {
     showTileYields: boolean;
     hoveredCoord: HexCoord | null;
     onHoverTile: (coord: HexCoord | null) => void;
+    cityToCenter?: HexCoord | null;
 }
 
-export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, hoveredCoord, onHoverTile }) => {
+export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, hoveredCoord, onHoverTile, cityToCenter }) => {
     const { map, units, cities } = gameState;
     const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
     const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState.visibility, playerId]);
@@ -94,12 +95,20 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
+        centerOnCoord,
     } = useMapInteraction({
         tiles: map.tiles,
         hexToPixel,
         onTileClick,
         onHoverTile,
     });
+
+    // Center camera on city when cityToCenter changes
+    React.useEffect(() => {
+        if (cityToCenter) {
+            centerOnCoord(cityToCenter);
+        }
+    }, [cityToCenter, centerOnCoord]);
 
     const citiesByCoord = useMemo(() => {
         const coordMap = new Map<string, City>();
