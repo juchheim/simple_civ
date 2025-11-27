@@ -1,7 +1,28 @@
-import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId } from "../../core/types.js";
-import { UNITS, TERRAIN, TECHS, JADE_COVENANT_POP_COMBAT_BONUS_PER } from "../../core/constants.js";
+import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, BuildingType } from "../../core/types.js";
+import { 
+    UNITS, 
+    TERRAIN, 
+    TECHS, 
+    JADE_COVENANT_POP_COMBAT_BONUS_PER,
+    FORGE_CLANS_HILL_COMBAT_THRESHOLD,
+    FORGE_CLANS_HILL_COMBAT_BONUS,
+    FORGE_CLANS_ENGINE_ATTACK_BONUS,
+    STARBORNE_CAPITAL_DEFENSE_RADIUS,
+    STARBORNE_CAPITAL_DEFENSE_BONUS,
+    SCHOLAR_KINGDOMS_DEFENSE_BONUS,
+    SCHOLAR_KINGDOMS_DEFENSE_RADIUS,
+} from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
-import { hexLine, hexToString } from "../../core/hex.js";
+import { hexLine, hexToString, hexDistance } from "../../core/hex.js";
+
+// Engine-era techs for ForgeClans bonus
+const ENGINE_ERA_TECHS = [
+    TechId.SteamForges,
+    TechId.CityWards,
+    TechId.UrbanPlans,
+    TechId.SignalRelay,
+    TechId.StarCharts,
+];
 
 const MELEE_TYPES = new Set<UnitType>([
     UnitType.SpearGuard,
@@ -52,12 +73,90 @@ export function getTotalPopulation(state: GameState, playerId: string): number {
 
 /**
  * v0.98: Get JadeCovenant's "Population Power" combat bonus.
- * Military units gain +1 attack and defense per 5 total population.
+ * Military units gain +1 attack and defense per 8 total population (nerfed from 5).
  */
 export function getJadeCovenantCombatBonus(state: GameState, player: Player): number {
     if (player.civName !== "JadeCovenant") return 0;
     const totalPop = getTotalPopulation(state, player.id);
     return Math.floor(totalPop / JADE_COVENANT_POP_COMBAT_BONUS_PER);
+}
+
+/**
+ * v0.98 Update 5: Get ForgeClans "Forged Arms" attack bonus.
+ * Units built in cities with 2+ worked Hill tiles gain +1 Attack.
+ * Note: This is tracked per-unit via metadata, applied at creation time.
+ * For now, we check if ANY of the player's cities have enough hills.
+ */
+export function getForgeClansCombatBonus(state: GameState, player: Player): number {
+    if (player.civName !== "ForgeClans") return 0;
+    
+    // Check if player has any city with enough worked hills
+    const citiesWithHills = state.cities.filter(c => {
+        if (c.ownerId !== player.id) return false;
+        const workedHills = c.workedTiles?.filter(coord => {
+            const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
+            return tile?.terrain === TerrainType.Hills;
+        }).length ?? 0;
+        return workedHills >= FORGE_CLANS_HILL_COMBAT_THRESHOLD;
+    });
+    
+    // If they have at least one hill-heavy city, their units get the bonus
+    return citiesWithHills.length > 0 ? FORGE_CLANS_HILL_COMBAT_BONUS : 0;
+}
+
+/**
+ * v0.98 Update 6: Get ForgeClans "Industrial Warfare" attack bonus.
+ * Military units gain +1 Attack per Engine-era tech researched (max +5).
+ * This rewards their high tech completion rate with actual combat power.
+ */
+export function getForgeClansEngineBonus(player: Player): number {
+    if (player.civName !== "ForgeClans") return 0;
+    
+    const engineTechCount = ENGINE_ERA_TECHS.filter(tech => player.techs.includes(tech)).length;
+    return engineTechCount * FORGE_CLANS_ENGINE_ATTACK_BONUS;
+}
+
+/**
+ * v0.98 Update 5: Get StarborneSeekers "Celestial Guidance" defense bonus.
+ * Units within 3 tiles of their capital gain +1 Defense.
+ */
+export function getStarborneCelestialBonus(state: GameState, player: Player, unit: Unit): number {
+    if (player.civName !== "StarborneSeekers") return 0;
+    
+    // Find player's capital
+    const capital = state.cities.find(c => c.ownerId === player.id && c.isCapital);
+    if (!capital) return 0;
+    
+    // Check if unit is within radius of capital
+    const dist = hexDistance(unit.coord, capital.coord);
+    return dist <= STARBORNE_CAPITAL_DEFENSE_RADIUS ? STARBORNE_CAPITAL_DEFENSE_BONUS : 0;
+}
+
+/**
+ * v0.98 Update 8: Get ScholarKingdoms "Scholarly Retreat" defense bonus.
+ * Units within 2 tiles of any city with a Scriptorium or Academy gain +2 Defense.
+ * This helps them survive long enough to use their science advantage.
+ */
+export function getScholarKingdomsDefenseBonus(state: GameState, player: Player, unit: Unit): number {
+    if (player.civName !== "ScholarKingdoms") return 0;
+    
+    // Find any of player's cities with Scriptorium or Academy
+    const scholarCities = state.cities.filter(c => 
+        c.ownerId === player.id && 
+        (c.buildings.includes(BuildingType.Scriptorium) || c.buildings.includes(BuildingType.Academy))
+    );
+    
+    if (scholarCities.length === 0) return 0;
+    
+    // Check if unit is within radius of any scholar city
+    for (const city of scholarCities) {
+        const dist = hexDistance(unit.coord, city.coord);
+        if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
+            return SCHOLAR_KINGDOMS_DEFENSE_BONUS;
+        }
+    }
+    
+    return 0;
 }
 
 export function getEffectiveUnitStats(unit: Unit, state: GameState) {
@@ -79,6 +178,31 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
         const popBonus = getJadeCovenantCombatBonus(state, player);
         boosted.atk += popBonus;
         boosted.def += popBonus;
+    }
+
+    // v0.98 Update 5: ForgeClans "Forged Arms" - attack bonus from hill production
+    // Only applies to military units
+    if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
+        const hillBonus = getForgeClansCombatBonus(state, player);
+        boosted.atk += hillBonus;
+        
+        // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine tech
+        const engineBonus = getForgeClansEngineBonus(player);
+        boosted.atk += engineBonus;
+    }
+
+    // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
+    // Only applies to military units
+    if (player.civName === "StarborneSeekers" && UNITS[unit.type].domain !== "Civilian") {
+        const celestialBonus = getStarborneCelestialBonus(state, player, unit);
+        boosted.def += celestialBonus;
+    }
+
+    // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near Scriptorium/Academy cities
+    // Only applies to military units
+    if (player.civName === "ScholarKingdoms" && UNITS[unit.type].domain !== "Civilian") {
+        const scholarBonus = getScholarKingdomsDefenseBonus(state, player, unit);
+        boosted.def += scholarBonus;
     }
 
     return boosted;

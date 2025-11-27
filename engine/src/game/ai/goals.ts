@@ -24,7 +24,7 @@ function hasTitan(playerId: string, state: GameState): boolean {
 /**
  * v0.98 Update 4: Estimate military power for a player
  */
-function estimateMilitaryPower(playerId: string, state: GameState): number {
+export function estimateMilitaryPower(playerId: string, state: GameState): number {
     const units = state.units.filter(u => u.ownerId === playerId);
     const unitPower = units.reduce((sum, u) => {
         const stats = UNITS[u.type];

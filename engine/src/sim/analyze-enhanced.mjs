@@ -242,16 +242,26 @@ function analyzeArmyUsage(results) {
     });
     
     results.forEach(sim => {
+        // Build a player ID to civ name lookup for this simulation
+        const playerIdToCivName = new Map();
+        sim.finalState?.civs?.forEach(c => {
+            playerIdToCivName.set(c.id, c.civName);
+        });
+        
         sim.events.forEach(e => {
             if (e.type === "ProjectComplete" && e.project?.startsWith("FormArmy_")) {
+                // e.civ is the player ID (e.g., "p1"), look up the civ name
+                const civName = playerIdToCivName.get(e.civ);
                 armyFormations.push({
                     turn: e.turn,
-                    civ: e.civ,
+                    civ: civName || e.civ,
                     project: e.project,
                     mapSize: sim.mapSize,
                 });
-                const stats = byCiv.get(e.civ);
-                if (stats) stats.formations++;
+                if (civName) {
+                    const stats = byCiv.get(civName);
+                    if (stats) stats.formations++;
+                }
             } else if (e.type === "UnitDeath" && (e.unitType?.includes("Army") || e.unitType === "ArmyScout" || e.unitType === "ArmySpearGuard" || e.unitType === "ArmyBowGuard" || e.unitType === "ArmyRiders")) {
                 armyDeaths.push({
                     turn: e.turn,
@@ -259,9 +269,9 @@ function analyzeArmyUsage(results) {
                     unitType: e.unitType,
                     mapSize: sim.mapSize,
                 });
-                const civ = sim.finalState?.civs.find(c => c.id === e.owner);
-                if (civ) {
-                    const stats = byCiv.get(civ.civName);
+                const civName = playerIdToCivName.get(e.owner);
+                if (civName) {
+                    const stats = byCiv.get(civName);
                     if (stats) stats.deaths++;
                 }
             } else if (e.type === "UnitProduction" && (e.unitType?.includes("Army") || e.unitType === "ArmyScout" || e.unitType === "ArmySpearGuard" || e.unitType === "ArmyBowGuard" || e.unitType === "ArmyRiders")) {
@@ -271,9 +281,9 @@ function analyzeArmyUsage(results) {
                     unitType: e.unitType,
                     mapSize: sim.mapSize,
                 });
-                const civ = sim.finalState?.civs.find(c => c.id === e.owner);
-                if (civ) {
-                    const stats = byCiv.get(civ.civName);
+                const civName = playerIdToCivName.get(e.owner);
+                if (civName) {
+                    const stats = byCiv.get(civName);
                     if (stats) stats.productions++;
                 }
             }

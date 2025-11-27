@@ -6,6 +6,7 @@ import {
     UnitType,
     BuildingType,
     UnitState,
+    Player,
 } from "../../core/types.js";
 import {
     CITY_DEFENSE_BASE,
@@ -23,9 +24,11 @@ import { nearestByDistance, sortByDistance } from "./shared/metrics.js";
 import { findPath } from "../helpers/pathfinding.js";
 import { getEffectiveUnitStats } from "../helpers/combat.js";
 import { getPersonalityForPlayer } from "./personality.js";
-import { findFinishableEnemies } from "./goals.js";
+import { estimateMilitaryPower, findFinishableEnemies } from "./goals.js";
 
-const primarySiegeMemory = new Map<string, string>();
+type SiegeMemory = { cityId: string; assignedTurn: number };
+
+const primarySiegeMemory = new Map<string, SiegeMemory>();
 
 function cityIsCoastal(state: GameState, city: any): boolean {
     return getNeighbors(city.coord).some(c => {
@@ -217,12 +220,100 @@ function enemiesWithin(state: GameState, playerId: string, coord: { q: number; r
     ).length;
 }
 
-function selectPrimarySiegeCity(state: GameState, playerId: string, units: any[], warCities: any[]): any | null {
-    const storedId = primarySiegeMemory.get(playerId);
-    const stored = warCities.find(c => c.id === storedId);
-    if (stored) return stored;
+function getWarTargets(state: GameState, playerId: string): Player[] {
+    return state.players.filter(
+        p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+}
+
+function warPowerRatio(state: GameState, playerId: string, warTargets: Player[]): { myPower: number; enemyPower: number; ratio: number } {
+    if (!warTargets.length) {
+        return { myPower: 0, enemyPower: 0, ratio: 0 };
+    }
+    const myPower = estimateMilitaryPower(playerId, state);
+    const enemyPowers = warTargets.map(t => estimateMilitaryPower(t.id, state));
+    const enemyPower = Math.max(...enemyPowers, 0);
+    const ratio = enemyPower > 0 ? myPower / enemyPower : Number.POSITIVE_INFINITY;
+    return { myPower, enemyPower, ratio };
+}
+
+function shouldUseWarProsecutionMode(state: GameState, playerId: string, warTargets: Player[]): boolean {
+    if (!warTargets.length) return false;
+    const { enemyPower, ratio } = warPowerRatio(state, playerId, warTargets);
+    return enemyPower > 0 && ratio >= 3;
+}
+
+function warGarrisonCap(state: GameState, playerId: string, isInWarProsecutionMode: boolean): number {
+    const playerCities = state.cities.filter(c => c.ownerId === playerId);
+    if (!playerCities.length) return 0;
+    if (isInWarProsecutionMode) return 1;
+    return Math.max(1, Math.floor(playerCities.length / 2));
+}
+
+function selectHeldGarrisons(state: GameState, playerId: string, warTargets: Player[], maxGarrisons: number): Set<string> {
+    const held = new Set<string>();
+    if (maxGarrisons <= 0) return held;
+
+    const playerCities = state.cities.filter(c => c.ownerId === playerId);
+    if (!playerCities.length) return held;
+
+    const enemyUnits = state.units.filter(u => warTargets.some(w => w.id === u.ownerId));
+    const orderedCities = [...playerCities].sort((a, b) => {
+        if (a.isCapital !== b.isCapital) return a.isCapital ? -1 : 1;
+        const aThreat = enemyUnits.length ? Math.min(...enemyUnits.map(e => hexDistance(e.coord, a.coord))) : Number.POSITIVE_INFINITY;
+        const bThreat = enemyUnits.length ? Math.min(...enemyUnits.map(e => hexDistance(e.coord, b.coord))) : Number.POSITIVE_INFINITY;
+        if (aThreat !== bThreat) return aThreat - bThreat;
+        return a.hp - b.hp;
+    });
+
+    for (const city of orderedCities) {
+        if (held.size >= maxGarrisons) break;
+        const stationed = state.units.filter(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+        if (!stationed.length) continue;
+        const combatants = stationed.filter(u => UNITS[u.type].domain !== "Civilian");
+        const defender = (combatants.length ? combatants : stationed).sort((a, b) => b.hp - a.hp)[0];
+        if (defender) {
+            held.add(defender.id);
+        }
+    }
+
+    return held;
+}
+
+function selectPrimarySiegeCity(
+    state: GameState,
+    playerId: string,
+    units: any[],
+    warCities: any[],
+    options?: { forceRetarget?: boolean; preferClosest?: boolean }
+): any | null {
+    let preferClosest = !!options?.preferClosest;
+    if (options?.forceRetarget) {
+        primarySiegeMemory.delete(playerId);
+    }
+
+    const stored = primarySiegeMemory.get(playerId);
+    if (stored) {
+        const storedCity = warCities.find(c => c.id === stored.cityId);
+        if (storedCity) {
+            const turnsOnTarget = state.turn - stored.assignedTurn;
+            if (turnsOnTarget >= 15) {
+                primarySiegeMemory.delete(playerId);
+                preferClosest = true;
+            } else {
+                return storedCity;
+            }
+        } else {
+            primarySiegeMemory.delete(playerId);
+        }
+    }
 
     if (!warCities.length) {
+        primarySiegeMemory.delete(playerId);
+        return null;
+    }
+
+    if (!units.length) {
         primarySiegeMemory.delete(playerId);
         return null;
     }
@@ -242,6 +333,12 @@ function selectPrimarySiegeCity(state: GameState, playerId: string, units: any[]
             isFinishable: finishableEnemyIds.includes(c.ownerId) ? 0 : 1
         }))
         .sort((a, b) => {
+            if (preferClosest) {
+                if (a.dist !== b.dist) return a.dist - b.dist;
+                if (a.hp !== b.hp) return a.hp - b.hp;
+                if (a.isFinishable !== b.isFinishable) return a.isFinishable - b.isFinishable;
+                return a.isCapital - b.isCapital;
+            }
             // v0.98 Update 4: Finishable enemies first, then capitals, then HP, then distance
             if (a.isFinishable !== b.isFinishable) return a.isFinishable - b.isFinishable;
             if (a.isCapital !== b.isCapital) return a.isCapital - b.isCapital;
@@ -253,7 +350,7 @@ function selectPrimarySiegeCity(state: GameState, playerId: string, units: any[]
         console.info(`[AI FINISH HIM] ${playerId} targeting ${candidate.name} (${candidate.ownerId}) - weak enemy with few cities!`);
     }
 
-    primarySiegeMemory.set(playerId, candidate.id);
+    primarySiegeMemory.set(playerId, { cityId: candidate.id, assignedTurn: state.turn });
     return candidate;
 }
 
@@ -796,13 +893,16 @@ export function defendCities(state: GameState, playerId: string): GameState {
     const playerCities = next.cities.filter(c => c.ownerId === playerId);
     if (!playerCities.length) return next;
 
-    const warEnemyIds = next.players
-        .filter(p =>
-            p.id !== playerId &&
-            !p.isEliminated &&
-            next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-        )
-        .map(p => p.id);
+    const warTargets = getWarTargets(next, playerId);
+    const warEnemyIds = warTargets.map(p => p.id);
+    const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
+    const garrisonCap = warEnemyIds.length ? warGarrisonCap(next, playerId, isInWarProsecutionMode) : playerCities.length;
+    const garrisonedCities = new Set(
+        playerCities
+            .filter(c => next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, c.coord)))
+            .map(c => c.id)
+    );
+    let availableGarrisonSlots = warEnemyIds.length ? Math.max(0, garrisonCap - garrisonedCities.size) : playerCities.length;
 
     const reserved = new Set<string>();
 
@@ -814,8 +914,13 @@ export function defendCities(state: GameState, playerId: string): GameState {
             !reserved.has(u.id) &&
             u.type !== UnitType.Settler
         );
+        const nearbyWarEnemies = warEnemyIds.length
+            ? next.units.filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, city.coord) <= 3)
+            : [];
+        const isThreatened = nearbyWarEnemies.length > 0;
 
         if (!hasGarrison) {
+            if (warEnemyIds.length && !city.isCapital && !isThreatened && availableGarrisonSlots <= 0) continue;
             const combatReady = available.filter(u => UNITS[u.type].domain !== "Civilian");
             const pool = combatReady.length ? combatReady : available;
             const adjacent = pool.find(u => hexDistance(u.coord, city.coord) === 1);
@@ -829,6 +934,11 @@ export function defendCities(state: GameState, playerId: string): GameState {
                 if (movedDirect !== next) {
                     next = movedDirect;
                     reserved.add(adjacent.id);
+                    const garrisonedNow = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                    if (garrisonedNow && warEnemyIds.length && !garrisonedCities.has(city.id)) {
+                        garrisonedCities.add(city.id);
+                        availableGarrisonSlots = Math.max(0, availableGarrisonSlots - 1);
+                    }
                 }
             }
             if (next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord))) continue;
@@ -849,17 +959,24 @@ export function defendCities(state: GameState, playerId: string): GameState {
                     if (direct !== next) {
                         next = direct;
                         reserved.add(candidate.id);
+                        const garrisonedNow = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                        if (garrisonedNow && warEnemyIds.length && !garrisonedCities.has(city.id)) {
+                            garrisonedCities.add(city.id);
+                            availableGarrisonSlots = Math.max(0, availableGarrisonSlots - 1);
+                        }
                     }
+                }
+                const garrisonedNow = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                if (garrisonedNow && warEnemyIds.length && !garrisonedCities.has(city.id)) {
+                    garrisonedCities.add(city.id);
+                    availableGarrisonSlots = Math.max(0, availableGarrisonSlots - 1);
                 }
             }
         }
 
         if (!warEnemyIds.length) continue;
 
-        const enemiesNear = next.units.filter(u =>
-            warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, city.coord) <= 3
-        );
-        if (!enemiesNear.length) continue;
+        if (!nearbyWarEnemies.length) continue;
 
         const defendersInRing = next.units.filter(u =>
             u.ownerId === playerId &&
@@ -876,7 +993,7 @@ export function defendCities(state: GameState, playerId: string): GameState {
         );
         if (!remaining.length) continue;
 
-        const targetEnemy = nearestByDistance(city.coord, enemiesNear, u => u.coord);
+        const targetEnemy = nearestByDistance(city.coord, nearbyWarEnemies, u => u.coord);
         const interceptSpots = getNeighbors(city.coord);
         const orderedSpots = sortByDistance(targetEnemy?.coord ?? city.coord, interceptSpots, coord => coord);
 
@@ -1147,8 +1264,16 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
 export function attackTargets(state: GameState, playerId: string): GameState {
     let next = state;
     const units = next.units.filter(u => u.ownerId === playerId && u.type !== UnitType.Settler);
+    const warTargets = getWarTargets(next, playerId);
+    const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
     const warCities = next.cities.filter(c => c.ownerId !== playerId);
-    const primaryCity = selectPrimarySiegeCity(next, playerId, units, warCities);
+    const primaryCity = selectPrimarySiegeCity(
+        next,
+        playerId,
+        units,
+        warCities,
+        { forceRetarget: isInWarProsecutionMode, preferClosest: isInWarProsecutionMode }
+    );
     for (const unit of units) {
         const stats = UNITS[unit.type];
         if (unit.hasAttacked) continue;
@@ -1294,15 +1419,16 @@ export function attackTargets(state: GameState, playerId: string): GameState {
 
 export function moveMilitaryTowardTargets(state: GameState, playerId: string): GameState {
     let next = state;
-    const warTargets = next.players.filter(
-        p => p.id !== playerId && next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War && !p.isEliminated
-    );
+    const warTargets = getWarTargets(next, playerId);
     if (!warTargets.length) return next;
 
+    const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
     const targetCities = next.cities
         .filter(c => warTargets.some(w => w.id === c.ownerId))
         .sort((a, b) => a.hp - b.hp);
     const armyUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+    const garrisonCap = warGarrisonCap(next, playerId, isInWarProsecutionMode);
+    const heldGarrisons = selectHeldGarrisons(next, playerId, warTargets, garrisonCap);
 
     // Debug: Count unit types
     const unitCounts = armyUnits.reduce((acc, u) => {
@@ -1316,7 +1442,13 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
     const rangedIds = new Set(
         armyUnits.filter(u => UNITS[u.type].rng > 1).map(u => u.id)
     );
-    const primaryCity = selectPrimarySiegeCity(next, playerId, armyUnits, targetCities);
+    const primaryCity = selectPrimarySiegeCity(
+        next,
+        playerId,
+        armyUnits,
+        targetCities,
+        { forceRetarget: isInWarProsecutionMode, preferClosest: isInWarProsecutionMode }
+    );
 
     for (const unit of armyUnits) {
         let current = unit;
@@ -1329,9 +1461,11 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
             current = updated;
             if (current.movesLeft <= 0) break;
 
-            // Do not move units off friendly cities if already garrisoning
-            const onFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, current.coord));
-            if (onFriendlyCity) break;
+            // Hold only selected garrisons; allow others to join offensives
+            const friendlyCity = next.cities.find(c => c.ownerId === playerId && hexEquals(c.coord, current.coord));
+            if (friendlyCity) {
+                if (heldGarrisons.has(current.id)) break;
+            }
 
             const unitTargets = UNITS[current.type].domain === "Naval"
                 ? targetCities.filter(c => cityIsCoastal(next, c))
@@ -1379,22 +1513,23 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                 const step = path[0];
                 const desiredRange = UNITS[current.type].rng;
                 const currentDist = hexDistance(current.coord, nearest.coord);
+                const requiredSiegeGroup = isInWarProsecutionMode ? 2 : 3;
 
                 // Count nearby friendly units to ensure we form a siege group
                 const friendliesNearTarget = armyUnits.filter(u =>
                     hexDistance(u.coord, nearest.coord) <= 3
                 ).length;
 
-                // Ranged units: only hold position if we have a siege group (3+ units)
+                // Ranged units: only hold position if we have a siege group
                 // Otherwise keep moving to converge on the target
-                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2 && friendliesNearTarget >= 3) {
+                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2 && friendliesNearTarget >= requiredSiegeGroup) {
                     // Siege group formed, hold position
                     console.info(`[AI SIEGE] ${playerId} ${current.type} holding at range ${currentDist} from ${nearest.name} (${friendliesNearTarget} units nearby)`);
                     moved = true;
                 } else {
                     // Not enough units yet, keep moving
                     if (rangedIds.has(current.id) && currentDist <= desiredRange) {
-                        console.info(`[AI SIEGE] ${playerId} ${current.type} at range ${currentDist} from ${nearest.name}, waiting for group (${friendliesNearTarget}/3 units)`);
+                        console.info(`[AI SIEGE] ${playerId} ${current.type} at range ${currentDist} from ${nearest.name}, waiting for group (${friendliesNearTarget}/${requiredSiegeGroup} units)`);
                     }
                     const stepDist = hexDistance(step, nearest.coord);
                     if (rangedIds.has(current.id) && desiredRange > 1 && stepDist === 0) {

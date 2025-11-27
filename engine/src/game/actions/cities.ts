@@ -20,6 +20,7 @@ import {
     BUILDINGS,
     PROJECTS,
     UNITS,
+    FORGE_CLANS_MILITARY_DISCOUNT,
 } from "../../core/constants.js";
 import { hexEquals, hexDistance, hexSpiral } from "../../core/hex.js";
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
@@ -140,8 +141,18 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
         throw new Error("Cannot build this item");
     }
 
+    const player = state.players.find(p => p.id === action.playerId);
     let cost = 0;
-    if (action.buildType === "Unit") cost = UNITS[action.buildId as UnitType].cost;
+    if (action.buildType === "Unit") {
+        const unitType = action.buildId as UnitType;
+        cost = UNITS[unitType].cost;
+        
+        // v0.98 Update 5: ForgeClans "Forged Arms" - 20% cheaper military units
+        // Only applies to non-civilian units
+        if (player?.civName === "ForgeClans" && UNITS[unitType].domain !== "Civilian") {
+            cost = Math.floor(cost * FORGE_CLANS_MILITARY_DISCOUNT);
+        }
+    }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
     if (action.buildType === "Project") cost = PROJECTS[action.buildId as ProjectId].cost;
 

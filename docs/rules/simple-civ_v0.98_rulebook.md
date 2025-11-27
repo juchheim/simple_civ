@@ -89,8 +89,88 @@ Progress project costs increased significantly to slow down tech victories (62% 
 - AI now prioritizes attacking enemies down to 1-2 cities when the AI has 1.5x their military power
 - City siege targeting prioritizes: Finishable enemies → Capitals → Low HP → Nearest
 
-### Settler Testing
-- Settler HP temporarily set to 1 for balance testing (was 10)
+## [DEV-ONLY] v0.98 Update 5 Balance Changes (Nov 27, 2025)
+**Goal: Address ForgeClans 8.8% win rate, StarborneSeekers high elimination, stalled games from peace/war cycles**
+
+### Critical Nerfs
+
+**JadeCovenant - NERFED**
+- Population Power threshold increased from **5 to 8** population per combat bonus
+- At 54 avg pop: reduces bonus from +10/+10 to +6/+6
+
+### Civilization Buffs
+
+**ForgeClans - MAJOR REWORK**
+- **"Forged Arms"**: Military units gain +1 Attack when any city has 2+ worked Hill tiles
+- **"Production Mastery"**: Military units cost 20% less Production
+- **AI Personality**: Changed warPowerThreshold from 0.45 to 0.65 (less suicidal declarations)
+- **Tech Weights**: Increased priority for DrilledRanks and ArmyDoctrine
+
+**StarborneSeekers - BUFF**  
+- NEW: **"Celestial Guidance"**: Military units within 3 tiles of capital gain +1 Defense
+- Helps them survive early aggression while building toward their tech/exploration goals
+
+### Army Accessibility
+
+**Form Army Costs Reduced**
+- Form Army — Spear Guard: 10 (was 15)
+- Form Army — Bow Guard: 10 (was 15)
+- Form Army — Riders: 15 (was 20)
+
+### AI Improvements: War Finish Logic
+
+**Overwhelming Power War Declaration**
+- When a civ has 2x power over a target, bypasses peace duration and always declares war
+- Dominant civs no longer get stuck in peace/war oscillation
+
+**Finishable Target Logic**
+- Targets with 1-2 cities + AI has 1.5x power = always declare war
+- Never accept/propose peace when winning decisively (overwhelming or finishable)
+- Peace duration bypass ensures continuous pressure until elimination
+
+## [DEV-ONLY] v0.98 Update 6 Balance Changes (Nov 27, 2025)
+**Goal: Fix wars ending at minimum 15 turns, boost ForgeClans, nerf StarborneSeekers Progress rush**
+
+### CRITICAL: War Completion Logic Overhaul
+
+**Problem:** Wars were ending at EXACTLY 15 turns (minimum duration). Civs immediately proposed peace when minimum expired.
+
+**Solution: "Press to Conclusion" War Logic**
+- Extended war duration when winning: **25 turns** (was 15) if any advantage exists
+- New checks: `hasCityAdvantage()`, `isWinningWar()`, `isActuallyLosingWar()`
+- **NEVER** propose/accept peace if:
+  - Overwhelming power (2x enemy)
+  - Finishable target (1-2 cities)
+  - City advantage (2+ more cities)
+  - Winning war (more power AND more cities)
+- Peace only accepted if **actually losing**: <60% power OR fewer cities AND weaker
+
+### HIGH: ForgeClans "Industrial Warfare" Identity
+
+**Problem:** 5.9% win rate despite 77.2% tech completion (highest). Attacked 2x more than attacking.
+
+**Solution: Late-Game Powerhouse**
+- NEW: **"Industrial Warfare"** — +1 Attack per Engine-era tech researched (max +5)
+  - SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts
+  - Fully teched ForgeClans units get +5 Attack!
+- AI personality: `warPowerThreshold` 0.65→0.7, `declareAfterContactTurns` 2→4
+- Tech priorities boosted for all Engine-era techs
+
+### HIGH: StarborneSeekers Nerfs
+
+**Problem:** 35.3% win rate with only 1.7 avg cities and 11.5 pop. Progress rush too strong.
+
+**Solution: Slow Down Progress Path**
+- Spirit Observatory cost: **275** (was 200, +37.5%)
+- "Stargazers" passive: **Removed +1 Science in Capital** (keep Sacred Site bonus only)
+- Net effect: Slower rush to The Revelation
+
+### MEDIUM: Form Army — Riders
+
+**Problem:** 0 Riders armies formed across all 50 games.
+
+**Solution:**
+- FormArmy_Riders cost: **10** (was 15, same as SpearGuard/BowGuard)
 <!-- CODEX_SKIP_END -->
 
 ## 1. Vision & Pillars
@@ -284,9 +364,9 @@ Progress project costs increased significantly to slow down tech victories (62% 
   - Grand Academy (210, after Observatory) → +1 Science per city, unlocks Grand Experiment. *(v0.98: Increased from 165)*
   - Grand Experiment (280, after Grand Academy) → Progress Victory on completion. *(v0.98: Increased from 210)*
 - **Form Army Projects** (Army Doctrine, Banner era):
-  - Form Army — Spear Guard (15): convert Spear Guard → Army Spear Guard.
-  - Form Army — Bow Guard (15): convert Bow Guard → Army Bow Guard.
-  - Form Army — Riders (20): convert Riders → Army Riders.
+  - Form Army — Spear Guard (10): convert Spear Guard → Army Spear Guard. *(v0.98 Update 5)*
+  - Form Army — Bow Guard (10): convert Bow Guard → Army Bow Guard. *(v0.98 Update 5)*
+  - Form Army — Riders (10): convert Riders → Army Riders. *(v0.98 Update 6: Reduced from 15 - 0 formed in 50 games!)*
 - **Milestone Marker**:
   - JadeGranaryComplete (0 cost) tracks Jade Granary completion (not player-selectable).
 - **Wonders**: not otherwise defined in v0.98 beyond unique buildings/projects above.
@@ -295,7 +375,10 @@ Progress project costs increased significantly to slow down tech victories (62% 
 
 ### ForgeClans
 - **Ironworking**: +1 Production per worked Hill tile. *(v0.98: Fixed to be per-tile, not flat)*
-- **Master Craftsmen**: Projects complete 25% faster (effective +25% production towards projects). *(v0.98 Update 4: NEW)*
+- **Master Craftsmen**: Projects complete 25% faster (effective +25% production towards projects). *(v0.98 Update 4)*
+- **Forged Arms**: Military units gain +1 Attack when any city has 2+ worked Hill tiles. *(v0.98 Update 5)*
+- **Production Mastery**: Military units cost 20% less Production. *(v0.98 Update 5)*
+- **Industrial Warfare**: Military units gain +1 Attack per Engine-era tech researched (max +5 with all 5 techs). *(v0.98 Update 6: NEW - late-game powerhouse identity)*
 
 ### Scholar Kingdoms
 - **Royal Scholars**: +1 Science per Scriptorium or Academy building in each city. *(v0.98: MAJOR NERF - Changed from "+2 Science in Capital only" to gate bonus behind building investment)*
@@ -312,12 +395,13 @@ Progress project costs increased significantly to slow down tech victories (62% 
 - **Titan's Wrath**: When a Titan is spawned, automatically switches to aggressive Conquest mode.
 
 ### Starborne Seekers
-- **Vanguard Scouts**: Starts with Scout + SpearGuard (3 units: Settler, Scout, SpearGuard). *(v0.98 Update 4: Changed from 2 Scouts for defensive capability)*
-- **Stargazers**: +1 Science in Capital. Worked Sacred Sites provide +1 bonus Science (on top of base yield). *(v0.98 Update 2: NEW)*
-- **Spirit Observatory**: Can build Spirit Observatory (Revelation bonus).
+- **Vanguard Scouts**: Starts with Scout + SpearGuard (3 units: Settler, Scout, SpearGuard). *(v0.98 Update 4)*
+- **Stargazers**: Worked Sacred Sites provide +1 bonus Science (on top of base yield). *(v0.98 Update 6: NERFED - removed +1 Science in Capital)*
+- **Celestial Guidance**: Military units within 3 tiles of capital gain +1 Defense. *(v0.98 Update 5)*
+- **Spirit Observatory**: Can build Spirit Observatory (Revelation bonus, cost 275). *(v0.98 Update 6: Increased from 200)*
 
 ### Jade Covenant
-- **Population Power**: Military units gain +1 Attack and +1 Defense per 5 total population across all cities. *(v0.98: Growth translates to military strength)*
+- **Population Power**: Military units gain +1 Attack and +1 Defense per 8 total population across all cities. *(v0.98 Update 5: NERFED from per-5 to per-8)*
 - **Bountiful Harvest**: Cities start with +5 stored Food when founded.
 - **Verdant Growth**: +10% faster growth globally (stacks with Farmstead/Jade Granary).
 - **Jade Granary**: Can build Jade Granary (Great Harvest bonus).

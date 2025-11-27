@@ -1,5 +1,24 @@
 # Working Memory
 
+- **v0.98 Update 6 - War Completion & Civ Identity (Nov 27, 2025):** Fixing wars ending at exactly 15 turns and civ balance:
+  - **CRITICAL: War Completion Logic** — Wars now last 25 turns (not 15) when winning. Added `hasCityAdvantage()`, `isWinningWar()`, `isActuallyLosingWar()` checks. Never peace if any advantage exists.
+  - **ForgeClans "Industrial Warfare"** — +1 Attack per Engine-era tech (max +5). Fully teched ForgeClans get +5 Attack bonus! AI waits longer to declare (declareAfterContactTurns 4).
+  - **StarborneSeekers NERFED** — Spirit Observatory cost 200→275 (+37.5%). Removed +1 Science in Capital from Stargazers (keep Sacred Site bonus only).
+  - **FormArmy_Riders** — Cost 15→10 (0 formations in 50 games was unacceptable).
+
+- **v0.98 Update 5 - Major Balance & War Finish Logic (Nov 27, 2025):** Comprehensive balance pass addressing win rate imbalances and stalled games:
+  - **JadeCovenant NERFED**: Population Power threshold increased from 5 to 8 (bonus reduced from +10/+10 to +6/+6 at avg pop)
+  - **ForgeClans MAJOR REWORK**: 
+    - "Forged Arms" — +1 Attack when any city has 2+ worked Hills
+    - "Production Mastery" — Military units cost 20% less
+    - AI personality: warPowerThreshold 0.45→0.65 (less suicidal)
+  - **StarborneSeekers BUFF**: "Celestial Guidance" — Units within 3 tiles of capital gain +1 Defense
+  - **Form Army Costs Reduced**: SpearGuard/BowGuard 15→10, Riders 20→15
+  - **WAR FINISH LOGIC (Critical Fix)**:
+    - Overwhelming power (2x) or finishable target (1-2 cities, 1.5x power) bypasses peace duration
+    - Never accept/propose peace when winning decisively
+    - Fixes stalled games where dominant civs got stuck in peace/war cycles
+
 - **v0.98 Update 4 - Civ Balance & AI Aggression (Nov 27, 2025):** Based on 50-game analysis showing ForgeClans 8.8% win rate, StarborneSeekers 17.6% win rate with 32.4% elimination, 8% stalled games:
   - **ForgeClans BUFF**: Added "Master Craftsmen" — Projects complete 25% faster (effective +25% production towards projects). Helps convert strong economy into victories.
   - **StarborneSeekers BUFF**: Changed starting bonus from 2 Scouts to Scout + SpearGuard. Addresses highest elimination rate by providing defensive capability.

@@ -121,9 +121,13 @@ export function getCityYields(city: City, state: GameState): Yields {
             if (t?.terrain === TerrainType.Hills) total.P += 1;
         }
     } else if (trait === "ScholarKingdoms") {
-        // v0.98 MAJOR NERF: Changed from "+2 in Capital" to "+1 Science per Scriptorium/Academy"
-        // This gates their bonus behind building investment, not free snowball science
-        // ScholarKingdoms now needs to invest Production to get their Science bonus
+        // v0.98 Update 8: BUFFED - Restored +1 Science in Capital (was completely removed)
+        // ScholarKingdoms was weakest civ with lowest tech completion (47.6%)
+        // They need a head start to actually benefit from their science identity
+        if (city.isCapital) {
+            total.S += 1; // "Great Library" - Capital generates extra science
+        }
+        // Also keep the +1 per Scriptorium/Academy for scaling
         const scholarBuildings = city.buildings.filter(b => 
             b === BuildingType.Scriptorium || b === BuildingType.Academy
         ).length;
@@ -138,9 +142,8 @@ export function getCityYields(city: City, state: GameState): Yields {
             total.S += 1;  // v0.98: River Knowledge bonus
         }
     } else if (trait === "StarborneSeekers") {
-        // v0.98 BUFF: "Stargazers" - +1 Science in Capital, +1 Science per Sacred Site worked
-        // This helps them reach Star Charts and Spirit Observatory faster
-        if (city.isCapital) total.S += 1;
+        // v0.98 Update 6: NERFED - Removed Capital science bonus (was too strong for Progress rush)
+        // "Stargazers" now only gives +1 Science per Sacred Site worked
         // Bonus science from Sacred Sites (they're spiritually attuned)
         for (const coord of city.workedTiles) {
             const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));

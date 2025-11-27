@@ -162,7 +162,14 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     }
 
     // Not at war, but if we have Army Doctrine and units to form, consider it
-    const normalPriorities = buildNormalPriorities(goal, personality);
+    let normalPriorities = buildNormalPriorities(goal, personality);
+    
+    // v0.98 Update 7: ForgeClans early military deterrence
+    // They get attacked the most - ensure they have military before expanding
+    if (player?.civName === "ForgeClans") {
+        normalPriorities = getForgeClansEarlyMilitaryPriorities(state, playerId, normalPriorities);
+    }
+    
     if (armyPriorities.length > 0) {
         // Insert army formation opportunities after first few normal priorities
         // This allows peacetime army building without completely disrupting economy
@@ -229,6 +236,49 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality):
     }
 
     return prioritized;
+}
+
+/**
+ * v0.98 Update 8: ForgeClans early military deterrence (toned down further)
+ * ForgeClans gets attacked the most - they need early military to deter aggression
+ * Reduced to 1 military per city, only first 15 turns (was 20, originally 25)
+ */
+function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string, basePriorities: BuildOption[]): BuildOption[] {
+    // Only apply in first 15 turns - after that, normal build priorities (was 20)
+    if (state.turn > 15) {
+        return basePriorities;
+    }
+    
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const myUnits = state.units.filter(u => u.ownerId === playerId);
+    const militaryUnits = myUnits.filter(u => 
+        u.type !== UnitType.Settler && 
+        u.type !== UnitType.Scout && 
+        u.type !== UnitType.RiverBoat
+    );
+    
+    // Early game: 1-2 cities, need 1 military per city as minimum deterrence
+    // Reduced from 2-per-city which was too strong
+    const isEarlyGame = myCities.length <= 2;
+    const needsMoreMilitary = militaryUnits.length < myCities.length;
+    
+    if (isEarlyGame && needsMoreMilitary) {
+        console.info(`[AI Build] ForgeClans ${playerId} prioritizing military deterrence (${militaryUnits.length} military, ${myCities.length} cities)`);
+        
+        // Lighter military focus - one defender then continue normally
+        const militaryFirst: BuildOption[] = [
+            { type: "Unit", id: UnitType.Scout },           // Still need scouts early
+            { type: "Unit", id: UnitType.SpearGuard },      // One defender
+            { type: "Building", id: BuildingType.StoneWorkshop },  // Production boost
+            { type: "Unit", id: UnitType.Settler },         // Can expand earlier now
+            { type: "Building", id: BuildingType.Farmstead },
+            { type: "Unit", id: UnitType.BowGuard },        // Then ranged support
+        ];
+        
+        return militaryFirst;
+    }
+    
+    return basePriorities;
 }
 
 export function pickCityBuilds(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {

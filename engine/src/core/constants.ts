@@ -81,14 +81,34 @@ export const AETHERIAN_EXTRA_STARTING_UNITS = [UnitType.SpearGuard]; // Extra mi
 export const STARBORNE_EXTRA_STARTING_UNITS = [UnitType.Scout]; // Extra scout for exploration
 // NOTE: JadeCovenant extra settler REMOVED - 80% win rate was too strong
 
-// v0.98: JadeCovenant Population Power - combat bonus per 5 total population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 5; // +1 combat strength per 5 pop
+// v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8
+// At 54 avg pop, this reduces bonus from +10/+10 to +6/+6
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // +1 combat strength per 8 pop
 
 // v0.98: AetherianVanguard military production bonus
 export const AETHERIAN_MILITARY_PRODUCTION_MULT = 0.75; // 25% faster military production
 
-// v0.98 Update 4: ForgeClans "Master Craftsmen" - 20% faster project completion
+// v0.98 Update 4: ForgeClans "Master Craftsmen" - 25% faster project completion
 export const FORGE_CLANS_PROJECT_SPEED_MULT = 0.80; // Projects cost 20% less effective production
+
+// v0.98 Update 5: ForgeClans "Forged Arms" - combat bonus for hill production
+export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonus
+export const FORGE_CLANS_HILL_COMBAT_BONUS = 1; // +1 Attack for units from hill cities
+
+// v0.98 Update 5: ForgeClans cheaper military production
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // 20% cheaper military units
+
+// v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
+// Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
+export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (max +5)
+
+// v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
+export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 3; // Tiles from capital
+export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // +1 Defense
+
+// v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near science buildings
+export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 2; // Tiles from Scriptorium/Academy city
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense (stronger than Starborne to help them survive)
 
 // Settler
 export const SETTLER_COST = 70;
@@ -193,8 +213,8 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 150, conditional: "Summons The Titan upon completion" }, // v0.98: Reduced from 200
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 200, conditional: "The Revelation: completes current tech, grants free tech, +2 Science per city, counts as Observatory milestone" },
-    [BuildingType.JadeGranary]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 150, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" },
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 275, conditional: "The Revelation: completes current tech, grants free tech, +2 Science per city, counts as Observatory milestone" }, // v0.98 Update 6: Increased from 200 to nerf Progress rush
+    [BuildingType.JadeGranary]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 100, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" }, // v0.98 Update 8: Reduced from 150 - was only built 14% of games
 };
 
 export type TechData = {
@@ -259,19 +279,19 @@ export const PROJECTS: Record<ProjectId, ProjectData> = {
         onComplete: { type: "Victory", payload: { victory: "Progress" } },
     },
     [ProjectId.FormArmy_SpearGuard]: {
-        cost: 15,
+        cost: 10,  // v0.98 Update 5: Reduced from 15 to make armies more accessible
         oncePerCiv: false,
         oneCityAtATime: false,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.SpearGuard, armyUnit: UnitType.ArmySpearGuard } },
     },
     [ProjectId.FormArmy_BowGuard]: {
-        cost: 15,
+        cost: 10,  // v0.98 Update 5: Reduced from 15 to make armies more accessible
         oncePerCiv: false,
         oneCityAtATime: false,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.BowGuard, armyUnit: UnitType.ArmyBowGuard } },
     },
     [ProjectId.FormArmy_Riders]: {
-        cost: 20,
+        cost: 10,  // v0.98 Update 6: Reduced from 15 (was 20) - 0 formations in 50 games!
         oncePerCiv: false,
         oneCityAtATime: false,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.Riders, armyUnit: UnitType.ArmyRiders } },
