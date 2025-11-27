@@ -95,12 +95,13 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
         city.storedFood += yields.F;
         const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
         const hasJadeGranary = player.completedProjects.includes(ProjectId.JadeGranaryComplete);
-        let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary);
+        // v0.97: Pass civName for JadeCovenant's Verdant Growth passive
+        let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
         while (city.storedFood >= growthCost) {
             city.storedFood -= growthCost;
             city.pop += 1;
             city.workedTiles = ensureWorkedTiles(city, state);
-            growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary);
+            growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
         }
 
         const neededRing = Math.max(claimedRing, maxClaimableRing(city));
@@ -110,7 +111,13 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
         }
 
         if (city.currentBuild) {
-            city.buildProgress += yields.P;
+            // v0.98 Update 4: ForgeClans "Master Craftsmen" - 20% faster project completion
+            let effectiveProd = yields.P;
+            if (city.currentBuild.type === "Project" && player.civName === "ForgeClans") {
+                // Apply bonus production (20% more effective) for projects
+                effectiveProd = Math.ceil(yields.P * 1.25);
+            }
+            city.buildProgress += effectiveProd;
             if (city.buildProgress >= city.currentBuild.cost) {
                 completeBuild(state, city);
             }

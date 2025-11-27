@@ -10,7 +10,7 @@ import {
     OverlayType,
 } from "./types.js";
 
-export const GAME_VERSION = "0.96";
+export const GAME_VERSION = "0.98";
 export const MAX_PLAYERS = 6;
 
 // Max civilizations per map size
@@ -63,16 +63,32 @@ export const GROWTH_FACTORS = [
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
+// v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
+export const JADE_COVENANT_GROWTH_MULT = 0.9;
 
 // Tech Costs
 export const TECH_COST_HEARTH = 20;
 export const TECH_COST_BANNER = 40;
 export const TECH_COST_ENGINE = 65;
 
-// Projects
-export const OBSERVATORY_COST = 60;
-export const GRAND_ACADEMY_COST = 85;
-export const GRAND_EXPERIMENT_COST = 105;
+// Projects (v0.98: Increased costs to slow down Progress victories)
+export const OBSERVATORY_COST = 80;         // Was 60 - 33% increase
+export const GRAND_ACADEMY_COST = 110;      // Was 85 - 29% increase
+export const GRAND_EXPERIMENT_COST = 140;   // Was 105 - 33% increase
+
+// v0.98: Civ-specific starting bonuses
+export const AETHERIAN_EXTRA_STARTING_UNITS = [UnitType.SpearGuard]; // Extra military at start
+export const STARBORNE_EXTRA_STARTING_UNITS = [UnitType.Scout]; // Extra scout for exploration
+// NOTE: JadeCovenant extra settler REMOVED - 80% win rate was too strong
+
+// v0.98: JadeCovenant Population Power - combat bonus per 5 total population
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 5; // +1 combat strength per 5 pop
+
+// v0.98: AetherianVanguard military production bonus
+export const AETHERIAN_MILITARY_PRODUCTION_MULT = 0.75; // 25% faster military production
+
+// v0.98 Update 4: ForgeClans "Master Craftsmen" - 20% faster project completion
+export const FORGE_CLANS_PROJECT_SPEED_MULT = 0.80; // Projects cost 20% less effective production
 
 // Settler
 export const SETTLER_COST = 70;
@@ -141,7 +157,8 @@ export type UnitStats = {
 };
 
 export const UNITS: Record<UnitType, UnitStats> = {
-    [UnitType.Settler]: { atk: 0, def: 0, rng: 1, move: 1, hp: 1, cost: 70, domain: UnitDomain.Civilian, canCaptureCity: false, vision: 2 },
+    // v0.98 Update 3: Settler HP set to 1 for testing
+    [UnitType.Settler]: { atk: 0, def: 2, rng: 1, move: 1, hp: 1, cost: 70, domain: UnitDomain.Civilian, canCaptureCity: false, vision: 2 },
     [UnitType.Scout]: { atk: 1, def: 1, rng: 1, move: 2, hp: 10, cost: 25, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
     [UnitType.SpearGuard]: { atk: 2, def: 2, rng: 1, move: 1, hp: 10, cost: 30, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.BowGuard]: { atk: 2, def: 1, rng: 2, move: 1, hp: 10, cost: 30, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -175,7 +192,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 4, cityAttackBonus: 1 },
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
-    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 200, conditional: "Summons The Titan upon completion" },
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 150, conditional: "Summons The Titan upon completion" }, // v0.98: Reduced from 200
     [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 200, conditional: "The Revelation: completes current tech, grants free tech, +2 Science per city, counts as Observatory milestone" },
     [BuildingType.JadeGranary]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 150, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" },
 };
@@ -221,21 +238,21 @@ export type ProjectData = {
 
 export const PROJECTS: Record<ProjectId, ProjectData> = {
     [ProjectId.Observatory]: {
-        cost: 120,
+        cost: 160,  // v0.98: Increased from 120 (33% increase)
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 165,
+        cost: 210,  // v0.98: Increased from 165 (27% increase)
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 210,
+        cost: 280,  // v0.98: Increased from 210 (33% increase)
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

@@ -1,5 +1,5 @@
 import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId } from "../../core/types.js";
-import { UNITS, TERRAIN, TECHS } from "../../core/constants.js";
+import { UNITS, TERRAIN, TECHS, JADE_COVENANT_POP_COMBAT_BONUS_PER } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
 import { hexLine, hexToString } from "../../core/hex.js";
 
@@ -41,6 +41,25 @@ export function getAetherianHpBonus(player: Player, unitType: UnitType): number 
     return countErasResearched(player);
 }
 
+/**
+ * Get total population across all cities for a player.
+ */
+export function getTotalPopulation(state: GameState, playerId: string): number {
+    return state.cities
+        .filter(c => c.ownerId === playerId)
+        .reduce((sum, c) => sum + c.pop, 0);
+}
+
+/**
+ * v0.98: Get JadeCovenant's "Population Power" combat bonus.
+ * Military units gain +1 attack and defense per 5 total population.
+ */
+export function getJadeCovenantCombatBonus(state: GameState, player: Player): number {
+    if (player.civName !== "JadeCovenant") return 0;
+    const totalPop = getTotalPopulation(state, player.id);
+    return Math.floor(totalPop / JADE_COVENANT_POP_COMBAT_BONUS_PER);
+}
+
 export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     const base = UNITS[unit.type];
     const player = state.players.find(p => p.id === unit.ownerId);
@@ -52,6 +71,14 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     }
     if (player.techs.includes(TechId.DrilledRanks) && (MELEE_TYPES.has(unit.type) || RANGED_TYPES.has(unit.type))) {
         boosted.atk += 1;
+    }
+
+    // v0.98: JadeCovenant "Population Power" - combat bonus based on total population
+    // Only applies to military units (not civilians)
+    if (player.civName === "JadeCovenant" && UNITS[unit.type].domain !== "Civilian") {
+        const popBonus = getJadeCovenantCombatBonus(state, player);
+        boosted.atk += popBonus;
+        boosted.def += popBonus;
     }
 
     return boosted;

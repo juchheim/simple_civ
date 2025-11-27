@@ -2,7 +2,7 @@ import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
 import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
-import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets } from "./units.js";
+import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
 import { tracedApply, TraceEntry, safeClone } from "./trace.js";
 import { setTraceContext, clearTraceContext } from "./shared/actions.js";
@@ -39,6 +39,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = routeCityCaptures(state, playerId);
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
+    
+    // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
+    state = titanRampage(state, playerId);
     
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);
@@ -79,6 +82,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     state = routeCityCaptures(state, playerId);
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
+    
+    // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
+    state = titanRampage(state, playerId);
     
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);

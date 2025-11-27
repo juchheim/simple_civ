@@ -1,5 +1,51 @@
 # Working Memory
 
+- **v0.98 Update 4 - Civ Balance & AI Aggression (Nov 27, 2025):** Based on 50-game analysis showing ForgeClans 8.8% win rate, StarborneSeekers 17.6% win rate with 32.4% elimination, 8% stalled games:
+  - **ForgeClans BUFF**: Added "Master Craftsmen" — Projects complete 25% faster (effective +25% production towards projects). Helps convert strong economy into victories.
+  - **StarborneSeekers BUFF**: Changed starting bonus from 2 Scouts to Scout + SpearGuard. Addresses highest elimination rate by providing defensive capability.
+  - **AI Overwhelming Power**: When a civ has 2x military power over ALL remaining enemies, AI switches to Conquest mode. Addresses stalled games.
+  - **AI "Finish Him"**: AI now prioritizes attacking enemies down to 1-2 cities when AI has 1.5x their power. Siege targeting: Finishable → Capitals → Low HP → Nearest.
+  - **Settler HP**: Set to 1 for balance testing (was 10).
+
+- **v0.98 Update 3 - Settler Survival & Combat Balance (Nov 27, 2025):** Addressed 98.8% settler death rate:
+  - **Settler HP increased from 5 to 10, added 2 Defense**: Settlers can now survive 2-3 attacks to escape
+  - **AetherianVanguard now starts with TWO SpearGuards**: They were being attacked 3x more than they initiated (bullied)
+  - **AI no longer attacks units during peacetime**: Only attacks war enemies now, significantly reducing settler deaths
+  - **AI de-prioritizes settlers**: Now focuses on military threats first instead of hunting settlers
+
+- **v0.98 Update 2 - Simulation Fix & Rebalance (Nov 27, 2025):** Fixed major simulation bias and adjusted civ balance:
+  - **CRITICAL FIX: Civ Selection Randomization** — All simulation files now use seeded random shuffle for civ selection. Previously civs were picked in fixed order (ForgeClans always first, JadeCovenant only on Large/Huge maps), biasing all analysis data.
+  - **JadeCovenant NERF**: Removed extra Settler start — 80% win rate with 17.6 avg cities was way too strong. They keep Population Power (+1 atk/def per 5 pop) and growth bonuses.
+  - **StarborneSeekers MAJOR BUFF**: 0% win rate needed fixing:
+    - NEW: Starts with extra Scout (3 units: Settler, 2x Scout) for faster exploration
+    - NEW: "Stargazers" passive — +1 Science in Capital, +1 bonus Science from worked Sacred Sites
+  - Files updated: `engine/src/sim/comprehensive-analysis.ts`, `engine/src/sim/ai-autoplay.ts`, `engine/src/sim/city-growth-analysis.ts`, `engine/src/map/map-generator.ts`, `engine/src/game/rules.ts`
+
+- **v0.98 MAJOR Civ Rebalance (Nov 27, 2025):** Comprehensive civilization rework based on 50-game AI simulation showing ScholarKingdoms 54% win rate and AetherianVanguard/JadeCovenant 0% win rate:
+  - **ScholarKingdoms MAJOR NERF**: Changed from "+2 Science in Capital" to "+1 Science per Scriptorium/Academy" — gates their bonus behind building investment (40-60 Prod each), no longer free snowball science.
+  - **AetherianVanguard MAJOR BUFF**: 
+    - NEW: Starts with extra SpearGuard (3 units: Settler, Scout, SpearGuard)
+    - Titan's Core cost reduced from 200 to 150 (25% cheaper)
+  - **RiverLeague BUFF**: Added "River Knowledge" — +1 Science in river cities (triple river bonus: +1F, +1P, +1S)
+  - **ForgeClans FIX**: Now correctly gives +1 Production PER worked Hill tile (was only +1 total)
+  - **Progress Victory Slowdown**: Project costs increased significantly:
+    - Observatory: 160 (was 120, +33%)
+    - Grand Academy: 210 (was 165, +27%)
+    - Grand Experiment: 280 (was 210, +33%)
+  - Updated GAME_VERSION to "0.98"
+  - Created docs/rules/simple-civ_v0.98_rulebook.md with all balance changes documented.
+
+- **v0.97 Major Balance Update (Nov 27, 2025):** Major rebalancing based on analysis showing 92.5% settler death rate and civ win rate imbalances:
+  - **Settler HP increased from 1 to 5**: Settlers now survive at least one attack instead of instant death.
+  - **AI Escort Linking**: AI now uses the LinkUnits action to link military escorts to settlers. Linked pairs move together and can't be separated. Escorts move to settler's tile first before linking.
+  - **Proactive Settler Fleeing**: Settlers now flee from ANY nearby foreign military unit (not just war enemies) within 3 tiles. They also wait for escorts before moving into dangerous areas.
+  - **ScholarKingdoms Nerf**: Changed from "+1 Science per city at Pop≥5" to "+2 Science in Capital only". Removes the scaling snowball effect while maintaining a strong early bonus.
+  - **JadeCovenant Buff**: Added "Verdant Growth" passive — +10% faster growth globally (JADE_COVENANT_GROWTH_MULT = 0.9). Stacks with Farmstead (0.9) and Jade Granary (0.85) for maximum 31% faster growth.
+  - **RiverLeague Buff**: Added "River Commerce" passive — +1 Production in cities on river tiles. Combined with +1 Food per river-adjacent tile, this makes rivers extremely valuable.
+  - **Titan's Wrath (AetherianVanguard)**: When a Titan is spawned, AetherianVanguard automatically switches to Conquest mode. Added `titanRampage()` function that makes the Titan aggressively seek out and capture enemy cities, prioritizing capitals. The Titan uses its high movement and attack stats to crush anything in its path.
+  - Updated GAME_VERSION to "0.97".
+  - Created docs/rules/simple-civ_v0.97_rulebook.md with all balance changes documented.
+
 - **v0.96 Balance Update (Nov 26, 2025):** Implemented comprehensive balance changes based on 50 AI vs AI simulation analysis:
   - Fixed settler escort logic: reordered manageSettlerEscorts before moveSettlersAndFound, enhanced assessSettlerSafety to check ALL enemy military within 4 tiles (not just war enemies), require escorts to be adjacent (distance 1), settlers wait for escorts in high threat.
   - Nerfed ScholarKingdoms: Changed +1 Science bonus threshold from Pop ≥3 to Pop ≥5.

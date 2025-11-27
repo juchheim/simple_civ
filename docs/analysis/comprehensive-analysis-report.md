@@ -1,225 +1,6 @@
-# Enhanced Comprehensive Analysis Report
-
-**Date:** 2025-11-26
-**Simulations:** 50 total (10 per map size)
-
----
-
-## 1. Which Civs Win by Which Victory Type
-
-### Victory Distribution by Civilization
-
-#### ScholarKingdoms
-- **Total Wins:** 23
-- **Conquest Victories:** 1 (4.3%)
-- **Progress Victories:** 22 (95.7%)
-
-#### ForgeClans
-- **Total Wins:** 17
-- **Conquest Victories:** 8 (47.1%)
-- **Progress Victories:** 9 (52.9%)
-
-#### StarborneSeekers
-- **Total Wins:** 3
-- **Conquest Victories:** 0 (0.0%)
-- **Progress Victories:** 3 (100.0%)
-
-#### RiverLeague
-- **Total Wins:** 1
-- **Conquest Victories:** 1 (100.0%)
-- **Progress Victories:** 0 (0.0%)
-
-## 2. Accurate Participation & Win Rates per Civ
-
-#### ForgeClans
-- **Games Participated:** 50
-- **Wins:** 17 (34.0% win rate)
-- **Eliminations:** 3 (6.0% elimination rate)
-- **Avg Final Cities:** 5.3
-- **Avg Final Population:** 39.5
-
-#### ScholarKingdoms
-- **Games Participated:** 50
-- **Wins:** 23 (46.0% win rate)
-- **Eliminations:** 14 (28.0% elimination rate)
-- **Avg Final Cities:** 2.3
-- **Avg Final Population:** 15.9
-
-#### RiverLeague
-- **Games Participated:** 40
-- **Wins:** 1 (2.5% win rate)
-- **Eliminations:** 8 (20.0% elimination rate)
-- **Avg Final Cities:** 3.7
-- **Avg Final Population:** 29.5
-
-#### AetherianVanguard
-- **Games Participated:** 30
-- **Wins:** 0 (0.0% win rate)
-- **Eliminations:** 8 (26.7% elimination rate)
-- **Avg Final Cities:** 2.7
-- **Avg Final Population:** 19.0
-
-#### StarborneSeekers
-- **Games Participated:** 20
-- **Wins:** 3 (15.0% win rate)
-- **Eliminations:** 3 (15.0% elimination rate)
-- **Avg Final Cities:** 2.9
-- **Avg Final Population:** 21.4
-
-#### JadeCovenant
-- **Games Participated:** 20
-- **Wins:** 0 (0.0% win rate)
-- **Eliminations:** 4 (20.0% elimination rate)
-- **Avg Final Cities:** 3.0
-- **Avg Final Population:** 20.6
-
-## 3. Why Smaller Maps Stall - Detailed Diagnostics
-
-### Tiny Maps
-- **Games Without Victory:** 2 of 10 (20%)
-- **Detected Stalls:** 0
-
-#### No-Victory Game Details:
-- **Seed 3003:** Reached turn 201, 2 civs, 3 cities, 28 total pop, 5 events in last 10 turns
-- **Seed 5005:** Reached turn 201, 2 civs, 4 cities, 31 total pop, 9 events in last 10 turns
-
-#### Detailed Diagnostics:
-**Seed 3003 (Turn 201):**
-- Recent wars: 0
-- Recent techs: 3
-- Recent projects: 0
-- Civs at end:
-  - ForgeClans: 1 cities, 9 pop, 7 techs, 0 projects, 144 power
-  - ScholarKingdoms: 2 cities, 19 pop, 15 techs, 2 projects, 155 power
-
-**Seed 5005 (Turn 201):**
-- Recent wars: 0
-- Recent techs: 2
-- Recent projects: 0
-- Civs at end:
-  - ForgeClans: 3 cities, 22 pop, 10 techs, 0 projects, 421 power
-  - ScholarKingdoms: 1 cities, 9 pop, 13 techs, 1 projects, 19 power
-
-### Small Maps
-- **Games Without Victory:** 1 of 10 (10%)
-- **Detected Stalls:** 0
-
-#### No-Victory Game Details:
-- **Seed 105005:** Reached turn 201, 3 civs, 8 cities, 68 total pop, 22 events in last 10 turns
-
-#### Detailed Diagnostics:
-**Seed 105005 (Turn 201):**
-- Recent wars: 0
-- Recent techs: 2
-- Recent projects: 0
-- Civs at end:
-  - ForgeClans: 4 cities, 36 pop, 11 techs, 0 projects, 299 power
-  - ScholarKingdoms: 0 cities, 0 pop, 9 techs, 0 projects, 0 power (ELIMINATED)
-  - RiverLeague: 4 cities, 32 pop, 11 techs, 0 projects, 201 power
-
-### Standard Maps
-- **Games Without Victory:** 2 of 10 (20%)
-- **Detected Stalls:** 0
-
-#### No-Victory Game Details:
-- **Seed 202002:** Reached turn 201, 4 civs, 10 cities, 92 total pop, 39 events in last 10 turns
-- **Seed 208008:** Reached turn 201, 4 civs, 14 cities, 125 total pop, 34 events in last 10 turns
-
-#### Detailed Diagnostics:
-**Seed 202002 (Turn 201):**
-- Recent wars: 0
-- Recent techs: 3
-- Recent projects: 4
-- Civs at end:
-  - ForgeClans: 6 cities, 57 pop, 15 techs, 19 projects, 542 power
-  - ScholarKingdoms: 0 cities, 0 pop, 8 techs, 0 projects, 0 power (ELIMINATED)
-  - RiverLeague: 4 cities, 35 pop, 14 techs, 3 projects, 346 power
-  - AetherianVanguard: 0 cities, 0 pop, 6 techs, 0 projects, 0 power (ELIMINATED)
-
-**Seed 208008 (Turn 201):**
-- Recent wars: 0
-- Recent techs: 0
-- Recent projects: 2
-- Civs at end:
-  - ForgeClans: 0 cities, 0 pop, 12 techs, 0 projects, 0 power (ELIMINATED)
-  - ScholarKingdoms: 0 cities, 0 pop, 11 techs, 1 projects, 0 power (ELIMINATED)
-  - RiverLeague: 8 cities, 73 pop, 15 techs, 18 projects, 420 power
-  - AetherianVanguard: 6 cities, 52 pop, 15 techs, 17 projects, 303 power
-
-### Large Maps
-- **Games Without Victory:** 1 of 10 (10%)
-- **Detected Stalls:** 0
-
-#### No-Victory Game Details:
-- **Seed 306006:** Reached turn 201, 6 civs, 25 cities, 195 total pop, 104 events in last 10 turns
-
-#### Detailed Diagnostics:
-**Seed 306006 (Turn 201):**
-- Recent wars: 3
-- Recent techs: 2
-- Recent projects: 5
-- Civs at end:
-  - ForgeClans: 14 cities, 104 pop, 15 techs, 22 projects, 674 power
-  - ScholarKingdoms: 0 cities, 0 pop, 10 techs, 0 projects, 0 power (ELIMINATED)
-  - RiverLeague: 7 cities, 60 pop, 15 techs, 22 projects, 325 power
-  - AetherianVanguard: 3 cities, 23 pop, 12 techs, 0 projects, 76 power
-  - StarborneSeekers: 1 cities, 8 pop, 15 techs, 5 projects, 12 power
-  - JadeCovenant: 0 cities, 0 pop, 2 techs, 0 projects, 0 power (ELIMINATED)
-
-### Huge Maps
-- **Games Without Victory:** 0 of 10 (0%)
-- **Detected Stalls:** 0
-
-## 4. Settler Death Rates vs Production
-
-### Overall Statistics
-- **Total Settlers Produced:** 1007
-- **Total Settlers Killed:** 931
-- **Death Rate:** 92.5%
-
-### By Civilization
-- **ForgeClans:** 248 produced, 238 killed (96.0% death rate)
-- **ScholarKingdoms:** 183 produced, 192 killed (104.9% death rate)
-- **RiverLeague:** 205 produced, 184 killed (89.8% death rate)
-- **AetherianVanguard:** 179 produced, 146 killed (81.6% death rate)
-- **StarborneSeekers:** 83 produced, 75 killed (90.4% death rate)
-- **JadeCovenant:** 109 produced, 96 killed (88.1% death rate)
-
-## 5. Army Usage Patterns
-
-### Overall Statistics
-- **Army Formations:** 68
-- **Army Units Produced:** 0
-- **Army Units Killed:** 29
-
-### By Civilization
-
-## 6. Pop 10 vs Victory Timing Gap
-
-### Overall Statistics
-- **Games with Pop 10 Cities:** 28 of 44 victories
-- **Average Victory Turn:** 161.2
-- **Average Pop 10 Turn:** 148.1
-- **Average Gap:** 13.1 turns (pop 10 before victory)
-
-### By Map Size
-- **Small:** 5 games, avg gap 16.8 turns
-- **Standard:** 6 games, avg gap 17.4 turns
-- **Large:** 8 games, avg gap 15.8 turns
-- **Huge:** 9 games, avg gap 5.9 turns
-
-### By Victory Type
-- **Progress:** 28 games, avg gap 13.1 turns
-
-
----
-
-# Additional Analysis
-
-
 # Comprehensive Simulation Analysis Report
 
-**Date:** 2025-11-26
+**Date:** 2025-11-27
 **Simulations:** 50 total (10 per map size) (AI vs AI)
 **Map Sizes:** Tiny, Small, Standard, Large, Huge (max number of civs allowed per map size: 2 for tiny, 3 for small, 4 for standard, 6 for large, 6 for huge)
 
@@ -229,220 +10,227 @@
 
 ### Overall Statistics
 - **Total Victories:** 44 of 50 (88.0%)
-- **Average Victory Turn:** 137.0
-- **Median Victory Turn:** 149
-- **Victory Turn Range:** [2, 200]
+- **Average Victory Turn:** 150.2
+- **Median Victory Turn:** 166
+- **Victory Turn Range:** [2, 193]
 
 ### Victory Types
-- **Conquest:** 10 (20.0%)
-- **Progress:** 34 (68.0%)
+- **Conquest:** 21 (42.0%)
+- **Progress:** 23 (46.0%)
 - **None:** 6 (12.0%)
 
 ### Victories by Civilization (with Victory Type Breakdown)
-- **ScholarKingdoms:** 23 wins (46.0% of games played)
-  - Conquest: 1, Progress: 22
-- **ForgeClans:** 17 wins (34.0% of games played)
-  - Conquest: 8, Progress: 9
-- **StarborneSeekers:** 3 wins (15.0% of games played)
-  - Conquest: 0, Progress: 3
-- **RiverLeague:** 1 wins (2.5% of games played)
-  - Conquest: 1, Progress: 0
+- **StarborneSeekers:** 9 wins (26.5% of games played)
+  - Conquest: 3, Progress: 6
+- **JadeCovenant:** 9 wins (25.7% of games played)
+  - Conquest: 9, Progress: 0
+- **ScholarKingdoms:** 8 wins (22.2% of games played)
+  - Conquest: 1, Progress: 7
+- **AetherianVanguard:** 8 wins (22.2% of games played)
+  - Conquest: 7, Progress: 1
+- **RiverLeague:** 7 wins (20.0% of games played)
+  - Conquest: 0, Progress: 7
+- **ForgeClans:** 3 wins (8.8% of games played)
+  - Conquest: 1, Progress: 2
 
 ## 2. Warfare Analysis
 
 ### War Statistics
 - **Total Unique Wars:** 396
-- **Total Peace Treaties:** 1549
+- **Total Peace Treaties:** 1735
 - **Average Wars per Game:** 7.9
 
 ### War Durations
 - **Total Wars Tracked:** 396
-- **Average Duration:** 15.2 turns
+- **Average Duration:** 15.4 turns
 - **Median Duration:** 15 turns
-- **Range:** [0, 34] turns
+- **Range:** [15, 52] turns
 
 ### War Initiation by Civilization
-- **ForgeClans:** Initiated 157 (3.1/game), Received 0 (0.0/game)
-- **ScholarKingdoms:** Initiated 109 (2.2/game), Received 48 (1.0/game)
-- **RiverLeague:** Initiated 70 (1.8/game), Received 78 (1.9/game)
-- **AetherianVanguard:** Initiated 40 (1.3/game), Received 90 (3.0/game)
-- **StarborneSeekers:** Initiated 20 (1.0/game), Received 80 (4.0/game)
-- **JadeCovenant:** Initiated 0 (0.0/game), Received 100 (5.0/game)
+- **ForgeClans:** Initiated 49 (1.4/game), Received 85 (2.5/game)
+- **ScholarKingdoms:** Initiated 59 (1.6/game), Received 75 (2.1/game)
+- **RiverLeague:** Initiated 78 (2.2/game), Received 53 (1.5/game)
+- **AetherianVanguard:** Initiated 90 (2.5/game), Received 37 (1.0/game)
+- **StarborneSeekers:** Initiated 66 (1.9/game), Received 62 (1.8/game)
+- **JadeCovenant:** Initiated 54 (1.5/game), Received 84 (2.4/game)
 
 ## 3. Unit Combat Analysis
 
 ### Unit Deaths
-- **Total Units Killed:** 5364
-- **Average per Game:** 107.3
+- **Total Units Killed:** 5801
+- **Average per Game:** 116.0
 
 ### Deaths by Unit Type
-- **SpearGuard:** 1791 deaths (3843 produced, 53.4% survival)
-- **BowGuard:** 1540 deaths (3656 produced, 57.9% survival)
-- **Scout:** 974 deaths (2920 produced, 66.6% survival)
-- **Settler:** 931 deaths (1007 produced, 7.5% survival)
-- **RiverBoat:** 99 deaths (320 produced, 69.1% survival)
-- **ArmyBowGuard:** 26 deaths (0 produced, N/A% survival)
-- **ArmySpearGuard:** 3 deaths (0 produced, N/A% survival)
+- **SpearGuard:** 1675 deaths (3180 produced, 47.3% survival)
+- **BowGuard:** 1667 deaths (4258 produced, 60.9% survival)
+- **Scout:** 1464 deaths (4009 produced, 63.5% survival)
+- **ArmyBowGuard:** 320 deaths (4 produced, -7900.0% survival)
+- **RiverBoat:** 265 deaths (733 produced, 63.8% survival)
+- **Settler:** 244 deaths (1041 produced, 76.6% survival)
+- **ArmySpearGuard:** 161 deaths (1 produced, -16000.0% survival)
+- **Titan:** 5 deaths (65 produced, 92.3% survival)
 
 ### Unit Production by Type
-- **SpearGuard:** 3843 produced
-- **BowGuard:** 3656 produced
-- **Scout:** 2920 produced
-- **Settler:** 1007 produced
-- **RiverBoat:** 320 produced
-- **Titan:** 3 produced
+- **BowGuard:** 4258 produced
+- **Scout:** 4009 produced
+- **SpearGuard:** 3180 produced
+- **Settler:** 1041 produced
+- **RiverBoat:** 733 produced
+- **Titan:** 65 produced
+- **ArmyBowGuard:** 4 produced
+- **ArmySpearGuard:** 1 produced
 
 ## 4. City Growth & Development
 
 ### City Statistics
-- **Total Cities Founded:** 726
-- **Total Cities Captured:** 224
-- **Total Cities Razed:** 0
-- **Cities Reaching Pop 10:** 87
+- **Total Cities Founded:** 758
+- **Total Cities Captured:** 388
+- **Total Cities Razed:** 42
+- **Cities Reaching Pop 10:** 153
 
 ### Population Milestones (Average Turn)
-- **Pop 3:** 82.4 (688 cities)
-- **Pop 5:** 99.6 (653 cities)
-- **Pop 7:** 119.0 (539 cities)
-- **Pop 10:** 156.0 (87 cities) [Range: 100-200]
+- **Pop 3:** 82.4 (672 cities)
+- **Pop 5:** 99.5 (638 cities)
+- **Pop 7:** 119.2 (568 cities)
+- **Pop 10:** 159.2 (153 cities) [Range: 100-200]
 
 ### City Activity by Civilization
-- **ForgeClans:** Founded 193 (3.9/game), Captured 104, Lost 32
-- **ScholarKingdoms:** Founded 142 (2.8/game), Captured 25, Lost 54
-- **RiverLeague:** Founded 145 (3.6/game), Captured 45, Lost 41
-- **AetherianVanguard:** Founded 107 (3.6/game), Captured 27, Lost 52
-- **StarborneSeekers:** Founded 65 (3.3/game), Captured 15, Lost 22
-- **JadeCovenant:** Founded 74 (3.7/game), Captured 8, Lost 23
+- **ForgeClans:** Founded 131 (3.9/game), Captured 68, Lost 81
+- **ScholarKingdoms:** Founded 116 (3.2/game), Captured 38, Lost 60
+- **RiverLeague:** Founded 126 (3.6/game), Captured 41, Lost 69
+- **AetherianVanguard:** Founded 144 (4.0/game), Captured 73, Lost 63
+- **StarborneSeekers:** Founded 102 (3.0/game), Captured 14, Lost 68
+- **JadeCovenant:** Founded 139 (4.0/game), Captured 154, Lost 47
 
 ## 5. Technology Progression
 
 ### Tech Statistics
-- **Total Techs Researched:** 2137
-- **Average per Game:** 42.7
+- **Total Techs Researched:** 2227
+- **Average per Game:** 44.5
 - **Total Techs in Tree:** 15
 
 ### Tech Tree Completion Rate by Civilization
 - **ForgeClans:** 76.8% average tree completion
-- **ScholarKingdoms:** 79.0% average tree completion
-- **RiverLeague:** 67.5% average tree completion
-- **AetherianVanguard:** 59.3% average tree completion
-- **StarborneSeekers:** 74.3% average tree completion
-- **JadeCovenant:** 59.0% average tree completion
+- **ScholarKingdoms:** 66.3% average tree completion
+- **RiverLeague:** 73.9% average tree completion
+- **AetherianVanguard:** 71.8% average tree completion
+- **StarborneSeekers:** 78.8% average tree completion
+- **JadeCovenant:** 67.6% average tree completion
 
 ### Tech Timing (Average Turn Researched)
-- **ScriptLore:** Turn 26.5
-- **Fieldcraft:** Turn 35.2
-- **StoneworkHalls:** Turn 57.9
-- **FormationTraining:** Turn 67.8
-- **TrailMaps:** Turn 68.5
-- **Wellworks:** Turn 82.9
-- **ScholarCourts:** Turn 92.8
-- **TimberMills:** Turn 103.6
-- **DrilledRanks:** Turn 105.7
-- **StarCharts:** Turn 118.7
-- **SteamForges:** Turn 124.4
-- **CityWards:** Turn 126.1
-- **UrbanPlans:** Turn 136.9
-- **SignalRelay:** Turn 139.3
-- **ArmyDoctrine:** Turn 143.9
+- **ScriptLore:** Turn 23.2
+- **Fieldcraft:** Turn 32.8
+- **StoneworkHalls:** Turn 56.6
+- **FormationTraining:** Turn 66.3
+- **TrailMaps:** Turn 67.6
+- **Wellworks:** Turn 78.2
+- **ScholarCourts:** Turn 91.7
+- **TimberMills:** Turn 101.2
+- **DrilledRanks:** Turn 110.3
+- **StarCharts:** Turn 126.7
+- **SteamForges:** Turn 128.0
+- **CityWards:** Turn 129.5
+- **ArmyDoctrine:** Turn 134.7
+- **UrbanPlans:** Turn 137.6
+- **SignalRelay:** Turn 142.9
 
 ## 6. Project Completion
 
 ### Project Statistics
-- **Total Projects Completed:** 225
-- **Average per Game:** 4.5
+- **Total Projects Completed:** 345
+- **Average per Game:** 6.9
 
 ### Project Breakdown
-- **Progress Chain (Observatory/Academy/Experiment):** 153
-- **Form Army Projects:** 68
-- **Unique Building Markers:** 4
+- **Progress Chain (Observatory/Academy/Experiment):** 135
+- **Form Army Projects:** 193
+- **Unique Building Markers:** 17
 
 ### Progress Chain Timing
-- **Observatory:** 68 completions, avg turn 133.9
-- **GrandAcademy:** 50 completions, avg turn 143.4
-- **GrandExperiment:** 35 completions, avg turn 159.0
+- **Observatory:** 69 completions, avg turn 139.0
+- **GrandAcademy:** 43 completions, avg turn 155.3
+- **GrandExperiment:** 23 completions, avg turn 171.5
 
 ### Form Army Usage by Type
-- **FormArmy_SpearGuard:** 19
-- **FormArmy_BowGuard:** 49
+- **FormArmy_SpearGuard:** 92
+- **FormArmy_BowGuard:** 101
 - **FormArmy_Riders:** 0
 
 ## 7. Building Construction
 
 ### Buildings by Type
-- **SpiritObservatory:** 10 built (avg turn 143.5)
-- **JadeGranary:** 4 built (avg turn 88.3)
-- **TitansCore:** 3 built (avg turn 198.3)
+- **TitansCore:** 65 built (avg turn 162.6)
+- **JadeGranary:** 17 built (avg turn 108.1)
+- **SpiritObservatory:** 14 built (avg turn 121.4)
 
 ## 8. Civilization Performance
 
 ### Win Rates & Statistics
 
-#### ScholarKingdoms
-- **Games Played:** 50
-- **Wins:** 23 (46.0% win rate)
-  - Conquest: 1, Progress: 22
-- **Eliminations:** 14
-- **Avg Cities:** 2.3
-- **Avg Population:** 15.9
-- **Avg Techs:** 10.9
-- **Avg Projects:** 1.7
-- **Avg Military Power:** 54.9
-
-#### ForgeClans
-- **Games Played:** 50
-- **Wins:** 17 (34.0% win rate)
-  - Conquest: 8, Progress: 9
-- **Eliminations:** 3
-- **Avg Cities:** 5.3
-- **Avg Population:** 39.5
-- **Avg Techs:** 10.6
-- **Avg Projects:** 6.0
-- **Avg Military Power:** 290.9
-
 #### StarborneSeekers
-- **Games Played:** 20
-- **Wins:** 3 (15.0% win rate)
-  - Conquest: 0, Progress: 3
-- **Eliminations:** 3
-- **Avg Cities:** 2.9
-- **Avg Population:** 21.4
-- **Avg Techs:** 11.2
-- **Avg Projects:** 1.9
-- **Avg Military Power:** 53.7
-
-#### RiverLeague
-- **Games Played:** 40
-- **Wins:** 1 (2.5% win rate)
-  - Conquest: 1, Progress: 0
-- **Eliminations:** 8
-- **Avg Cities:** 3.7
-- **Avg Population:** 29.5
-- **Avg Techs:** 9.9
-- **Avg Projects:** 2.9
-- **Avg Military Power:** 164.4
-
-#### AetherianVanguard
-- **Games Played:** 30
-- **Wins:** 0 (0.0% win rate)
-  - Conquest: 0, Progress: 0
-- **Eliminations:** 8
-- **Avg Cities:** 2.7
-- **Avg Population:** 19.0
-- **Avg Techs:** 8.9
-- **Avg Projects:** 1.6
-- **Avg Military Power:** 77.6
+- **Games Played:** 34
+- **Wins:** 9 (26.5% win rate)
+  - Conquest: 3, Progress: 6
+- **Eliminations:** 13
+- **Avg Cities:** 1.2
+- **Avg Population:** 8.1
+- **Avg Techs:** 11.5
+- **Avg Projects:** 2.1
+- **Avg Military Power:** 21.4
 
 #### JadeCovenant
-- **Games Played:** 20
-- **Wins:** 0 (0.0% win rate)
-  - Conquest: 0, Progress: 0
-- **Eliminations:** 4
-- **Avg Cities:** 3.0
-- **Avg Population:** 20.6
-- **Avg Techs:** 8.8
-- **Avg Projects:** 0.2
-- **Avg Military Power:** 71.8
+- **Games Played:** 35
+- **Wins:** 9 (25.7% win rate)
+  - Conquest: 9, Progress: 0
+- **Eliminations:** 10
+- **Avg Cities:** 7.0
+- **Avg Population:** 54.5
+- **Avg Techs:** 10.1
+- **Avg Projects:** 23.8
+- **Avg Military Power:** 402.9
+
+#### ScholarKingdoms
+- **Games Played:** 36
+- **Wins:** 8 (22.2% win rate)
+  - Conquest: 1, Progress: 7
+- **Eliminations:** 8
+- **Avg Cities:** 2.4
+- **Avg Population:** 18.9
+- **Avg Techs:** 9.7
+- **Avg Projects:** 1.2
+- **Avg Military Power:** 84.8
+
+#### AetherianVanguard
+- **Games Played:** 36
+- **Wins:** 8 (22.2% win rate)
+  - Conquest: 7, Progress: 1
+- **Eliminations:** 9
+- **Avg Cities:** 3.8
+- **Avg Population:** 28.4
+- **Avg Techs:** 10.5
+- **Avg Projects:** 13.4
+- **Avg Military Power:** 233.5
+
+#### RiverLeague
+- **Games Played:** 35
+- **Wins:** 7 (20.0% win rate)
+  - Conquest: 0, Progress: 7
+- **Eliminations:** 9
+- **Avg Cities:** 2.7
+- **Avg Population:** 21.3
+- **Avg Techs:** 10.8
+- **Avg Projects:** 20.2
+- **Avg Military Power:** 161.2
+
+#### ForgeClans
+- **Games Played:** 34
+- **Wins:** 3 (8.8% win rate)
+  - Conquest: 1, Progress: 2
+- **Eliminations:** 7
+- **Avg Cities:** 3.3
+- **Avg Population:** 25.6
+- **Avg Techs:** 11.2
+- **Avg Projects:** 20.9
+- **Avg Military Power:** 183.2
 
 ## 9. Stalls & Issues
 
@@ -451,155 +239,157 @@
 
 ### Stall Diagnostics
 
-#### Stalled Game 1 (Tiny, seed 3003)
+#### Stalled Game 1 (Tiny, seed 4004)
 - **Turn Reached:** 201
 - **Surviving Civs:** 2
-- **Final Cities:** 3
-- **Final Units:** 62
-- **War Declarations:** 2
-- **City Captures:** 0
-- **Observatory Completed:** Yes
-- **Grand Academy Completed:** Yes
-- **Events in Last 50 Turns:** 24
-- **Civ Details:**
-  - ForgeClans: 1 cities, pop 9, power 144, 7 techs
-  - ScholarKingdoms: 2 cities, pop 19, power 155, 15 techs
-
-#### Stalled Game 2 (Tiny, seed 5005)
-- **Turn Reached:** 201
-- **Surviving Civs:** 2
-- **Final Cities:** 4
-- **Final Units:** 89
+- **Final Cities:** 5
+- **Final Units:** 52
 - **War Declarations:** 4
-- **City Captures:** 0
+- **City Captures:** 1
 - **Observatory Completed:** Yes
 - **Grand Academy Completed:** No
-- **Events in Last 50 Turns:** 49
+- **Events in Last 50 Turns:** 70
 - **Civ Details:**
-  - ForgeClans: 3 cities, pop 22, power 421, 10 techs
-  - ScholarKingdoms: 1 cities, pop 9, power 19, 13 techs
+  - AetherianVanguard: 3 cities, pop 28, power 430.6400000000001, 15 techs
+  - ScholarKingdoms: 2 cities, pop 17, power 28, 10 techs
+
+#### Stalled Game 2 (Small, seed 103003)
+- **Turn Reached:** 201
+- **Surviving Civs:** 2
+- **Final Cities:** 12
+- **Final Units:** 171
+- **War Declarations:** 10
+- **City Captures:** 4
+- **Observatory Completed:** Yes
+- **Grand Academy Completed:** Yes
+- **Events in Last 50 Turns:** 196
+- **Civ Details:**
+  - JadeCovenant: 0 cities, pop 0, power 0, 3 techs (ELIMINATED)
+  - ForgeClans: 7 cities, pop 63, power 544, 15 techs
+  - AetherianVanguard: 5 cities, pop 44, power 584.6666666666674, 15 techs
 
 #### Stalled Game 3 (Small, seed 105005)
 - **Turn Reached:** 201
 - **Surviving Civs:** 2
-- **Final Cities:** 8
-- **Final Units:** 96
+- **Final Cities:** 11
+- **Final Units:** 119
+- **War Declarations:** 9
+- **City Captures:** 5
+- **Observatory Completed:** Yes
+- **Grand Academy Completed:** No
+- **Events in Last 50 Turns:** 160
+- **Civ Details:**
+  - ForgeClans: 4 cities, pop 30, power 350, 15 techs
+  - AetherianVanguard: 0 cities, pop 0, power 0, 6 techs (ELIMINATED)
+  - JadeCovenant: 7 cities, pop 50, power 404.8, 15 techs
+
+#### Stalled Game 4 (Small, seed 106006)
+- **Turn Reached:** 201
+- **Surviving Civs:** 3
+- **Final Cities:** 10
+- **Final Units:** 109
 - **War Declarations:** 11
 - **City Captures:** 2
-- **Observatory Completed:** No
-- **Grand Academy Completed:** No
-- **Events in Last 50 Turns:** 137
-- **Civ Details:**
-  - ForgeClans: 4 cities, pop 36, power 299.4, 11 techs
-  - ScholarKingdoms: 0 cities, pop 0, power 0, 9 techs (ELIMINATED)
-  - RiverLeague: 4 cities, pop 32, power 200.6, 11 techs
-
-#### Stalled Game 4 (Standard, seed 202002)
-- **Turn Reached:** 201
-- **Surviving Civs:** 2
-- **Final Cities:** 10
-- **Final Units:** 160
-- **War Declarations:** 23
-- **City Captures:** 6
-- **Observatory Completed:** Yes
-- **Grand Academy Completed:** No
-- **Events in Last 50 Turns:** 193
-- **Civ Details:**
-  - ForgeClans: 6 cities, pop 57, power 542.4000000000001, 15 techs
-  - ScholarKingdoms: 0 cities, pop 0, power 0, 8 techs (ELIMINATED)
-  - RiverLeague: 4 cities, pop 35, power 345.8, 14 techs
-  - AetherianVanguard: 0 cities, pop 0, power 0, 6 techs (ELIMINATED)
-
-#### Stalled Game 5 (Standard, seed 208008)
-- **Turn Reached:** 201
-- **Surviving Civs:** 2
-- **Final Cities:** 14
-- **Final Units:** 101
-- **War Declarations:** 31
-- **City Captures:** 9
 - **Observatory Completed:** Yes
 - **Grand Academy Completed:** Yes
-- **Events in Last 50 Turns:** 192
+- **Events in Last 50 Turns:** 184
 - **Civ Details:**
-  - ForgeClans: 0 cities, pop 0, power 0, 12 techs (ELIMINATED)
-  - ScholarKingdoms: 0 cities, pop 0, power 0, 11 techs (ELIMINATED)
-  - RiverLeague: 8 cities, pop 73, power 420.40000000000003, 15 techs
-  - AetherianVanguard: 6 cities, pop 52, power 302.73333333333335, 15 techs
+  - AetherianVanguard: 7 cities, pop 57, power 663.5200000000011, 15 techs
+  - ForgeClans: 1 cities, pop 8, power 14, 7 techs
+  - JadeCovenant: 2 cities, pop 14, power 112.2, 10 techs
 
-#### Stalled Game 6 (Large, seed 306006)
+#### Stalled Game 5 (Large, seed 305005)
 - **Turn Reached:** 201
 - **Surviving Civs:** 4
-- **Final Cities:** 25
-- **Final Units:** 210
-- **War Declarations:** 81
-- **City Captures:** 13
+- **Final Cities:** 21
+- **Final Units:** 142
+- **War Declarations:** 93
+- **City Captures:** 15
 - **Observatory Completed:** Yes
 - **Grand Academy Completed:** Yes
-- **Events in Last 50 Turns:** 453
+- **Events in Last 50 Turns:** 390
 - **Civ Details:**
-  - ForgeClans: 14 cities, pop 104, power 673.8, 15 techs
-  - ScholarKingdoms: 0 cities, pop 0, power 0, 10 techs (ELIMINATED)
-  - RiverLeague: 7 cities, pop 60, power 325, 15 techs
-  - AetherianVanguard: 3 cities, pop 23, power 76, 12 techs
-  - StarborneSeekers: 1 cities, pop 8, power 12, 15 techs
-  - JadeCovenant: 0 cities, pop 0, power 0, 2 techs (ELIMINATED)
+  - AetherianVanguard: 9 cities, pop 83, power 664.5066666666677, 15 techs
+  - StarborneSeekers: 0 cities, pop 0, power 0, 13 techs (ELIMINATED)
+  - RiverLeague: 5 cities, pop 38, power 241.6, 15 techs
+  - ForgeClans: 5 cities, pop 42, power 230.73333333333332, 15 techs
+  - ScholarKingdoms: 2 cities, pop 15, power 16.2, 14 techs
+  - JadeCovenant: 0 cities, pop 0, power 0, 5 techs (ELIMINATED)
+
+#### Stalled Game 6 (Huge, seed 410010)
+- **Turn Reached:** 201
+- **Surviving Civs:** 2
+- **Final Cities:** 27
+- **Final Units:** 344
+- **War Declarations:** 86
+- **City Captures:** 22
+- **Observatory Completed:** Yes
+- **Grand Academy Completed:** Yes
+- **Events in Last 50 Turns:** 564
+- **Civ Details:**
+  - StarborneSeekers: 0 cities, pop 0, power 0, 7 techs (ELIMINATED)
+  - AetherianVanguard: 8 cities, pop 70, power 132.50666666666666, 15 techs
+  - JadeCovenant: 19 cities, pop 164, power 1596.7333333333333, 15 techs
+  - RiverLeague: 0 cities, pop 0, power 0, 15 techs (ELIMINATED)
+  - ForgeClans: 0 cities, pop 0, power 0, 10 techs (ELIMINATED)
+  - ScholarKingdoms: 0 cities, pop 0, power 0, 7 techs (ELIMINATED)
 
 ## 10. Map Size Analysis
 
 ### Tiny Maps
 - **Simulations:** 10
-- **Victories:** 8 (80.0%)
-  - Conquest: 7, Progress: 1
-- **Average Victory Turn:** 75.0
-- **Victory Turn Range:** [2, 168]
+- **Victories:** 9 (90.0%)
+  - Conquest: 8, Progress: 1
+- **Average Victory Turn:** 109.3
+- **Victory Turn Range:** [2, 191]
 
 ### Small Maps
 - **Simulations:** 10
-- **Victories:** 9 (90.0%)
-  - Conquest: 2, Progress: 7
-- **Average Victory Turn:** 148.3
-- **Victory Turn Range:** [2, 200]
+- **Victories:** 7 (70.0%)
+  - Conquest: 6, Progress: 1
+- **Average Victory Turn:** 136.7
+- **Victory Turn Range:** [2, 188]
 
 ### Standard Maps
 - **Simulations:** 10
-- **Victories:** 8 (80.0%)
-  - Conquest: 1, Progress: 7
-- **Average Victory Turn:** 157.3
-- **Victory Turn Range:** [104, 198]
+- **Victories:** 10 (100.0%)
+  - Conquest: 4, Progress: 6
+- **Average Victory Turn:** 157.4
+- **Victory Turn Range:** [112, 193]
 
 ### Large Maps
 - **Simulations:** 10
 - **Victories:** 9 (90.0%)
   - Conquest: 0, Progress: 9
-- **Average Victory Turn:** 153.8
-- **Victory Turn Range:** [132, 170]
+- **Average Victory Turn:** 173.7
+- **Victory Turn Range:** [159, 189]
 
 ### Huge Maps
 - **Simulations:** 10
-- **Victories:** 10 (100.0%)
-  - Conquest: 0, Progress: 10
-- **Average Victory Turn:** 144.9
-- **Victory Turn Range:** [131, 159]
+- **Victories:** 9 (90.0%)
+  - Conquest: 3, Progress: 6
+- **Average Victory Turn:** 170.1
+- **Victory Turn Range:** [136, 192]
 
 ## 11. Balance Observations
 
 ### Victory Timing vs Pop 10
-- Average Victory Turn: 137.0
-- Average Pop 10 Turn: 156.0
-- **Gap:** 19.1 turns (Pop 10 happens AFTER victory)
+- Average Victory Turn: 150.2
+- Average Pop 10 Turn: 159.2
+- **Gap:** 9.0 turns (Pop 10 happens AFTER victory)
 
 ### Civilization Balance
-- Highest Win Rate: ScholarKingdoms (46.0%)
-- Lowest Win Rate: JadeCovenant (0.0%)
-- **Win Rate Spread:** 46.0 percentage points
+- Highest Win Rate: StarborneSeekers (26.5%)
+- Lowest Win Rate: ForgeClans (8.8%)
+- **Win Rate Spread:** 17.6 percentage points
 
 ### Settler Survival
-- Settlers Produced: 1007
-- Settlers Killed: 931
-- **Settler Survival Rate:** 7.5%
+- Settlers Produced: 1041
+- Settlers Killed: 244
+- **Settler Survival Rate:** 76.6%
 
 ### Army Unit Usage
-- Form Army Projects Completed: 68
-- Army Units in Final States: 0
-- Army Unit Deaths: 29
+- Form Army Projects Completed: 193
+- Army Units in Final States: 5
+- Army Unit Deaths: 481
 

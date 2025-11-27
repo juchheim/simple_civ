@@ -14,7 +14,7 @@ import {
     OverlayType,
     TechId,
 } from "../core/types.js";
-import { MAP_DIMS, MAX_PLAYERS } from "../core/constants.js";
+import { MAP_DIMS, MAX_PLAYERS, UNITS } from "../core/constants.js";
 import { hexEquals, hexToString, hexNeighbor, hexSpiral, getNeighbors, hexDistance } from "../core/hex.js";
 import { getTileYields } from "../game/rules.js";
 import { scoreCitySite } from "../game/ai-heuristics.js";
@@ -148,39 +148,109 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         const spot = startingSpotMap.get(p.id);
         if (!spot) continue;
 
+        // Helper to find a valid spawn position
+        const findSpawnCoord = (excludeCoords: HexCoord[]) => {
+            const neighbors = getNeighbors(spot.coord);
+            const validNeighbors = neighbors.filter(n => {
+                const t = getTile(n);
+                if (!t || t.terrain === TerrainType.Mountain || t.terrain === TerrainType.DeepSea || t.terrain === TerrainType.Coast) return false;
+                // Don't spawn on already used coordinates
+                return !excludeCoords.some(e => hexEquals(e, n));
+            });
+            if (validNeighbors.length > 0) {
+                return rng.choice(validNeighbors);
+            }
+            return spot.coord;
+        };
+
+        const usedCoords: HexCoord[] = [spot.coord];
+
+        // Base Settler (all civs)
+        const settlerStats = UNITS[UnitType.Settler];
         units.push({
             id: `u_${p.id}_settler`,
             type: UnitType.Settler,
             ownerId: p.id,
             coord: spot.coord,
-            hp: 1,
-            maxHp: 1,
-            movesLeft: 1,
+            hp: settlerStats.hp,
+            maxHp: settlerStats.hp,
+            movesLeft: settlerStats.move,
             state: UnitState.Normal,
             hasAttacked: false,
         });
 
+        // Base Scout (all civs)
+        const scoutStats = UNITS[UnitType.Scout];
+        const scoutCoord = findSpawnCoord(usedCoords);
+        usedCoords.push(scoutCoord);
         units.push({
             id: `u_${p.id}_scout`,
             type: UnitType.Scout,
             ownerId: p.id,
-            coord: (() => {
-                const neighbors = getNeighbors(spot.coord);
-                const validNeighbors = neighbors.filter(n => {
-                    const t = getTile(n);
-                    return t && t.terrain !== TerrainType.Mountain && t.terrain !== TerrainType.DeepSea && t.terrain !== TerrainType.Coast;
-                });
-                if (validNeighbors.length > 0) {
-                    return rng.choice(validNeighbors);
-                }
-                return spot.coord;
-            })(),
-            hp: 10,
-            maxHp: 10,
-            movesLeft: 2,
+            coord: scoutCoord,
+            hp: scoutStats.hp,
+            maxHp: scoutStats.hp,
+            movesLeft: scoutStats.move,
             state: UnitState.Normal,
             hasAttacked: false,
         });
+
+        // v0.98 Update 2: AetherianVanguard starts with TWO SpearGuards
+        // They were being attacked 3x more than they initiate (bullied)
+        // Need strong military presence to survive to their Titan power spike
+        if (p.civName === "AetherianVanguard") {
+            const spearStats = UNITS[UnitType.SpearGuard];
+            // First SpearGuard
+            const spearCoord = findSpawnCoord(usedCoords);
+            usedCoords.push(spearCoord);
+            units.push({
+                id: `u_${p.id}_spear`,
+                type: UnitType.SpearGuard,
+                ownerId: p.id,
+                coord: spearCoord,
+                hp: spearStats.hp,
+                maxHp: spearStats.hp,
+                movesLeft: spearStats.move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            });
+            // Second SpearGuard
+            const spear2Coord = findSpawnCoord(usedCoords);
+            usedCoords.push(spear2Coord);
+            units.push({
+                id: `u_${p.id}_spear2`,
+                type: UnitType.SpearGuard,
+                ownerId: p.id,
+                coord: spear2Coord,
+                hp: spearStats.hp,
+                maxHp: spearStats.hp,
+                movesLeft: spearStats.move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            });
+        }
+
+        // v0.98 Update 4: StarborneSeekers starts with a SpearGuard (was extra Scout)
+        // They had highest elimination rate (32.4%) - need defensive capability
+        if (p.civName === "StarborneSeekers") {
+            const spearStats = UNITS[UnitType.SpearGuard];
+            const spearCoord = findSpawnCoord(usedCoords);
+            usedCoords.push(spearCoord);
+            units.push({
+                id: `u_${p.id}_spear`,
+                type: UnitType.SpearGuard,
+                ownerId: p.id,
+                coord: spearCoord,
+                hp: spearStats.hp,
+                maxHp: spearStats.hp,
+                movesLeft: spearStats.move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            });
+        }
+
+        // NOTE: JadeCovenant extra settler REMOVED in v0.98 update
+        // Their 80% win rate with growth bonuses + pop combat bonus was too strong
     }
 
     const initialState = {

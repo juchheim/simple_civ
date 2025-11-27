@@ -182,10 +182,16 @@ function analyzeSettlerStats(results) {
     const settlerProductions = [];
     const byCiv = new Map();
     CIVS.forEach(civ => {
-        byCiv.set(civ, { deaths: 0, productions: 0 });
+        byCiv.set(civ, { deaths: 0, productions: 0, gamesPlayed: 0, citiesFounded: 0 });
     });
     
     results.forEach(sim => {
+        // Track games played per civ
+        sim.finalState?.civs?.forEach(c => {
+            const stats = byCiv.get(c.civName);
+            if (stats) stats.gamesPlayed++;
+        });
+        
         sim.events.forEach(e => {
             if (e.type === "UnitDeath" && e.unitType === "Settler") {
                 settlerDeaths.push({
@@ -208,6 +214,12 @@ function analyzeSettlerStats(results) {
                 if (civ) {
                     const stats = byCiv.get(civ.civName);
                     if (stats) stats.productions++;
+                }
+            } else if (e.type === "CityFound") {
+                const civ = sim.finalState?.civs.find(c => c.id === e.owner);
+                if (civ) {
+                    const stats = byCiv.get(civ.civName);
+                    if (stats) stats.citiesFounded++;
                 }
             }
         });
@@ -408,16 +420,27 @@ MAP_ORDER.forEach(mapSize => {
 
 // QUESTION 4: Settler Stats
 report += `## 4. Settler Death Rates vs Production\n\n`;
+
+// Calculate total starting settlers (2 per civ per game)
+let totalStartingSettlers = 0;
+settlerStats.byCiv.forEach((stats) => {
+    totalStartingSettlers += stats.gamesPlayed * 2;
+});
+const totalSettlers = settlerStats.settlerProductions.length + totalStartingSettlers;
+const overallDeathRate = totalSettlers > 0 ? ((settlerStats.settlerDeaths.length / totalSettlers) * 100).toFixed(1) : 'N/A';
+
 report += `### Overall Statistics\n`;
-report += `- **Total Settlers Produced:** ${settlerStats.settlerProductions.length}\n`;
+report += `- **Total Settlers (produced + starting):** ${totalSettlers} (${settlerStats.settlerProductions.length} produced + ${totalStartingSettlers} starting)\n`;
 report += `- **Total Settlers Killed:** ${settlerStats.settlerDeaths.length}\n`;
-report += `- **Death Rate:** ${((settlerStats.settlerDeaths.length / settlerStats.settlerProductions.length) * 100).toFixed(1)}%\n\n`;
+report += `- **Death Rate:** ${overallDeathRate}%\n\n`;
 
 report += `### By Civilization\n`;
 Array.from(settlerStats.byCiv.entries()).forEach(([civ, stats]) => {
-    if (stats.productions > 0) {
-        const deathRate = ((stats.deaths / stats.productions) * 100).toFixed(1);
-        report += `- **${civ}:** ${stats.productions} produced, ${stats.deaths} killed (${deathRate}% death rate)\n`;
+    if (stats.gamesPlayed > 0) {
+        const startingSettlers = stats.gamesPlayed * 2;
+        const totalAvailable = stats.productions + startingSettlers;
+        const deathRate = totalAvailable > 0 ? ((stats.deaths / totalAvailable) * 100).toFixed(1) : 'N/A';
+        report += `- **${civ}:** ${totalAvailable} total (${stats.productions} produced + ${startingSettlers} starting), ${stats.deaths} killed (${deathRate}% death rate), ${stats.citiesFounded} cities founded\n`;
     }
 });
 report += `\n`;
@@ -425,14 +448,14 @@ report += `\n`;
 // QUESTION 5: Army Usage
 report += `## 5. Army Usage Patterns\n\n`;
 report += `### Overall Statistics\n`;
-report += `- **Army Formations:** ${armyUsage.armyFormations.length}\n`;
-report += `- **Army Units Produced:** ${armyUsage.armyProductions.length}\n`;
-report += `- **Army Units Killed:** ${armyUsage.armyDeaths.length}\n\n`;
+report += `- **Army Formations (via projects):** ${armyUsage.armyFormations.length}\n`;
+report += `- **Army Units Killed:** ${armyUsage.armyDeaths.length}\n`;
+report += `- **Average Deaths per Formation:** ${armyUsage.armyFormations.length > 0 ? (armyUsage.armyDeaths.length / armyUsage.armyFormations.length).toFixed(1) : 'N/A'}\n\n`;
 
 report += `### By Civilization\n`;
 Array.from(armyUsage.byCiv.entries()).forEach(([civ, stats]) => {
-    if (stats.formations > 0 || stats.productions > 0) {
-        report += `- **${civ}:** ${stats.formations} formations, ${stats.productions} produced, ${stats.deaths} killed\n`;
+    if (stats.formations > 0 || stats.deaths > 0) {
+        report += `- **${civ}:** ${stats.formations} formed, ${stats.deaths} killed\n`;
     }
 });
 report += `\n`;

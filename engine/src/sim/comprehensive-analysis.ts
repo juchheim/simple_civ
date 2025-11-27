@@ -71,8 +71,28 @@ type TurnSnapshot = {
     }[];
 };
 
-function civList(limit?: number): { id: string; civName: CivName; color: string; ai: boolean }[] {
-    const civs: CivName[] = [
+// Seeded random number generator for reproducible civ selection
+function seededRandom(seed: number): () => number {
+    let s = seed;
+    return () => {
+        s = Math.imul(48271, s) | 0 % 2147483647;
+        return (s & 2147483647) / 2147483648;
+    };
+}
+
+// Fisher-Yates shuffle with seeded random
+function shuffleWithSeed<T>(array: T[], seed: number): T[] {
+    const result = [...array];
+    const random = seededRandom(seed);
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+}
+
+function civList(limit?: number, seed?: number): { id: string; civName: CivName; color: string; ai: boolean }[] {
+    const allCivs: CivName[] = [
         "ForgeClans",
         "ScholarKingdoms",
         "RiverLeague",
@@ -80,7 +100,9 @@ function civList(limit?: number): { id: string; civName: CivName; color: string;
         "StarborneSeekers",
         "JadeCovenant",
     ];
-    const chosen = limit ? civs.slice(0, limit) : civs;
+    // RANDOMIZE civ selection based on seed so all civs get equal representation
+    const shuffled = seed !== undefined ? shuffleWithSeed(allCivs, seed) : allCivs;
+    const chosen = limit ? shuffled.slice(0, limit) : shuffled;
     const colors = ["#e25822", "#4b9be0", "#2fa866", "#8a4dd2", "#f4b400", "#888888"];
     return chosen.map((civ, idx) => ({
         id: `p${idx + 1}`,
@@ -151,7 +173,8 @@ function createTurnSnapshot(state: GameState): TurnSnapshot {
 }
 
 function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
-    let state = generateWorld({ mapSize, players: civList(playerCount), seed });
+    // Pass seed to civList for randomized civ selection
+    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
     clearWarVetoLog();
     
     // Force initial contact
@@ -212,18 +235,38 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         state = runAiTurn(state, playerId);
 
         // Detect changes and log events
-        // Unit deaths
+        
+        // First, detect city foundings (need this before unit deaths to exclude settlers that founded)
+        const newCityOwners = new Set<string>();
+        state.cities.forEach(c => {
+            if (!beforeCities.has(c.id)) {
+                events.push({
+                    type: "CityFound",
+                    turn: state.turn,
+                    cityId: c.id,
+                    owner: c.ownerId,
+                });
+                newCityOwners.add(c.ownerId);
+            }
+        });
+        
+        // Unit deaths - but exclude settlers that founded cities this turn
         beforeUnits.forEach((prevUnit, unitId) => {
             const currentUnit = state.units.find(u => u.id === unitId);
             if (!currentUnit) {
-                // Unit died - try to find who might have killed it (check recent captures/attacks)
-                events.push({
-                    type: "UnitDeath",
-                    turn: state.turn,
-                    unitId,
-                    unitType: prevUnit.type,
-                    owner: prevUnit.ownerId,
-                });
+                // Check if this is a settler that founded a city (not a real death)
+                const isSettlerWhoFounded = prevUnit.type === "Settler" && newCityOwners.has(prevUnit.ownerId);
+                
+                if (!isSettlerWhoFounded) {
+                    // Unit actually died in combat or was disbanded
+                    events.push({
+                        type: "UnitDeath",
+                        turn: state.turn,
+                        unitId,
+                        unitType: prevUnit.type,
+                        owner: prevUnit.ownerId,
+                    });
+                }
             }
         });
 
@@ -263,18 +306,6 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                     cityId,
                     from: prevCity.ownerId,
                     to: currentCity.ownerId,
-                });
-            }
-        });
-
-        // City foundings
-        state.cities.forEach(c => {
-            if (!beforeCities.has(c.id)) {
-                events.push({
-                    type: "CityFound",
-                    turn: state.turn,
-                    cityId: c.id,
-                    owner: c.ownerId,
                 });
             }
         });
@@ -499,4 +530,6 @@ writeFileSync("/tmp/comprehensive-simulation-results.json", JSON.stringify(allRe
 
 console.error(`✓ Results written to /tmp/comprehensive-simulation-results.json (${allResults.length} simulations total)`);
 console.error(`\nFile size: ${(statSync('/tmp/comprehensive-simulation-results.json').size / 1024 / 1024).toFixed(1)} MB`);
+console.error(`\nSimulation complete. Exiting...`);
+process.exit(0);
 

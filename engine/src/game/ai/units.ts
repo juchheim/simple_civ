@@ -23,6 +23,7 @@ import { nearestByDistance, sortByDistance } from "./shared/metrics.js";
 import { findPath } from "../helpers/pathfinding.js";
 import { getEffectiveUnitStats } from "../helpers/combat.js";
 import { getPersonalityForPlayer } from "./personality.js";
+import { findFinishableEnemies } from "./goals.js";
 
 const primarySiegeMemory = new Map<string, string>();
 
@@ -118,7 +119,13 @@ function detectNearbyDanger(
     settlerCoord: { q: number; r: number },
     playerId: string,
     state: GameState
-): { coord: { q: number; r: number }; distance: number } | null {
+): { coord: { q: number; r: number }; distance: number; isWarEnemy: boolean } | null {
+    // v0.97: Check ALL foreign military units, not just war enemies
+    // Settlers are too valuable to risk - any nearby military is a potential threat
+    const allOtherPlayers = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated)
+        .map(p => p.id);
+
     const warEnemies = state.players
         .filter(p =>
             p.id !== playerId &&
@@ -127,13 +134,23 @@ function detectNearbyDanger(
         )
         .map(p => p.id);
 
-    if (warEnemies.length === 0) return null;
-
+    // Consider all non-civilian enemy units within 3 tiles
     const nearbyEnemies = state.units
-        .filter(u => warEnemies.includes(u.ownerId))
-        .map(u => ({ coord: u.coord, distance: hexDistance(settlerCoord, u.coord) }))
+        .filter(u => 
+            allOtherPlayers.includes(u.ownerId) &&
+            UNITS[u.type].domain !== "Civilian"
+        )
+        .map(u => ({ 
+            coord: u.coord, 
+            distance: hexDistance(settlerCoord, u.coord),
+            isWarEnemy: warEnemies.includes(u.ownerId)
+        }))
         .filter(({ distance }) => distance <= 3)
-        .sort((a, b) => a.distance - b.distance);
+        .sort((a, b) => {
+            // Sort war enemies first, then by distance
+            if (a.isWarEnemy !== b.isWarEnemy) return a.isWarEnemy ? -1 : 1;
+            return a.distance - b.distance;
+        });
 
     return nearbyEnemies.length > 0 ? nearbyEnemies[0] : null;
 }
@@ -210,16 +227,31 @@ function selectPrimarySiegeCity(state: GameState, playerId: string, units: any[]
         return null;
     }
 
-    const candidate = warCities
+    // v0.98 Update 4: "Finish him" - prioritize cities of weak enemies (1-2 cities)
+    const finishableEnemyIds = findFinishableEnemies(playerId, state);
+    const finishableCities = warCities.filter(c => finishableEnemyIds.includes(c.ownerId));
+    
+    const citiesToConsider = finishableCities.length > 0 ? finishableCities : warCities;
+    
+    const candidate = citiesToConsider
         .map(c => ({
             city: c,
             hp: c.hp,
-            dist: Math.min(...units.map(u => hexDistance(u.coord, c.coord)))
+            dist: Math.min(...units.map(u => hexDistance(u.coord, c.coord))),
+            isCapital: c.isCapital ? 0 : 1, // Prioritize capitals
+            isFinishable: finishableEnemyIds.includes(c.ownerId) ? 0 : 1
         }))
         .sort((a, b) => {
+            // v0.98 Update 4: Finishable enemies first, then capitals, then HP, then distance
+            if (a.isFinishable !== b.isFinishable) return a.isFinishable - b.isFinishable;
+            if (a.isCapital !== b.isCapital) return a.isCapital - b.isCapital;
             if (a.hp !== b.hp) return a.hp - b.hp;
             return a.dist - b.dist;
         })[0].city;
+
+    if (finishableEnemyIds.includes(candidate.ownerId)) {
+        console.info(`[AI FINISH HIM] ${playerId} targeting ${candidate.name} (${candidate.ownerId}) - weak enemy with few cities!`);
+    }
 
     primarySiegeMemory.set(playerId, candidate.id);
     return candidate;
@@ -348,8 +380,14 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         // Check safety status using the enhanced assessment
         const safety = assessSettlerSafety(liveSettler.coord, playerId, next);
         
-        // Find adjacent escort (distance 1)
-        const hasAdjacentEscort = next.units.some(u =>
+        // v0.97: Check if settler has a linked escort (they move together)
+        const linkedEscort = liveSettler.linkedUnitId 
+            ? next.units.find(u => u.id === liveSettler.linkedUnitId)
+            : null;
+        const hasLinkedEscort = linkedEscort && hexEquals(linkedEscort.coord, liveSettler.coord);
+        
+        // Find adjacent escort (distance 1) for unlinked settlers
+        const hasAdjacentEscort = hasLinkedEscort || next.units.some(u =>
             u.ownerId === playerId &&
             u.id !== liveSettler.id &&
             UNITS[u.type].domain !== "Civilian" &&
@@ -357,9 +395,16 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             u.movesLeft > 0
         );
 
-        // If high threat and no adjacent escort, DON'T MOVE - wait for escort
-        if (safety.threatLevel === "high" && !hasAdjacentEscort) {
-            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (high threat, no adjacent escort)`);
+        // v0.97: If there's actual danger (low or high threat) and no escort, wait
+        // Note: Only wait if there are actual enemy units nearby, not just for being outside borders
+        if (safety.threatLevel !== "none" && !hasLinkedEscort && !hasAdjacentEscort) {
+            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
+            continue;
+        }
+        
+        // If high threat and no linked escort, DON'T MOVE - wait for escort to link
+        if (safety.threatLevel === "high" && !hasLinkedEscort) {
+            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for linked escort (high threat)`);
             continue;
         }
 
@@ -559,7 +604,8 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
     const militaryUnits = next.units.filter(u =>
         u.ownerId === playerId &&
         UNITS[u.type].domain !== "Civilian" &&
-        u.movesLeft > 0
+        u.movesLeft > 0 &&
+        !u.linkedUnitId // v0.97: Don't reassign already-linked units
     );
     
     // Separate garrison and non-garrison units
@@ -569,16 +615,79 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
     const escortAssignments = new Map<string, string>();
 
     for (const { settler, safety } of sortedSettlers) {
-        // Check if already has adjacent escort
-        const hasAdjacentEscort = next.units.some(u =>
+        // v0.97: Check if settler is already linked to an escort
+        if (settler.linkedUnitId) {
+            const linkedEscort = next.units.find(u => u.id === settler.linkedUnitId);
+            if (linkedEscort && hexEquals(linkedEscort.coord, settler.coord)) {
+                continue; // Already has a linked escort on same tile
+            }
+        }
+        
+        // Check if already has adjacent escort (not linked yet)
+        const adjacentEscort = next.units.find(u =>
             u.ownerId === playerId &&
             u.id !== settler.id &&
             UNITS[u.type].domain !== "Civilian" &&
-            hexDistance(u.coord, settler.coord) <= 1
+            hexEquals(u.coord, settler.coord) && // Must be on SAME tile to link
+            !u.linkedUnitId
         );
         
-        if (hasAdjacentEscort) continue; // Already escorted
+        // v0.97: If escort is on same tile and not linked, LINK THEM!
+        if (adjacentEscort && !settler.linkedUnitId && !adjacentEscort.linkedUnitId) {
+            const linkResult = tryAction(next, {
+                type: "LinkUnits",
+                playerId,
+                unitId: adjacentEscort.id,
+                partnerId: settler.id
+            });
+            if (linkResult !== next) {
+                next = linkResult;
+                console.info(`[AI Escort] ${playerId} linked ${adjacentEscort.type} to settler at ${hexToString(settler.coord)}`);
+                continue;
+            }
+        }
+        
+        // Check if escort is adjacent but not on same tile - move to same tile first
+        const nearbyEscort = next.units.find(u =>
+            u.ownerId === playerId &&
+            u.id !== settler.id &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexDistance(u.coord, settler.coord) === 1 &&
+            u.movesLeft > 0 &&
+            !u.linkedUnitId
+        );
+        
+        if (nearbyEscort) {
+            // Move escort to settler's tile
+            const moveResult = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: nearbyEscort.id,
+                to: settler.coord
+            });
+            if (moveResult !== next) {
+                next = moveResult;
+                // Now try to link
+                const liveEscort = next.units.find(u => u.id === nearbyEscort.id);
+                const liveSettler = next.units.find(u => u.id === settler.id);
+                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) && 
+                    !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
+                    const linkResult = tryAction(next, {
+                        type: "LinkUnits",
+                        playerId,
+                        unitId: liveEscort.id,
+                        partnerId: liveSettler.id
+                    });
+                    if (linkResult !== next) {
+                        next = linkResult;
+                        console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                    }
+                }
+                continue;
+            }
+        }
 
+        // No nearby escort, need to assign one
         // Try to assign from non-garrison units first
         let availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
         
@@ -600,7 +709,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         }
     }
 
-    // Move escorts to their settlers - MUST be adjacent (distance 1), not 2
+    // Move escorts to their settlers - goal is to get to SAME TILE to link
     for (const [escortId, settlerId] of escortAssignments.entries()) {
         const escort = next.units.find(u => u.id === escortId);
         const settler = next.units.find(u => u.id === settlerId);
@@ -609,12 +718,25 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
 
         const distance = hexDistance(escort.coord, settler.coord);
 
-        // Must be ADJACENT (distance 1), not just "within 2"
-        if (distance <= 1) {
-            continue; // Already adjacent, good to go
+        // v0.97: Goal is to reach SAME tile, not just adjacent
+        if (distance === 0) {
+            // On same tile - try to link if not already linked
+            if (!escort.linkedUnitId && !settler.linkedUnitId) {
+                const linkResult = tryAction(next, {
+                    type: "LinkUnits",
+                    playerId,
+                    unitId: escort.id,
+                    partnerId: settler.id
+                });
+                if (linkResult !== next) {
+                    next = linkResult;
+                    console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                }
+            }
+            continue;
         }
 
-        // Use pathfinding to get to settler's tile or adjacent to it
+        // Use pathfinding to get to settler's tile
         const path = findPath(escort.coord, settler.coord, escort, next);
         if (path.length > 0) {
             const moveResult = tryAction(next, {
@@ -625,6 +747,22 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             });
             if (moveResult !== next) {
                 next = moveResult;
+                // Check if now on same tile
+                const liveEscort = next.units.find(u => u.id === escort.id);
+                const liveSettler = next.units.find(u => u.id === settler.id);
+                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
+                    !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
+                    const linkResult = tryAction(next, {
+                        type: "LinkUnits",
+                        playerId,
+                        unitId: liveEscort.id,
+                        partnerId: liveSettler.id
+                    });
+                    if (linkResult !== next) {
+                        next = linkResult;
+                        console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                    }
+                }
             }
         } else {
             // Fallback: step toward settler
@@ -1044,8 +1182,18 @@ export function attackTargets(state: GameState, playerId: string): GameState {
         }
         if (acted) continue;
 
+        // v0.98 Update 2: Only attack units we're at war with
+        // This significantly reduces settler deaths during peacetime
+        const warEnemyIds = next.players
+            .filter(p =>
+                p.id !== playerId &&
+                !p.isEliminated &&
+                next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+            )
+            .map(p => p.id);
+
         const enemyUnits = next.units
-            .filter(u => u.ownerId !== playerId)
+            .filter(u => warEnemyIds.includes(u.ownerId))  // Only war enemies
             .map(u => ({
                 u,
                 d: hexDistance(u.coord, unit.coord),
@@ -1063,8 +1211,9 @@ export function attackTargets(state: GameState, playerId: string): GameState {
                 const aKill = a.dmg >= a.u.hp ? 0 : 1;
                 const bKill = b.dmg >= b.u.hp ? 0 : 1;
                 if (aKill !== bKill) return aKill - bKill;
-                // Prioritize settlers (they're valuable captures)
-                if (a.isSettler !== b.isSettler) return a.isSettler ? -1 : 1;
+                // v0.98 Update 2: De-prioritize settlers - focus on military threats first
+                // This helps reduce the 98.8% settler death rate
+                if (a.isSettler !== b.isSettler) return a.isSettler ? 1 : -1;  // Military units FIRST
                 if (a.d !== b.d) return a.d - b.d;
                 return a.u.hp - b.u.hp;
             });
@@ -1293,5 +1442,192 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
             if (!moved) break;
         }
     }
+    return next;
+}
+
+/**
+ * v0.97: Titan Rampage - aggressive city capture behavior
+ * When AetherianVanguard spawns a Titan, it should immediately go on a rampage:
+ * 1. Declare war on the nearest civ if not at war
+ * 2. Beeline to the nearest enemy city (prioritize capitals)
+ * 3. Attack and capture cities relentlessly
+ */
+export function titanRampage(state: GameState, playerId: string): GameState {
+    let next = state;
+    
+    // Find player's Titan(s)
+    const titans = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Titan);
+    if (titans.length === 0) return next;
+    
+    const player = next.players.find(p => p.id === playerId);
+    if (!player) return next;
+    
+    // Find enemies - if not at war with anyone, the diplomacy system will declare war
+    // based on the aggressive stance (warPowerThresholdLate when Titan is built)
+    const warEnemies = next.players.filter(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+    
+    // Get all enemy cities (prioritize capitals for conquest victory)
+    const enemyCities = next.cities
+        .filter(c => warEnemies.some(e => e.id === c.ownerId))
+        .sort((a, b) => {
+            // Capitals first
+            if (a.isCapital !== b.isCapital) return a.isCapital ? -1 : 1;
+            // Then by HP (weakest first)
+            return a.hp - b.hp;
+        });
+    
+    if (enemyCities.length === 0) {
+        // No war targets - log for debugging
+        console.info(`[AI Titan] ${playerId} Titan has no war targets - waiting for war declaration`);
+        return next;
+    }
+    
+    for (const titan of titans) {
+        let liveTitan = next.units.find(u => u.id === titan.id);
+        if (!liveTitan) continue;
+        
+        // Titan attacks and moves multiple times per turn (high move stat)
+        let safety = 0;
+        while (safety < 5 && liveTitan && liveTitan.movesLeft > 0) {
+            safety++;
+            
+            // First: try to capture any city at 0 HP
+            const capturable = enemyCities.filter(c => c.hp <= 0);
+            for (const city of capturable) {
+                if (hexDistance(liveTitan.coord, city.coord) === 1) {
+                    const moveResult = tryAction(next, {
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: liveTitan.id,
+                        to: city.coord
+                    });
+                    if (moveResult !== next) {
+                        console.info(`[AI Titan] ${playerId} Titan capturing ${city.name}!`);
+                        next = moveResult;
+                        liveTitan = next.units.find(u => u.id === titan.id);
+                        break;
+                    }
+                }
+            }
+            if (!liveTitan || liveTitan.movesLeft <= 0) break;
+            
+            // Second: attack any city in range
+            if (!liveTitan.hasAttacked) {
+                const cityInRange = enemyCities.find(c => 
+                    c.hp > 0 && hexDistance(liveTitan!.coord, c.coord) <= UNITS[UnitType.Titan].rng
+                );
+                if (cityInRange) {
+                    const attackResult = tryAction(next, {
+                        type: "Attack",
+                        playerId,
+                        attackerId: liveTitan.id,
+                        targetId: cityInRange.id,
+                        targetType: "City"
+                    });
+                    if (attackResult !== next) {
+                        console.info(`[AI Titan] ${playerId} Titan attacking ${cityInRange.name} (HP: ${cityInRange.hp})`);
+                        next = attackResult;
+                        liveTitan = next.units.find(u => u.id === titan.id);
+                        
+                        // Try to capture if city fell
+                        const updatedCity = next.cities.find(c => c.id === cityInRange.id);
+                        if (updatedCity && updatedCity.hp <= 0 && liveTitan && hexDistance(liveTitan.coord, updatedCity.coord) === 1) {
+                            const captureResult = tryAction(next, {
+                                type: "MoveUnit",
+                                playerId,
+                                unitId: liveTitan.id,
+                                to: updatedCity.coord
+                            });
+                            if (captureResult !== next) {
+                                console.info(`[AI Titan] ${playerId} Titan capturing ${updatedCity.name}!`);
+                                next = captureResult;
+                                liveTitan = next.units.find(u => u.id === titan.id);
+                            }
+                        }
+                        continue;
+                    }
+                }
+                
+                // Attack enemy units blocking the path
+                const enemyUnitsNearby = next.units
+                    .filter(u => 
+                        warEnemies.some(e => e.id === u.ownerId) &&
+                        hexDistance(u.coord, liveTitan!.coord) <= 1
+                    )
+                    .sort((a, b) => a.hp - b.hp);
+                
+                if (enemyUnitsNearby.length > 0) {
+                    const target = enemyUnitsNearby[0];
+                    const attackResult = tryAction(next, {
+                        type: "Attack",
+                        playerId,
+                        attackerId: liveTitan.id,
+                        targetId: target.id,
+                        targetType: "Unit"
+                    });
+                    if (attackResult !== next) {
+                        console.info(`[AI Titan] ${playerId} Titan crushing ${target.type}!`);
+                        next = attackResult;
+                        liveTitan = next.units.find(u => u.id === titan.id);
+                        continue;
+                    }
+                }
+            }
+            
+            // Third: move toward the nearest enemy city (capital preferred)
+            const nearestCity = [...enemyCities]
+                .map(c => ({ city: c, dist: hexDistance(liveTitan!.coord, c.coord) }))
+                .sort((a, b) => {
+                    // Capitals first
+                    if (a.city.isCapital !== b.city.isCapital) return a.city.isCapital ? -1 : 1;
+                    // Then closest
+                    return a.dist - b.dist;
+                })[0];
+            
+            if (nearestCity && nearestCity.dist > 1) {
+                const path = findPath(liveTitan.coord, nearestCity.city.coord, liveTitan, next);
+                if (path.length > 0) {
+                    const moveResult = tryAction(next, {
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: liveTitan.id,
+                        to: path[0]
+                    });
+                    if (moveResult !== next) {
+                        next = moveResult;
+                        liveTitan = next.units.find(u => u.id === titan.id);
+                        continue;
+                    }
+                }
+                
+                // Fallback: step toward city
+                const neighbors = getNeighbors(liveTitan.coord);
+                const bestNeighbor = neighbors
+                    .map(coord => ({ coord, dist: hexDistance(coord, nearestCity.city.coord) }))
+                    .sort((a, b) => a.dist - b.dist)[0];
+                
+                if (bestNeighbor) {
+                    const moveResult = tryAction(next, {
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: liveTitan.id,
+                        to: bestNeighbor.coord
+                    });
+                    if (moveResult !== next) {
+                        next = moveResult;
+                        liveTitan = next.units.find(u => u.id === titan.id);
+                        continue;
+                    }
+                }
+            }
+            
+            break; // No valid action, exit loop
+        }
+    }
+    
     return next;
 }

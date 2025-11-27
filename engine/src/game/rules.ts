@@ -3,6 +3,7 @@ import {
     City,
     GameState,
     HexCoord,
+    OverlayType,
     Player,
     TerrainType,
     Tile,
@@ -18,6 +19,7 @@ import {
     CITY_CENTER_MIN_PROD,
     FARMSTEAD_GROWTH_MULT,
     JADE_GRANARY_GROWTH_MULT,
+    JADE_COVENANT_GROWTH_MULT,
     GROWTH_FACTORS,
     OVERLAY,
     TERRAIN,
@@ -113,16 +115,39 @@ export function getCityYields(city: City, state: GameState): Yields {
     // Civ traits
     const trait = getCivTrait(state, city.ownerId);
     if (trait === "ForgeClans") {
-        const worksHills = city.workedTiles.some(c => {
+        // ForgeClans: +1 Production per worked Hill tile
+        for (const c of city.workedTiles) {
             const t = state.map.tiles.find(tt => hexEquals(tt.coord, c));
-            return t?.terrain === TerrainType.Hills;
-        });
-        if (worksHills) total.P += 1;
+            if (t?.terrain === TerrainType.Hills) total.P += 1;
+        }
     } else if (trait === "ScholarKingdoms") {
-        // v0.96 balance: Changed from Pop >= 3 to Pop >= 5 to reduce early-game snowball
-        if (city.pop >= 5) total.S += 1;
+        // v0.98 MAJOR NERF: Changed from "+2 in Capital" to "+1 Science per Scriptorium/Academy"
+        // This gates their bonus behind building investment, not free snowball science
+        // ScholarKingdoms now needs to invest Production to get their Science bonus
+        const scholarBuildings = city.buildings.filter(b => 
+            b === BuildingType.Scriptorium || b === BuildingType.Academy
+        ).length;
+        total.S += scholarBuildings;
     } else if (trait === "RiverLeague") {
+        // v0.98 BUFF: Added +1 Science in river cities (in addition to Food and Production)
+        // River cities now give triple bonus: +1F, +1P, +1S
+        const isRiverCity = isTileAdjacentToRiver(state.map, city.coord);
         total.F += riverAdjacencyCount(state.map, city.workedTiles);
+        if (isRiverCity) {
+            total.P += 1;  // River Commerce bonus
+            total.S += 1;  // v0.98: River Knowledge bonus
+        }
+    } else if (trait === "StarborneSeekers") {
+        // v0.98 BUFF: "Stargazers" - +1 Science in Capital, +1 Science per Sacred Site worked
+        // This helps them reach Star Charts and Spirit Observatory faster
+        if (city.isCapital) total.S += 1;
+        // Bonus science from Sacred Sites (they're spiritually attuned)
+        for (const coord of city.workedTiles) {
+            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+            if (tile?.overlays.includes(OverlayType.SacredSite)) {
+                total.S += 1;  // Extra +1 on top of the base Sacred Site bonus
+            }
+        }
     }
 
     // Jade Granary effect: +1 Food per city
@@ -134,18 +159,19 @@ export function getCityYields(city: City, state: GameState): Yields {
     return total;
 }
 
-function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | null {
+function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "StarborneSeekers" | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return null;
     if (player.civName === "ForgeClans") return "ForgeClans";
     if (player.civName === "ScholarKingdoms") return "ScholarKingdoms";
     if (player.civName === "RiverLeague") return "RiverLeague";
+    if (player.civName === "StarborneSeekers") return "StarborneSeekers";
     return null;
 }
 
 // --- Growth ---
 
-export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary: boolean = false): number {
+export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary: boolean = false, civName?: string): number {
     if (pop < 1) return 0; // Should not happen
 
     let cost = BASECOST_POP2; // Cost for 1 -> 2
@@ -161,6 +187,8 @@ export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary
     let mult = 1.0;
     if (hasFarmstead) mult *= FARMSTEAD_GROWTH_MULT;
     if (hasJadeGranary) mult *= JADE_GRANARY_GROWTH_MULT;
+    // v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
+    if (civName === "JadeCovenant") mult *= JADE_COVENANT_GROWTH_MULT;
 
     if (mult < 1.0) {
         return Math.ceil(cost * mult);
