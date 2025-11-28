@@ -7,8 +7,6 @@ import { nearestByDistance } from "../shared/metrics.js";
 import { isAtWar, isScoutType, stepToward } from "./unit-helpers.js";
 
 export function patrolAndExplore(state: GameState, playerId: string): GameState {
-    if (isAtWar(state, playerId)) return state;
-
     let next = state;
     const playerCities = next.cities.filter(c => c.ownerId === playerId);
     if (!playerCities.length) return next;
@@ -50,6 +48,8 @@ export function patrolAndExplore(state: GameState, playerId: string): GameState 
             }
         }
     }
+
+    if (isAtWar(next, playerId)) return next;
 
     const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
 

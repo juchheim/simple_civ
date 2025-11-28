@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { hexEquals } from "../core/hex.js";
 import { DiplomacyState, PlayerPhase, TerrainType, UnitType } from "../core/types.js";
-import { moveMilitaryTowardTargets, rotateGarrisons, routeCityCaptures, repositionRanged } from "./ai/units.js";
+import { moveMilitaryTowardTargets, rotateGarrisons, routeCityCaptures, repositionRanged, defendCities, patrolAndExplore } from "./ai/units.js";
 
 function hex(q: number, r: number) {
     return { q, r };
@@ -117,5 +117,52 @@ describe("ai unit behaviors", () => {
         const moved = moveMilitaryTowardTargets(afterRanged as any, "p");
         const boat = moved.units.find(u => u.id === "boat");
         expect(boat && !hexEquals(boat.coord, hex(0, 2))).toBe(true);
+    });
+    it("does not use Scouts for garrisoning", () => {
+        const state = baseState();
+        const cityCoord = hex(0, 0);
+        state.players = [{ id: "p", isEliminated: false }] as any;
+        state.diplomacy = { p: {} } as any;
+        state.diplomacy.p["e"] = DiplomacyState.War;
+        state.players.push({ id: "e", isEliminated: false } as any);
+        state.cities = [{ id: "c1", ownerId: "p", coord: cityCoord, hp: 20, maxHp: 20, buildings: [] }] as any;
+        state.map.tiles = [
+            tile(cityCoord),
+            tile(hex(1, 0)),
+        ];
+        state.units = [
+            { id: "scout", ownerId: "p", type: UnitType.Scout, coord: hex(1, 0), hp: 10, maxHp: 10, movesLeft: 1 },
+        ] as any;
+
+        const next = defendCities(state as any, "p");
+        const scout = next.units.find(u => u.id === "scout");
+        // Scout should NOT have moved to the city (0,0)
+        expect(scout).toBeDefined();
+        if (scout) {
+            expect(hexEquals(scout.coord, hex(1, 0))).toBe(true);
+        }
+    });
+
+    it("allows Scouts to explore during war", () => {
+        const state = baseState();
+        state.players = [{ id: "p" }, { id: "e" }] as any;
+        state.diplomacy = { p: { e: DiplomacyState.War } } as any;
+        state.cities = [{ id: "c1", ownerId: "p", coord: hex(0, 0) }] as any;
+        state.map.tiles = [
+            tile(hex(0, 0)),
+            tile(hex(1, 0)), // unseen
+        ];
+        state.revealed = { p: ["0,0"] } as any;
+        state.units = [
+            { id: "scout", ownerId: "p", type: UnitType.Scout, coord: hex(0, 0), hp: 10, maxHp: 10, movesLeft: 1 },
+        ] as any;
+
+        const next = patrolAndExplore(state as any, "p");
+        const scout = next.units.find(u => u.id === "scout");
+        // Scout should have moved to (1,0)
+        expect(scout).toBeDefined();
+        if (scout) {
+            expect(hexEquals(scout.coord, hex(1, 0))).toBe(true);
+        }
     });
 });

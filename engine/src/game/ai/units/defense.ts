@@ -8,6 +8,7 @@ import {
     friendlyAdjacencyCount,
     getWarTargets,
     isAtWar,
+    isScoutType,
     shouldUseWarProsecutionMode,
     stepToward,
     tileDefenseScore,
@@ -38,7 +39,8 @@ export function defendCities(state: GameState, playerId: string): GameState {
             u.ownerId === playerId &&
             u.movesLeft > 0 &&
             !reserved.has(u.id) &&
-            u.type !== UnitType.Settler
+            u.type !== UnitType.Settler &&
+            !isScoutType(u.type)
         );
         const nearbyWarEnemies = warEnemyIds.length
             ? next.units.filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, city.coord) <= 3)
@@ -107,6 +109,7 @@ export function defendCities(state: GameState, playerId: string): GameState {
         const defendersInRing = next.units.filter(u =>
             u.ownerId === playerId &&
             UNITS[u.type].domain !== "Civilian" &&
+            !isScoutType(u.type) &&
             hexDistance(u.coord, city.coord) <= 2
         );
         if (defendersInRing.length > 0) continue;
@@ -115,7 +118,8 @@ export function defendCities(state: GameState, playerId: string): GameState {
             u.ownerId === playerId &&
             u.movesLeft > 0 &&
             !reserved.has(u.id) &&
-            UNITS[u.type].domain !== "Civilian"
+            UNITS[u.type].domain !== "Civilian" &&
+            !isScoutType(u.type)
         );
         if (!remaining.length) continue;
 
@@ -167,6 +171,7 @@ export function rotateGarrisons(state: GameState, playerId: string): GameState {
             u.id !== garrison.id &&
             !reserved.has(u.id) &&
             UNITS[u.type].domain !== "Civilian" &&
+            !isScoutType(u.type) &&
             u.movesLeft > 0 &&
             u.hp > garrison.hp &&
             hexDistance(u.coord, city.coord) === 1

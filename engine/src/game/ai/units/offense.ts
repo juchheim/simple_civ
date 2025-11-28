@@ -13,6 +13,7 @@ import {
     expectedDamageToUnit,
     friendlyAdjacencyCount,
     getWarTargets,
+    isScoutType,
     shouldUseWarProsecutionMode,
     selectHeldGarrisons,
     selectPrimarySiegeCity,
@@ -88,7 +89,7 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
 
 export function attackTargets(state: GameState, playerId: string): GameState {
     let next = state;
-    const units = next.units.filter(u => u.ownerId === playerId && u.type !== UnitType.Settler);
+    const units = next.units.filter(u => u.ownerId === playerId && u.type !== UnitType.Settler && !isScoutType(u.type));
     const warTargets = getWarTargets(next, playerId);
     const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
     const warCities = next.cities.filter(c => c.ownerId !== playerId);
@@ -177,7 +178,7 @@ export function attackTargets(state: GameState, playerId: string): GameState {
                     }))
                     .filter(n => n.path.length > 0)
                     .sort((a, b) => a.dist - b.dist)[0];
-                
+
                 if (bestNeighbor) {
                     const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: bestNeighbor.coord });
                     if (moved !== next) {
@@ -210,7 +211,7 @@ export function attackTargets(state: GameState, playerId: string): GameState {
                     }
                 }
             }
-            
+
             const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: target.u.id, targetType: "Unit" });
             if (attacked !== next) {
                 console.info(`[AI ATTACK UNIT] ${playerId} ${unit.type} attacks ${target.u.ownerId} ${target.u.type}, dealing ${target.dmg} damage (HP: ${target.u.hp})`);
@@ -237,7 +238,7 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
     const targetCities = next.cities
         .filter(c => warTargets.some(w => w.id === c.ownerId))
         .sort((a, b) => a.hp - b.hp);
-    const armyUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+    const armyUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian" && !isScoutType(u.type));
     const garrisonCap = warGarrisonCap(next, playerId, isInWarProsecutionMode);
     const heldGarrisons = selectHeldGarrisons(next, playerId, warTargets, garrisonCap);
 
