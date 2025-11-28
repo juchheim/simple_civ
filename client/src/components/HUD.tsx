@@ -2,7 +2,8 @@ import React from "react";
 import { GameState, HexCoord, Action, UnitState } from "@simple-civ/engine";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
-import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel } from "./HUD/sections";
+import { useDiplomacyAlerts } from "./HUD/hooks/use-diplomacy-alerts";
+import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel, DiplomacyAlertModal } from "./HUD/sections";
 import "./HUD/hud.css";
 
 interface HUDProps {
@@ -42,7 +43,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         onSelectUnit,
     });
 
-    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore } = useUnitActions({
+    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore, handleFortifyUnit } = useUnitActions({
         isMyTurn,
         selectedUnit,
         linkCandidate,
@@ -50,6 +51,8 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         playerId,
         onAction,
     });
+
+    const { activeAlert, dismissAlert } = useDiplomacyAlerts(gameState, playerId);
 
     const selectedCity = selectedCoord
         ? cities.find(c => c.coord.q === selectedCoord.q && c.coord.r === selectedCoord.r) ?? null
@@ -246,6 +249,8 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                                 onUnlinkUnits={handleUnlinkUnits}
                                 onFoundCity={handleFoundCity}
                                 onToggleAutoExplore={handleToggleAutoExplore}
+                                onFortifyUnit={handleFortifyUnit}
+                                gameState={gameState}
                             />
                         )}
                     </div>
@@ -292,6 +297,16 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                     />
                 </div>
             </div>
+            {activeAlert && (
+                <DiplomacyAlertModal
+                    alert={activeAlert}
+                    onOpenDiplomacy={() => {
+                        setShowDiplomacy(true);
+                        dismissAlert(activeAlert.id);
+                    }}
+                    onDismiss={() => dismissAlert(activeAlert.id)}
+                />
+            )}
         </div>
     );
 };

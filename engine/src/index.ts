@@ -7,6 +7,7 @@ export * from "./game/rules.js";
 export * from "./game/turn-loop.js";
 export * from "./game/helpers/cities.js";
 export * from "./game/helpers/movement.js";
+export * from "./game/helpers/combat.js";
 export * from "./game/helpers/pathfinding.js";
 export * from "./game/ai-heuristics.js";
 export * from "./game/ai-decisions.js";

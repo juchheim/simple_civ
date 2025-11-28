@@ -248,4 +248,5 @@ export type Action =
     | { type: "ClearAutoMoveTarget"; playerId: string; unitId: string }
     | { type: "SetAutoExplore"; playerId: string; unitId: string }
     | { type: "ClearAutoExplore"; playerId: string; unitId: string }
+    | { type: "FortifyUnit"; playerId: string; unitId: string }
     | { type: "EndTurn"; playerId: string };

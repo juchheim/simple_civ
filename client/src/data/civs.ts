@@ -28,7 +28,7 @@ export const CIV_OPTIONS: CivOption[] = [
         title: "River League",
         summary: "Thrives along waterways with triple yield bonuses.",
         perk: "+1 Food per river-adjacent tile • River cities: +1 Production, +1 Science",
-        color: "#22c55e",
+        color: "#84cc16",
     },
     {
         id: "AetherianVanguard",
@@ -42,14 +42,14 @@ export const CIV_OPTIONS: CivOption[] = [
         title: "The Starborne Seekers",
         summary: "Explorers seeking cosmic enlightenment through technology.",
         perk: "Starts with Scout + SpearGuard • +1 Science per Sacred Site • Units near capital +1 Defense • Spirit Observatory (275)",
-        color: "#14b8a6",
+        color: "#1e3a8a",
     },
     {
         id: "JadeCovenant",
         title: "The Jade Covenant",
         summary: "Masters of growth and population-based military power.",
         perk: "Cities start +5 Food • 10% faster growth • Units +1 Attack/Defense per 8 population • Jade Granary (100)",
-        color: "#eab308",
+        color: "#0f9d58",
     },
 ];
 

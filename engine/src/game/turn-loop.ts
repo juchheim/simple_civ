@@ -9,6 +9,7 @@ import {
     handleClearAutoMoveTarget,
     handleSetAutoExplore,
     handleClearAutoExplore,
+    handleFortifyUnit,
 } from "./actions/units.js";
 import {
     handleCityAttack,
@@ -97,6 +98,9 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "ClearAutoExplore":
             updatedState = handleClearAutoExplore(nextState, action);
+            break;
+        case "FortifyUnit":
+            updatedState = handleFortifyUnit(nextState, action);
             break;
         case "EndTurn":
             updatedState = handleEndTurn(nextState, action);

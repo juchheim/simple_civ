@@ -172,7 +172,7 @@ function completeBuild(state: GameState, city: City) {
         // Apply AetherianVanguard "Battle Hardened" HP bonus
         const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
         const unitHp = UNITS[uType].hp + hpBonus;
-        
+
         state.units.push({
             id: `u_${city.ownerId}_${Date.now()} `,
             type: uType,
@@ -197,7 +197,7 @@ function completeBuild(state: GameState, city: City) {
             // Apply AetherianVanguard "Battle Hardened" HP bonus (Titans are their unique unit!)
             const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
             const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
-            
+
             state.units.push({
                 id: `u_${city.ownerId}_titan_${Date.now()} `,
                 type: UnitType.Titan,
@@ -436,8 +436,22 @@ function processAutoMovement(state: GameState, playerId: string) {
                 if (hexEquals(unit.coord, unit.autoMoveTarget)) {
                     unit.autoMoveTarget = undefined;
                 } else {
-                    // Path blocked? Keep target and try again next turn
-                    // Don't clear unit.autoMoveTarget
+                    // Path blocked? Check if it's permanently blocked by terrain
+                    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, unit.autoMoveTarget!));
+                    if (targetTile) {
+                        const stats = UNITS[unit.type];
+                        const isLand = stats.domain === "Land";
+                        const isNaval = stats.domain === "Naval";
+
+                        let invalid = false;
+                        // Check if terrain is incompatible with unit domain
+                        if (isLand && (targetTile.terrain === "Coast" || targetTile.terrain === "DeepSea" || targetTile.terrain === "Mountain")) invalid = true;
+                        if (isNaval && (targetTile.terrain !== "Coast" && targetTile.terrain !== "DeepSea")) invalid = true;
+
+                        if (invalid) {
+                            unit.autoMoveTarget = undefined;
+                        }
+                    }
                 }
                 break;
             }

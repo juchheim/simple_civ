@@ -1,7 +1,7 @@
 import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
-import { hexEquals } from "../../core/hex.js";
+import { hexEquals, getNeighbors } from "../../core/hex.js";
 import { captureCity } from "./cities.js";
 import { ensureWar } from "./diplomacy.js";
 
@@ -88,6 +88,15 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
             friendlyCivilianOnTile += 1;
         }
     }
+
+    // Peacetime movement restriction
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, target));
+    if (tile && tile.ownerId && tile.ownerId !== playerId) {
+        const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+        if (diplomacy !== "War") {
+            throw new Error("Cannot enter enemy territory during peacetime");
+        }
+    }
 }
 
 export function executeUnitMove(state: GameState, unit: Unit, context: MoveContext, destination: HexCoord, playerId: string) {
@@ -163,3 +172,72 @@ export function enforceLinkedUnitIntegrity(state: GameState) {
     });
 }
 
+export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, territoryOwnerId: string) {
+    const unitsToExpel = state.units.filter(u => {
+        if (u.ownerId !== unitOwnerId) return false;
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, u.coord));
+        return tile && tile.ownerId === territoryOwnerId;
+    });
+
+    for (const unit of unitsToExpel) {
+        // BFS to find nearest valid tile
+        const visited = new Set<string>();
+        const queue: HexCoord[] = [unit.coord];
+        visited.add(`${unit.coord.q},${unit.coord.r}`);
+
+        let foundDest: HexCoord | undefined;
+
+        // Safety break
+        let iterations = 0;
+        const MAX_ITERATIONS = 500;
+
+        while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+            iterations++;
+            const current = queue.shift()!;
+
+            // Check if this tile is valid
+            const tile = state.map.tiles.find(t => hexEquals(t.coord, current));
+            if (tile) {
+                // Must be passable for unit domain
+                const stats = UNITS[unit.type];
+                const isLand = stats.domain === UnitDomain.Land;
+                const isNaval = stats.domain === UnitDomain.Naval;
+
+                let passable = true;
+                if (isLand && (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain")) passable = false;
+                if (isNaval && (tile.terrain !== "Coast" && tile.terrain !== "DeepSea")) passable = false;
+
+                // Must NOT be owned by territoryOwnerId
+                const isSafeTerritory = tile.ownerId !== territoryOwnerId;
+
+                // Must be unoccupied (or occupied by friendly) - for simplicity, let's say unoccupied or friendly stacking allowed?
+                // Actually, stacking rules are strict: 1 military, 1 civilian.
+                // To be safe, let's look for completely empty tiles or tiles where we can stack.
+                // For expulsion, let's just find an empty tile to avoid stacking complexity.
+                const occupied = state.units.some(u => hexEquals(u.coord, current));
+
+                if (passable && isSafeTerritory && !occupied) {
+                    foundDest = current;
+                    break;
+                }
+            }
+
+            // Add neighbors
+            const neighbors = getNeighbors(current);
+            for (const n of neighbors) {
+                const key = `${n.q},${n.r}`;
+                if (!visited.has(key)) {
+                    visited.add(key);
+                    queue.push(n);
+                }
+            }
+        }
+
+        if (foundDest) {
+            unit.coord = foundDest;
+            unit.movesLeft = 0; // Exhaust movement after expulsion
+            unit.autoMoveTarget = undefined;
+            unit.isAutoExploring = false;
+        }
+    }
+}

@@ -23,7 +23,7 @@ type CivName =
     | "StarborneSeekers"
     | "JadeCovenant";
 
-type Event = 
+type Event =
     | { type: "WarDeclaration"; turn: number; initiator: string; target: string; initiatorPower: number; targetPower: number }
     | { type: "PeaceTreaty"; turn: number; civ1: string; civ2: string }
     | { type: "UnitDeath"; turn: number; unitId: string; unitType: UnitType; owner: string; killedBy?: string }
@@ -115,11 +115,11 @@ function civList(limit?: number, seed?: number): { id: string; civName: CivName;
 function calculateCivStats(state: GameState, civId: string) {
     const player = state.players.find(p => p.id === civId);
     if (!player) return null;
-    
+
     const cities = state.cities.filter(c => c.ownerId === civId);
     const units = state.units.filter(u => u.ownerId === civId);
     const totalPop = cities.reduce((sum, c) => sum + c.pop, 0);
-    
+
     // Calculate total production/science (simplified - actual would need yield calculations)
     const totalProduction = cities.reduce((sum, c) => {
         // Estimate based on population and buildings
@@ -130,12 +130,12 @@ function calculateCivStats(state: GameState, civId: string) {
         if (c.buildings.includes(BuildingType.CitySquare)) prod += 1;
         return sum + prod;
     }, 0);
-    
+
     const totalScience = cities.length + // Base 1 per city
         (cities.filter(c => c.buildings.includes(BuildingType.Scriptorium)).length) +
         (cities.filter(c => c.buildings.includes(BuildingType.Academy)).length * 2) +
         (player.techs.includes(TechId.SignalRelay) ? cities.length : 0);
-    
+
     return {
         id: civId,
         civName: player.civName,
@@ -153,7 +153,7 @@ function calculateCivStats(state: GameState, civId: string) {
 
 function createTurnSnapshot(state: GameState): TurnSnapshot {
     const civs = state.players.map(p => calculateCivStats(state, p.id)).filter(s => s !== null) as any[];
-    
+
     return {
         turn: state.turn,
         civs,
@@ -176,7 +176,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     // Pass seed to civList for randomized civ selection
     let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
     clearWarVetoLog();
-    
+
     // Force initial contact
     for (const a of state.players) {
         for (const b of state.players) {
@@ -193,19 +193,19 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     const events: Event[] = [];
     const turnSnapshots: TurnSnapshot[] = [];
     const keyTurns = [25, 50, 75, 100, 125, 150, 175, 200];
-    
+
     // Track wars/peace already logged this turn to avoid duplicates
     const warsLoggedThisTurn = new Set<string>();
     const peaceLoggedThisTurn = new Set<string>();
     const eliminationsLogged = new Set<string>();
-    
+
     let winTurn: number | null = null;
     let lastStatusTurn = 0;
     const STATUS_INTERVAL = 25; // Emit status every 25 turns
 
     while (!state.winnerId && state.turn <= turnLimit) {
         const playerId = state.currentPlayerId;
-        
+
         // Emit status updates periodically
         if (state.turn - lastStatusTurn >= STATUS_INTERVAL) {
             const activeCivs = state.players.filter(p => !p.isEliminated).length;
@@ -214,7 +214,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             console.error(`  [Seed ${seed}] Turn ${state.turn}: ${activeCivs} civs, ${totalCities} cities, ${totalUnits} units`);
             lastStatusTurn = state.turn;
         }
-        
+
         // Capture snapshot BEFORE turn
         const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, hp: u.hp }]));
         const beforeCities = new Map(state.cities.map(c => [c.id, { ownerId: c.ownerId, pop: c.pop, buildings: [...c.buildings] }]));
@@ -222,7 +222,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         const beforeTechs = new Map(state.players.map(p => [p.id, new Set(p.techs)]));
         const beforeProjects = new Map(state.players.map(p => [p.id, new Set(p.completedProjects)]));
         const beforeContacts = new Map(state.players.map(p => [p.id, new Set(Object.keys(state.contacts[p.id] || {}))]));
-        
+
         state.players.forEach(p1 => {
             if (!beforeDiplomacy.has(p1.id)) beforeDiplomacy.set(p1.id, new Map());
             state.players.forEach(p2 => {
@@ -235,7 +235,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         state = runAiTurn(state, playerId);
 
         // Detect changes and log events
-        
+
         // First, detect city foundings (need this before unit deaths to exclude settlers that founded)
         const newCityOwners = new Set<string>();
         state.cities.forEach(c => {
@@ -249,14 +249,14 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                 newCityOwners.add(c.ownerId);
             }
         });
-        
+
         // Unit deaths - but exclude settlers that founded cities this turn
         beforeUnits.forEach((prevUnit, unitId) => {
             const currentUnit = state.units.find(u => u.id === unitId);
             if (!currentUnit) {
                 // Check if this is a settler that founded a city (not a real death)
                 const isSettlerWhoFounded = prevUnit.type === "Settler" && newCityOwners.has(prevUnit.ownerId);
-                
+
                 if (!isSettlerWhoFounded) {
                     // Unit actually died in combat or was disbanded
                     events.push({
@@ -367,7 +367,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             warsLoggedThisTurn.clear();
             peaceLoggedThisTurn.clear();
         }
-        
+
         beforeDiplomacy.forEach((prevDipMap, civ1) => {
             prevDipMap.forEach((prevState, civ2) => {
                 const currentState = state.diplomacy[civ1]?.[civ2] || DiplomacyState.Peace;
@@ -483,8 +483,9 @@ const MAP_CONFIGS: { size: MapSize; maxCivs: number }[] = [
     { size: "Huge", maxCivs: 6 },
 ];
 
-// Run 10 simulations for each map size
-const seeds = [1001, 2002, 3003, 4004, 5005, 6006, 7007, 8008, 9009, 10010];
+// Run 10 simulations for each map size (default), or fewer if configured
+const seedsCount = process.env.SIM_SEEDS_COUNT ? parseInt(process.env.SIM_SEEDS_COUNT) : 10;
+const seeds = [1001, 2002, 3003, 4004, 5005, 6006, 7007, 8008, 9009, 10010].slice(0, seedsCount);
 const allResults: any[] = [];
 
 const totalSims = MAP_CONFIGS.length * seeds.length;
@@ -496,25 +497,25 @@ for (const config of MAP_CONFIGS) {
     console.error(`\n${'='.repeat(60)}`);
     console.error(`Running 10 simulations for ${config.size} map (${config.maxCivs} civs)`);
     console.error(`${'='.repeat(60)}`);
-    
+
     for (let i = 0; i < seeds.length; i++) {
         const seed = seeds[i] + (mapIndex * 100000); // Different seed range per map size
         completedSims++;
         const elapsedSeconds = (Date.now() - startTime) / 1000;
         const avgTime = elapsedSeconds / completedSims;
         const remaining = (totalSims - completedSims) * avgTime;
-        
+
         console.error(`\n[${completedSims}/${totalSims}] Starting ${config.size} simulation ${i + 1}/10 (seed ${seed})`);
         console.error(`  Elapsed: ${elapsedSeconds.toFixed(0)}s | Est. remaining: ${remaining.toFixed(0)}s`);
-        
+
         const result = runComprehensiveSimulation(seed, config.size, 200, config.maxCivs);
         allResults.push(result);
-        
+
         const simEndTime = Date.now();
         const simTime = (simEndTime - startTime) / 1000 - elapsedSeconds;
         console.error(`  ✓ Completed in ${simTime.toFixed(1)}s - Turn ${result.turnReached}, Winner: ${result.winner?.civ || 'None'} (${result.victoryType || 'None'})`);
     }
-    
+
     console.error(`\n✓ Completed all ${config.size} simulations`);
 }
 

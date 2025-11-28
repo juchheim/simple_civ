@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { UnitPanel } from "./UnitPanel";
-import { Unit, UnitState, UnitType } from "@simple-civ/engine";
+import { GameState, PlayerPhase, Unit, UnitState, UnitType } from "@simple-civ/engine";
 
 const createUnit = (overrides: Partial<Unit> = {}): Unit => ({
     id: "unit-1",
@@ -15,6 +15,24 @@ const createUnit = (overrides: Partial<Unit> = {}): Unit => ({
     hasAttacked: false,
     ...overrides,
 });
+
+const mockGameState: GameState = {
+    id: "g1",
+    turn: 1,
+    players: [{ id: "p1", civName: "Civ", color: "red", techs: [], currentTech: null, completedProjects: [], isEliminated: false }],
+    currentPlayerId: "p1",
+    phase: PlayerPhase.Action,
+    map: { width: 10, height: 10, tiles: [] },
+    units: [],
+    cities: [],
+    seed: 1,
+    visibility: {},
+    revealed: {},
+    diplomacy: {},
+    sharedVision: {},
+    contacts: {},
+    diplomacyOffers: [],
+};
 
 describe("UnitPanel", () => {
     it("reflects link button enablement and hides found city when not my turn", () => {
@@ -30,6 +48,8 @@ describe("UnitPanel", () => {
                 onUnlinkUnits={vi.fn()}
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
+                onFortifyUnit={vi.fn()}
+                gameState={mockGameState}
             />,
         );
 
@@ -42,6 +62,7 @@ describe("UnitPanel", () => {
         const onLink = vi.fn();
         const onUnlink = vi.fn();
         const onFoundCity = vi.fn();
+        const onFortify = vi.fn();
         const unit = createUnit();
 
         render(
@@ -55,6 +76,8 @@ describe("UnitPanel", () => {
                 onUnlinkUnits={onUnlink}
                 onFoundCity={onFoundCity}
                 onToggleAutoExplore={vi.fn()}
+                onFortifyUnit={onFortify}
+                gameState={mockGameState}
             />,
         );
 
@@ -65,6 +88,54 @@ describe("UnitPanel", () => {
         expect(onLink).toHaveBeenCalledTimes(1);
         expect(onUnlink).toHaveBeenCalledTimes(1);
         expect(onFoundCity).toHaveBeenCalledTimes(1);
+    });
+
+    it("enables Fortify button for eligible units", () => {
+        const onFortify = vi.fn();
+        const unit = createUnit({ type: UnitType.Scout, movesLeft: 1, state: UnitState.Normal });
+
+        render(
+            <UnitPanel
+                unit={unit}
+                linkedPartner={null}
+                canLinkUnits={false}
+                canUnlinkUnits={false}
+                isMyTurn={true}
+                onLinkUnits={vi.fn()}
+                onUnlinkUnits={vi.fn()}
+                onFoundCity={vi.fn()}
+                onToggleAutoExplore={vi.fn()}
+                onFortifyUnit={onFortify}
+                gameState={mockGameState}
+            />,
+        );
+
+        const btn = screen.getByRole("button", { name: "Fortify" });
+        expect(btn).toBeEnabled();
+        fireEvent.click(btn);
+        expect(onFortify).toHaveBeenCalled();
+    });
+
+    it("disables Fortify button for Settlers", () => {
+        const unit = createUnit({ type: UnitType.Settler, movesLeft: 1 });
+
+        render(
+            <UnitPanel
+                unit={unit}
+                linkedPartner={null}
+                canLinkUnits={false}
+                canUnlinkUnits={false}
+                isMyTurn={true}
+                onLinkUnits={vi.fn()}
+                onUnlinkUnits={vi.fn()}
+                onFoundCity={vi.fn()}
+                onToggleAutoExplore={vi.fn()}
+                onFortifyUnit={vi.fn()}
+                gameState={mockGameState}
+            />,
+        );
+
+        expect(screen.getByRole("button", { name: "Fortify" })).toBeDisabled();
     });
 });
 

@@ -43,7 +43,6 @@ export const MIN_WAR_DURATION = 15; // Minimum turns a war must last
 export const MIN_PEACE_DURATION = 15; // Minimum turns peace must last before declaring war
 
 // Damage Constants
-export const DAMAGE_BASE = 4;
 export const ATTACK_RANDOM_BAND = [-1, 0, 1];
 
 // Fortify / Healing
@@ -116,8 +115,10 @@ export const SETTLER_POP_LOSS_ON_BUILD = 1;
 
 // City Defense
 export const CITY_DEFENSE_BASE = 5;
-export const CITY_WARD_DEFENSE_BONUS = 4;
+export const CITY_WARD_DEFENSE_BONUS = 5;
 export const CITY_ATTACK_BASE = 3;
+export const FORTIFY_DEFENSE_BONUS = 2;
+export const DAMAGE_BASE = 4;
 export const CITY_WARD_ATTACK_BONUS = 1;
 export const CITY_ATTACK_RANGE = 2;
 

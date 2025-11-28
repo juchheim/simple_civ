@@ -1,8 +1,8 @@
-import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, BuildingType } from "../../core/types.js";
-import { 
-    UNITS, 
-    TERRAIN, 
-    TECHS, 
+import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, BuildingType, UnitState } from "../../core/types.js";
+import {
+    UNITS,
+    TERRAIN,
+    TECHS,
     JADE_COVENANT_POP_COMBAT_BONUS_PER,
     FORGE_CLANS_HILL_COMBAT_THRESHOLD,
     FORGE_CLANS_HILL_COMBAT_BONUS,
@@ -11,9 +11,10 @@ import {
     STARBORNE_CAPITAL_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_RADIUS,
+    FORTIFY_DEFENSE_BONUS,
 } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
-import { hexLine, hexToString, hexDistance } from "../../core/hex.js";
+import { hexLine, hexToString, hexDistance, hexEquals } from "../../core/hex.js";
 
 // Engine-era techs for ForgeClans bonus
 const ENGINE_ERA_TECHS = [
@@ -89,7 +90,7 @@ export function getJadeCovenantCombatBonus(state: GameState, player: Player): nu
  */
 export function getForgeClansCombatBonus(state: GameState, player: Player): number {
     if (player.civName !== "ForgeClans") return 0;
-    
+
     // Check if player has any city with enough worked hills
     const citiesWithHills = state.cities.filter(c => {
         if (c.ownerId !== player.id) return false;
@@ -99,7 +100,7 @@ export function getForgeClansCombatBonus(state: GameState, player: Player): numb
         }).length ?? 0;
         return workedHills >= FORGE_CLANS_HILL_COMBAT_THRESHOLD;
     });
-    
+
     // If they have at least one hill-heavy city, their units get the bonus
     return citiesWithHills.length > 0 ? FORGE_CLANS_HILL_COMBAT_BONUS : 0;
 }
@@ -111,7 +112,7 @@ export function getForgeClansCombatBonus(state: GameState, player: Player): numb
  */
 export function getForgeClansEngineBonus(player: Player): number {
     if (player.civName !== "ForgeClans") return 0;
-    
+
     const engineTechCount = ENGINE_ERA_TECHS.filter(tech => player.techs.includes(tech)).length;
     return engineTechCount * FORGE_CLANS_ENGINE_ATTACK_BONUS;
 }
@@ -122,11 +123,11 @@ export function getForgeClansEngineBonus(player: Player): number {
  */
 export function getStarborneCelestialBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "StarborneSeekers") return 0;
-    
+
     // Find player's capital
     const capital = state.cities.find(c => c.ownerId === player.id && c.isCapital);
     if (!capital) return 0;
-    
+
     // Check if unit is within radius of capital
     const dist = hexDistance(unit.coord, capital.coord);
     return dist <= STARBORNE_CAPITAL_DEFENSE_RADIUS ? STARBORNE_CAPITAL_DEFENSE_BONUS : 0;
@@ -139,15 +140,15 @@ export function getStarborneCelestialBonus(state: GameState, player: Player, uni
  */
 export function getScholarKingdomsDefenseBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "ScholarKingdoms") return 0;
-    
+
     // Find any of player's cities with Scriptorium or Academy
-    const scholarCities = state.cities.filter(c => 
-        c.ownerId === player.id && 
+    const scholarCities = state.cities.filter(c =>
+        c.ownerId === player.id &&
         (c.buildings.includes(BuildingType.Scriptorium) || c.buildings.includes(BuildingType.Academy))
     );
-    
+
     if (scholarCities.length === 0) return 0;
-    
+
     // Check if unit is within radius of any scholar city
     for (const city of scholarCities) {
         const dist = hexDistance(unit.coord, city.coord);
@@ -155,7 +156,7 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
             return SCHOLAR_KINGDOMS_DEFENSE_BONUS;
         }
     }
-    
+
     return 0;
 }
 
@@ -185,7 +186,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
         const hillBonus = getForgeClansCombatBonus(state, player);
         boosted.atk += hillBonus;
-        
+
         // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine tech
         const engineBonus = getForgeClansEngineBonus(player);
         boosted.atk += engineBonus;
@@ -206,6 +207,23 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     }
 
     return boosted;
+}
+
+export function getUnitCombatStats(unit: Unit, state: GameState) {
+    const stats = getEffectiveUnitStats(unit, state);
+
+    // Apply terrain defense bonus
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, unit.coord));
+    if (tile) {
+        stats.def += TERRAIN[tile.terrain].defenseMod;
+    }
+
+    // Apply fortification bonus
+    if (unit.state === UnitState.Fortified) {
+        stats.def += FORTIFY_DEFENSE_BONUS;
+    }
+
+    return stats;
 }
 
 export function buildTileLookup(state: GameState): Map<string, Tile> {

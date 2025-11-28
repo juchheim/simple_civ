@@ -44,7 +44,7 @@ export const TurnTasks: React.FC<TurnTasksProps> = ({
             setExpanded(false);
             return;
         }
-        if (blockingTasks.length > 0) {
+        if (blockingTasks.length > 0 || attentionTasks.length > 0) {
             setExpanded(true);
         }
     }, [blockingTasks.length, attentionTasks.length, isMyTurn]);

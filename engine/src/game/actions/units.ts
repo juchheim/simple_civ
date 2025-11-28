@@ -7,6 +7,7 @@ import {
     DAMAGE_MAX,
     DAMAGE_MIN,
     TERRAIN,
+    FORTIFY_DEFENSE_BONUS,
 } from "../../core/constants.js";
 import { hexDistance, hexEquals } from "../../core/hex.js";
 import { refreshPlayerVision } from "../vision.js";
@@ -164,7 +165,7 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
         if (tile) {
             defensePower += TERRAIN[tile.terrain].defenseMod;
         }
-        if (defender.state === UnitState.Fortified) defensePower += 1;
+        if (defender.state === UnitState.Fortified) defensePower += FORTIFY_DEFENSE_BONUS;
 
         const delta = attackPower - defensePower;
         const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
@@ -257,6 +258,21 @@ export function handleClearAutoExplore(state: GameState, action: { type: "ClearA
 
     unit.isAutoExploring = false;
     unit.autoMoveTarget = undefined;
+    return state;
+}
+
+export function handleFortifyUnit(state: GameState, action: { type: "FortifyUnit"; playerId: string; unitId: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    if (!unit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
+    if (unit.movesLeft <= 0) throw new Error("No moves left");
+    if (unit.type === UnitType.Settler) throw new Error("Settlers cannot fortify");
+
+    unit.state = UnitState.Fortified;
+    unit.movesLeft = 0; // Consumes all moves
+    unit.isAutoExploring = false;
+    unit.autoMoveTarget = undefined;
+
     return state;
 }
 

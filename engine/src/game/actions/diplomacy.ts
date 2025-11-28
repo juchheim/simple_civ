@@ -1,5 +1,6 @@
 import { DiplomacyState, GameState } from "../../core/types.js";
 import { assertCanShareVision, assertContact, disableSharedVision, enableSharedVision } from "../helpers/diplomacy.js";
+import { expelUnitsFromTerritory } from "../helpers/movement.js";
 
 export function handleSetDiplomacy(state: GameState, action: { type: "SetDiplomacy"; playerId: string; targetPlayerId: string; state: DiplomacyState }) {
     const a = action.playerId;
@@ -20,6 +21,8 @@ export function handleSetDiplomacy(state: GameState, action: { type: "SetDiploma
     state.diplomacy[b][a] = action.state;
     if (action.state === DiplomacyState.Peace) {
         state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b) && !(o.from === b && o.to === a));
+        expelUnitsFromTerritory(state, a, b);
+        expelUnitsFromTerritory(state, b, a);
     } else {
         disableSharedVision(state, a, b);
     }
@@ -48,6 +51,10 @@ export function handleProposePeace(state: GameState, action: { type: "ProposePea
 
         state.diplomacy[a][b] = DiplomacyState.Peace;
         state.diplomacy[b][a] = DiplomacyState.Peace;
+
+        expelUnitsFromTerritory(state, a, b);
+        expelUnitsFromTerritory(state, b, a);
+
         return state;
     }
 
@@ -75,6 +82,10 @@ export function handleAcceptPeace(state: GameState, action: { type: "AcceptPeace
 
     state.diplomacy[a][b] = DiplomacyState.Peace;
     state.diplomacy[b][a] = DiplomacyState.Peace;
+
+    expelUnitsFromTerritory(state, a, b);
+    expelUnitsFromTerritory(state, b, a);
+
     return state;
 }
 
