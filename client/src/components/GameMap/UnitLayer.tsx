@@ -40,6 +40,17 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 />
             )}
 
+            {/* Civilization color circle - always visible */}
+            <circle
+                cx={0}
+                cy={0}
+                r={UNIT_IMAGE_SIZE * 0.5}
+                fill="none"
+                stroke={color}
+                strokeWidth={3}
+                opacity={0.8}
+            />
+
             <image
                 href={unitImages[unit.type] || ""}
                 x={-unitImageOffset}
