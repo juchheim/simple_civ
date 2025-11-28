@@ -30,6 +30,16 @@ const HEX_POINTS = getHexPoints(HEX_SIZE);
 const HEX_CORNER_OFFSETS = getHexCornerOffsets(HEX_SIZE);
 const FALLBACK_VISIBILITY: TileVisibilityState = { isVisible: false, isFogged: false, isShroud: true };
 
+const RENDER_BUFFER_RADIUS = 2;
+const RENDER_OFFSETS: { q: number; r: number }[] = [];
+for (let q = -RENDER_BUFFER_RADIUS; q <= RENDER_BUFFER_RADIUS; q++) {
+    const r1 = Math.max(-RENDER_BUFFER_RADIUS, -q - RENDER_BUFFER_RADIUS);
+    const r2 = Math.min(RENDER_BUFFER_RADIUS, -q + RENDER_BUFFER_RADIUS);
+    for (let r = r1; r <= r2; r++) {
+        RENDER_OFFSETS.push({ q, r });
+    }
+}
+
 interface GameMapProps {
     gameState: GameState;
     onTileClick: (coord: HexCoord) => void;
@@ -101,6 +111,13 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         hexToPixel,
         onTileClick,
         onHoverTile,
+        initialCenter: useMemo(() => {
+            const unit = units.find(u => u.ownerId === playerId);
+            if (unit) return unit.coord;
+            const city = cities.find(c => c.ownerId === playerId);
+            if (city) return city.coord;
+            return null;
+        }, [units, cities, playerId]),
     });
 
     // Center camera on city when cityToCenter changes
@@ -116,27 +133,46 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         return coordMap;
     }, [cities]);
 
-    const tileRenderData = useMemo<TileRenderEntry[]>(() => {
-        return map.tiles.map(tile => {
-            const key = `${tile.coord.q},${tile.coord.r}`;
-            const visibility = tileVisibility.get(key) ?? FALLBACK_VISIBILITY;
-            const position = hexToPixel(tile.coord);
-            const isSelected = !!(selectedCoord && tile.coord.q === selectedCoord.q && tile.coord.r === selectedCoord.r);
-            const city = citiesByCoord.get(key) ?? null;
-            const isReachable = reachableCoords.has(key);
+    const renderableKeys = useMemo(() => {
+        const keys = new Set<string>();
+        const processSet = (s: Set<string>) => {
+            s.forEach(key => {
+                const parts = key.split(',');
+                const q = parseInt(parts[0], 10);
+                const r = parseInt(parts[1], 10);
+                for (const offset of RENDER_OFFSETS) {
+                    keys.add(`${q + offset.q},${r + offset.r}`);
+                }
+            });
+        };
+        processSet(visibleSet);
+        processSet(revealedSet);
+        return keys;
+    }, [visibleSet, revealedSet]);
 
-            return {
-                key,
-                tile,
-                position,
-                visibility,
-                yields: getTileYieldsWithCiv(tile),
-                isSelected,
-                isReachable,
-                city,
-            };
-        });
-    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords, getTileYieldsWithCiv]);
+    const tileRenderData = useMemo<TileRenderEntry[]>(() => {
+        return map.tiles
+            .filter(tile => renderableKeys.has(`${tile.coord.q},${tile.coord.r}`))
+            .map(tile => {
+                const key = `${tile.coord.q},${tile.coord.r}`;
+                const visibility = tileVisibility.get(key) ?? FALLBACK_VISIBILITY;
+                const position = hexToPixel(tile.coord);
+                const isSelected = !!(selectedCoord && tile.coord.q === selectedCoord.q && tile.coord.r === selectedCoord.r);
+                const city = citiesByCoord.get(key) ?? null;
+                const isReachable = reachableCoords.has(key);
+
+                return {
+                    key,
+                    tile,
+                    position,
+                    visibility,
+                    yields: getTileYieldsWithCiv(tile),
+                    isSelected,
+                    isReachable,
+                    city,
+                };
+            });
+    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords, getTileYieldsWithCiv, renderableKeys]);
 
     const playerColorMap = useMemo(() => {
         const map = new Map<string, string>();

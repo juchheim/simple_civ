@@ -430,6 +430,7 @@ Progress project costs increased significantly to slow down tech victories (62% 
 - **Start fairness**: each civ placed in balanced start zones with access to workable tiles; capitals get civ-specific first name.
 - **Territory**: exclusive ownership; auto-claim rules in section 7.
 - **Vision**: see section 2 for states; shared vision via diplomacy applies after acceptance.
+- **Map Boundaries**: The full map dimensions are hidden from the player. The game only renders visible/revealed tiles plus a 2-tile buffer of shroud. Tiles beyond this buffer are not rendered, appearing as empty void until explored.
 
 ## 16. Diplomacy
 - **Contact**: You must have met another player (units/cities visible) before declaring war or sharing vision.
@@ -459,6 +460,7 @@ Progress project costs increased significantly to slow down tech victories (62% 
   - Show unit selection, link/unlink actions, found city when Settler.
   - Bottom city panel focused on city data; turn panel bottom-right; top tabs for Research, Diplomacy, Codex.
   - Vision states: visible, fogged (seen), shroud (unseen) legend exposed.
+  - **Camera**: Starts centered on the player's initial unit/city at a standard zoom level (1.0). Does not reveal map size by zooming out to fit.
 - **Status colors**: use existing HUD styles (chips/pills) to denote peace/war, garrison, fired, etc.
 
 ## 19. Rules Priority & Engine Hooks

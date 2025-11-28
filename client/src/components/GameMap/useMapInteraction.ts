@@ -17,13 +17,14 @@ type MapInteractionParams = {
     hexToPixel: (hex: HexCoord) => { x: number; y: number };
     onTileClick: (coord: HexCoord) => void;
     onHoverTile: (coord: HexCoord | null) => void;
+    initialCenter?: HexCoord | null;
 };
 
 type PanState = { x: number; y: number };
 type PointerSample = { x: number; y: number; time: number };
 type Velocity = { vx: number; vy: number };
 
-export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile }: MapInteractionParams) => {
+export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile, initialCenter }: MapInteractionParams) => {
     const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1.0);
     const [isPanning, setIsPanning] = useState(false);
@@ -164,48 +165,67 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile 
     useEffect(() => {
         if (hasInitializedRef.current || tiles.length === 0 || !containerRef.current) return;
 
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        tiles.forEach(tile => {
-            const { x, y } = hexToPixel(tile.coord);
-            const hexRadius = HEX_SIZE;
-            minX = Math.min(minX, x - hexRadius);
-            minY = Math.min(minY, y - hexRadius);
-            maxX = Math.max(maxX, x + hexRadius);
-            maxY = Math.max(maxY, y + hexRadius);
-        });
-
-        const mapWidth = maxX - minX;
-        const mapHeight = maxY - minY;
-        const mapCenterX = (minX + maxX) / 2;
-        const mapCenterY = (minY + maxY) / 2;
-
         const container = containerRef.current;
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
 
-        const padding = 50;
-        const scaleX = (containerWidth - padding * 2) / mapWidth;
-        const scaleY = (containerHeight - padding * 2) / mapHeight;
-        const initialZoom = Math.min(scaleX, scaleY, 1.0);
+        if (initialCenter) {
+            // Center on specific coordinate
+            const { x, y } = hexToPixel(initialCenter);
+            const initialZoom = 1.0; // Default gameplay zoom
 
-        const centerX = containerWidth / 2 - mapCenterX * initialZoom;
-        const centerY = containerHeight / 2 - mapCenterY * initialZoom;
+            const centerX = containerWidth / 2 - x * initialZoom;
+            const centerY = containerHeight / 2 - y * initialZoom;
 
-        const initialPan = { x: centerX, y: centerY };
-        setPan(initialPan);
-        panRef.current = initialPan;
-        setPanStart(initialPan);
+            const initialPan = { x: centerX, y: centerY };
+            setPan(initialPan);
+            panRef.current = initialPan;
+            setPanStart(initialPan);
 
-        setZoom(initialZoom);
-        zoomRef.current = initialZoom;
-        targetZoomRef.current = initialZoom;
+            setZoom(initialZoom);
+            zoomRef.current = initialZoom;
+            targetZoomRef.current = initialZoom;
+        } else {
+            // Fallback: Fit all tiles
+            let minX = Infinity;
+            let minY = Infinity;
+            let maxX = -Infinity;
+            let maxY = -Infinity;
+
+            tiles.forEach(tile => {
+                const { x, y } = hexToPixel(tile.coord);
+                const hexRadius = HEX_SIZE;
+                minX = Math.min(minX, x - hexRadius);
+                minY = Math.min(minY, y - hexRadius);
+                maxX = Math.max(maxX, x + hexRadius);
+                maxY = Math.max(maxY, y + hexRadius);
+            });
+
+            const mapWidth = maxX - minX;
+            const mapHeight = maxY - minY;
+            const mapCenterX = (minX + maxX) / 2;
+            const mapCenterY = (minY + maxY) / 2;
+
+            const padding = 50;
+            const scaleX = (containerWidth - padding * 2) / mapWidth;
+            const scaleY = (containerHeight - padding * 2) / mapHeight;
+            const initialZoom = Math.min(scaleX, scaleY, 1.0);
+
+            const centerX = containerWidth / 2 - mapCenterX * initialZoom;
+            const centerY = containerHeight / 2 - mapCenterY * initialZoom;
+
+            const initialPan = { x: centerX, y: centerY };
+            setPan(initialPan);
+            panRef.current = initialPan;
+            setPanStart(initialPan);
+
+            setZoom(initialZoom);
+            zoomRef.current = initialZoom;
+            targetZoomRef.current = initialZoom;
+        }
 
         hasInitializedRef.current = true;
-    }, [tiles, hexToPixel]);
+    }, [tiles, hexToPixel, initialCenter]);
 
     useEffect(() => {
         const svg = svgRef.current;
