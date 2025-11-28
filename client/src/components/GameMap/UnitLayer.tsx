@@ -45,9 +45,7 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 cx={0}
                 cy={0}
                 r={UNIT_IMAGE_SIZE * 0.5}
-                fill="none"
-                stroke={color}
-                strokeWidth={9}
+                fill={color}
                 opacity={0.8}
             />
 
