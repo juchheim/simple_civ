@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hexEquals } from "../core/hex.js";
+import { hexEquals, hexToString } from "../core/hex.js";
 import {
     BuildingType,
     OverlayType,
@@ -159,14 +159,56 @@ describe("ai decisions", () => {
             { id: "c1", ownerId: "p", coord: hex(0, 0), buildings: [], hp: 20, maxHp: 20 },
             { id: "c2", ownerId: "e", coord: hex(0, 8), buildings: [], hp: 20, maxHp: 20 },
         ] as any;
+        const playerCityKey = hexToString(state.cities[0].coord);
+        const enemyCityKey = hexToString(state.cities[1].coord);
+        state.revealed = { p: [playerCityKey, enemyCityKey], e: [enemyCityKey, playerCityKey] } as any;
+        state.visibility = { p: [playerCityKey, enemyCityKey], e: [enemyCityKey, playerCityKey] } as any;
         state.units = [{ id: "a", ownerId: "p", type: UnitType.ArmySpearGuard, coord: hex(0, 0), hp: 15 }] as any;
         expect(aiWarPeaceDecision("p", "e", state as any)).toBe("DeclareWar");
 
         state.diplomacy = { p: { e: DiplomacyState.War }, e: { p: DiplomacyState.War } } as any;
         state.units.push({ id: "b", ownerId: "e", type: UnitType.ArmyRiders, coord: hex(0, 1), hp: 15 } as any);
         state.units.push({ id: "c", ownerId: "e", type: UnitType.ArmyRiders, coord: hex(0, 2), hp: 15 } as any); // ensure enemy power lead
+        state.visibility.p.push(hexToString({ q: 0, r: 1 }), hexToString({ q: 0, r: 2 }));
         state.diplomacyOffers = [{ from: "e", to: "p", type: "Peace" }];
         expect(aiWarPeaceDecision("p", "e", state as any)).toBe("None");
+    });
+
+    it("requires visibility before making contact or declaring war", () => {
+        const template = baseState();
+        template.players = [
+            { id: "p", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, isEliminated: false },
+            { id: "e", civName: "RiverLeague", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, isEliminated: false },
+        ] as any;
+        template.contacts = { p: {}, e: {} } as any;
+        template.diplomacy = { p: { e: DiplomacyState.Peace }, e: { p: DiplomacyState.Peace } } as any;
+        const playerCity = { id: "c1", ownerId: "p", coord: hex(0, 0), buildings: [], hp: 20, maxHp: 20 };
+        const enemyCity = { id: "c2", ownerId: "e", coord: hex(4, 0), buildings: [], hp: 20, maxHp: 20 };
+        template.cities = [playerCity as any, enemyCity as any];
+        template.map.tiles = [
+            ownedTile(playerCity.coord, "p", { hasCityCenter: true }),
+            ownedTile(enemyCity.coord, "e", { hasCityCenter: true }),
+        ] as any;
+        template.units = [
+            { id: "a", ownerId: "p", type: UnitType.ArmySpearGuard, coord: playerCity.coord, hp: 15, maxHp: 15 },
+            { id: "b", ownerId: "e", type: UnitType.SpearGuard, coord: enemyCity.coord, hp: 10, maxHp: 10 },
+        ] as any;
+        const playerCityKey = hexToString(playerCity.coord);
+        const enemyCityKey = hexToString(enemyCity.coord);
+        template.revealed = { p: [playerCityKey], e: [enemyCityKey] } as any;
+        template.visibility = { p: [playerCityKey], e: [enemyCityKey] } as any;
+
+        const hiddenState = cloneState(template);
+        const hiddenDecision = aiWarPeaceDecision("p", "e", hiddenState as any);
+        expect(hiddenDecision).toBe("None");
+        expect(hiddenState.contacts?.p?.e).toBeUndefined();
+
+        const visibleState = cloneState(template);
+        visibleState.visibility.p.push(enemyCityKey);
+        visibleState.revealed.p.push(enemyCityKey);
+        const visibleDecision = aiWarPeaceDecision("p", "e", visibleState as any);
+        expect(visibleState.contacts?.p?.e).toBe(true);
+        expect(visibleDecision).toBe("DeclareWar");
     });
 
     it("applies civ aggression thresholds (ForgeClans declares, Scholar turtling defers)", () => {
@@ -181,6 +223,13 @@ describe("ai decisions", () => {
             { id: "f1", ownerId: "forge", coord: hex(0, 0), buildings: [], hp: 20, maxHp: 20 },
             { id: "s1", ownerId: "scholar", coord: hex(0, 7), buildings: [], hp: 20, maxHp: 20 },
         ] as any;
+        const forgeCityKey = hexToString(state.cities[0].coord);
+        const scholarCityKey = hexToString(state.cities[1].coord);
+        state.revealed = { forge: [forgeCityKey, scholarCityKey], scholar: [scholarCityKey, forgeCityKey] } as any;
+        state.visibility = {
+            forge: [forgeCityKey, scholarCityKey, hexToString({ q: 0, r: 1 })],
+            scholar: [scholarCityKey, forgeCityKey],
+        } as any;
         state.units = [
             { id: "fa", ownerId: "forge", type: UnitType.ArmySpearGuard, coord: hex(0, 0), hp: 15, maxHp: 15 },
             { id: "sa", ownerId: "scholar", type: UnitType.SpearGuard, coord: hex(0, 1), hp: 5, maxHp: 10 },
@@ -548,6 +597,10 @@ describe("ai regression safeguards", () => {
                 hasFiredThisTurn: false,
             } as any,
         ];
+        const playerCityKey = hexToString(state.cities[0].coord);
+        const enemyCityKey = hexToString(state.cities[1].coord);
+        state.revealed = { p: [playerCityKey, enemyCityKey], e: [enemyCityKey, playerCityKey] } as any;
+        state.visibility = { p: [playerCityKey, enemyCityKey], e: [enemyCityKey, playerCityKey] } as any;
         state.units = [
             {
                 id: "army",

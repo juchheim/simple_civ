@@ -75,4 +75,30 @@ describe('Auto Explore', () => {
         const unit = state.units.find(u => u.id === 'u1');
         expect(unit?.isAutoExploring).toBe(false);
     });
+
+    it('should retarget if the closest unexplored tile is unreachable', () => {
+        state.map.tiles = [
+            { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 1, r: 0 }, terrain: TerrainType.DeepSea, overlays: [] },
+            { coord: { q: 2, r: 0 }, terrain: TerrainType.DeepSea, overlays: [] },
+            { coord: { q: 3, r: 0 }, terrain: TerrainType.DeepSea, overlays: [] },
+            { coord: { q: 4, r: 0 }, terrain: TerrainType.Plains, overlays: [] }, // Hidden but unreachable for land units
+            { coord: { q: 0, r: 1 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 0, r: 2 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 0, r: 3 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 0, r: 4 }, terrain: TerrainType.Plains, overlays: [] }, // Hidden but reachable
+        ];
+        state.revealed = { [playerId]: ['0,0'] };
+        state.visibility = { [playerId]: ['0,0'] };
+
+        state = handleSetAutoExplore(state, { type: 'SetAutoExplore', playerId, unitId: 'u1' });
+
+        state = advancePlayerTurn(state, playerId);
+
+        const unit = state.units.find(u => u.id === 'u1');
+        expect(unit?.isAutoExploring).toBe(true);
+        expect(unit?.coord).toEqual({ q: 0, r: 2 }); // Moved toward the reachable target
+        expect(unit?.autoMoveTarget).toEqual({ q: 0, r: 4 });
+        expect(unit?.autoMoveTarget).not.toEqual({ q: 4, r: 0 });
+    });
 });

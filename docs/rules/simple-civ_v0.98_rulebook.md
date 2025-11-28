@@ -433,6 +433,7 @@ Progress project costs increased significantly to slow down tech victories (62% 
 
 ## 16. Diplomacy
 - **Contact**: You must have met another player (units/cities visible) before declaring war or sharing vision.
+- **Known Strength**: Once contact is made, each side sees the other civilization's current military power value in the Diplomacy panel; this number is shared symmetrically and used by AI for war/peace decisions.
 - **War**: Sets stance to War. Both players can attack each other's units and cities.
 - **Peace**: Default stance after contact. Players cannot attack each other.
 - **Propose Peace**: If you are at war, you may propose peace. If the other player also proposes peace (or has an incoming proposal from you), peace is established.
@@ -467,4 +468,3 @@ Progress project costs increased significantly to slow down tech victories (62% 
   - Tech progression: ChooseTech required to spend Science.
   - Vision sharing/diplomacy stored in gameState.sharedVision/diplomacy/diplomacyOffers.
   - Progress tracking: milestones stored via projects (Observatory, Grand Academy, Grand Experiment, JadeGranaryComplete).
-

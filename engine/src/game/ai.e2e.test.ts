@@ -8,7 +8,7 @@ import {
     TerrainType,
     UnitType,
 } from "../core/types.js";
-import { hexEquals, hexSpiral } from "../core/hex.js";
+import { hexEquals, hexSpiral, hexToString } from "../core/hex.js";
 import { runAiTurn } from "./ai.js";
 
 type HexCoord = { q: number; r: number };
@@ -123,6 +123,12 @@ describe("AI end-to-end", () => {
             hasFiredThisTurn: false,
             milestones: [],
         } as any);
+        const playerCityKey = hexToString(state.cities[0].coord);
+        const enemyCityKey = hexToString({ q: 0, r: 8 });
+        state.revealed.p = [playerCityKey, enemyCityKey];
+        state.visibility.p = [playerCityKey, enemyCityKey];
+        state.revealed.e = [enemyCityKey, playerCityKey];
+        state.visibility.e = [enemyCityKey, playerCityKey];
         state.units = [
             { id: "a", ownerId: "p", type: UnitType.ArmySpearGuard, coord: { q: 0, r: 0 }, hp: 15, maxHp: 15, movesLeft: 2, hasAttacked: false, state: "Normal" } as any,
         ];

@@ -1,5 +1,6 @@
 import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../core/constants.js";
-import { hexDistance } from "../core/hex.js";
+import { hexDistance, hexToString } from "../core/hex.js";
+import { estimateMilitaryPower } from "./ai/goals.js";
 import {
     BuildingType,
     DiplomacyState,
@@ -23,24 +24,9 @@ function logVeto(reason: string) {
     if (warVetoLog.length < 1000) warVetoLog.push(reason);
 }
 
-function estimateMilitaryPower(playerId: string, state: GameState): number {
-    const units = state.units.filter(u => u.ownerId === playerId);
-    const unitPower = units.reduce((sum, u) => {
-        const stats = UNITS[u.type];
-        const atk = stats.atk * 2;
-        const def = stats.def * 1.5;
-        const hp = stats.hp * 0.25;
-        const formationBonus = u.type.startsWith("Army") ? 1.25 : 1;
-        return sum + (atk + def + hp) * formationBonus;
-    }, 0);
-
-    const cities = state.cities.filter(c => c.ownerId === playerId);
-    const cityPower = cities.reduce((sum, c) => {
-        const ward = c.buildings.includes(BuildingType.CityWard) ? CITY_WARD_DEFENSE_BONUS : 0;
-        return sum + (CITY_DEFENSE_BASE + ward) * 2 + c.hp * 0.3;
-    }, 0);
-
-    return unitPower + cityPower;
+function getVisibleKeys(state: GameState, observerId?: string): Set<string> {
+    if (!observerId) return new Set();
+    return new Set(state.visibility?.[observerId] ?? []);
 }
 
 function progressRaceRiskHigh(playerId: string, state: GameState): boolean {
@@ -63,7 +49,6 @@ function progressRaceRiskHigh(playerId: string, state: GameState): boolean {
 
 function enemyCityDistance(playerId: string, targetId: string, state: GameState): { dist: number | null; myCities: string[]; theirCities: string[] } {
     const myCities = state.cities.filter(c => c.ownerId === playerId);
-    // Visibility-agnostic: consider all enemy cities
     const theirCities = state.cities.filter(c => c.ownerId === targetId);
     if (!myCities.length || !theirCities.length) return { dist: null, myCities: myCities.map(c => c.id), theirCities: theirCities.map(c => c.id) };
     let best: number | null = null;
@@ -227,8 +212,10 @@ function isStalemate(playerId: string, targetId: string, state: GameState): bool
 
 export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState): WarPeaceDecision {
     if (!state.contacts?.[playerId]?.[targetId]) {
-        // if units/cities are visible, force contact
-        const seesAny = state.units.some(u => u.ownerId === targetId);
+        const visibleKeys = getVisibleKeys(state, playerId);
+        const seesAny =
+            state.units.some(u => u.ownerId === targetId && visibleKeys.has(hexToString(u.coord))) ||
+            state.cities.some(c => c.ownerId === targetId && visibleKeys.has(hexToString(c.coord)));
         if (seesAny) {
             setContact(state, playerId, targetId);
         } else {

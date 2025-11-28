@@ -1,4 +1,4 @@
-import { DiplomacyState, GameState } from "@simple-civ/engine";
+import { DiplomacyState, GameState, estimateMilitaryPower } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId } from "../../../data/civs";
 
 export type DiplomacyRow = {
@@ -13,12 +13,17 @@ export type DiplomacyRow = {
     incomingVision: boolean;
     outgoingVision: boolean;
     atPeace: boolean;
+    power: number;
+    powerDelta: number;
+    selfPower: number;
 };
 
 const civMeta = new Map(CIV_OPTIONS.map(c => [c.id, c]));
 
-export const buildDiplomacyRows = (gameState: GameState, playerId: string): DiplomacyRow[] =>
-    gameState.players
+export const buildDiplomacyRows = (gameState: GameState, playerId: string): DiplomacyRow[] => {
+    const playerPower = estimateMilitaryPower(playerId, gameState);
+
+    return gameState.players
         .filter(p => p.id !== playerId)
         .map(p => {
             const state = gameState.diplomacy[playerId]?.[p.id] ?? DiplomacyState.Peace;
@@ -29,6 +34,7 @@ export const buildDiplomacyRows = (gameState: GameState, playerId: string): Dipl
             const incomingVision = gameState.diplomacyOffers.some(o => o.type === "Vision" && o.from === p.id && o.to === playerId);
             const outgoingVision = gameState.diplomacyOffers.some(o => o.type === "Vision" && o.from === playerId && o.to === p.id);
             const civInfo = civMeta.get(p.civName as CivId);
+            const power = estimateMilitaryPower(p.id, gameState);
 
             return {
                 playerId: p.id,
@@ -42,6 +48,10 @@ export const buildDiplomacyRows = (gameState: GameState, playerId: string): Dipl
                 incomingVision,
                 outgoingVision,
                 atPeace: state === DiplomacyState.Peace,
+                power,
+                powerDelta: power - playerPower,
+                selfPower: playerPower,
             };
         })
         .filter(row => row.hasContact);
+};

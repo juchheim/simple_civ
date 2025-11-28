@@ -485,10 +485,13 @@ function processAutoExplore(state: GameState, playerId: string) {
         if (unit.autoMoveTarget) {
             const targetKey = hexToString(unit.autoMoveTarget);
             if (!revealedSet.has(targetKey)) {
-                // Target is still unexplored, keep going
-                continue;
+                const pathToTarget = findPath(unit.coord, unit.autoMoveTarget, unit, state);
+                if (pathToTarget.length > 0) {
+                    // Target is still unexplored and reachable, keep going
+                    continue;
+                }
             }
-            // Target became explored, find new one
+            // Target became explored or unreachable, find new one
             unit.autoMoveTarget = undefined;
         }
 
@@ -498,17 +501,19 @@ function processAutoExplore(state: GameState, playerId: string) {
 
         for (const tile of unexploredTiles) {
             const dist = hexDistance(unit.coord, tile.coord);
-            if (dist < minDist) {
-                minDist = dist;
-                bestTile = tile;
-            }
+            if (dist >= minDist) continue;
+
+            const path = findPath(unit.coord, tile.coord, unit, state);
+            if (path.length === 0) continue;
+
+            minDist = dist;
+            bestTile = tile;
         }
 
         if (bestTile) {
             unit.autoMoveTarget = bestTile.coord;
         } else {
-            // Should be covered by the initial check, but just in case
-            unit.isAutoExploring = false;
+            unit.autoMoveTarget = undefined;
         }
     }
 }

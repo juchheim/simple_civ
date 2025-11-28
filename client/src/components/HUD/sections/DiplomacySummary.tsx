@@ -15,6 +15,10 @@ export const DiplomacySummary: React.FC<DiplomacySummaryProps> = ({ rows, player
         <div className="hud-menu-scroll">
             {rows.length === 0 && <div className="hud-subtext warn">No civilizations encountered yet.</div>}
             {rows.map(row => {
+                const power = Math.round(row.power);
+                const selfPower = Math.round(row.selfPower);
+                const gap = Math.round(row.powerDelta);
+                const gapLabel = gap === 0 ? "Even" : gap > 0 ? `+${gap}` : `${gap}`;
                 const pillClass =
                     row.state === DiplomacyState.War
                         ? "hud-pill danger"
@@ -29,6 +33,9 @@ export const DiplomacySummary: React.FC<DiplomacySummaryProps> = ({ rows, player
                                 {row.civTitle}
                             </p>
                             <span className={pillClass}>{row.state}</span>
+                        </div>
+                        <div className="hud-subtext" style={{ marginTop: 4 }}>
+                            Military power: {power} (you: {selfPower}, gap: {gapLabel})
                         </div>
                         <div className="diplomacy-row__actions">
                             <button
