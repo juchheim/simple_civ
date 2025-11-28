@@ -10,6 +10,7 @@ export type UnitDescriptor = {
     isLinkedPartner: boolean;
     showLinkIcon: boolean;
     color: string;
+    isOnCityHex?: boolean;
 };
 
 type UnitLayerProps = {

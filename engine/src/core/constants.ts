@@ -110,7 +110,7 @@ export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 2; // Tiles from Scriptorium/Acad
 export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense (stronger than Starborne to help them survive)
 
 // Settler
-export const SETTLER_COST = 70;
+export const SETTLER_COST = 20;
 export const SETTLER_POP_LOSS_ON_BUILD = 1;
 
 // City Defense
@@ -179,11 +179,11 @@ export type UnitStats = {
 
 export const UNITS: Record<UnitType, UnitStats> = {
     // v0.98 Update 3: Settler HP set to 1 for testing
-    [UnitType.Settler]: { atk: 0, def: 2, rng: 1, move: 1, hp: 1, cost: 70, domain: UnitDomain.Civilian, canCaptureCity: false, vision: 2 },
+    [UnitType.Settler]: { atk: 0, def: 2, rng: 1, move: 1, hp: 1, cost: 20, domain: UnitDomain.Civilian, canCaptureCity: false, vision: 2 },
     [UnitType.Scout]: { atk: 1, def: 1, rng: 1, move: 2, hp: 10, cost: 25, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
     [UnitType.SpearGuard]: { atk: 2, def: 2, rng: 1, move: 1, hp: 10, cost: 30, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.BowGuard]: { atk: 2, def: 1, rng: 2, move: 1, hp: 10, cost: 30, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
-    [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 40, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 35, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.RiverBoat]: { atk: 2, def: 2, rng: 1, move: 3, hp: 10, cost: 35, domain: UnitDomain.Naval, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyScout]: { atk: 3, def: 3, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
     [UnitType.ArmySpearGuard]: { atk: 4, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },

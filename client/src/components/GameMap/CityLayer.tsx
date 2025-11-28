@@ -29,7 +29,7 @@ const darkenColor = (color: string, amount: number = 0.3): string => {
     return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
 };
 
-export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPoints }) => {
+export const CityImageLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPoints }) => {
     const imageOffset = CITY_IMAGE_SIZE / 2;
 
     return (
@@ -37,10 +37,9 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
             {overlays.map(overlay => {
                 const cityLevel = Math.min(overlay.city.pop, 7);
                 const cityImg = cityImages[cityLevel];
-                const darkColor = darkenColor(overlay.strokeColor, 0.5);
 
                 return (
-                    <g key={`city-${overlay.key}`} transform={`translate(${overlay.position.x},${overlay.position.y})`}>
+                    <g key={`city-image-${overlay.key}`} transform={`translate(${overlay.position.x},${overlay.position.y})`}>
                         <polygon
                             points={hexPoints}
                             fill="none"
@@ -54,6 +53,21 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
                             width={CITY_IMAGE_SIZE}
                             height={CITY_IMAGE_SIZE}
                         />
+                    </g>
+                );
+            })}
+        </g>
+    );
+});
+
+export const CityLabelLayer: React.FC<CityLayerProps> = React.memo(({ overlays }) => {
+    return (
+        <g style={{ pointerEvents: "none" }}>
+            {overlays.map(overlay => {
+                const darkColor = darkenColor(overlay.strokeColor, 0.5);
+
+                return (
+                    <g key={`city-label-${overlay.key}`} transform={`translate(${overlay.position.x},${overlay.position.y})`}>
                         <circle
                             cx={0}
                             cy={-CITY_LABEL_OFFSET - 30}
@@ -93,6 +107,16 @@ export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPo
                 );
             })}
         </g>
+    );
+});
+
+// Keep the old CityLayer for backwards compatibility, but it's now just a composition
+export const CityLayer: React.FC<CityLayerProps> = React.memo(({ overlays, hexPoints }) => {
+    return (
+        <>
+            <CityImageLayer overlays={overlays} hexPoints={hexPoints} />
+            <CityLabelLayer overlays={overlays} hexPoints={hexPoints} />
+        </>
     );
 });
 

@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from "react";
 import { terrainImages } from "../assets";
 import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver, findPath } from "@simple-civ/engine";
 import { HexTile } from "./GameMap/HexTile";
-import { CityLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
+import { CityImageLayer, CityLabelLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
 import { OverlayLayer } from "./GameMap/OverlayLayer";
 import { UnitLayer, UnitDescriptor } from "./GameMap/UnitLayer";
 import { CityBoundsLayer, CityBoundsDescriptor } from "./GameMap/CityBoundsLayer";
@@ -249,15 +249,20 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                 const key = `${unit.coord.q},${unit.coord.r}`;
                 return tileVisibility.get(key)?.isVisible;
             })
-            .map(unit => ({
-                unit,
-                position: hexToPixel(unit.coord),
-                isSelected: selectedUnitId === unit.id,
-                isLinkedPartner: linkedPartnerId === unit.id,
-                showLinkIcon: !!unit.linkedUnitId,
-                color: playerColorMap.get(unit.ownerId) ?? "#22d3ee",
-            }));
-    }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility]);
+            .map(unit => {
+                const key = `${unit.coord.q},${unit.coord.r}`;
+                const isOnCityHex = citiesByCoord.has(key);
+                return {
+                    unit,
+                    position: hexToPixel(unit.coord),
+                    isSelected: selectedUnitId === unit.id,
+                    isLinkedPartner: linkedPartnerId === unit.id,
+                    showLinkIcon: !!unit.linkedUnitId,
+                    color: playerColorMap.get(unit.ownerId) ?? "#22d3ee",
+                    isOnCityHex,
+                };
+            });
+    }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility, citiesByCoord, playerColorMap]);
 
     const riverLineSegments = useRiverPolylines({
         map,
@@ -332,11 +337,16 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
                         riverOpacity={RIVER_OPACITY}
                     />
                     <CityBoundsLayer tiles={cityBounds} />
-                    <CityLayer
+                    <CityImageLayer
                         overlays={cityOverlayData}
                         hexPoints={HEX_POINTS}
                     />
-                    <UnitLayer units={unitRenderData} />
+                    <UnitLayer units={unitRenderData.filter(u => u.isOnCityHex)} />
+                    <CityLabelLayer
+                        overlays={cityOverlayData}
+                        hexPoints={HEX_POINTS}
+                    />
+                    <UnitLayer units={unitRenderData.filter(u => !u.isOnCityHex)} />
                     {selectedUnit && hoveredCoord && (
                         <PathLayer
                             path={pathData}
