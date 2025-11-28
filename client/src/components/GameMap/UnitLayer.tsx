@@ -47,7 +47,7 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 r={UNIT_IMAGE_SIZE * 0.5}
                 fill="none"
                 stroke={color}
-                strokeWidth={3}
+                strokeWidth={9}
                 opacity={0.8}
             />
 
@@ -57,9 +57,6 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 y={-unitImageOffset}
                 width={UNIT_IMAGE_SIZE}
                 height={UNIT_IMAGE_SIZE}
-                style={{
-                    filter: `drop-shadow(0 0 2px ${color}) drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color})`,
-                }}
             />
 
             {showLinkIcon && (
