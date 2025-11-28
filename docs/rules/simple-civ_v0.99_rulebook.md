@@ -134,11 +134,11 @@
 
 ## 9. Units
 - **Base Units** (atk/def/rng/move/HP/cost/domain/capture/vision):
-  - Settler: 0/0/1/1/1/70, Civilian, cannot capture, vision 2.
+  - Settler: 0/0/1/1/1/20, Civilian, cannot capture, vision 2.
   - Scout: 1/1/1/2/10/25, Land, no capture, vision 3.
   - Spear Guard: 2/2/1/1/10/30, Land, can capture, vision 2.
   - Bow Guard: 2/1/2/1/10/30, Land, no capture, vision 2.
-  - Riders: 2/2/1/2/10/40, Land, can capture, vision 2.
+  - Riders: 2/2/1/2/10/35, Land, can capture, vision 2.
   - River Boat: 2/2/1/3/10/35, Naval, no capture, vision 2.
 - **Army Units** (formed via projects; HP 15):
   - Army Scout 3/3/1/2, no capture, vision 3.
