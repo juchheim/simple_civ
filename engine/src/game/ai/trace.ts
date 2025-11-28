@@ -4,7 +4,6 @@ import { applyAction } from "../turn-loop.js";
 export function safeClone<T>(value: T): T {
     try {
         // structuredClone available in modern runtimes
-        // @ts-ignore
         return structuredClone(value);
     } catch {
         return JSON.parse(JSON.stringify(value));

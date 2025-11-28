@@ -1,5 +1,5 @@
 import { BUILDINGS, TECHS } from "../../core/constants.js";
-import { AiVictoryGoal, GameState, ProjectId, TechId } from "../../core/types.js";
+import { AiVictoryGoal, GameState, TechId } from "../../core/types.js";
 import { getPersonalityForPlayer, AiPersonality } from "./personality.js";
 import { tryAction } from "./shared/actions.js";
 

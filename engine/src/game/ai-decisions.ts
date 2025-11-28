@@ -2,7 +2,6 @@ import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../core/const
 import { hexDistance } from "../core/hex.js";
 import {
     BuildingType,
-    City,
     DiplomacyState,
     GameState,
     ProjectId,
@@ -253,7 +252,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     const stance = state.diplomacy?.[playerId]?.[targetId] ?? DiplomacyState.Peace;
     const aiPower = estimateMilitaryPower(playerId, state);
     const enemyPower = estimateMilitaryPower(targetId, state);
-    const losingWar = aiPower < enemyPower * aggression.peacePowerThreshold;
+    const _losingWar = aiPower < enemyPower * aggression.peacePowerThreshold;
     const progressRisk = progressRaceRiskHigh(playerId, state);
     const inWar = stance === DiplomacyState.War;
     const contactTurnKey = `metTurn_${targetId}`;

@@ -1,6 +1,6 @@
 import { generateWorld } from './map/map-generator.js';
 import { findPath, getMovementCost } from './game/helpers/pathfinding.js';
-import { MapSize, UnitType, TerrainType } from './core/types.js';
+import { TerrainType } from './core/types.js';
 import { hexToString } from './core/hex.js';
 
 const state = generateWorld({

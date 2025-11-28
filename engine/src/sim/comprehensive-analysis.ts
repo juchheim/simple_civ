@@ -1,6 +1,6 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
-import { MapSize, GameState, City, Unit, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
+import { MapSize, GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import { UNITS } from "../core/constants.js";
 

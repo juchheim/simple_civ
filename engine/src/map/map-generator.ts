@@ -12,10 +12,9 @@ import {
     UnitState,
     UnitType,
     OverlayType,
-    TechId,
 } from "../core/types.js";
-import { MAP_DIMS, MAX_PLAYERS, UNITS } from "../core/constants.js";
-import { hexEquals, hexToString, hexNeighbor, hexSpiral, getNeighbors, hexDistance } from "../core/hex.js";
+import { MAP_DIMS, UNITS } from "../core/constants.js";
+import { hexEquals, hexToString, hexSpiral, getNeighbors } from "../core/hex.js";
 import { getTileYields } from "../game/rules.js";
 import { scoreCitySite } from "../game/ai-heuristics.js";
 import { applyTerrainNoise } from "./generation/terrain.js";

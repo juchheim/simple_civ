@@ -4,7 +4,7 @@ import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
 import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
-import { tracedApply, TraceEntry, safeClone } from "./trace.js";
+import { TraceEntry, safeClone } from "./trace.js";
 import { setTraceContext, clearTraceContext } from "./shared/actions.js";
 import { tryAction } from "./shared/actions.js";
 import { initValidationContext, clearValidationContext } from "./shared/validation.js";

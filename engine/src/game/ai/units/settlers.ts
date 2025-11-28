@@ -1,0 +1,499 @@
+import { hexDistance, hexEquals, hexSpiral, getNeighbors, hexToString } from "../../../core/hex.js";
+import {
+    DiplomacyState,
+    GameState,
+    TerrainType,
+    UnitType
+} from "../../../core/types.js";
+import {
+    CITY_NAMES,
+    TERRAIN,
+    UNITS
+} from "../../../core/constants.js";
+import { scoreCitySite } from "../../ai-heuristics.js";
+import { tryAction } from "../shared/actions.js";
+import { sortByDistance } from "../shared/metrics.js";
+import { findPath } from "../../helpers/pathfinding.js";
+import { getPersonalityForPlayer } from "../personality.js";
+
+function validCityTile(tile: any, state: GameState): boolean {
+    if (!tile) return false;
+    if (tile.hasCityCenter) return false;
+    if (tile.ownerId) return false;
+    const terrain = tile.terrain as TerrainType;
+    if (!TERRAIN[terrain].workable) return false;
+    if (terrain === TerrainType.Coast || terrain === TerrainType.DeepSea) return false;
+    
+    const MIN_CITY_DISTANCE = 3;
+    for (const city of state.cities) {
+        const distance = hexDistance(tile.coord, city.coord);
+        if (distance < MIN_CITY_DISTANCE) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function settleHereIsBest(tile: any, state: GameState, playerId: string): boolean {
+    const personality = getPersonalityForPlayer(state, playerId);
+    const currentScore = scoreCitySite(tile, state, playerId, personality);
+    const neighborScores = getNeighbors(tile.coord)
+        .map(c => state.map.tiles.find(t => hexEquals(t.coord, c)))
+        .filter((t): t is any => !!t && validCityTile(t, state))
+        .map(t => scoreCitySite(t, state, playerId, personality));
+    const bestNeighbor = neighborScores.length ? Math.max(...neighborScores) : -Infinity;
+    return currentScore >= bestNeighbor - 1;
+}
+
+function assessSettlerSafety(
+    settlerCoord: { q: number; r: number },
+    playerId: string,
+    state: GameState
+): { isSafe: boolean; needsEscort: boolean; threatLevel: "none" | "low" | "high" } {
+    const ownedCities = state.cities.filter(c => c.ownerId === playerId);
+    const isInFriendlyBorders = ownedCities.some(city =>
+        hexDistance(settlerCoord, city.coord) <= 2
+    );
+
+    const potentialThreats = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated)
+        .map(p => p.id);
+
+    const nearbyEnemyMilitary = state.units.filter(u =>
+        potentialThreats.includes(u.ownerId) &&
+        UNITS[u.type].domain !== "Civilian" &&
+        hexDistance(settlerCoord, u.coord) <= 4
+    );
+
+    const warEnemies = state.players
+        .filter(p =>
+            p.id !== playerId &&
+            !p.isEliminated &&
+            state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+        )
+        .map(p => p.id);
+
+    const warEnemyUnitsNearby = nearbyEnemyMilitary.filter(u =>
+        warEnemies.includes(u.ownerId)
+    );
+
+    const threatLevel: "none" | "low" | "high" = 
+        warEnemyUnitsNearby.length > 0 ? "high" :
+        nearbyEnemyMilitary.length > 0 ? "low" : "none";
+
+    const needsEscort = !isInFriendlyBorders || nearbyEnemyMilitary.length > 0;
+    
+    const isSafe = isInFriendlyBorders && warEnemyUnitsNearby.length === 0;
+
+    return { isSafe, needsEscort, threatLevel };
+}
+
+function detectNearbyDanger(
+    settlerCoord: { q: number; r: number },
+    playerId: string,
+    state: GameState
+): { coord: { q: number; r: number }; distance: number; isWarEnemy: boolean } | null {
+    const allOtherPlayers = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated)
+        .map(p => p.id);
+
+    const warEnemies = state.players
+        .filter(p =>
+            p.id !== playerId &&
+            !p.isEliminated &&
+            state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+        )
+        .map(p => p.id);
+
+    const nearbyEnemies = state.units
+        .filter(u => 
+            allOtherPlayers.includes(u.ownerId) &&
+            UNITS[u.type].domain !== "Civilian"
+        )
+        .map(u => ({ 
+            coord: u.coord, 
+            distance: hexDistance(settlerCoord, u.coord),
+            isWarEnemy: warEnemies.includes(u.ownerId)
+        }))
+        .filter(({ distance }) => distance <= 3)
+        .sort((a, b) => {
+            if (a.isWarEnemy !== b.isWarEnemy) return a.isWarEnemy ? -1 : 1;
+            return a.distance - b.distance;
+        });
+
+    return nearbyEnemies.length > 0 ? nearbyEnemies[0] : null;
+}
+
+export function moveSettlersAndFound(state: GameState, playerId: string): GameState {
+    let next = state;
+    const personality = getPersonalityForPlayer(next, playerId);
+    const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
+    for (const settler of settlers) {
+        const liveSettler = next.units.find(u => u.id === settler.id);
+        if (!liveSettler) continue;
+
+        let currentTile = next.map.tiles.find(t => hexEquals(t.coord, liveSettler.coord));
+        if (!currentTile) continue;
+
+        const safety = assessSettlerSafety(liveSettler.coord, playerId, next);
+        
+        const linkedEscort = liveSettler.linkedUnitId 
+            ? next.units.find(u => u.id === liveSettler.linkedUnitId)
+            : null;
+        const hasLinkedEscort = linkedEscort && hexEquals(linkedEscort.coord, liveSettler.coord);
+        
+        const hasAdjacentEscort = hasLinkedEscort || next.units.some(u =>
+            u.ownerId === playerId &&
+            u.id !== liveSettler.id &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexDistance(u.coord, liveSettler.coord) <= 1 &&
+            u.movesLeft > 0
+        );
+
+        if (safety.threatLevel !== "none" && !hasLinkedEscort && !hasAdjacentEscort) {
+            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
+            continue;
+        }
+        
+        if (safety.threatLevel === "high" && !hasLinkedEscort) {
+            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for linked escort (high threat)`);
+            continue;
+        }
+
+        const danger = detectNearbyDanger(liveSettler.coord, playerId, next);
+        if (danger) {
+            const neighbors = getNeighbors(liveSettler.coord);
+            const neighborsWithSafety = neighbors
+                .map(coord => {
+                    const escortStaysClose = hasAdjacentEscort ? next.units.some(u =>
+                        u.ownerId === playerId &&
+                        u.id !== liveSettler.id &&
+                        UNITS[u.type].domain !== "Civilian" &&
+                        hexDistance(u.coord, coord) <= 2
+                    ) : true;
+                    return {
+                        coord,
+                        distanceFromThreat: hexDistance(coord, danger.coord),
+                        escortStaysClose
+                    };
+                })
+                .sort((a, b) => {
+                    if (a.escortStaysClose !== b.escortStaysClose) {
+                        return a.escortStaysClose ? -1 : 1;
+                    }
+                    return b.distanceFromThreat - a.distanceFromThreat;
+                });
+
+            let escaped = false;
+            for (const neighbor of neighborsWithSafety) {
+                const moveResult = tryAction(next, {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId: liveSettler.id,
+                    to: neighbor.coord
+                });
+                if (moveResult !== next) {
+                    next = moveResult;
+                    escaped = true;
+                    break;
+                }
+            }
+
+            if (escaped) continue;
+        }
+
+        if (liveSettler.type !== UnitType.Settler) continue;
+        
+        if (validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
+            const player = next.players.find(p => p.id === playerId);
+            const civNames = player ? CITY_NAMES[player.civName] : [];
+            const usedNames = new Set(next.cities.map(c => c.name));
+            const name = civNames?.find(n => !usedNames.has(n)) ?? `AI City ${next.cities.length + 1}`;
+
+            const afterFound = tryAction(next, { type: "FoundCity", playerId, unitId: liveSettler.id, name });
+            if (afterFound !== next) {
+                console.info(`[AI Found] ${playerId} founded ${name} at ${hexToString(liveSettler.coord)}`);
+                next = afterFound;
+                continue;
+            }
+        }
+
+        const searchRadius = 6;
+        const nearbyCoords = hexSpiral(liveSettler.coord, searchRadius);
+        const potentialSites = nearbyCoords
+            .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
+            .filter(({ coord, tile }) =>
+                tile &&
+                validCityTile(tile, next) &&
+                !hexEquals(coord, liveSettler.coord)
+            )
+            .map(({ coord, tile }) => ({
+                coord,
+                tile,
+                score: tile ? scoreCitySite(tile, next, playerId, personality) : -Infinity,
+                distance: hexDistance(liveSettler.coord, coord)
+            }))
+            .sort((a, b) => {
+                if (Math.abs(a.score - b.score) > 1) {
+                    return b.score - a.score;
+                }
+                return a.distance - b.distance;
+            });
+
+        let moved = false;
+        for (const site of potentialSites) {
+            const neighbors = getNeighbors(liveSettler.coord);
+            const neighborsWithDistance = sortByDistance(site.coord, neighbors, coord => coord);
+            for (const neighbor of neighborsWithDistance) {
+                const moveResult = tryAction(next, {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId: liveSettler.id,
+                    to: neighbor
+                });
+                if (moveResult !== next) {
+                    next = moveResult;
+                    moved = true;
+                    break;
+                }
+            }
+
+            if (moved) break;
+        }
+
+        if (!moved) {
+            const neighborOptions = getNeighbors(liveSettler.coord)
+                .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
+                .filter(({ tile }) => tile && validCityTile(tile, next));
+            const scored = neighborOptions
+                .map(({ coord, tile }) => ({
+                    coord,
+                    score: tile ? scoreCitySite(tile, next, playerId, personality) : -Infinity,
+                }))
+                .sort((a, b) => b.score - a.score);
+
+            for (const candidate of scored) {
+                const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: liveSettler.id, to: candidate.coord });
+                if (moveResult !== next) {
+                    next = moveResult;
+                    break;
+                }
+            }
+        }
+
+        const updatedSettler = next.units.find(u => u.id === settler.id);
+        if (!updatedSettler) continue;
+        
+        if (updatedSettler.type !== UnitType.Settler) continue;
+
+        currentTile = next.map.tiles.find(t => hexEquals(t.coord, updatedSettler.coord));
+        if (currentTile && validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
+            const player = next.players.find(p => p.id === playerId);
+            const civNames = player ? CITY_NAMES[player.civName] : [];
+            const usedNames = new Set(next.cities.map(c => c.name));
+            const name = civNames?.find(n => !usedNames.has(n)) ?? `AI City ${next.cities.length + 1}`;
+
+            const after = tryAction(next, { type: "FoundCity", playerId, unitId: updatedSettler.id, name });
+            if (after !== next) {
+                console.info(`[AI Found] ${playerId} founded ${name} at ${hexToString(updatedSettler.coord)}`);
+                next = after;
+            } else {
+                console.info(`[AI Found Fail] ${playerId} could not found at ${hexToString(updatedSettler.coord)}`);
+            }
+        }
+    }
+    return next;
+}
+
+export function manageSettlerEscorts(state: GameState, playerId: string): GameState {
+    let next = state;
+
+    const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
+    
+    const settlersWithSafety = settlers.map(settler => ({
+        settler,
+        safety: assessSettlerSafety(settler.coord, playerId, next)
+    }));
+    
+    const sortedSettlers = settlersWithSafety.sort((a, b) => {
+        const threatOrder = { high: 0, low: 1, none: 2 };
+        return threatOrder[a.safety.threatLevel] - threatOrder[b.safety.threatLevel];
+    });
+
+    const garrisonedCities = new Set(
+        next.cities.filter(c => c.ownerId === playerId).map(c => hexToString(c.coord))
+    );
+    
+    const militaryUnits = next.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].domain !== "Civilian" &&
+        u.movesLeft > 0 &&
+        !u.linkedUnitId
+    );
+    
+    const nonGarrisonUnits = militaryUnits.filter(u => !garrisonedCities.has(hexToString(u.coord)));
+    const garrisonUnits = militaryUnits.filter(u => garrisonedCities.has(hexToString(u.coord)));
+
+    const escortAssignments = new Map<string, string>();
+
+    for (const { settler, safety } of sortedSettlers) {
+        if (settler.linkedUnitId) {
+            const linkedEscort = next.units.find(u => u.id === settler.linkedUnitId);
+            if (linkedEscort && hexEquals(linkedEscort.coord, settler.coord)) {
+                continue;
+            }
+        }
+        
+        const adjacentEscort = next.units.find(u =>
+            u.ownerId === playerId &&
+            u.id !== settler.id &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexEquals(u.coord, settler.coord) &&
+            !u.linkedUnitId
+        );
+        
+        if (adjacentEscort && !settler.linkedUnitId && !adjacentEscort.linkedUnitId) {
+            const linkResult = tryAction(next, {
+                type: "LinkUnits",
+                playerId,
+                unitId: adjacentEscort.id,
+                partnerId: settler.id
+            });
+            if (linkResult !== next) {
+                next = linkResult;
+                console.info(`[AI Escort] ${playerId} linked ${adjacentEscort.type} to settler at ${hexToString(settler.coord)}`);
+                continue;
+            }
+        }
+        
+        const nearbyEscort = next.units.find(u =>
+            u.ownerId === playerId &&
+            u.id !== settler.id &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexDistance(u.coord, settler.coord) === 1 &&
+            u.movesLeft > 0 &&
+            !u.linkedUnitId
+        );
+        
+        if (nearbyEscort) {
+            const moveResult = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: nearbyEscort.id,
+                to: settler.coord
+            });
+            if (moveResult !== next) {
+                next = moveResult;
+                const liveEscort = next.units.find(u => u.id === nearbyEscort.id);
+                const liveSettler = next.units.find(u => u.id === settler.id);
+                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) && 
+                    !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
+                    const linkResult = tryAction(next, {
+                        type: "LinkUnits",
+                        playerId,
+                        unitId: liveEscort.id,
+                        partnerId: liveSettler.id
+                    });
+                    if (linkResult !== next) {
+                        next = linkResult;
+                        console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                    }
+                }
+                continue;
+            }
+        }
+
+        let availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
+        
+        if (availableUnits.length === 0 && safety.threatLevel === "high") {
+            availableUnits = garrisonUnits.filter(u => !escortAssignments.has(u.id));
+        }
+        
+        if (availableUnits.length === 0) continue;
+
+        const scoredUnits = availableUnits.map(u => ({
+            unit: u,
+            score: -hexDistance(settler.coord, u.coord) + UNITS[u.type].move
+        })).sort((a, b) => b.score - a.score);
+
+        if (scoredUnits.length > 0) {
+            escortAssignments.set(scoredUnits[0].unit.id, settler.id);
+        }
+    }
+
+    for (const [escortId, settlerId] of escortAssignments.entries()) {
+        const escort = next.units.find(u => u.id === escortId);
+        const settler = next.units.find(u => u.id === settlerId);
+
+        if (!escort || !settler || escort.movesLeft <= 0) continue;
+
+        const distance = hexDistance(escort.coord, settler.coord);
+
+        if (distance === 0) {
+            if (!escort.linkedUnitId && !settler.linkedUnitId) {
+                const linkResult = tryAction(next, {
+                    type: "LinkUnits",
+                    playerId,
+                    unitId: escort.id,
+                    partnerId: settler.id
+                });
+                if (linkResult !== next) {
+                    next = linkResult;
+                    console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                }
+            }
+            continue;
+        }
+
+        const path = findPath(escort.coord, settler.coord, escort, next);
+        if (path.length > 0) {
+            const moveResult = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: escort.id,
+                to: path[0]
+            });
+            if (moveResult !== next) {
+                next = moveResult;
+                const liveEscort = next.units.find(u => u.id === escort.id);
+                const liveSettler = next.units.find(u => u.id === settler.id);
+                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
+                    !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
+                    const linkResult = tryAction(next, {
+                        type: "LinkUnits",
+                        playerId,
+                        unitId: liveEscort.id,
+                        partnerId: liveSettler.id
+                    });
+                    if (linkResult !== next) {
+                        next = linkResult;
+                        console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                    }
+                }
+            }
+        } else {
+            const neighbors = getNeighbors(escort.coord);
+            const neighborsWithDistance = sortByDistance(
+                settler.coord,
+                neighbors,
+                coord => coord
+            );
+
+            for (const neighbor of neighborsWithDistance) {
+                const moveResult = tryAction(next, {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId: escort.id,
+                    to: neighbor
+                });
+                if (moveResult !== next) {
+                    next = moveResult;
+                    break;
+                }
+            }
+        }
+    }
+
+    return next;
+}

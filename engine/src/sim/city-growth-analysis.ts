@@ -1,6 +1,6 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
-import { MapSize, GameState, City } from "../core/types.js";
+import { MapSize } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 
 type CivName =

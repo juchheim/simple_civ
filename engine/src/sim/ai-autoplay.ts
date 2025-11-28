@@ -159,7 +159,7 @@ function runSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, de
         }
 
         // capture/found logs
-        const beforeIds = new Set(beforeCities.keys());
+        const _beforeIds = new Set(beforeCities.keys());
         for (const city of state.cities) {
             const prev = beforeCities.get(city.id);
             if (!prev) {

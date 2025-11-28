@@ -41,14 +41,14 @@
 - Impact: Gates their bonus behind building investment (40-60 Prod each), no longer free snowball science
 
 **AetherianVanguard - MAJOR BUFF**
-- NEW: **Starting Bonus** — Starts with an extra SpearGuard (3 units total: Settler, Scout, SpearGuard)
+- NEW: **Starting Bonus** — Starts with 2 extra SpearGuards (4 units total: Settler, Scout, 2x SpearGuard) *(v0.98 Update 3: Increased to 2 SpearGuards)*
 - NEW: Titan's Core cost reduced from 200 to 150
 - Keeps: Battle Hardened (+1 HP per era), Titan Rampage behavior
 
 **JadeCovenant - MAJOR BUFF**
-- NEW: **Double Settlers** — Starts with 2 Settlers (enables fast expansion to leverage growth bonuses)
-- NEW: **"Population Power"** — Military units gain +1 Attack and +1 Defense per 5 total population across all cities
+- NEW: **"Population Power"** — Military units gain +1 Attack and +1 Defense per 5 total population across all cities *(v0.98 Update 5: NERFED to per-8 population)*
 - Keeps: Verdant Growth (10% faster growth), Bountiful Harvest (+5 Food on founding), Jade Granary
+- REMOVED: **Double Settlers** *(v0.98 Update 2: REMOVED - 80% win rate was too strong)*
 
 **RiverLeague - BUFF**
 - NEW: **"River Knowledge"** — +1 Science in cities on river tiles (in addition to existing +1 Food and +1 Production)
@@ -171,6 +171,20 @@ Progress project costs increased significantly to slow down tech victories (62% 
 
 **Solution:**
 - FormArmy_Riders cost: **10** (was 15, same as SpearGuard/BowGuard)
+
+## [DEV-ONLY] v0.98 Update 8 Balance Changes (Nov 27, 2025)
+**Goal: Help weakest civs (ScholarKingdoms, JadeCovenant) and improve game balance**
+
+### Civilization Buffs
+
+**ScholarKingdoms - BUFF**
+- NEW: **"Great Library"** — +1 Science in Capital (restored after being removed)
+- NEW: **"Scholarly Retreat"** — Military units within 2 tiles of any city with Scriptorium or Academy gain +2 Defense
+- Impact: Helps weakest civ (47.6% tech completion) survive long enough to use science advantage
+
+**JadeCovenant - BUFF**
+- Jade Granary cost: **100** (was 150, -33%)
+- Impact: Was only built 14% of games, now more accessible to leverage growth bonuses
 <!-- CODEX_SKIP_END -->
 
 ## 1. Vision & Pillars
@@ -205,8 +219,8 @@ Progress project costs increased significantly to slow down tech victories (62% 
 - **Players**: 1–4 (human/AI/hotseat). Rules identical for all.
 - **Starting units**: 
   - Standard: 1 Settler + 1 Scout
-  - AetherianVanguard: 1 Settler + 1 Scout + 2 SpearGuards *(v0.98 Update 3: 2 SpearGuards)*
-  - StarborneSeekers: 1 Settler + 2 Scouts *(v0.98 Update 2)*
+  - AetherianVanguard: 1 Settler + 1 Scout + 2 SpearGuards (4 units total) *(v0.98 Update 3: 2 SpearGuards)*
+  - StarborneSeekers: 1 Settler + 1 Scout + 1 SpearGuard (3 units total) *(v0.98 Update 4: Changed from 2 Scouts to Scout + SpearGuard for defensive capability)*
 - **Starting placement**: fair-start zones with nearby workable tiles; capitals named from civ list (unique first-city name, then list, then "New [Capital] n" if exhausted). Players may rename on founding.
 - **Fog**: unseen tiles start in shroud; vision comes from units/cities and shared vision offers.
 
@@ -355,8 +369,8 @@ Progress project costs increased significantly to slow down tech victories (62% 
   - **Forgeworks** (80, Steam Forges): +2 Production.
   - **City Square** (80, Urban Plans): +1 Food, +1 Production.
   - **Titan's Core** (150, Steam Forges): summons Titan on completion (unique per civ). *(v0.98: Reduced from 200)*
-  - **Spirit Observatory** (200, Star Charts): "The Revelation"—complete current tech, grant a free tech, +2 Science per city, counts as Observatory milestone (unique per civ).
-  - **Jade Granary** (150, Wellworks): "The Great Harvest"—+1 Pop per city, growth 15% cheaper, +1 Food per city (unique per civ).
+  - **Spirit Observatory** (275, Star Charts): "The Revelation"—complete current tech, grant a free tech, +2 Science per city, counts as Observatory milestone (unique per civ). *(v0.98 Update 6: Increased from 200 to nerf Progress rush)*
+  - **Jade Granary** (100, Wellworks): "The Great Harvest"—+1 Pop per city, growth 15% cheaper, +1 Food per city (unique per civ). *(v0.98 Update 8: Reduced from 150 - was only built 14% of games)*
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
@@ -381,7 +395,9 @@ Progress project costs increased significantly to slow down tech victories (62% 
 - **Industrial Warfare**: Military units gain +1 Attack per Engine-era tech researched (max +5 with all 5 techs). *(v0.98 Update 6: NEW - late-game powerhouse identity)*
 
 ### Scholar Kingdoms
+- **Great Library**: +1 Science in Capital. *(v0.98 Update 8: BUFFED - Restored after being removed, helps weakest civ get science head start)*
 - **Royal Scholars**: +1 Science per Scriptorium or Academy building in each city. *(v0.98: MAJOR NERF - Changed from "+2 Science in Capital only" to gate bonus behind building investment)*
+- **Scholarly Retreat**: Military units within 2 tiles of any city with Scriptorium or Academy gain +2 Defense. *(v0.98 Update 8: NEW - helps them survive long enough to use science advantage)*
 
 ### River League
 - **River's Bounty**: +1 Food from each worked river-adjacent tile.

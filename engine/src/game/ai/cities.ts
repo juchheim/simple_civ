@@ -1,4 +1,4 @@
-import { hexEquals, hexDistance, hexToString } from "../../core/hex.js";
+import { hexEquals, hexDistance } from "../../core/hex.js";
 import {
     AiVictoryGoal,
     BuildingType,
@@ -15,7 +15,7 @@ import { tryAction } from "./shared/actions.js";
 import { tileWorkingPriority, tilesByPriority } from "./city-heuristics.js";
 import { AiPersonality, getPersonalityForPlayer } from "./personality.js";
 import { hexSpiral } from "../../core/hex.js";
-import { CITY_WORK_RADIUS_RINGS, UNITS } from "../../core/constants.js";
+import { UNITS } from "../../core/constants.js";
 
 function isAtWar(state: GameState, playerId: string): boolean {
     return state.players.some(
@@ -25,7 +25,7 @@ function isAtWar(state: GameState, playerId: string): boolean {
 
 type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
-function hasAvailableCitySite(state: GameState, playerId: string): boolean {
+function hasAvailableCitySite(state: GameState, _playerId: string): boolean {
     const MIN_CITY_DISTANCE = 3;
 
     for (const tile of state.map.tiles) {
@@ -284,7 +284,6 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
 export function pickCityBuilds(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
     let next = state;
     const personality = getPersonalityForPlayer(next, playerId);
-    const player = next.players.find(p => p.id === playerId);
     const desiredCities = personality.desiredCities ?? 3;
     const myCities = next.cities.filter(c => c.ownerId === playerId);
     const cityCountShort = myCities.length < desiredCities;

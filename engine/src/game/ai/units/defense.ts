@@ -1,0 +1,343 @@
+import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
+import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
+import { UNITS } from "../../../core/constants.js";
+import { tryAction } from "../shared/actions.js";
+import { nearestByDistance, sortByDistance } from "../shared/metrics.js";
+import {
+    enemiesWithin,
+    friendlyAdjacencyCount,
+    getWarTargets,
+    isAtWar,
+    shouldUseWarProsecutionMode,
+    stepToward,
+    tileDefenseScore,
+    warGarrisonCap
+} from "./unit-helpers.js";
+
+export function defendCities(state: GameState, playerId: string): GameState {
+    let next = state;
+    const playerCities = next.cities.filter(c => c.ownerId === playerId);
+    if (!playerCities.length) return next;
+
+    const warTargets = getWarTargets(next, playerId);
+    const warEnemyIds = warTargets.map(p => p.id);
+    const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
+    const garrisonCap = warEnemyIds.length ? warGarrisonCap(next, playerId, isInWarProsecutionMode) : playerCities.length;
+    const garrisonedCities = new Set(
+        playerCities
+            .filter(c => next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, c.coord)))
+            .map(c => c.id)
+    );
+    let availableGarrisonSlots = warEnemyIds.length ? Math.max(0, garrisonCap - garrisonedCities.size) : playerCities.length;
+
+    const reserved = new Set<string>();
+
+    for (const city of playerCities) {
+        const hasGarrison = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+        const available = next.units.filter(u =>
+            u.ownerId === playerId &&
+            u.movesLeft > 0 &&
+            !reserved.has(u.id) &&
+            u.type !== UnitType.Settler
+        );
+        const nearbyWarEnemies = warEnemyIds.length
+            ? next.units.filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, city.coord) <= 3)
+            : [];
+        const isThreatened = nearbyWarEnemies.length > 0;
+
+        if (!hasGarrison) {
+            if (warEnemyIds.length && !city.isCapital && !isThreatened && availableGarrisonSlots <= 0) continue;
+            const combatReady = available.filter(u => UNITS[u.type].domain !== "Civilian");
+            const pool = combatReady.length ? combatReady : available;
+            const adjacent = pool.find(u => hexDistance(u.coord, city.coord) === 1);
+            if (adjacent) {
+                const movedDirect = tryAction(next, {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId: adjacent.id,
+                    to: city.coord
+                });
+                if (movedDirect !== next) {
+                    next = movedDirect;
+                    reserved.add(adjacent.id);
+                    const garrisonedNow = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                    if (garrisonedNow && warEnemyIds.length && !garrisonedCities.has(city.id)) {
+                        garrisonedCities.add(city.id);
+                        availableGarrisonSlots = Math.max(0, availableGarrisonSlots - 1);
+                    }
+                }
+            }
+            if (next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord))) continue;
+
+            const candidate = nearestByDistance(city.coord, pool, u => u.coord);
+            if (candidate) {
+                const moved = stepToward(next, playerId, candidate.id, city.coord);
+                if (moved !== next) {
+                    next = moved;
+                    reserved.add(candidate.id);
+                } else if (hexDistance(candidate.coord, city.coord) === 1) {
+                    const direct = tryAction(next, {
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: candidate.id,
+                        to: city.coord
+                    });
+                    if (direct !== next) {
+                        next = direct;
+                        reserved.add(candidate.id);
+                        const garrisonedNow = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                        if (garrisonedNow && warEnemyIds.length && !garrisonedCities.has(city.id)) {
+                            garrisonedCities.add(city.id);
+                            availableGarrisonSlots = Math.max(0, availableGarrisonSlots - 1);
+                        }
+                    }
+                }
+                const garrisonedNow = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                if (garrisonedNow && warEnemyIds.length && !garrisonedCities.has(city.id)) {
+                    garrisonedCities.add(city.id);
+                    availableGarrisonSlots = Math.max(0, availableGarrisonSlots - 1);
+                }
+            }
+        }
+
+        if (!warEnemyIds.length) continue;
+
+        if (!nearbyWarEnemies.length) continue;
+
+        const defendersInRing = next.units.filter(u =>
+            u.ownerId === playerId &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexDistance(u.coord, city.coord) <= 2
+        );
+        if (defendersInRing.length > 0) continue;
+
+        const remaining = next.units.filter(u =>
+            u.ownerId === playerId &&
+            u.movesLeft > 0 &&
+            !reserved.has(u.id) &&
+            UNITS[u.type].domain !== "Civilian"
+        );
+        if (!remaining.length) continue;
+
+        const targetEnemy = nearestByDistance(city.coord, nearbyWarEnemies, u => u.coord);
+        const interceptSpots = getNeighbors(city.coord);
+        const orderedSpots = sortByDistance(targetEnemy?.coord ?? city.coord, interceptSpots, coord => coord);
+
+        const defender = nearestByDistance(city.coord, remaining, u => u.coord);
+        if (defender) {
+            for (const spot of orderedSpots) {
+                const moved = stepToward(next, playerId, defender.id, spot);
+                if (moved !== next) {
+                    next = moved;
+                    reserved.add(defender.id);
+                    break;
+                }
+            }
+        }
+    }
+
+    return next;
+}
+
+export function rotateGarrisons(state: GameState, playerId: string): GameState {
+    if (!isAtWar(state, playerId)) return state;
+    let next = state;
+    const playerCities = next.cities.filter(c => c.ownerId === playerId);
+    if (!playerCities.length) return next;
+
+    const warEnemyIds = next.players
+        .filter(p =>
+            p.id !== playerId &&
+            !p.isEliminated &&
+            next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+        )
+        .map(p => p.id);
+    const enemyUnits = next.units.filter(u => warEnemyIds.includes(u.ownerId));
+
+    const reserved = new Set<string>();
+
+    for (const city of playerCities) {
+        const garrison = next.units.find(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+        if (!garrison) continue;
+        if (garrison.hp > 4) continue;
+        if (garrison.movesLeft <= 0) continue;
+
+        const candidates = next.units.filter(u =>
+            u.ownerId === playerId &&
+            u.id !== garrison.id &&
+            !reserved.has(u.id) &&
+            UNITS[u.type].domain !== "Civilian" &&
+            u.movesLeft > 0 &&
+            u.hp > garrison.hp &&
+            hexDistance(u.coord, city.coord) === 1
+        );
+        if (candidates.length === 0) {
+            const ring2 = next.units.filter(u =>
+                u.ownerId === playerId &&
+                u.id !== garrison.id &&
+                !reserved.has(u.id) &&
+                UNITS[u.type].domain !== "Civilian" &&
+                u.movesLeft > 0 &&
+                u.hp > garrison.hp &&
+                hexDistance(u.coord, city.coord) === 2
+            );
+            if (ring2.length) {
+                const bringer = ring2.sort((a, b) => b.hp - a.hp)[0];
+                const engaged = enemiesWithin(next, playerId, bringer.coord, 2) > 0;
+                if (!engaged) {
+                    next = stepToward(next, playerId, bringer.id, city.coord);
+                }
+                continue;
+            }
+
+            const ring3 = next.units.filter(u =>
+                u.ownerId === playerId &&
+                u.id !== garrison.id &&
+                !reserved.has(u.id) &&
+                UNITS[u.type].domain !== "Civilian" &&
+                u.movesLeft > 0 &&
+                u.hp > garrison.hp &&
+                hexDistance(u.coord, city.coord) === 3
+            );
+            if (ring3.length) {
+                const bringer = ring3.sort((a, b) => b.hp - a.hp)[0];
+                const engaged3 = enemiesWithin(next, playerId, bringer.coord, 2) > 0;
+                if (!engaged3) {
+                    next = stepToward(next, playerId, bringer.id, city.coord);
+                }
+            }
+            continue;
+        }
+
+        const replacement = candidates.sort((a, b) => b.hp - a.hp)[0];
+
+        const neighbors = getNeighbors(city.coord)
+            .map(coord => {
+                const occupant = next.units.find(u => hexEquals(u.coord, coord));
+                const enemyDist = enemyUnits.length
+                    ? Math.min(...enemyUnits.map(e => hexDistance(e.coord, coord)))
+                    : Number.POSITIVE_INFINITY;
+                return { coord, occupant, enemyDist };
+            })
+            .filter(n => !n.occupant || n.occupant.id === garrison.id)
+            .sort((a, b) => {
+                if (a.enemyDist !== b.enemyDist) return b.enemyDist - a.enemyDist;
+                const aTile = next.map.tiles.find(t => hexEquals(t.coord, a.coord));
+                const bTile = next.map.tiles.find(t => hexEquals(t.coord, b.coord));
+                const aFriendly = aTile?.ownerId === playerId ? 1 : 0;
+                const bFriendly = bTile?.ownerId === playerId ? 1 : 0;
+                if (aFriendly !== bFriendly) return bFriendly - aFriendly;
+                return 0;
+            });
+
+        let swapped = false;
+        for (const neighbor of neighbors) {
+            const movedOut = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: garrison.id,
+                to: neighbor.coord
+            });
+            if (movedOut === next) continue;
+            next = movedOut;
+
+            const liveReplacement = next.units.find(u => u.id === replacement.id);
+            if (!liveReplacement) break;
+
+            const movedIn = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: liveReplacement.id,
+                to: city.coord
+            });
+            if (movedIn !== next) {
+                next = movedIn;
+                reserved.add(liveReplacement.id);
+                swapped = true;
+            }
+            break;
+        }
+
+        if (swapped) continue;
+    }
+
+    return next;
+}
+
+export function retreatWounded(state: GameState, playerId: string): GameState {
+    if (!isAtWar(state, playerId)) return state;
+    let next = state;
+
+    const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
+    if (!friendlyCities.length) return next;
+
+    const units = next.units.filter(u =>
+        u.ownerId === playerId &&
+        u.movesLeft > 0 &&
+        u.hp <= 4 &&
+        UNITS[u.type].domain !== "Civilian"
+    );
+
+    for (const unit of units) {
+        const onCity = friendlyCities.some(c => hexEquals(c.coord, unit.coord));
+        if (onCity) continue;
+
+        const targetCity = nearestByDistance(unit.coord, friendlyCities, c => c.coord);
+        if (!targetCity) continue;
+
+        next = stepToward(next, playerId, unit.id, targetCity.coord);
+    }
+
+    return next;
+}
+
+export function repositionRanged(state: GameState, playerId: string): GameState {
+    if (!isAtWar(state, playerId)) return state;
+    let next = state;
+    const rangedUnits = next.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].rng > 1 &&
+        u.movesLeft > 0
+    );
+
+    for (const unit of rangedUnits) {
+        const enemyAdj = enemiesWithin(next, playerId, unit.coord, 1);
+        const crowd = friendlyAdjacencyCount(next, playerId, unit.coord);
+        if (enemyAdj === 0 && crowd <= 2) continue;
+
+        const candidates = getNeighbors(unit.coord)
+            .map(coord => ({
+                coord,
+                enemyDist: enemiesWithin(next, playerId, coord, 1),
+                crowd: friendlyAdjacencyCount(next, playerId, coord),
+                distToEnemies: (() => {
+                    const enemies = next.units.filter(u => u.ownerId !== playerId);
+                    if (!enemies.length) return Number.POSITIVE_INFINITY;
+                    return Math.min(...enemies.map(u => hexDistance(u.coord, coord)));
+                })(),
+                defense: tileDefenseScore(next, coord)
+            }))
+            .filter(c => c.enemyDist === 0);
+
+        candidates.sort((a, b) => {
+            if (a.crowd !== b.crowd) return a.crowd - b.crowd;
+            if (a.distToEnemies !== b.distToEnemies) return b.distToEnemies - a.distToEnemies;
+            return b.defense - a.defense;
+        });
+
+        for (const cand of candidates) {
+            const moved = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: unit.id,
+                to: cand.coord
+            });
+            if (moved !== next) {
+                next = moved;
+                break;
+            }
+        }
+    }
+
+    return next;
+}

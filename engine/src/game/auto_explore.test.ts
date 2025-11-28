@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, UnitType, UnitState, PlayerPhase, TerrainType } from '../core/types.js';
+import { GameState, UnitType, UnitState, TerrainType } from '../core/types.js';
 import { handleSetAutoExplore, handleClearAutoExplore, handleMoveUnit } from './actions/units.js';
 import { advancePlayerTurn } from './turn-lifecycle.js';
 import { generateWorld } from '../map/map-generator.js';

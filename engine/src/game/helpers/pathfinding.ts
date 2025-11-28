@@ -1,7 +1,6 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType, UnitType } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
-import { isTileAdjacentToRiver } from "../../map/generation/rivers.js";
 
 /**
  * Calculates the movement cost for a unit to enter a specific tile.

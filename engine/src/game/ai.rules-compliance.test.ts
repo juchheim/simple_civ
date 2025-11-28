@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { hexEquals, hexToString } from "../core/hex.js";
 import { DiplomacyState, PlayerPhase, TerrainType, UnitDomain, UnitType } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
-import { runAiTurnSequence, runAiTurnSequenceWithTrace } from "./ai/turn-runner.js";
+import { runAiTurnSequenceWithTrace } from "./ai/turn-runner.js";
 import { TraceEntry } from "./ai/trace.js";
 
 function hex(q: number, r: number) {

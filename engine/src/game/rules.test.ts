@@ -3,14 +3,9 @@ import { getCityYields, getGrowthCost, canBuild } from "./rules";
 import {
     BuildingType,
     City,
-    GameState,
-    Player,
     TerrainType,
     Tile,
-    UnitType,
-    OverlayType,
     TechId,
-    ProjectId,
 } from "../core/types";
 import { generateWorld } from "../map/map-generator";
 

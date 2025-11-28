@@ -1,5 +1,5 @@
 import { City, GameState, HexCoord } from "../../core/types.js";
-import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, UNITS, CITY_NAMES } from "../../core/constants.js";
+import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, CITY_NAMES } from "../../core/constants.js";
 import { TerrainType } from "../../core/types.js";
 import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
 import { getTileYields } from "../rules.js";
@@ -66,7 +66,7 @@ export function ensureWorkedTiles(city: City, state: GameState): HexCoord[] {
 
     if (!currentValid.some(c => hexEquals(c, city.coord))) currentValid.unshift(city.coord);
 
-    let worked = currentValid.slice(0, Math.max(1, city.pop));
+    const worked = currentValid.slice(0, Math.max(1, city.pop));
     const needed = Math.max(1, city.pop) - worked.length;
     if (needed > 0) {
         const workedKeys = new Set(worked.map(c => hexToString(c)));

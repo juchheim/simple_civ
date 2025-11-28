@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GameState, UnitType, UnitState, HexCoord, TerrainType } from '../core/types';
+import { TerrainType, UnitType } from '../core/types';
 import { generateWorld } from '../map/map-generator';
 import { advancePlayerTurn } from './turn-lifecycle';
 import { handleSetAutoMoveTarget } from './actions/units';

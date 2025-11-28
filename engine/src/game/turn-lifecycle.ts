@@ -15,7 +15,6 @@ import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
 import { getAetherianHpBonus } from "./helpers/combat.js";
 import { hexDistance, hexEquals, hexToString, hexSpiral } from "../core/hex.js";
-import { Unit } from "../core/types.js";
 import { refreshPlayerVision } from "./vision.js";
 import { findPath } from "./helpers/pathfinding.js";
 import { handleMoveUnit } from "./actions/units.js";

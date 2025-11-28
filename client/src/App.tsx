@@ -502,7 +502,7 @@ function App() {
                                                 <span style={{ fontWeight: 700 }}>{option.title}</span>
                                             </div>
                                             <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>{option.summary}</div>
-                                            <div style={{ fontSize: 12, color: "var(--color-highlight)" }}>{option.perk}</div>
+                                            <div style={{ fontSize: 11, color: "var(--color-highlight)", lineHeight: 1.4, whiteSpace: "normal" }}>{option.perk}</div>
                                         </button>
                                     );
                                 })}

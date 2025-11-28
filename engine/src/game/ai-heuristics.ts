@@ -64,7 +64,7 @@ function bestNearbyTiles(tile: Tile, state: GameState | { map: { tiles: Tile[] }
 function cityDistancePenalty(
     tile: Tile,
     state: GameState | { map: { tiles: Tile[] } },
-    playerId?: string
+    _playerId?: string
 ): number {
     // Need access to cities - only works with full GameState
     if (!('cities' in state)) return 0;

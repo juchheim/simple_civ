@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { GameState, PlayerPhase, UnitType, TerrainType, UnitState, TechId } from "../core/types.js";
+import { GameState, PlayerPhase, UnitType, TerrainType, UnitState } from "../core/types.js";
 import { applyAction } from "./turn-loop.js";
-import { UNITS } from "../core/constants.js";
 
 describe("City Combat", () => {
     let state: GameState;

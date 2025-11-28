@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyAction } from "./turn-loop.js";
-import { PlayerPhase, TerrainType, UnitType } from "../core/types.js";
-import { hexEquals } from "../core/hex.js";
-import { claimCityTerritory, ensureWorkedTiles } from "./helpers/cities.js";
+import { TerrainType, UnitType, PlayerPhase } from "../core/types.js";
 
 type HexCoord = { q: number; r: number };
 function hex(q: number, r: number): HexCoord { return { q, r }; }
@@ -48,7 +46,7 @@ describe("FoundCity validation", () => {
             id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
         } as any);
 
-        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+        const next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
 
         // P2 tries to found city at (0,2) - distance 2, should fail
         next.units.push({
@@ -81,7 +79,7 @@ describe("FoundCity validation", () => {
             id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
         } as any);
 
-        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+        const next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
 
         // P1 tries to found another city at (0,2) - distance 2, should fail
         next.units.push({
@@ -111,7 +109,7 @@ describe("FoundCity validation", () => {
             id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
         } as any);
 
-        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+        const next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
 
         // P1 tries to found another city at (0,3) - distance 3, should succeed
         next.units.push({
@@ -141,7 +139,7 @@ describe("FoundCity validation", () => {
             id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
         } as any);
 
-        let next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+        const next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
 
         // P2 tries to found city at (0,3) - distance 3, should succeed
         next.units.push({

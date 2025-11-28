@@ -228,7 +228,7 @@ describe("World Generation", () => {
         
         // Verify overlays exist and have valid counts
         expect(Object.keys(counts).length).toBeGreaterThan(0);
-        for (const [terrain, overlays] of Object.entries(counts)) {
+        for (const [, overlays] of Object.entries(counts)) {
             expect(Object.keys(overlays).length).toBeGreaterThan(0);
             for (const count of Object.values(overlays)) {
                 expect(count).toBeGreaterThan(0);

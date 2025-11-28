@@ -2,9 +2,7 @@ import {
     BuildingType,
     City,
     GameState,
-    HexCoord,
     OverlayType,
-    Player,
     TerrainType,
     Tile,
     Yields,
@@ -23,12 +21,11 @@ import {
     GROWTH_FACTORS,
     OVERLAY,
     TERRAIN,
-    TECHS,
     PROJECTS,
     UNITS,
     CITY_WORK_RADIUS_RINGS,
 } from "../core/constants.js";
-import { getNeighbors, hexEquals, hexToString, hexDistance } from "../core/hex.js";
+import { hexEquals, hexDistance } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
 
 // --- Yields ---

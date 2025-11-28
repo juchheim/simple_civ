@@ -1,8 +1,6 @@
 import { GameState, HexCoord, UnitState, UnitType, BuildingType } from "../../core/types.js";
 import {
     ATTACK_RANDOM_BAND,
-    CITY_ATTACK_BASE,
-    CITY_WARD_ATTACK_BONUS,
     CITY_DEFENSE_BASE,
     CITY_WARD_DEFENSE_BONUS,
     DAMAGE_BASE,

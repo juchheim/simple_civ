@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { applyAction } from "./turn-loop";
 import { generateWorld } from "../map/map-generator";
-import { Action, UnitType, UnitState, PlayerPhase, TechId, BuildingType, TerrainType, DiplomacyState } from "../core/types";
+import { Action, UnitType, UnitState, TechId, TerrainType, DiplomacyState } from "../core/types";
 import { hexNeighbor, hexEquals } from "../core/hex";
 
 describe("Turn Loop & Actions", () => {

@@ -30,13 +30,13 @@ export function isContextInitialized(): boolean {
 // ============================================================================
 
 /** Tiles that a friendly unit is moving to this turn */
-let reservedTiles = new Set<string>();
+const reservedTiles = new Set<string>();
 
 /** Tiles occupied by friendly military at turn start (for quick lookup) */
-let occupiedByFriendlyMilitary = new Set<string>();
+const occupiedByFriendlyMilitary = new Set<string>();
 
 /** Tiles occupied by friendly civilians at turn start */
-let occupiedByFriendlyCivilian = new Set<string>();
+const occupiedByFriendlyCivilian = new Set<string>();
 
 export function initTileReservation(state: GameState, playerId: string) {
     reservedTiles.clear();
@@ -75,7 +75,7 @@ export function clearTileReservation() {
 // ============================================================================
 
 /** Actions that have failed this turn - keyed by action signature */
-let failedActions = new Set<string>();
+const failedActions = new Set<string>();
 
 function actionKey(action: Action): string {
     if (action.type === "MoveUnit") {
