@@ -125,7 +125,7 @@ export function getCityYields(city: City, state: GameState): Yields {
             total.S += 1; // "Great Library" - Capital generates extra science
         }
         // Also keep the +1 per Scriptorium/Academy for scaling
-        const scholarBuildings = city.buildings.filter(b => 
+        const scholarBuildings = city.buildings.filter(b =>
             b === BuildingType.Scriptorium || b === BuildingType.Academy
         ).length;
         total.S += scholarBuildings;
@@ -224,7 +224,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
             if (isBuilding) return false;
         }
-        
+
         // Jade Granary: once per civ (tracked via JadeGranaryComplete marker)
         if (bId === BuildingType.JadeGranary) {
             if (player.completedProjects.includes(ProjectId.JadeGranaryComplete)) return false;
@@ -297,9 +297,8 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             if (isBuilding) return false;
         }
 
-        // Form Army checks
         if (pId.startsWith("FormArmy")) {
-            if (!player.techs.includes(TechId.ArmyDoctrine)) return false;
+            if (!player.techs.includes(TechId.DrilledRanks)) return false;
 
             const requiredUnitType = data.onComplete.payload.baseUnit as UnitType;
             const hasUnit = state.units.some(u =>

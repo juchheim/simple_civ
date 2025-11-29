@@ -2,7 +2,7 @@ import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
-import { nearestByDistance } from "../shared/metrics.js";
+import { nearestByDistance, sortByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { repositionRanged } from "./defense.js";
 import {
@@ -229,6 +229,102 @@ export function attackTargets(state: GameState, playerId: string): GameState {
     return next;
 }
 
+export function moveUnitsForPreparation(state: GameState, playerId: string): GameState {
+    let next = state;
+    const player = next.players.find(p => p.id === playerId);
+    if (!player || !player.warPreparation || player.warPreparation.state !== "Positioning") return next;
+
+    const targetId = player.warPreparation.targetId;
+    const targetCities = next.cities.filter(c => c.ownerId === targetId);
+    if (targetCities.length === 0) return next;
+
+    // v0.99: Minimum Garrison Logic
+    // Strategy is deterministic based on start turn: Even = Cautious, Odd = Risky
+    const isCautious = player.warPreparation.startedTurn % 2 === 0;
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
+    const reservedUnitIds = new Set<string>();
+
+    for (const city of myCities) {
+        // Always protect Capital
+        if (city.isCapital) {
+            const garrison = next.units.find(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+            if (garrison) reservedUnitIds.add(garrison.id);
+            continue;
+        }
+
+        // If Cautious, protect threatened cities
+        if (isCautious) {
+            const isThreatened = enemiesWithin(next, playerId, city.coord, 4) > 0;
+            if (isThreatened) {
+                const garrison = next.units.find(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
+                if (garrison) reservedUnitIds.add(garrison.id);
+            }
+        }
+    }
+
+    const units = next.units.filter(u =>
+        u.ownerId === playerId &&
+        u.movesLeft > 0 &&
+        !isScoutType(u.type) &&
+        UNITS[u.type].domain !== "Civilian" &&
+        !reservedUnitIds.has(u.id)
+    );
+
+    for (const unit of units) {
+        // Find closest enemy city
+        const nearestCity = nearestByDistance(unit.coord, targetCities, c => c.coord);
+        if (!nearestCity) continue;
+
+        // Target is 2 tiles away from city (border)
+        // We want to be close but NOT inside their territory if we are not at war
+        // Actually, "outside dotted line" usually means outside territory.
+        // Territory is defined by tile ownership.
+
+        // Find a tile near the city that is NOT owned by the enemy
+        // Ideally distance 2 or 3 from city center.
+
+        const neighbors = getNeighbors(nearestCity.coord);
+        // Expand to radius 3
+        const candidates: { coord: { q: number, r: number }, dist: number }[] = [];
+
+        // Scan area around city
+        // We can just scan area around UNIT and move towards city, stopping at border.
+
+        const path = findPath(unit.coord, nearestCity.coord, unit, next);
+        if (path.length === 0) continue;
+
+        // Walk the path until we hit enemy territory
+        let targetStep: { q: number, r: number } | null = null;
+
+        // If we are far away, just move closer.
+        // If we are close, ensure we don't step into enemy territory.
+
+        // Check if next step is enemy territory
+        const nextStep = path[0];
+        const nextTile = next.map.tiles.find(t => hexEquals(t.coord, nextStep));
+
+        // If next step is owned by target, DON'T MOVE there.
+        if (nextTile && nextTile.ownerId === targetId) {
+            // We are at the border. Stay here.
+            continue;
+        }
+
+        // If next step is free (or owned by us/neutral), move there.
+        // But we also want to spread out, not stack.
+        // And we want to be close to the city.
+
+        // If we are already adjacent to enemy territory, we might want to stay or move along the border.
+        // For simplicity: Move towards city, but stop if next tile is enemy territory.
+
+        const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: nextStep });
+        if (moved !== next) {
+            next = moved;
+        }
+    }
+
+    return next;
+}
+
 export function moveMilitaryTowardTargets(state: GameState, playerId: string): GameState {
     let next = state;
     const warTargets = getWarTargets(next, playerId);
@@ -320,27 +416,74 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                 const step = path[0];
                 const desiredRange = UNITS[current.type].rng;
                 const currentDist = hexDistance(current.coord, nearest.coord);
-                const requiredSiegeGroup = isInWarProsecutionMode ? 2 : 3;
+
+                // Dynamic siege group size: Min 1, Max 3, but never more than 50% of our total army
+                const totalArmySize = armyUnits.length;
+                const dynamicGroupSize = Math.max(1, Math.min(3, Math.ceil(totalArmySize / 2)));
+                const requiredSiegeGroup = isInWarProsecutionMode ? Math.max(1, dynamicGroupSize - 1) : dynamicGroupSize;
 
                 const friendliesNearTarget = armyUnits.filter(u =>
                     hexDistance(u.coord, nearest.coord) <= 3
                 ).length;
 
-                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2 && friendliesNearTarget >= requiredSiegeGroup) {
-                    console.info(`[AI SIEGE] ${playerId} ${current.type} holding at range ${currentDist} from ${nearest.name} (${friendliesNearTarget} units nearby)`);
-                    moved = true;
-                } else {
-                    if (rangedIds.has(current.id) && currentDist <= desiredRange) {
+                // If we are at range, check if we should hold for reinforcements
+                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2) {
+                    if (friendliesNearTarget >= requiredSiegeGroup) {
+                        // We have enough support, hold position and bombard (handled by attackTargets)
+                        // But if we are too far (e.g. range 3 unit at range 3), we might want to move to range 2 for better visibility?
+                        // For now, hold at max range is safe.
+                        console.info(`[AI SIEGE] ${playerId} ${current.type} holding at range ${currentDist} from ${nearest.name} (Supported by ${friendliesNearTarget} units)`);
+                        moved = true;
+                    } else {
+                        // We are at range but lack support. 
+                        // If we wait here, we might get picked off.
+                        // But moving closer is worse.
+                        // Moving back?
+                        // For now, just wait, but log it.
                         console.info(`[AI SIEGE] ${playerId} ${current.type} at range ${currentDist} from ${nearest.name}, waiting for group (${friendliesNearTarget}/${requiredSiegeGroup} units)`);
+                        // If we've been waiting too long (how to track?), we should attack anyway.
+                        // For now, let's say if we have at least 1 other friend, we stay.
+                        if (friendliesNearTarget > 1) {
+                            moved = true;
+                        } else {
+                            // Alone. Maybe retreat or regroup? 
+                            // Or just stay and hope.
+                            moved = true;
+                        }
                     }
+                } else {
+                    // Not at range, or melee unit. Move closer.
                     const stepDist = hexDistance(step, nearest.coord);
-                    if (rangedIds.has(current.id) && desiredRange > 1 && stepDist === 0) {
+
+                    // Ranged units shouldn't move closer than their max range unless necessary
+                    if (rangedIds.has(current.id) && desiredRange > 1 && stepDist < 2 && currentDist <= desiredRange) {
+                        // Don't move into melee range if we are already in range
                         moved = false;
                     } else {
                         const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
                         if (attempt !== next) {
                             next = attempt;
                             moved = true;
+                        } else {
+                            // Try neighbors
+                            const neighbors = getNeighbors(current.coord);
+                            const ordered = sortByDistance(nearest.coord, neighbors, (c: { q: number, r: number }) => c);
+                            for (const n of ordered) {
+                                // Don't move backwards or stay same distance if possible?
+                                // Actually, just try any neighbor that is closer or same distance?
+                                // Or just any neighbor that works?
+                                // If we are blocked, stepping sideways (same dist) is good.
+                                // Stepping backwards (dist + 1) is bad.
+                                const nDist = hexDistance(n, nearest.coord);
+                                if (nDist > currentDist) continue;
+
+                                const altAttempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n });
+                                if (altAttempt !== next) {
+                                    next = altAttempt;
+                                    moved = true;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }

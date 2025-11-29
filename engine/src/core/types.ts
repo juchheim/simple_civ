@@ -165,6 +165,7 @@ export type Player = {
     currentTech: { id: TechId; progress: number; cost: number } | null;
     completedProjects: ProjectId[];
     isEliminated: boolean;
+    warPreparation?: WarPreparationState;
 };
 
 export enum PlayerPhase {
@@ -178,6 +179,12 @@ export enum DiplomacyState {
     Peace = "Peace",
     War = "War",
 }
+
+export type WarPreparationState = {
+    targetId: string;
+    state: "Buildup" | "Gathering" | "Positioning" | "Ready";
+    startedTurn: number;
+};
 
 export type DiplomacyOffer = { from: string; to: string; type: "Peace" | "Vision" };
 

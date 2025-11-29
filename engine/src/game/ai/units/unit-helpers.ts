@@ -115,7 +115,15 @@ export function warPowerRatio(state: GameState, playerId: string, warTargets: Pl
 export function shouldUseWarProsecutionMode(state: GameState, playerId: string, warTargets: Player[]): boolean {
     if (!warTargets.length) return false;
     const { enemyPower, ratio } = warPowerRatio(state, playerId, warTargets);
-    return enemyPower > 0 && ratio >= 3;
+
+    // Check if any enemy is "finishable" (few cities)
+    const hasWeakEnemy = warTargets.some(p => {
+        const cities = state.cities.filter(c => c.ownerId === p.id);
+        return cities.length <= 2;
+    });
+
+    // v0.99: Steamroll logic - if we are 2x stronger OR enemy is weak, prosecute!
+    return enemyPower > 0 && (ratio >= 2.0 || hasWeakEnemy);
 }
 
 export function warGarrisonCap(state: GameState, playerId: string, isInWarProsecutionMode: boolean): number {
@@ -195,9 +203,9 @@ export function selectPrimarySiegeCity(
 
     const finishableEnemyIds = findFinishableEnemies(playerId, state);
     const finishableCities = warCities.filter(c => finishableEnemyIds.includes(c.ownerId));
-    
+
     const citiesToConsider = finishableCities.length > 0 ? finishableCities : warCities;
-    
+
     const candidate = citiesToConsider
         .map(c => ({
             city: c,

@@ -195,17 +195,17 @@
   - Fieldcraft → Farmstead.
   - Stonework Halls → Stone Workshop.
   - Script Lore → Scriptorium.
-  - Formation Training → +1 Defense to melee units.
+  - Formation Training → +1 Attack and +1 Defense to Melee and Ranged units.
   - Trail Maps → River Boat.
   - Wellworks → Reservoir.
   - Timber Mills → Lumber Mill.
   - Scholar Courts → Academy.
-  - Drilled Ranks → +1 Attack to melee & ranged.
+  - Drilled Ranks → Enables Form Army projects.
   - City Wards → City Ward.
   - Steam Forges → Forgeworks and Titan's Core building access.
   - Signal Relay → +1 Science per city (passive).
   - Urban Plans → City Square.
-  - Army Doctrine → enables Form Army projects.
+  - Army Doctrine → +1 Attack and +1 Defense to Armies.
   - Star Charts → Observatory project (starts Progress chain).
 
 ## 12. Buildings
@@ -270,6 +270,10 @@
 - **Progress Victory**: complete Grand Experiment.
 - **Tie resolution**: if multiple victories same round, Progress outranks Conquest; if still tied, earlier turn order prevails.
 - **Elimination**: civ with zero cities is eliminated; remaining units are removed.
+- **Game Over**:
+  - Upon victory or defeat, a full-screen overlay displays the result.
+  - **Restart Game**: Allows players to instantly restart the match with the exact same seed, map size, and civilization settings.
+  - **Main Menu**: Returns to the title screen to configure a new game.
 
 ## 18. State Indicators & UI Standards
 - **Per-unit flags**: hasAttacked (attack availability), movesLeft (movement), linkedUnitId (army pairing), capturedOnTurn (healing gate).

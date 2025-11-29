@@ -16,8 +16,7 @@ import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing
 import { getAetherianHpBonus } from "./helpers/combat.js";
 import { hexDistance, hexEquals, hexToString, hexSpiral } from "../core/hex.js";
 import { refreshPlayerVision } from "./vision.js";
-import { findPath } from "./helpers/pathfinding.js";
-import { handleMoveUnit } from "./actions/units.js";
+import { handleMoveUnit, processAutoExplore, processAutoMovement } from "./actions/units.js";
 
 export function handleEndTurn(state: GameState, action: Extract<Action, { type: "EndTurn" }>): GameState {
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
@@ -81,9 +80,9 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
         const yields = getCityYields(city, state);
 
         const maxHp = city.maxHp || BASE_CITY_HP;
-        const wasRecentlyAttacked = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn > state.turn - 2;
+        const wasDamagedThisTurn = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn === state.turn;
         // Cities at 0 or negative HP should NOT heal - they are capturable!
-        if (city.hp > 0 && city.hp < maxHp && !wasRecentlyAttacked) {
+        if (city.hp > 0 && city.hp < maxHp && !wasDamagedThisTurn) {
             console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
             city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
             if (!city.maxHp) city.maxHp = maxHp;
@@ -416,118 +415,4 @@ function pickBestAvailableTech(player: Player): TechId | null {
     return available[0];
 }
 
-function processAutoMovement(state: GameState, playerId: string) {
-    const unitsWithTargets = state.units.filter(u => u.ownerId === playerId && u.autoMoveTarget);
 
-    for (const unit of unitsWithTargets) {
-        // Safety break
-        let moves = 0;
-        const MAX_MOVES = 10;
-
-        while (unit.movesLeft > 0 && unit.autoMoveTarget && moves < MAX_MOVES) {
-            moves++;
-
-            // 1. Calculate Path with current vision
-            const path = findPath(unit.coord, unit.autoMoveTarget, unit, state);
-
-            // 2. Check if path exists
-            if (path.length === 0) {
-                // Target unreachable or already there
-                if (hexEquals(unit.coord, unit.autoMoveTarget)) {
-                    unit.autoMoveTarget = undefined;
-                } else {
-                    // Path blocked? Check if it's permanently blocked by terrain
-                    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, unit.autoMoveTarget!));
-                    if (targetTile) {
-                        const stats = UNITS[unit.type];
-                        const isLand = stats.domain === "Land";
-                        const isNaval = stats.domain === "Naval";
-
-                        let invalid = false;
-                        // Check if terrain is incompatible with unit domain
-                        if (isLand && (targetTile.terrain === "Coast" || targetTile.terrain === "DeepSea" || targetTile.terrain === "Mountain")) invalid = true;
-                        if (isNaval && (targetTile.terrain !== "Coast" && targetTile.terrain !== "DeepSea")) invalid = true;
-
-                        if (invalid) {
-                            unit.autoMoveTarget = undefined;
-                        }
-                    }
-                }
-                break;
-            }
-
-            // 3. Try to move to next step
-            const nextStep = path[0];
-            try {
-                handleMoveUnit(state, {
-                    type: "MoveUnit",
-                    playerId: unit.ownerId,
-                    unitId: unit.id,
-                    to: nextStep,
-                    isAuto: true
-                });
-                // handleMoveUnit calls refreshPlayerVision internally, so vision is up to date for next iteration
-            } catch (e) {
-                // Move failed (blocked by unit, etc)
-                // Stop for this turn, but keep target to try again next turn
-                break;
-            }
-        }
-    }
-}
-
-function processAutoExplore(state: GameState, playerId: string) {
-    const explorers = state.units.filter(u => u.ownerId === playerId && u.isAutoExploring);
-    if (explorers.length === 0) return;
-
-    const revealedSet = new Set(state.revealed[playerId] || []);
-
-    // Find all unexplored tiles
-    const unexploredTiles = state.map.tiles.filter(t => !revealedSet.has(hexToString(t.coord)));
-
-    if (unexploredTiles.length === 0) {
-        // Map fully explored, stop all auto-explorers
-        explorers.forEach(u => {
-            u.isAutoExploring = false;
-            u.autoMoveTarget = undefined;
-        });
-        return;
-    }
-
-    for (const unit of explorers) {
-        // Check if current target is still valid (unexplored)
-        if (unit.autoMoveTarget) {
-            const targetKey = hexToString(unit.autoMoveTarget);
-            if (!revealedSet.has(targetKey)) {
-                const pathToTarget = findPath(unit.coord, unit.autoMoveTarget, unit, state);
-                if (pathToTarget.length > 0) {
-                    // Target is still unexplored and reachable, keep going
-                    continue;
-                }
-            }
-            // Target became explored or unreachable, find new one
-            unit.autoMoveTarget = undefined;
-        }
-
-        // Find closest unexplored tile
-        let bestTile = null;
-        let minDist = Infinity;
-
-        for (const tile of unexploredTiles) {
-            const dist = hexDistance(unit.coord, tile.coord);
-            if (dist >= minDist) continue;
-
-            const path = findPath(unit.coord, tile.coord, unit, state);
-            if (path.length === 0) continue;
-
-            minDist = dist;
-            bestTile = tile;
-        }
-
-        if (bestTile) {
-            unit.autoMoveTarget = bestTile.coord;
-        } else {
-            unit.autoMoveTarget = undefined;
-        }
-    }
-}

@@ -64,6 +64,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     // Safe if: Not at war OR we have a decent military (at least 3 units)
     const myUnits = state.units.filter(u => u.ownerId === playerId);
     const militaryCount = myUnits.filter(u => u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.RiverBoat).length;
+    const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
     const isSafeEnough = !atWar || militaryCount >= 3;
 
     // If we can work on victory, do it (unless massively losing a war)
@@ -78,31 +79,44 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         }
 
         // Prepend victory projects to normal priorities
-        const normalPriorities = buildNormalPriorities(goal, personality);
+        const normalPriorities = buildNormalPriorities(goal, personality, scoutCount);
         return [...victoryPath, ...normalPriorities];
     }
 
     // v0.96 balance: Check for army formation opportunities even when not at war
-    const hasFormArmyTech = player?.techs.includes(TechId.ArmyDoctrine) ?? false;
-    
+    // v0.99: Drilled Ranks enables armies now
+    const hasFormArmyTech = player?.techs.includes(TechId.DrilledRanks) ?? false;
+
     // Count unit types to determine which armies we can form
     const units = state.units.filter(u => u.ownerId === playerId);
     const spearCount = units.filter(u => u.type === UnitType.SpearGuard).length;
     const bowCount = units.filter(u => u.type === UnitType.BowGuard).length;
     const ridersCount = units.filter(u => u.type === UnitType.Riders).length;
-    
+
     // Build army formation priorities based on available units
     const armyPriorities: BuildOption[] = [];
     if (hasFormArmyTech) {
         // Prioritize forming armies when we have 2+ of a unit type
-        if (spearCount >= 2) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_SpearGuard });
-        if (bowCount >= 2) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_BowGuard });
-        if (ridersCount >= 2) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_Riders });
+        // v0.99: If Conquest goal, prioritize armies even more aggressively (1+ unit is enough if we want to upgrade)
+        // Actually, Form Army transforms a single unit into an Army unit. It doesn't combine two units.
+        // Wait, let's check constants.ts ProjectData.
+        // "onComplete: { type: "Transform", payload: { baseUnit: UnitType.SpearGuard, armyUnit: UnitType.ArmySpearGuard } }"
+        // And rules.ts: "const hasUnit = state.units.some(u => ... u.type === requiredUnitType ...)"
+        // So it transforms ONE unit.
+        // So we just need 1 unit of that type.
+
+        if (spearCount >= 1) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_SpearGuard });
+        if (bowCount >= 1) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_BowGuard });
+        if (ridersCount >= 1) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_Riders });
     }
 
     // When at war, heavily prioritize military production
     // Army formation is TOP priority if available, then varied units
-    if (atWar) {
+    if (atWar || player?.warPreparation || goal === "Conquest") {
+        // If preparing for war, we want to build up forces
+        // If actually at war, we MUST build forces
+        // If Conquest goal, we ALWAYS want strongest units
+
         if (hasFormArmyTech) {
             // Prioritize army formation over individual units
             // v0.96: Put army formations first, then units based on what we lack
@@ -111,16 +125,16 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
                 { type: "Project", id: ProjectId.FormArmy_SpearGuard },
                 { type: "Project", id: ProjectId.FormArmy_Riders },
             ];
-            
+
             // Put armies we can actually form first
             const prioritizedArmies = [
                 ...armyPriorities,
                 ...allArmyOptions.filter(a => !armyPriorities.some(p => p.id === a.id))
             ];
-            
+
             return [
                 ...prioritizedArmies,
-                { type: "Unit", id: UnitType.Settler },
+                { type: "Unit", id: UnitType.Settler }, // Still allow settlers if safe
                 { type: "Unit", id: UnitType.BowGuard },
                 { type: "Unit", id: UnitType.SpearGuard },
                 { type: "Unit", id: UnitType.Riders },
@@ -131,10 +145,15 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             // No armies yet, build varied individual units
             // Check current army composition to balance melee/ranged
             const rangedCount = units.filter(u => u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard).length;
-            const meleeCount = units.filter(u => 
+            const meleeCount = units.filter(u =>
                 u.type === UnitType.SpearGuard || u.type === UnitType.Riders ||
                 u.type === UnitType.ArmySpearGuard || u.type === UnitType.ArmyRiders
             ).length;
+
+            // Ensure we have at least one of each if possible
+            const hasSpear = units.some(u => u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard);
+            const hasBow = units.some(u => u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard);
+            const hasRider = units.some(u => u.type === UnitType.Riders || u.type === UnitType.ArmyRiders);
 
             const meleeFirst: BuildOption[] = [
                 { type: "Unit", id: UnitType.Settler },
@@ -150,8 +169,21 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
                 { type: "Unit", id: UnitType.Riders },
             ];
 
-            // If we have more ranged than melee, prioritize melee
-            const unitPriority = rangedCount > meleeCount ? meleeFirst : rangedFirst;
+            // If we are missing a specific type, prioritize it
+            let unitPriority: BuildOption[] = [];
+            if (!hasSpear) unitPriority.push({ type: "Unit", id: UnitType.SpearGuard });
+            if (!hasBow) unitPriority.push({ type: "Unit", id: UnitType.BowGuard });
+            if (!hasRider) unitPriority.push({ type: "Unit", id: UnitType.Riders });
+
+            // Then fill with balanced approach
+            if (rangedCount > meleeCount) {
+                unitPriority = [...unitPriority, ...meleeFirst];
+            } else {
+                unitPriority = [...unitPriority, ...rangedFirst];
+            }
+
+            // Remove duplicates
+            unitPriority = unitPriority.filter((v, i, a) => a.findIndex(t => t.type === v.type && t.id === v.id) === i);
 
             return [
                 ...unitPriority,
@@ -162,14 +194,14 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     }
 
     // Not at war, but if we have Army Doctrine and units to form, consider it
-    let normalPriorities = buildNormalPriorities(goal, personality);
-    
+    let normalPriorities = buildNormalPriorities(goal, personality, scoutCount);
+
     // v0.98 Update 7: ForgeClans early military deterrence
     // They get attacked the most - ensure they have military before expanding
     if (player?.civName === "ForgeClans") {
         normalPriorities = getForgeClansEarlyMilitaryPriorities(state, playerId, normalPriorities);
     }
-    
+
     if (armyPriorities.length > 0) {
         // Insert army formation opportunities after first few normal priorities
         // This allows peacetime army building without completely disrupting economy
@@ -183,9 +215,11 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     return normalPriorities;
 }
 
-function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality): BuildOption[] {
+function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, scoutCount: number): BuildOption[] {
+    const shouldBuildScout = scoutCount < 2; // Cap scouts at 2
+
     const progress: BuildOption[] = [
-        { type: "Unit", id: UnitType.Scout },          // Early exploration
+        ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
         { type: "Project", id: ProjectId.Observatory },
         { type: "Project", id: ProjectId.GrandAcademy },
         { type: "Project", id: ProjectId.GrandExperiment },
@@ -197,7 +231,7 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality):
         { type: "Unit", id: UnitType.Riders },
     ];
     const conquest: BuildOption[] = [
-        { type: "Unit", id: UnitType.Scout },          // Early exploration
+        ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Unit", id: UnitType.Riders },
         { type: "Unit", id: UnitType.BowGuard },
@@ -209,7 +243,7 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality):
         { type: "Unit", id: UnitType.Settler },
     ];
     const balanced: BuildOption[] = [
-        { type: "Unit", id: UnitType.Scout },          // Early exploration
+        ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
         { type: "Unit", id: UnitType.Settler },
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Building", id: BuildingType.Farmstead },
@@ -235,6 +269,9 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality):
         prioritized = [{ type: "Unit", id: UnitType.SpearGuard }, ...prioritized];
     }
 
+    // Remove duplicates (simple check)
+    prioritized = prioritized.filter((v, i, a) => a.findIndex(t => t.type === v.type && t.id === v.id) === i);
+
     return prioritized;
 }
 
@@ -248,36 +285,37 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
     if (state.turn > 15) {
         return basePriorities;
     }
-    
+
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const myUnits = state.units.filter(u => u.ownerId === playerId);
-    const militaryUnits = myUnits.filter(u => 
-        u.type !== UnitType.Settler && 
-        u.type !== UnitType.Scout && 
+    const militaryUnits = myUnits.filter(u =>
+        u.type !== UnitType.Settler &&
+        u.type !== UnitType.Scout &&
         u.type !== UnitType.RiverBoat
     );
-    
+
     // Early game: 1-2 cities, need 1 military per city as minimum deterrence
     // Reduced from 2-per-city which was too strong
     const isEarlyGame = myCities.length <= 2;
     const needsMoreMilitary = militaryUnits.length < myCities.length;
-    
+    const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
+
     if (isEarlyGame && needsMoreMilitary) {
         console.info(`[AI Build] ForgeClans ${playerId} prioritizing military deterrence (${militaryUnits.length} military, ${myCities.length} cities)`);
-        
+
         // Lighter military focus - one defender then continue normally
         const militaryFirst: BuildOption[] = [
-            { type: "Unit", id: UnitType.Scout },           // Still need scouts early
+            ...(scoutCount < 2 ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),           // Still need scouts early
             { type: "Unit", id: UnitType.SpearGuard },      // One defender
             { type: "Building", id: BuildingType.StoneWorkshop },  // Production boost
             { type: "Unit", id: UnitType.Settler },         // Can expand earlier now
             { type: "Building", id: BuildingType.Farmstead },
             { type: "Unit", id: UnitType.BowGuard },        // Then ranged support
         ];
-        
+
         return militaryFirst;
     }
-    
+
     return basePriorities;
 }
 
@@ -365,29 +403,29 @@ function calculateIsolation(city: City, playerId: string, state: GameState): num
 }
 
 function calculateThreatLevel(city: City, playerId: string, state: GameState): number {
-    const enemies = state.players.filter(p => 
-        p.id !== playerId && 
+    const enemies = state.players.filter(p =>
+        p.id !== playerId &&
         !p.isEliminated &&
         state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
     );
-    
+
     if (enemies.length === 0) return 0;
-    
+
     const enemyMilitary = state.units.filter(u =>
         enemies.some(e => e.id === u.ownerId) &&
         UNITS[u.type].domain !== "Civilian" &&
         hexDistance(city.coord, u.coord) <= 5
     );
-    
+
     const ourMilitary = state.units.filter(u =>
         u.ownerId === playerId &&
         UNITS[u.type].domain !== "Civilian" &&
         hexDistance(city.coord, u.coord) <= 5
     );
-    
+
     const enemyPower = enemyMilitary.reduce((sum, u) => sum + UNITS[u.type].atk + UNITS[u.type].def, 0);
     const ourPower = ourMilitary.reduce((sum, u) => sum + UNITS[u.type].atk + UNITS[u.type].def, 0);
-    
+
     return ourPower > 0 ? enemyPower / ourPower : (enemyPower > 0 ? 10 : 0);
 }
 
@@ -406,21 +444,21 @@ function calculateEconomicValue(city: City, state: GameState): number {
 
 function calculateDefensibility(city: City, playerId: string, state: GameState): number {
     let score = 0;
-    
+
     // Has garrison?
-    const hasGarrison = state.units.some(u => 
-        u.ownerId === playerId && 
+    const hasGarrison = state.units.some(u =>
+        u.ownerId === playerId &&
         hexEquals(u.coord, city.coord)
     );
     if (hasGarrison) score += 0.5;
-    
+
     // Has City Ward?
     if (city.buildings.includes(BuildingType.CityWard)) score += 0.3;
-    
+
     // City HP (higher HP = more defensible)
     const maxHp = city.maxHp || 20;
     score += (city.hp / maxHp) * 0.2;
-    
+
     return score;
 }
 
@@ -430,26 +468,26 @@ function evaluateCityForRazing(city: City, playerId: string, state: GameState): 
     const threatLevel = calculateThreatLevel(city, playerId, state);
     const economicValue = calculateEconomicValue(city, state);
     const defensibility = calculateDefensibility(city, playerId, state);
-    
+
     // Raze if:
     // - Very isolated (> 8 tiles from nearest friendly city)
     // - High threat (enemy military power > 1.5x our local military)
     // - Low economic value (< 3 F+P from workable tiles)
     // - Poor defensibility (< 0.5 score)
-    
-    const razeScore = 
+
+    const razeScore =
         (isolation > 8 ? 2 : 0) +
         (threatLevel > 1.5 ? 2 : 0) +
         (economicValue < 3 ? 1 : 0) +
         (defensibility < 0.5 ? 1 : 0);
-    
+
     // Raze if score >= 3 (multiple bad factors)
     const shouldRaze = razeScore >= 3;
-    
+
     if (shouldRaze) {
         console.info(`[AI Raze] ${playerId} considering razing ${city.name}: isolation=${isolation}, threat=${threatLevel.toFixed(2)}, econ=${economicValue}, def=${defensibility.toFixed(2)}, score=${razeScore}`);
     }
-    
+
     return shouldRaze;
 }
 
@@ -459,31 +497,31 @@ function evaluateCityForRazing(city: City, playerId: string, state: GameState): 
  */
 export function considerRazing(state: GameState, playerId: string): GameState {
     let next = state;
-    
+
     const playerCities = next.cities.filter(c => c.ownerId === playerId);
-    
+
     // Never raze if we have <= 2 cities
     if (playerCities.length <= 2) return next;
-    
+
     // Only consider razing during wartime
     if (!isAtWar(next, playerId)) return next;
-    
+
     for (const city of playerCities) {
         // Never raze capitals
         if (city.isCapital) continue;
-        
+
         // Never raze high-pop cities (too valuable)
         if (city.pop >= 4) continue;
-        
+
         // Must have a garrison to raze
-        const hasGarrison = next.units.some(u => 
-            u.ownerId === playerId && 
+        const hasGarrison = next.units.some(u =>
+            u.ownerId === playerId &&
             hexEquals(u.coord, city.coord)
         );
         if (!hasGarrison) continue;
-        
+
         const shouldRaze = evaluateCityForRazing(city, playerId, next);
-        
+
         if (shouldRaze) {
             console.info(`[AI Raze] ${playerId} razing ${city.name}`);
             next = tryAction(next, {
@@ -493,6 +531,6 @@ export function considerRazing(state: GameState, playerId: string): GameState {
             });
         }
     }
-    
+
     return next;
 }

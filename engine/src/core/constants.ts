@@ -233,19 +233,18 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.Fieldcraft]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Farmstead } },
     [TechId.StoneworkHalls]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.StoneWorkshop } },
     [TechId.ScriptLore]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Scriptorium } },
-    [TechId.FormationTraining]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Passive", key: "+1 Def to Melee" } },
+    [TechId.FormationTraining]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Passive", key: "+1/+1 to Melee & Ranged" } },
     [TechId.TrailMaps]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Unit", id: UnitType.RiverBoat } },
     [TechId.Wellworks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.Fieldcraft], unlock: { type: "Building", id: BuildingType.Reservoir } },
     [TechId.TimberMills]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.LumberMill } },
     [TechId.ScholarCourts]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } },
-    [TechId.DrilledRanks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "+1 Atk to Melee & Ranged" } },
+    [TechId.DrilledRanks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } },
     [TechId.CityWards]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.CityWard } },
     [TechId.SteamForges]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } },
     [TechId.SignalRelay]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+1 Science per city" } },
     [TechId.UrbanPlans]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
-    // v0.96 balance: Moved from Engine era to Banner era for earlier army access
-    [TechId.ArmyDoctrine]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } },
-    [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScriptLore, TechId.ScholarCourts], unlock: { type: "Project", id: ProjectId.Observatory } },
+    [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } },
+    [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Project", id: ProjectId.Observatory } },
 };
 
 export type ProjectData = {

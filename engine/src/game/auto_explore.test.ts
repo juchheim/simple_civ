@@ -29,6 +29,8 @@ describe('Auto Explore', () => {
             { coord: { q: 0, r: 2 }, terrain: TerrainType.Plains, overlays: [] }, // Farther
             { coord: { q: 0, r: 3 }, terrain: TerrainType.Plains, overlays: [] }, // Dist 3 (visible)
             { coord: { q: 0, r: 4 }, terrain: TerrainType.Plains, overlays: [] }, // Dist 4 (hidden)
+            { coord: { q: 0, r: 5 }, terrain: TerrainType.Plains, overlays: [] },
+            { coord: { q: 0, r: 6 }, terrain: TerrainType.Plains, overlays: [] },
         ];
         state.revealed = { [playerId]: ['0,0'] }; // Only start revealed
         state.visibility = { [playerId]: ['0,0'] };
@@ -47,23 +49,41 @@ describe('Auto Explore', () => {
         expect(unit?.isAutoExploring).toBe(false);
     });
 
-    it('should automatically pick a target and move towards it', () => {
+    it('should automatically pick a target and move towards it immediately', () => {
         // Enable auto explore
         state = handleSetAutoExplore(state, { type: 'SetAutoExplore', playerId, unitId: 'u1' });
 
-        // Advance turn to trigger auto-explore logic
-        state = advancePlayerTurn(state, playerId);
-
         const unit = state.units.find(u => u.id === 'u1');
         expect(unit?.isAutoExploring).toBe(true);
-        // Should have moved to 0,2 (Scout has 2 moves)
-        expect(unit?.coord).toEqual({ q: 0, r: 2 });
-        // Should have revealed 0,1
+
+        // Should have moved immediately!
+        // It likely moved to 0,1 (closest unexplored) and stopped because target reached
+        expect(unit?.coord).not.toEqual({ q: 0, r: 0 });
         expect(state.revealed[playerId]).toContain('0,1');
     });
 
-    it('should stop auto-exploring when manually moved', () => {
+    it('should continue exploring on next turn', () => {
+        // Enable auto explore
         state = handleSetAutoExplore(state, { type: 'SetAutoExplore', playerId, unitId: 'u1' });
+
+        // Advance turn
+        state = advancePlayerTurn(state, playerId);
+
+        const unit = state.units.find(u => u.id === 'u1');
+        // Should have continued moving
+        // Initial move to 0,1. Next turn moves to 0,2 and maybe 0,3
+        expect(unit?.coord.r).toBeGreaterThan(1);
+    });
+
+    it('should stop auto-exploring when manually moved', () => {
+        // Set moves to 0 so it doesn't move immediately
+        const u = state.units.find(u => u.id === 'u1');
+        if (u) u.movesLeft = 0;
+
+        state = handleSetAutoExplore(state, { type: 'SetAutoExplore', playerId, unitId: 'u1' });
+
+        // Give moves back
+        if (u) u.movesLeft = 1;
 
         state = handleMoveUnit(state, {
             type: 'MoveUnit',

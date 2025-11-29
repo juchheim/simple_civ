@@ -29,7 +29,13 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
 
         // Check for blocking units
         const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
-        if (unitOnTile) return Infinity;
+        if (unitOnTile) {
+            // If enemy, it's impassable (can't move onto them without attacking)
+            if (unitOnTile.ownerId !== unit.ownerId) return Infinity;
+            // If friendly, it's passable for PATHFINDING (we can move through them or they might move)
+            // But give it a penalty so we prefer empty tiles
+            return (TERRAIN[tile.terrain].moveCostLand ?? Infinity) + 5;
+        }
 
         return TERRAIN[tile.terrain].moveCostLand ?? Infinity;
     } else if (stats.domain === UnitDomain.Naval) {
@@ -37,7 +43,10 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
 
         // Check for blocking units
         const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
-        if (unitOnTile) return Infinity;
+        if (unitOnTile) {
+            if (unitOnTile.ownerId !== unit.ownerId) return Infinity;
+            return (TERRAIN[tile.terrain].moveCostNaval ?? Infinity) + 5;
+        }
 
         return TERRAIN[tile.terrain].moveCostNaval ?? Infinity;
     }

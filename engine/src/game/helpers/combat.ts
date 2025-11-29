@@ -166,11 +166,14 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     if (!player) return base;
     const boosted = { ...base };
 
-    if (player.techs.includes(TechId.FormationTraining) && MELEE_TYPES.has(unit.type)) {
+    if (player.techs.includes(TechId.FormationTraining) && (MELEE_TYPES.has(unit.type) || RANGED_TYPES.has(unit.type))) {
+        boosted.atk += 1;
         boosted.def += 1;
     }
-    if (player.techs.includes(TechId.DrilledRanks) && (MELEE_TYPES.has(unit.type) || RANGED_TYPES.has(unit.type))) {
+
+    if (player.techs.includes(TechId.ArmyDoctrine) && unit.type.startsWith("Army")) {
         boosted.atk += 1;
+        boosted.def += 1;
     }
 
     // v0.98: JadeCovenant "Population Power" - combat bonus based on total population

@@ -154,4 +154,29 @@ describe("FoundCity validation", () => {
             applyAction(next as any, { type: "FoundCity", playerId: "p2", unitId: "u2", name: "City2" });
         }).not.toThrow();
     });
+
+    it("allows founding city even when settler has no moves left", () => {
+        const state = baseState();
+        const p1Center = hex(0, 0);
+
+        // Setup map
+        for (let r = 0; r < 5; r++) {
+            for (let q = 0; q < 5; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        // P1 settler with 0 moves left
+        state.units.push({
+            id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 0, state: "Normal"
+        } as any);
+
+        // Should not throw - founding a city should not require moves
+        expect(() => {
+            const next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+            expect(next.cities.length).toBe(1);
+            expect(next.cities[0].name).toBe("City1");
+            expect(next.units.find((u: any) => u.id === "u1")).toBeUndefined(); // Settler should be consumed
+        }).not.toThrow();
+    });
 });

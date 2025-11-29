@@ -59,7 +59,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     return (
         <div>
             <div className="hud-section-title">Game</div>
-            <div className="hud-subtext" style={{ marginTop: 0 }}>Manage your game session.</div>
             <div className="hud-menu-scroll">
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "10px 0" }}>
                     <button className="hud-button" onClick={() => setShowPreferences(true)}>

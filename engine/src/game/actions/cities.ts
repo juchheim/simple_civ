@@ -7,6 +7,7 @@ import {
     TerrainType,
     UnitState,
     UnitType,
+    DiplomacyState,
 } from "../../core/types.js";
 import {
     ATTACK_RANDOM_BAND,
@@ -25,6 +26,7 @@ import {
 import { hexEquals, hexDistance, hexSpiral } from "../../core/hex.js";
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
+import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { canBuild } from "../rules.js";
 
 export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
@@ -72,7 +74,6 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     if (!unit) throw new Error("Unit not found");
     if (unit.type !== UnitType.Settler) throw new Error("Not a settler");
     if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
-    if (unit.movesLeft <= 0) throw new Error("No moves left");
 
     const tile = state.map.tiles.find(t => hexEquals(t.coord, unit.coord));
     if (!tile) throw new Error("Invalid tile");
@@ -99,10 +100,10 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
 
     const cityId = `c_${action.playerId}_${Date.now()}`;
     const player = state.players.find(p => p.id === action.playerId);
-    
+
     // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
     const startingFood = player?.civName === "JadeCovenant" ? 5 : 0;
-    
+
     const newCity: City = {
         id: cityId,
         name: action.name || getCityName(state, player?.civName || "", action.playerId),
@@ -127,6 +128,16 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     state.cities.push(newCity);
     state.units = state.units.filter(u => u.id !== unit.id);
 
+    // Expel units from other players if not at war
+    for (const otherPlayer of state.players) {
+        if (otherPlayer.id === action.playerId) continue;
+
+        const isAtWar = state.diplomacy[action.playerId]?.[otherPlayer.id] === DiplomacyState.War;
+        if (!isAtWar) {
+            expelUnitsFromTerritory(state, otherPlayer.id, action.playerId);
+        }
+    }
+
     return state;
 }
 
@@ -146,7 +157,7 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
     if (action.buildType === "Unit") {
         const unitType = action.buildId as UnitType;
         cost = UNITS[unitType].cost;
-        
+
         // v0.98 Update 5: ForgeClans "Forged Arms" - 20% cheaper military units
         // Only applies to non-civilian units
         if (player?.civName === "ForgeClans" && UNITS[unitType].domain !== "Civilian") {

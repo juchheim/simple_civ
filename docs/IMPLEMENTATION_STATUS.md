@@ -14,6 +14,7 @@ Last Updated: 2025-11-24
 - Unique city names: each civ has 20 thematic names, capital is fixed, subsequent names are random and unique.
 - Unit linking: players can link two units on the same hex for synchronized movement, with automatic unlinking on separation.
 - AI heuristics/personality: Full implementation including city site scoring, war/peace decisions, victory bias switching, and civ-specific personalities.
+- **Victory/Loss UI**: Full-screen Victory/Defeat overlays with "Restart Game" (same seed/settings) and "Main Menu" options.
 
 ## 🔧 Partially Implemented
 - Map generation: coast-biased edges, terrain variation, mountain clusters, river overlays with edge list, and best-fit start selection (≥6 spacing, nearby food/prod), but no mapGenParams tunables, advanced smoothing, or true edge-driven river gen.

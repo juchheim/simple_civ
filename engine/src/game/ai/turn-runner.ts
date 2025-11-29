@@ -2,8 +2,9 @@ import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
 import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
-import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage } from "./units.js";
+import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveUnitsForPreparation } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
+import { manageWarPreparation } from "./war-prep.js";
 import { TraceEntry, safeClone } from "./trace.js";
 import { setTraceContext, clearTraceContext } from "./shared/actions.js";
 import { tryAction } from "./shared/actions.js";
@@ -12,7 +13,7 @@ import { initValidationContext, clearValidationContext } from "./shared/validati
 export function runAiTurnSequence(initialState: GameState, playerId: string): GameState {
     // Initialize validation context for efficient pre-checks
     initValidationContext(initialState, playerId);
-    
+
     let state = initialState;
     const goal = aiVictoryBias(playerId, state);
     state = setAiGoal(state, playerId, goal);
@@ -33,29 +34,37 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = patrolAndExplore(state, playerId);
     state = defendCities(state, playerId);
     state = rotateGarrisons(state, playerId);
+
+    // v0.99: War Preparation
+    state = manageWarPreparation(state, playerId);
+
     state = handleDiplomacy(state, playerId);
     state = retreatWounded(state, playerId);
     state = repositionRanged(state, playerId);
     state = routeCityCaptures(state, playerId);
+
+    // Move units for war preparation (Positioning phase)
+    state = moveUnitsForPreparation(state, playerId);
+
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
-    
+
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
     state = titanRampage(state, playerId);
-    
+
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);
 
     // Clear validation context at end of turn
     clearValidationContext();
-    
+
     return state;
 }
 
 export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: string, trace: TraceEntry[], options?: { skipDiplomacy?: boolean }): GameState {
     // Initialize validation context for efficient pre-checks
     initValidationContext(initialState, playerId);
-    
+
     let state = initialState;
     trace.push({ playerId, action: { type: "StartTurn" }, before: safeClone(state), after: safeClone(state) });
     setTraceContext(trace, playerId);
@@ -74,26 +83,34 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     state = patrolAndExplore(state, playerId);
     state = defendCities(state, playerId);
     state = rotateGarrisons(state, playerId);
+
+    // v0.99: War Preparation
+    state = manageWarPreparation(state, playerId);
+
     if (!options?.skipDiplomacy) {
         state = handleDiplomacy(state, playerId);
     }
     state = retreatWounded(state, playerId);
     state = repositionRanged(state, playerId);
     state = routeCityCaptures(state, playerId);
+
+    // Move units for war preparation (Positioning phase)
+    state = moveUnitsForPreparation(state, playerId);
+
     state = attackTargets(state, playerId);
     state = moveMilitaryTowardTargets(state, playerId);
-    
+
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
     state = titanRampage(state, playerId);
-    
+
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);
 
     trace.push({ playerId, action: { type: "EndTurn" }, before: safeClone(initialState), after: safeClone(state) });
     clearTraceContext();
-    
+
     // Clear validation context at end of turn
     clearValidationContext();
-    
+
     return state;
 }

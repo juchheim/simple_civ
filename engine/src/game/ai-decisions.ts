@@ -12,7 +12,7 @@ import {
 import { getPersonalityForPlayer } from "./ai/personality.js";
 import { setContact } from "./helpers/diplomacy.js";
 
-export type WarPeaceDecision = "DeclareWar" | "ProposePeace" | "AcceptPeace" | "None";
+export type WarPeaceDecision = "DeclareWar" | "ProposePeace" | "AcceptPeace" | "PrepareForWar" | "None";
 const warVetoLog: string[] = [];
 export function getWarVetoLog(): string[] {
     return [...warVetoLog];
@@ -73,11 +73,11 @@ function hasTitan(playerId: string, state: GameState): boolean {
 function hasProgressLead(playerId: string, state: GameState): boolean {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return false;
-    
+
     // Calculate total population
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const myPop = myCities.reduce((sum, c) => sum + c.pop, 0);
-    
+
     // Check against all other players
     let otherMaxPop = 0;
     for (const other of state.players) {
@@ -86,7 +86,7 @@ function hasProgressLead(playerId: string, state: GameState): boolean {
         const theirPop = theirCities.reduce((sum, c) => sum + c.pop, 0);
         if (theirPop > otherMaxPop) otherMaxPop = theirPop;
     }
-    
+
     // Has progress lead if 1.5x the highest enemy population AND 30+ total pop
     // Both conditions required - ensures substantial buildup before aggression spike
     return myPop >= otherMaxPop * 1.5 && myPop >= 30;
@@ -120,7 +120,7 @@ function hasDominatingPowerOver(playerId: string, targetId: string, state: GameS
 function isFinishableTarget(playerId: string, targetId: string, state: GameState): boolean {
     const theirCities = state.cities.filter(c => c.ownerId === targetId);
     if (theirCities.length === 0 || theirCities.length > 2) return false;
-    
+
     const myPower = estimateMilitaryPower(playerId, state);
     const theirPower = estimateMilitaryPower(targetId, state);
     return myPower >= theirPower * 1.5;
@@ -144,7 +144,7 @@ function isWinningWar(playerId: string, targetId: string, state: GameState): boo
     const theirPower = estimateMilitaryPower(targetId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
     const theirCities = state.cities.filter(c => c.ownerId === targetId).length;
-    
+
     // Winning if: more power AND at least as many cities
     return myPower > theirPower * 1.2 && myCities >= theirCities;
 }
@@ -158,11 +158,11 @@ function isActuallyLosingWar(playerId: string, targetId: string, state: GameStat
     const theirPower = estimateMilitaryPower(targetId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
     const theirCities = state.cities.filter(c => c.ownerId === targetId).length;
-    
+
     // Actually losing if: significantly weaker (< 60% power) OR fewer cities AND weaker
     const significantlyWeaker = myPower < theirPower * 0.6;
     const losingTerritory = myCities < theirCities && myPower < theirPower;
-    
+
     return significantlyWeaker || losingTerritory;
 }
 
@@ -173,7 +173,7 @@ function isActuallyLosingWar(playerId: string, targetId: string, state: GameStat
 function isWarExhausted(playerId: string, targetId: string, state: GameState): boolean {
     const stateChangedTurn = state.diplomacyChangeTurn?.[playerId]?.[targetId] ?? 0;
     const turnsSinceWarStart = state.turn - stateChangedTurn;
-    
+
     // War exhaustion kicks in after 40 turns of continuous war
     return turnsSinceWarStart >= 40;
 }
@@ -188,17 +188,17 @@ function isStalemate(playerId: string, targetId: string, state: GameState): bool
     const theirPower = estimateMilitaryPower(targetId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
     const theirCities = state.cities.filter(c => c.ownerId === targetId).length;
-    
+
     const stateChangedTurn = state.diplomacyChangeTurn?.[playerId]?.[targetId] ?? 0;
     const turnsSinceWarStart = state.turn - stateChangedTurn;
-    
+
     // v0.98 Update 8: NEVER consider it a stalemate if we have massive power advantage
     // This fixes tiny map stalls where dominant civs peace out instead of finishing
     const massivePowerAdvantage = myPower >= theirPower * 5;
     if (massivePowerAdvantage) {
         return false; // Not a stalemate - keep fighting!
     }
-    
+
     // Stalemate conditions:
     // 1. War has lasted at least 25 turns
     // 2. Power ratio is between 0.6 and 1.7 (neither side dominant)
@@ -206,11 +206,11 @@ function isStalemate(playerId: string, targetId: string, state: GameState): bool
     const longWar = turnsSinceWarStart >= 25;
     const evenlyMatched = myPower >= theirPower * 0.6 && myPower <= theirPower * 1.7;
     const noTerritorialGains = Math.abs(myCities - theirCities) <= 2;
-    
+
     return longWar && evenlyMatched && noTerritorialGains;
 }
 
-export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState): WarPeaceDecision {
+export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState, options?: { ignorePrep?: boolean }): WarPeaceDecision {
     if (!state.contacts?.[playerId]?.[targetId]) {
         const visibleKeys = getVisibleKeys(state, playerId);
         const seesAny =
@@ -259,17 +259,20 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         const cityAdvantage = hasCityAdvantage(playerId, targetId, state);
         const winning = isWinningWar(playerId, targetId, state);
         const actuallyLosing = isActuallyLosingWar(playerId, targetId, state);
-        
+
         // v0.98 Update 8: War exhaustion and stalemate detection
         const exhausted = isWarExhausted(playerId, targetId, state);
         const stalemate = isStalemate(playerId, targetId, state);
-        
+
         // Extended duration when we have any advantage
         const MIN_WAR_DURATION = (overwhelming || finishable || cityAdvantage || winning) ? 25 : 15;
-        
+
         if (turnsSinceChange < MIN_WAR_DURATION) {
             // War must last at least minimum turns before proposing peace
+            // console.log(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - continuing`);
             return "None";
+        } else {
+            console.log(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - eligible for peace`);
         }
 
         // v0.98 Update 8: War exhaustion overrides "winning" stance
@@ -282,7 +285,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
             if (incomingPeace) return "AcceptPeace";
             return "ProposePeace";
         }
-        
+
         // v0.98 Update 8: Stalemate detection - propose peace if war is going nowhere
         if (stalemate) {
             console.info(`[AI WAR STALEMATE] ${playerId} recognizes stalemate with ${targetId} after ${turnsSinceChange} turns`);
@@ -301,7 +304,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
         if (incomingPeace && (actuallyLosing || progressRisk)) return "AcceptPeace";
         if (actuallyLosing || progressRisk) return "ProposePeace";
-        
+
         // Default: keep fighting if we're in the middle (not winning, not losing)
         // But this will eventually trigger stalemate or exhaustion above
         return "None";
@@ -317,7 +320,21 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     // v0.98 Update 8: DOMINATION MODE - 5x+ power advantage bypasses ALL restrictions
     // This is the #1 fix for stalled games - dominant civs MUST finish off weak opponents
     const theirCitiesExist = state.cities.some(c => c.ownerId === targetId);
+
+    // Check for War Preparation
+    const player = state.players.find(p => p.id === playerId);
+    const prep = player?.warPreparation;
+    const isPrepping = prep && prep.targetId === targetId;
+    const isReady = isPrepping && prep.state === "Ready";
+
     if (dominating && theirCitiesExist) {
+        if (!options?.ignorePrep && !isReady) {
+            // If we are dominating, we might skip prep? 
+            // Actually, even dominating powers should position troops to be effective.
+            // But if we are REALLY dominating (5x), maybe we just go?
+            // For now: still require prep.
+            return "None";
+        }
         console.info(`[AI DOMINATION] ${playerId} entering DOMINATION mode against ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)} = ${(aiPower / Math.max(1, enemyPower)).toFixed(1)}x)`);
         return "DeclareWar";
     }
@@ -337,22 +354,36 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     if (theirCities.length === 0 || myCities.length === 0) {
         logVeto(`No cities for war eval ${playerId}->${targetId} myCities=${myCities.join(",") || "none"} theirCities=${theirCities.join(",") || "none"}`);
     }
-    
+
     // v0.98 Update 5: Always declare war if we have overwhelming power or target is finishable
     if (dist !== null && (overwhelming || finishable)) {
+        if (!options?.ignorePrep && !isReady) return "None";
         console.info(`[AI WAR FINISH] ${playerId} declaring war on ${targetId} (${overwhelming ? "OVERWHELMING" : "FINISHABLE"}: power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
     }
-    
+
     if (dist !== null && dist <= warDistanceMax && aiPower >= enemyPower * warPowerThreshold) {
+        if (!options?.ignorePrep && !isReady) return "None";
         console.info(`[AI WAR] ${playerId} declaring war on ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
+    } else if (dist !== null && dist <= warDistanceMax) {
+        // v0.99: If we are close enough to fight but too weak, we should build up!
+        // This solves the deadlock where weak AIs never build an army to start a war.
+        // Only build up if we are not hopelessly outmatched (at least 25% of their power)
+        if (aiPower >= enemyPower * 0.25) {
+            return "PrepareForWar";
+        }
     }
 
     if (declareAfterContact > 0 && contactTurns >= declareAfterContact && dist !== null) {
         if (aiPower >= enemyPower * 0.5) {
+            if (!options?.ignorePrep && !isReady) return "None";
             return "DeclareWar";
         } else {
+            // Also prepare if we want to force war but are weak
+            if (aiPower >= enemyPower * 0.25) {
+                return "PrepareForWar";
+            }
             logVeto(`Force-war veto: ${playerId}->${targetId} power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}`);
         }
     }

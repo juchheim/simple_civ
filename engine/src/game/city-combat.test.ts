@@ -270,4 +270,72 @@ describe("City Combat", () => {
         expect(city).toBeDefined();
         expect(city!.hp).toBe(11); // 10 + 1
     });
+
+    it("should NOT heal a city that was damaged this turn", () => {
+        // Setup City for P2
+        state.cities.push({
+            id: "c1",
+            name: "City1",
+            ownerId: "p2",
+            coord: { q: 0, r: 0 },
+            pop: 1,
+            storedFood: 0,
+            storedProduction: 0,
+            buildings: [],
+            workedTiles: [{ q: 0, r: 0 }],
+            currentBuild: null,
+            buildProgress: 0,
+            hp: 20,
+            maxHp: 20,
+            isCapital: true,
+            hasFiredThisTurn: false,
+            milestones: [],
+        });
+        state.map.tiles[0].ownerId = "p2";
+        state.map.tiles[0].ownerCityId = "c1";
+        state.map.tiles[0].hasCityCenter = true;
+
+        // Setup Attacker for P1
+        state.units.push({
+            id: "u1",
+            type: UnitType.SpearGuard,
+            ownerId: "p1",
+            coord: { q: 0, r: 1 },
+            hp: 10,
+            maxHp: 10,
+            movesLeft: 1,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        // Turn 1: P1 attacks P2's city
+        let nextState = applyAction(state, {
+            type: "Attack",
+            playerId: "p1",
+            attackerId: "u1",
+            targetId: "c1",
+            targetType: "City",
+        });
+
+        let city = nextState.cities.find(c => c.id === "c1");
+        const damagedHp = city!.hp;
+        expect(damagedHp).toBeLessThan(20);
+
+        // P1 ends turn -> P2's turn starts (still turn 1)
+        // City should NOT heal because it was damaged this turn
+        nextState = applyAction(nextState, { type: "EndTurn", playerId: "p1" });
+
+        city = nextState.cities.find(c => c.id === "c1");
+        expect(city!.hp).toBe(damagedHp); // No healing!
+
+        // P2 ends turn -> Turn 2, P1's turn
+        nextState = applyAction(nextState, { type: "EndTurn", playerId: "p2" });
+
+        // P1 ends turn -> P2's turn starts (turn 2)
+        // City SHOULD heal now because it wasn't damaged on turn 2
+        nextState = applyAction(nextState, { type: "EndTurn", playerId: "p1" });
+
+        city = nextState.cities.find(c => c.id === "c1");
+        expect(city!.hp).toBe(damagedHp + 1); // Healed by 1!
+    });
 });

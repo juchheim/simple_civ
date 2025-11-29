@@ -69,13 +69,24 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
 
     const hasEnemyMilitary = enemyUnitsOnTile.some(u => UNITS[u.type].domain !== UnitDomain.Civilian);
     const hasEnemyUnit = enemyUnitsOnTile.length > 0;
+    const cityOnTile = state.cities.find(c => hexEquals(c.coord, target));
+    const isEnemyCityTile = cityOnTile && cityOnTile.ownerId !== playerId;
 
     for (const mover of movers) {
         const isMilitary = mover.stats.domain !== UnitDomain.Civilian;
         if (isMilitary) {
             if (hasEnemyMilitary) {
-                console.log(`[VALIDATION FAIL] Enemy military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}`);
-                throw new Error("Tile occupied by military unit");
+                // Exception: If it's an enemy city with <= 0 HP, and we can capture it, we can ignore the enemy military (it will be removed)
+                const targetCity = state.cities.find(c => hexEquals(c.coord, target));
+                const canCapture = mover.stats.canCaptureCity;
+                const isVulnerableCity = targetCity && targetCity.ownerId !== playerId && targetCity.hp <= 0;
+
+                if (isVulnerableCity && canCapture) {
+                    // Allowed
+                } else {
+                    console.log(`[VALIDATION FAIL] Enemy military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}`);
+                    throw new Error("Tile occupied by military unit");
+                }
             }
             if (friendlyMilitaryOnTile > 0) {
                 console.log(`[VALIDATION FAIL] Friendly military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}. Movers: ${movers.length}`);
@@ -93,7 +104,8 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
     const tile = state.map.tiles.find(t => hexEquals(t.coord, target));
     if (tile && tile.ownerId && tile.ownerId !== playerId) {
         const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
-        if (diplomacy !== "War") {
+        // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
+        if (!isEnemyCityTile && diplomacy !== "War") {
             throw new Error("Cannot enter enemy territory during peacetime");
         }
     }
@@ -129,6 +141,14 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
     if (cityOnTile && cityOnTile.ownerId !== playerId) {
         if (cityOnTile.hp > 0) throw new Error("City not capturable");
         if (!context.stats.canCaptureCity) throw new Error("Unit cannot capture cities");
+
+        // Remove any enemy units (garrison) that might still be there
+        const enemyUnits = state.units.filter(u => hexEquals(u.coord, destination) && u.ownerId !== playerId);
+        for (const enemy of enemyUnits) {
+            unlinkPair(enemy, resolveLinkedPartner(state, enemy));
+            state.units = state.units.filter(u => u.id !== enemy.id);
+        }
+
         ensureWar(state, playerId, cityOnTile.ownerId);
         captureCity(state, cityOnTile, playerId);
     }
