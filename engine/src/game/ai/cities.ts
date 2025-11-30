@@ -25,32 +25,7 @@ function isAtWar(state: GameState, playerId: string): boolean {
 
 type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
-function hasAvailableCitySite(state: GameState, _playerId: string): boolean {
-    const MIN_CITY_DISTANCE = 3;
 
-    for (const tile of state.map.tiles) {
-        // Basic terrain checks
-        if (tile.ownerId) continue;
-        if (tile.hasCityCenter) continue;
-        if (tile.terrain === TerrainType.Mountain ||
-            tile.terrain === TerrainType.Coast ||
-            tile.terrain === TerrainType.DeepSea) continue;
-
-        // Check distance from ALL cities (match validation logic in handleFoundCity)
-        let tooClose = false;
-        for (const city of state.cities) {
-            const dist = hexDistance(tile.coord, city.coord);
-            if (dist < MIN_CITY_DISTANCE) {
-                tooClose = true;
-                break;
-            }
-        }
-        if (tooClose) continue;
-
-        return true;  // Found at least one valid site!
-    }
-    return false;
-}
 
 function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar: boolean, state: GameState, playerId: string): BuildOption[] {
     const player = state.players.find(p => p.id === playerId);
@@ -319,6 +294,45 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
     return basePriorities;
 }
 
+function countAvailableCitySites(state: GameState, playerId: string, limit: number = 10): number {
+    const MIN_CITY_DISTANCE = 3;
+    const MAX_EXPANSION_RANGE = 12; // Reduced from 15 to ensure realistic targets
+    let count = 0;
+
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    // If no cities (start of game), map is wide open
+    if (myCities.length === 0) return limit;
+
+    for (const tile of state.map.tiles) {
+        // Basic terrain checks
+        if (tile.ownerId) continue;
+        if (tile.hasCityCenter) continue;
+        if (tile.terrain === TerrainType.Mountain ||
+            tile.terrain === TerrainType.Coast ||
+            tile.terrain === TerrainType.DeepSea) continue;
+
+        // Optimization: Check distance to nearest friendly city first
+        // If it's too far from ALL our cities, ignore it (likely unreachable or inefficient)
+        const distToNearest = Math.min(...myCities.map(c => hexDistance(tile.coord, c.coord)));
+        if (distToNearest > MAX_EXPANSION_RANGE) continue;
+
+        // Check distance from ALL cities (match validation logic in handleFoundCity)
+        let tooClose = false;
+        for (const city of state.cities) {
+            const dist = hexDistance(tile.coord, city.coord);
+            if (dist < MIN_CITY_DISTANCE) {
+                tooClose = true;
+                break;
+            }
+        }
+        if (tooClose) continue;
+
+        count++;
+        if (count >= limit) return count;
+    }
+    return count;
+}
+
 export function pickCityBuilds(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
     let next = state;
     const personality = getPersonalityForPlayer(next, playerId);
@@ -338,8 +352,23 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
         c => c.ownerId === playerId && c.currentBuild?.type === "Unit" && c.currentBuild.id === UnitType.Settler
     ).length;
     let settlersInFlight = activeSettlers + settlersQueued;
-    const openCitySite = hasAvailableCitySite(next, playerId);
-    const settlerCap = Math.max(1, Math.ceil(desiredShortfall / 2));
+
+    // Strict Cap: Prevent "batch production" waste.
+    // "Finish Your Plate" Rule: Limit active settlers to 1 (2 on Large/Huge maps).
+    // This forces the AI to use its existing settler before building another.
+    const mapSize = state.map.width * state.map.height;
+    const isLargeMap = mapSize > 200; // Approx threshold for Large+
+    const globalSettlerLimit = isLargeMap ? 2 : 1;
+
+    // Cap based on shortfall, available sites, AND the strict global limit
+    const settlerCap = Math.min(
+        globalSettlerLimit,
+        Math.max(1, Math.ceil(desiredShortfall / 2))
+    );
+
+    // Check available sites up to a reasonable limit
+    const availableSites = countAvailableCitySites(next, playerId, settlerCap + 2);
+
     const cityOrder = state.cities.filter(c => c.ownerId === playerId);
     const atWar = isAtWar(next, playerId);
     const priorities = buildPriorities(goal, personality, atWar, next, playerId);
@@ -347,9 +376,17 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
         if (city.currentBuild) continue;
         for (const option of priorities) {
             if (option.type === "Unit" && option.id === UnitType.Settler) {
-                const allowSettler = desiredShortfall > 0 && settlersInFlight < settlerCap && (cityCountShort || freeLandNear) && openCitySite;
+                // Only build if:
+                // 1. We want more cities (shortfall > 0)
+                // 2. We haven't hit the hard cap (inFlight < cap)
+                // 3. We have valid sites (inFlight < available)
+                const allowSettler = desiredShortfall > 0 &&
+                    settlersInFlight < settlerCap &&
+                    settlersInFlight < availableSites &&
+                    (cityCountShort || freeLandNear);
+
                 if (!allowSettler) continue;
-                console.info(`[AI Build] ${playerId} queuing Settler in ${city.name} (cities=${myCities.length}/${desiredCities}, inFlight=${settlersInFlight})`);
+                console.info(`[AI Build] ${playerId} queuing Settler in ${city.name} (cities=${myCities.length}/${desiredCities}, inFlight=${settlersInFlight}, sites=${availableSites}, cap=${settlerCap})`);
                 settlersInFlight++;
             }
             if (canBuild(city, option.type, option.id, next)) {
