@@ -276,25 +276,52 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         escalationFactor = 1.0 - (lateProgress * 0.4);
     }
 
+    // v0.99 Update: Large Map Scaling
+    // On larger maps, distances are greater and there are more opponents.
+    // We need to scale aggression and distance limits to match.
+    // Standard map is 24x24.
+    const mapWidth = state.map.width;
+    const mapHeight = state.map.height;
+    const mapSizeFactor = Math.max(1.0, (mapWidth * mapHeight) / (24 * 24));
+    const distanceScale = Math.sqrt(mapSizeFactor); // Scale distance by sqrt of area ratio
+
     // Capital Targeting Bonus: If we are escalating AND enemy capital is vulnerable, be even more aggressive
     let capitalBonus = 1.0;
     if (escalationFactor < 1.0) {
         const capDist = getEnemyCapitalDistance(playerId, targetId, state);
-        if (capDist !== null && capDist <= aggression.warDistanceMax) {
+        // Scale the check distance by map size
+        if (capDist !== null && capDist <= aggression.warDistanceMax * distanceScale) {
             capitalBonus = 0.9; // 10% easier to declare war if capital is in range
         }
     }
 
-    const finalWarPowerThreshold = warPowerThreshold * escalationFactor * capitalBonus;
+    // v0.99 Update: Aggression Scaling on Large Maps
+    // Conquest civs need to be more aggressive on large maps to overcome the "turtling" tendency
+    let largeMapAggressionBonus = 1.0;
+    // v0.99 Update: Extended to Standard maps (factor >= 1.0)
+    if (victoryBias === "Conquest" && mapSizeFactor >= 1.0) {
+        largeMapAggressionBonus = 0.9; // 10% lower threshold on Standard/Large/Huge maps
+    }
+
+    const finalWarPowerThreshold = warPowerThreshold * escalationFactor * capitalBonus * largeMapAggressionBonus;
 
     // Increase distance range over time (starts at turn 100, +1 tile every 20 turns)
     // v0.99 Update: If escalating (Conquest civ late game), remove distance limit to ensure we can reach any capital
     const distanceBonus = Math.max(0, Math.floor((state.turn - 100) / 20));
-    const warDistanceMax = (escalationFactor < 1.0) ? 999 : aggression.warDistanceMax + distanceBonus;
+    // Scale base distance by map size
+    const scaledBaseDistance = Math.ceil(aggression.warDistanceMax * distanceScale);
+    const warDistanceMax = (escalationFactor < 1.0) ? 999 : scaledBaseDistance + distanceBonus;
     const stance = state.diplomacy?.[playerId]?.[targetId] ?? DiplomacyState.Peace;
     const aiPower = estimateMilitaryPower(playerId, state);
     const enemyPower = estimateMilitaryPower(targetId, state);
-    const _losingWar = aiPower < enemyPower * aggression.peacePowerThreshold;
+
+    // v0.99 Update: Conquest civs are harder to peace out on larger maps
+    let peaceThreshold = aggression.peacePowerThreshold;
+    if (victoryBias === "Conquest" && mapSizeFactor >= 1.0) {
+        peaceThreshold -= 0.1; // Stay in war longer (e.g. 0.8 -> 0.7)
+    }
+    const _losingWar = aiPower < enemyPower * peaceThreshold;
+
     const progressRisk = progressRaceRiskHigh(playerId, state);
     const inWar = stance === DiplomacyState.War;
     const contactTurnKey = `metTurn_${targetId}`;

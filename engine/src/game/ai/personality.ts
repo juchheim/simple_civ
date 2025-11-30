@@ -118,7 +118,7 @@ const personalities: Record<CivName, AiPersonality> = {
         expansionDesire: 1.4,
         desiredCities: 5,
         techWeights: {
-            [TechId.SteamForges]: 1.5,
+            [TechId.SteamForges]: 2.0, // v0.99: Hard focus on Titan
             [TechId.StoneworkHalls]: 1.2,
             [TechId.DrilledRanks]: 1.4, // Prioritize armies
             [TechId.ArmyDoctrine]: 1.4, // Prioritize armies
@@ -150,12 +150,13 @@ const personalities: Record<CivName, AiPersonality> = {
             aggressionSpikeTrigger: "ProgressLead",
         },
         settleBias: {},
-        expansionDesire: 1.5,
-        desiredCities: 8, // v0.99: Increased to support "Awakened Giant" strategy
+        expansionDesire: 2.0, // v0.99: Massive expansion focus
+        desiredCities: 10, // v0.99: Increased to support "Awakened Giant" strategy
         techWeights: {
             [TechId.Wellworks]: 2.0,
-            [TechId.Fieldcraft]: 1.3,
-            [TechId.UrbanPlans]: 1.05,
+            [TechId.Fieldcraft]: 1.5, // Growth (Farmstead)
+            [TechId.StoneworkHalls]: 1.3, // Production (Stone Workshop)
+            [TechId.UrbanPlans]: 1.2, // Growth/Production (City Square)
             [TechId.DrilledRanks]: 1.3, // Prioritize armies late game
             [TechId.ArmyDoctrine]: 1.3,
         },

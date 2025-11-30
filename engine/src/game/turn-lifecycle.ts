@@ -59,7 +59,12 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
         const unitStats = UNITS[unit.type];
         const wasJustCaptured = unit.capturedOnTurn != null && unit.capturedOnTurn > state.turn - 2;
         if (!wasJustCaptured) {
-            unit.movesLeft = unitStats.move;
+            // v0.99 Buff: Jade Covenant Settlers have 3 movement (base 2)
+            if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
+                unit.movesLeft = 3;
+            } else {
+                unit.movesLeft = unitStats.move;
+            }
         }
         unit.hasAttacked = false;
     }
@@ -192,10 +197,12 @@ function completeBuild(state: GameState, city: City) {
                 city.workedTiles = ensureWorkedTiles(city, state);
             } else {
                 // v0.99 BUFF: "Ancestral Protection" - Settlers have 10 HP (instead of 1)
+                // v0.99 BUFF: "Nomadic Heritage" - Settlers have 3 Movement (instead of 2)
                 const unit = state.units[state.units.length - 1]; // The newly added unit
                 if (unit && unit.type === UnitType.Settler) {
                     unit.maxHp = 10;
                     unit.hp = 10;
+                    unit.movesLeft = 3;
                 }
             }
         }

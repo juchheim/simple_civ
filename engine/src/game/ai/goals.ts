@@ -88,8 +88,8 @@ function getJadeCovenantGoal(playerId: string, state: GameState): AiVictoryGoal 
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const totalPop = myCities.reduce((sum, c) => sum + c.pop, 0);
 
-    // Trigger at 25 population (critical mass)
-    if (totalPop < 25) return null;
+    // Trigger at 20 population OR 6 cities (critical mass)
+    if (totalPop < 20 && myCities.length < 6) return null;
 
     const myPower = estimateMilitaryPower(playerId, state);
 

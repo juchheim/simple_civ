@@ -216,6 +216,23 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                             : `Project: ${formatName(tech.unlock.id)}`}
                 </div>
 
+                {/* Civ-Specific Uniques */}
+                {player.civName === "JadeCovenant" && techId === TechId.Fieldcraft && (
+                    <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
+                        Unique: Jade Granary
+                    </div>
+                )}
+                {player.civName === "AetherianVanguard" && techId === TechId.SteamForges && (
+                    <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
+                        Unique: Titan's Core
+                    </div>
+                )}
+                {player.civName === "StarborneSeekers" && techId === TechId.StarCharts && (
+                    <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
+                        Unique: Spirit Observatory
+                    </div>
+                )}
+
                 {renderUnlockStats(tech)}
 
                 {isCurrent && (

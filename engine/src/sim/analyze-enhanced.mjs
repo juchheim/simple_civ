@@ -419,7 +419,6 @@ sortedVictories.forEach(([civ, stats]) => {
         report += `- **Conquest Victories:** ${stats.Conquest} (${((stats.Conquest / stats.total) * 100).toFixed(1)}%)\n`;
         report += `- **Progress Victories:** ${stats.Progress} (${((stats.Progress / stats.total) * 100).toFixed(1)}%)\n\n`;
     }
-}
 });
 
 // QUESTION 1b: Victory Types by Map Size

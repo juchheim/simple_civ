@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType, DiplomacyState } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType, DiplomacyState, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 
@@ -19,6 +19,30 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
     // If hidden, be optimistic! Assume it's a plain (cost 1) unless we know otherwise
     // We treat Shroud and Fog the same here - if we can't see it NOW, we assume it's clear.
     if (!isVisible) {
+        return 1;
+    }
+
+    // v0.99 Buff: Titans ignore terrain movement penalties
+    // They are massive enough to stride over forests and hills effortlessly.
+    if (unit.type === UnitType.Titan) {
+        // Still respect impassable terrain (Mountains/DeepSea) if defined in rules, 
+        // but for now we just check basic passability.
+        // Actually, let's just make them cost 1 for any valid land tile.
+        // We still need to check if it's a valid tile type for Land domain.
+        if (tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea) return Infinity;
+        if (tile.terrain === TerrainType.Mountain) return Infinity;
+
+        // Check for blocking units (still applies)
+        const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
+        if (unitOnTile && unitOnTile.ownerId !== unit.ownerId) return Infinity;
+
+        // Check for peacetime borders (still applies)
+        if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+            const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
+            const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
+            if (!isCity && diplomacy !== "War") return Infinity;
+        }
+
         return 1;
     }
 

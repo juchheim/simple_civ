@@ -146,7 +146,7 @@
   - Army Spear Guard 8/4/1/1, capture, vision 2.
   - Army Bow Guard 6/3/2/1, no capture, vision 2.
   - Army Riders 8/4/1/2, capture, vision 2.
-- **Titan**: 25 atk / 10 def / rng 1 / move 3 / HP 50 / capture / vision 3 (summoned by Titan's Core).
+  - **Titan**: 25 atk / 10 def / rng 1 / move 3 / HP 50 / capture / vision 3 (summoned by Titan's Core). **Ignores terrain movement costs.**
 - **States**: Normal, Fortified (+2 defense until move/attack), Garrisoned (on city), PendingSpawn (queued).
 - **Linking**: eligible units can link into armies via Form Army projects; unlink to split back to base units.
 - **Vision**: provided per unit; shared vision extends via diplomacy.
@@ -222,7 +222,7 @@
   - **City Square** (80, Urban Plans): +1 Food, +1 Production.
   - **Titan's Core** (150, Steam Forges): summons Titan on completion (unique per civ).
   - **Spirit Observatory** (275, Star Charts): “The Revelation”—+1 Science per city, counts as Observatory milestone (unique per civ).
-  - **Jade Granary** (150, Wellworks): “The Great Harvest”—+1 Pop per city, growth 15% cheaper, +1 Food per city (unique per civ).
+  - **Jade Granary** (60, Fieldcraft): “The Great Harvest”—+1 Pop per city, growth 15% cheaper, +1 Food per city (unique per civ).
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
@@ -241,9 +241,9 @@
 - **ForgeClans**: +1 Production from each worked Hill (Capital Only).
 - **Scholar Kingdoms**: +1 Science in cities with Pop ≥3.
 - **River League**: +1 Production for every 2 river tiles worked.
-- **Aetherian Vanguard**: Can build Titan's Core (summon Titan).
-- **Starborne Seekers**: Can build Spirit Observatory (Revelation bonus).
-- **Jade Covenant**: Unique Building: Jade Granary (Hearth Era, 60 Prod) - +1 Pop/City, +1 Food/City. Settlers cost 30% less, have 10 HP, and +2 Defense.
+- **Aetherian Vanguard**: Unique Unit: Titan (Super-Unit). **Vanguard Logistics**: Cities with a garrison gain +1 Production.
+- **Starborne Seekers**: Unique Building: Spirit Observatory (Science). **Stargazers**: +1 Science from Sacred Sites.
+- **Jade Covenant**: Unique Building: Jade Granary (Hearth Era, 60 Prod) - +1 Pop/City, +1 Food/City. **Nomadic Heritage**: Settlers have 3 Movement (base 2) and 10 HP (base 1).
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation
@@ -268,6 +268,7 @@
 
 ### AI Diplomacy Behavior
 - **War Escalation**: AI aggression scales with the game turn. In the late game (Turn 50+), AI civilizations become "Bloodthirsty" and will refuse all peace offers to drive the game to a conclusion.
+- **Map Scaling**: On Standard, Large, and Huge maps, Conquest-biased civilizations (e.g., Aetherian Vanguard) are more aggressive to overcome travel distances.
 - **Domination Bypass**: Extremely powerful AI civilizations (3x stronger than target) may bypass the standard peace duration to crush weak neighbors.
 - **War Preparation**: AI will spend up to 10 turns preparing for war (building units, positioning) before declaring hostilities.
 

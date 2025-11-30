@@ -153,6 +153,16 @@ export function getCityYields(city: City, state: GameState): Yields {
                 total.S += 1;  // Extra +1 on top of the base Sacred Site bonus
             }
         }
+    } else if (trait === "AetherianVanguard") {
+        // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
+        // This bridges their weak early game to the Titan
+        const hasGarrison = state.units.some(u =>
+            u.ownerId === city.ownerId &&
+            hexEquals(u.coord, city.coord)
+        );
+        if (hasGarrison) {
+            total.P += 1;
+        }
     }
 
     // Jade Granary effect: +1 Food per city
@@ -164,13 +174,14 @@ export function getCityYields(city: City, state: GameState): Yields {
     return total;
 }
 
-function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "StarborneSeekers" | null {
+function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "StarborneSeekers" | "AetherianVanguard" | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return null;
     if (player.civName === "ForgeClans") return "ForgeClans";
     if (player.civName === "ScholarKingdoms") return "ScholarKingdoms";
     if (player.civName === "RiverLeague") return "RiverLeague";
     if (player.civName === "StarborneSeekers") return "StarborneSeekers";
+    if (player.civName === "AetherianVanguard") return "AetherianVanguard";
     return null;
 }
 
@@ -237,7 +248,6 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             if (isBuilding) return false;
         }
 
-        // Era/Gate checks are implicit in tech tree, but building itself just needs tech.
         return true;
     }
 
@@ -249,28 +259,6 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // Unit requirements?
         // Some units need techs?
         // "Trail Maps -> River Boat"
-        // "Formation Training -> Passive"
-        // "Fieldcraft -> Farmstead"
-        // Basic units (Warrior/Settler) might be available from start?
-        // Rulebook 3.2.2:
-        // Scout, SpearGuard, BowGuard, Riders, RiverBoat.
-        // Tech tree:
-        // Trail Maps -> River Boat.
-        // Others?
-        // "Units are upgraded globally via techs".
-        // "Hearth Age ... Unlocks ... A unit availability/upgrade rule".
-        // It seems basic units (Scout, Spear, Bow, Riders) are available from start?
-        // Wait, let's check Tech Tree 3.4.
-        // Trail Maps -> River Boat.
-        // Others unlock buildings or passives.
-        // So Scout, Spear, Bow, Riders are default?
-        // Rulebook 2.2.4: "Unlocks exactly one thing... Or a unit availability/upgrade rule."
-        // If it's not unlocked by a tech, is it available?
-        // "Each player starts with 1 Settler, 1 Scout".
-        // Usually basic units are available.
-        // Let's assume Scout, Spear, Bow, Riders are available by default unless restricted.
-        // RiverBoat is restricted by TrailMaps.
-
         if (uId === UnitType.RiverBoat && !player.techs.includes(TechId.TrailMaps)) return false;
 
         // Armies?
