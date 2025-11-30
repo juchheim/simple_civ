@@ -4,7 +4,7 @@ import { hexDistance } from "../../core/hex.js";
 type StartPlacementContext = {
     players: Player[];
     validStarts: Tile[];
-    startScore: (tile: Tile) => number;
+    startScore: (tile: Tile, player: Player) => number;
     meetsStartGuarantees: (tile: Tile) => boolean;
 };
 
@@ -25,7 +25,7 @@ export function pickStartingSpots(context: StartPlacementContext): Map<string, T
         let spot = pool[0];
         let bestScore = -Infinity;
         for (const candidate of pool) {
-            const score = startScore(candidate);
+            const score = startScore(candidate, player);
             if (score > bestScore) {
                 bestScore = score;
                 spot = candidate;

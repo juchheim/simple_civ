@@ -185,8 +185,19 @@ function completeBuild(state: GameState, city: City) {
         });
 
         if (uType === UnitType.Settler) {
-            city.pop = Math.max(1, city.pop - SETTLER_POP_LOSS_ON_BUILD);
-            city.workedTiles = ensureWorkedTiles(city, state);
+            // v0.98 Update 9: JadeCovenant "Expansionist" - Settlers do not consume population
+            const isJadeCovenant = player?.civName === "JadeCovenant";
+            if (!isJadeCovenant) {
+                city.pop = Math.max(1, city.pop - SETTLER_POP_LOSS_ON_BUILD);
+                city.workedTiles = ensureWorkedTiles(city, state);
+            } else {
+                // v0.99 BUFF: "Ancestral Protection" - Settlers have 10 HP (instead of 1)
+                const unit = state.units[state.units.length - 1]; // The newly added unit
+                if (unit && unit.type === UnitType.Settler) {
+                    unit.maxHp = 10;
+                    unit.hp = 10;
+                }
+            }
         }
     } else if (build.type === "Building") {
         city.buildings.push(build.id as BuildingType);
@@ -210,28 +221,16 @@ function completeBuild(state: GameState, city: City) {
             });
         } else if (build.id === BuildingType.SpiritObservatory) {
             // Spirit Observatory: The Revelation
-            // 1. Complete current tech instantly
-            // 2. Grant one free tech (auto-select best available)
-            // 3. +2 Science per city permanently (tracked via marker)
+            // 1. (REMOVED v0.99) Complete current tech instantly
+            // 2. (REMOVED v0.99) Grant one free tech
+            // 3. +1 Science per city permanently (tracked via marker)
             // 4. Counts as Observatory milestone for Progress chain
             if (player) {
-                // Complete current tech if any
-                if (player.currentTech) {
-                    player.techs.push(player.currentTech.id);
-                    player.currentTech = null;
-                }
-
-                // Grant one free tech (auto-select best available for Progress path)
-                const freeTech = pickBestAvailableTech(player);
-                if (freeTech) {
-                    player.techs.push(freeTech);
-                }
-
-                // Track completion - grants Observatory milestone
+                // Mark as completed
                 player.completedProjects.push(ProjectId.Observatory);
                 city.milestones.push(ProjectId.Observatory);
             }
-            // Note: +2 Science per city is applied via getSciencePerTurn checking for Observatory milestone
+            // Note: +1 Science per city is applied via getSciencePerTurn checking for Observatory milestone
         } else if (build.id === BuildingType.JadeGranary) {
             // Jade Granary: The Great Harvest
             // 1. Every city gains +1 Pop

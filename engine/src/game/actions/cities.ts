@@ -28,6 +28,7 @@ import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js
 import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { canBuild } from "../rules.js";
+import { getUnitCost } from "../units.js";
 
 export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
     const city = state.cities.find(c => c.id === action.cityId);
@@ -156,12 +157,17 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
     let cost = 0;
     if (action.buildType === "Unit") {
         const unitType = action.buildId as UnitType;
-        cost = UNITS[unitType].cost;
+        cost = getUnitCost(unitType, state.turn);
 
         // v0.98 Update 5: ForgeClans "Forged Arms" - 20% cheaper military units
         // Only applies to non-civilian units
         if (player?.civName === "ForgeClans" && UNITS[unitType].domain !== "Civilian") {
             cost = Math.floor(cost * FORGE_CLANS_MILITARY_DISCOUNT);
+        }
+
+        // v0.98 Update 9: JadeCovenant "Expansionist" - 30% cheaper Settlers
+        if (player?.civName === "JadeCovenant" && unitType === UnitType.Settler) {
+            cost = Math.floor(cost * 0.7);
         }
     }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;

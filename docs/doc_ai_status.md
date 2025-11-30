@@ -28,6 +28,10 @@
     - **Domination Bypass**: Overwhelmingly strong AI (3x power) can bypass peace duration.
     - **No Peace**: Late game AI rejects peace to force a conclusion.
   - Stores the AI victory goal on the player (`aiGoal`) so bias is visible/persisted.
+  - **Victory Logic (v0.99)**:
+    - **Scholar Kingdoms**: Prioritizes Science buildings/projects to rush Tech victory.
+    - **Starborne Seekers**: Prioritizes Spirit Observatory and Progress projects.
+    - **River League**: Auto-assigner prioritizes river tiles (valued at +0.5 Prod) to maximize unique trait.
 - Start placement now uses the documented city-site scoring heuristic instead of the prior ad-hoc formula; the client now consumes the shared engine generator (`engine/src/map/map-generator.ts`).
 - AI turn autoskip loop remains in the client (`client/src/App.tsx:107-121`) and drives the new behavior for `isAI` players.
 - Tests cover the AI heuristics/decisions/executor to lock doc rules (`engine/src/game/ai.test.ts`, `engine/src/game/ai.e2e.test.ts`), and the client simply imports the engine AI (no separate wrapper/tests remain).

@@ -34,7 +34,7 @@
 ## 1. Vision & Pillars
 - **One-more-turn, zero bloat**: fast, board-game-paced 4X on a compact hex map.
 - **Clarity over crunch**: only three yields (Food, Production, Science); no upkeep, no hidden multipliers.
-- **Short campaign, real arc**: ~70–80 turns on Standard maps.
+- **Short campaign, real arc**: ~150 turns on Standard maps.
 - **Safety nets**: every city defends itself; recovery is possible after setbacks.
 - **Board-game readability**: few numbers, clear effects, deterministic structure with limited randomness in combat.
 
@@ -134,6 +134,7 @@
 
 ## 9. Units
 - **Base Units** (atk/def/rng/move/HP/cost/domain/capture/vision):
+  *Note: Unit costs scale with game turn (Base * (1 + Turn/25)).*
   - Settler: 0/0/1/1/1/20, Civilian, cannot capture, vision 2.
   - Scout: 1/1/1/2/10/25, Land, no capture, vision 3.
   - Spear Guard: 2/2/1/1/10/30, Land, can capture, vision 2.
@@ -172,11 +173,11 @@
   - One attack per unit per turn; ranged must respect range; melee requires adjacency.
   - Cities can be attacked; only capture-capable units take cities.
 - **Damage Model**:
-  - Base damage 4, clamped by min/max (1–7 band) with random variance (ATTACK_RANDOM_BAND -1/0/+1).
+  - Base damage 6, clamped by min/max (1–7 band) with random variance (ATTACK_RANDOM_BAND -1/0/+1).
   - Modified by attacker attack vs defender defense plus terrain modifiers; minimum 1 damage on hit.
 - **Defense & Terrain**:
   - Hills +2 defense, Forest +1, Marsh -1, Desert -1; City Ward adds city defense/attack bonuses.
-  - Fortified state adds +2 defense.
+  - Fortified state adds +1 defense.
 - **Line of Sight**:
   - Hills/Forest/Mountain block LoS; ranged attacks require LoS unless adjacent.
 - **Counterattacks**:
@@ -219,8 +220,8 @@
   - **City Ward** (60, City Wards): +4 city defense, +1 city attack.
   - **Forgeworks** (80, Steam Forges): +2 Production.
   - **City Square** (80, Urban Plans): +1 Food, +1 Production.
-  - **Titan's Core** (200, Steam Forges): summons Titan on completion (unique per civ).
-  - **Spirit Observatory** (200, Star Charts): “The Revelation”—complete current tech, grant a free tech, +2 Science per city, counts as Observatory milestone (unique per civ).
+  - **Titan's Core** (150, Steam Forges): summons Titan on completion (unique per civ).
+  - **Spirit Observatory** (275, Star Charts): “The Revelation”—+1 Science per city, counts as Observatory milestone (unique per civ).
   - **Jade Granary** (150, Wellworks): “The Great Harvest”—+1 Pop per city, growth 15% cheaper, +1 Food per city (unique per civ).
 
 ## 13. Projects & Wonders
@@ -237,12 +238,12 @@
 - **Wonders**: not otherwise defined in v0.94 beyond unique buildings/projects above.
 
 ## 14. Civilizations & Traits
-- **ForgeClans**: +1 Production from each worked Hill.
+- **ForgeClans**: +1 Production from each worked Hill (Capital Only).
 - **Scholar Kingdoms**: +1 Science in cities with Pop ≥3.
-- **River League**: +1 Food from each worked river-adjacent tile.
+- **River League**: +1 Production for every 2 river tiles worked.
 - **Aetherian Vanguard**: Can build Titan's Core (summon Titan).
 - **Starborne Seekers**: Can build Spirit Observatory (Revelation bonus).
-- **Jade Covenant**: Can build Jade Granary (Great Harvest bonus).
+- **Jade Covenant**: Unique Building: Jade Granary (Hearth Era, 60 Prod) - +1 Pop/City, +1 Food/City. Settlers cost 30% less, have 10 HP, and +2 Defense.
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation

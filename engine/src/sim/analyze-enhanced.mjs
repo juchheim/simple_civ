@@ -18,7 +18,7 @@ function analyzeVictoryTypesByCiv(results) {
     CIVS.forEach(civ => {
         byCiv.set(civ, { Conquest: 0, Progress: 0, total: 0 });
     });
-    
+
     results.forEach(sim => {
         if (sim.winner) {
             const civ = sim.winner.civ;
@@ -30,8 +30,46 @@ function analyzeVictoryTypesByCiv(results) {
             }
         }
     });
-    
+
     return byCiv;
+}
+
+// ============================================================================
+// QUESTION 1b: Victory Types by Map Size
+// ============================================================================
+
+function analyzeVictoryByMapSize(results) {
+    const byMap = new Map();
+    MAP_ORDER.forEach(size => {
+        byMap.set(size, {
+            total: 0,
+            Conquest: 0,
+            Progress: 0,
+            byCiv: new Map()
+        });
+        CIVS.forEach(civ => {
+            byMap.get(size).byCiv.set(civ, { Conquest: 0, Progress: 0 });
+        });
+    });
+
+    results.forEach(sim => {
+        if (sim.winner) {
+            const sizeStats = byMap.get(sim.mapSize);
+            if (sizeStats) {
+                sizeStats.total++;
+                if (sim.victoryType === "Conquest") sizeStats.Conquest++;
+                if (sim.victoryType === "Progress") sizeStats.Progress++;
+
+                const civStats = sizeStats.byCiv.get(sim.winner.civ);
+                if (civStats) {
+                    if (sim.victoryType === "Conquest") civStats.Conquest++;
+                    if (sim.victoryType === "Progress") civStats.Progress++;
+                }
+            }
+        }
+    });
+
+    return byMap;
 }
 
 // ============================================================================
@@ -51,7 +89,7 @@ function analyzeParticipationAndWinRates(results) {
             totalFinalPop: 0,
         });
     });
-    
+
     results.forEach(sim => {
         // Track which civs participated in this game
         const participatingCivs = new Set();
@@ -64,7 +102,7 @@ function analyzeParticipationAndWinRates(results) {
                 stats.totalFinalPop += c.totalPop;
             }
         });
-        
+
         // Track eliminations
         sim.events.forEach(e => {
             if (e.type === "Elimination") {
@@ -75,14 +113,14 @@ function analyzeParticipationAndWinRates(results) {
                 }
             }
         });
-        
+
         // Track wins
         if (sim.winner) {
             const stats = civStats.get(sim.winner.civ);
             if (stats) stats.wins++;
         }
     });
-    
+
     // Calculate averages
     civStats.forEach((stats, civ) => {
         if (stats.gamesParticipated > 0) {
@@ -90,7 +128,7 @@ function analyzeParticipationAndWinRates(results) {
             stats.avgFinalPop = stats.totalFinalPop / stats.gamesParticipated;
         }
     });
-    
+
     return civStats;
 }
 
@@ -101,11 +139,11 @@ function analyzeParticipationAndWinRates(results) {
 function analyzeStallDiagnostics(results) {
     const byMapSize = new Map();
     MAP_ORDER.forEach(size => byMapSize.set(size, { noVictory: [], stalls: [], diagnostics: [] }));
-    
+
     results.forEach(sim => {
         const size = sim.mapSize;
         const stats = byMapSize.get(size);
-        
+
         if (!sim.winTurn) {
             stats.noVictory.push({
                 seed: sim.seed,
@@ -116,25 +154,25 @@ function analyzeStallDiagnostics(results) {
                 eventsLast10Turns: sim.events.filter(e => e.turn > sim.turnReached - 10).length,
             });
         }
-        
+
         // Check for stagnation periods (no meaningful events)
         const eventsByTurn = new Map();
         sim.events.forEach(e => {
             if (!eventsByTurn.has(e.turn)) eventsByTurn.set(e.turn, []);
             eventsByTurn.get(e.turn).push(e);
         });
-        
+
         let lastSignificantEvent = 0;
         for (let turn = Math.max(1, sim.turnReached - 50); turn <= sim.turnReached; turn++) {
             const turnEvents = eventsByTurn.get(turn) || [];
-            const significantEvents = turnEvents.filter(e => 
-                e.type === "CityCapture" || 
-                e.type === "CityFound" || 
-                e.type === "TechComplete" || 
+            const significantEvents = turnEvents.filter(e =>
+                e.type === "CityCapture" ||
+                e.type === "CityFound" ||
+                e.type === "TechComplete" ||
                 e.type === "ProjectComplete" ||
                 e.type === "WarDeclaration"
             );
-            
+
             if (significantEvents.length > 0) {
                 lastSignificantEvent = turn;
             } else if (turn - lastSignificantEvent > 20 && lastSignificantEvent > 0) {
@@ -146,7 +184,7 @@ function analyzeStallDiagnostics(results) {
                 });
             }
         }
-        
+
         // Detailed diagnostics for no-victory games
         if (!sim.winTurn) {
             const finalState = sim.finalState;
@@ -169,7 +207,7 @@ function analyzeStallDiagnostics(results) {
             stats.diagnostics.push(diagnostics);
         }
     });
-    
+
     return byMapSize;
 }
 
@@ -184,14 +222,14 @@ function analyzeSettlerStats(results) {
     CIVS.forEach(civ => {
         byCiv.set(civ, { deaths: 0, productions: 0, gamesPlayed: 0, citiesFounded: 0 });
     });
-    
+
     results.forEach(sim => {
         // Track games played per civ
         sim.finalState?.civs?.forEach(c => {
             const stats = byCiv.get(c.civName);
             if (stats) stats.gamesPlayed++;
         });
-        
+
         sim.events.forEach(e => {
             if (e.type === "UnitDeath" && e.unitType === "Settler") {
                 settlerDeaths.push({
@@ -224,7 +262,7 @@ function analyzeSettlerStats(results) {
             }
         });
     });
-    
+
     return { settlerDeaths, settlerProductions, byCiv };
 }
 
@@ -240,14 +278,14 @@ function analyzeArmyUsage(results) {
     CIVS.forEach(civ => {
         byCiv.set(civ, { formations: 0, deaths: 0, productions: 0 });
     });
-    
+
     results.forEach(sim => {
         // Build a player ID to civ name lookup for this simulation
         const playerIdToCivName = new Map();
         sim.finalState?.civs?.forEach(c => {
             playerIdToCivName.set(c.id, c.civName);
         });
-        
+
         sim.events.forEach(e => {
             if (e.type === "ProjectComplete" && e.project?.startsWith("FormArmy_")) {
                 // e.civ is the player ID (e.g., "p1"), look up the civ name
@@ -289,7 +327,7 @@ function analyzeArmyUsage(results) {
             }
         });
     });
-    
+
     return { armyFormations, armyDeaths, armyProductions, byCiv };
 }
 
@@ -299,10 +337,10 @@ function analyzeArmyUsage(results) {
 
 function analyzePop10VsVictory(results) {
     const pop10Data = [];
-    
+
     results.forEach(sim => {
         if (!sim.winTurn) return;
-        
+
         // Find all cities that reached pop 10
         const pop10Cities = [];
         sim.finalState?.cities?.forEach(city => {
@@ -312,7 +350,7 @@ function analyzePop10VsVictory(results) {
                     const snap = sim.turnSnapshots[i];
                     const snapCity = snap.cities.find(c => c.id === city.id);
                     if (snapCity && snapCity.pop >= 10) {
-                        if (i === 0 || (sim.turnSnapshots[i-1]?.cities.find(c => c.id === city.id)?.pop || 0) < 10) {
+                        if (i === 0 || (sim.turnSnapshots[i - 1]?.cities.find(c => c.id === city.id)?.pop || 0) < 10) {
                             pop10Cities.push({
                                 turn: snap.turn,
                                 cityId: city.id,
@@ -324,12 +362,12 @@ function analyzePop10VsVictory(results) {
                 }
             }
         });
-        
+
         if (pop10Cities.length > 0) {
             const avgPop10Turn = pop10Cities.reduce((sum, c) => sum + c.turn, 0) / pop10Cities.length;
             const firstPop10Turn = Math.min(...pop10Cities.map(c => c.turn));
             const gap = sim.winTurn - avgPop10Turn;
-            
+
             pop10Data.push({
                 seed: sim.seed,
                 mapSize: sim.mapSize,
@@ -342,7 +380,7 @@ function analyzePop10VsVictory(results) {
             });
         }
     });
-    
+
     return pop10Data;
 }
 
@@ -353,6 +391,7 @@ function analyzePop10VsVictory(results) {
 console.log("Running enhanced analyses...\n");
 
 const victoryTypesByCiv = analyzeVictoryTypesByCiv(results);
+const victoryByMapSize = analyzeVictoryByMapSize(results);
 const participationRates = analyzeParticipationAndWinRates(results);
 const stallDiagnostics = analyzeStallDiagnostics(results);
 const settlerStats = analyzeSettlerStats(results);
@@ -380,6 +419,35 @@ sortedVictories.forEach(([civ, stats]) => {
         report += `- **Conquest Victories:** ${stats.Conquest} (${((stats.Conquest / stats.total) * 100).toFixed(1)}%)\n`;
         report += `- **Progress Victories:** ${stats.Progress} (${((stats.Progress / stats.total) * 100).toFixed(1)}%)\n\n`;
     }
+}
+});
+
+// QUESTION 1b: Victory Types by Map Size
+report += `## 1b. Victory Types by Map Size\n\n`;
+MAP_ORDER.forEach(size => {
+    const stats = victoryByMapSize.get(size);
+    if (stats.total > 0) {
+        const conquestPct = ((stats.Conquest / stats.total) * 100).toFixed(1);
+        const progressPct = ((stats.Progress / stats.total) * 100).toFixed(1);
+
+        report += `### ${size} Maps (${stats.total} wins)\n`;
+        report += `- **Conquest:** ${stats.Conquest} (${conquestPct}%)\n`;
+        report += `- **Progress:** ${stats.Progress} (${progressPct}%)\n\n`;
+
+        report += `**Breakdown by Civ:**\n`;
+        let hasWinners = false;
+        stats.byCiv.forEach((civStats, civ) => {
+            const total = civStats.Conquest + civStats.Progress;
+            if (total > 0) {
+                hasWinners = true;
+                report += `- **${civ}:** ${total} wins (Conquest: ${civStats.Conquest}, Progress: ${civStats.Progress})\n`;
+            }
+        });
+        if (!hasWinners) report += `- No winners yet.\n`;
+        report += `\n`;
+    } else {
+        report += `### ${size} Maps\n- No victories recorded.\n\n`;
+    }
 });
 
 // QUESTION 2: Participation and Win Rates
@@ -403,14 +471,14 @@ MAP_ORDER.forEach(mapSize => {
     report += `### ${mapSize} Maps\n`;
     report += `- **Games Without Victory:** ${stats.noVictory.length} of 10 (${((stats.noVictory.length / 10) * 100).toFixed(0)}%)\n`;
     report += `- **Detected Stalls:** ${stats.stalls.length}\n\n`;
-    
+
     if (stats.noVictory.length > 0) {
         report += `#### No-Victory Game Details:\n`;
         stats.noVictory.forEach(game => {
             report += `- **Seed ${game.seed}:** Reached turn ${game.turnReached}, ${game.finalCivs} civs, ${game.finalCities} cities, ${game.totalPop} total pop, ${game.eventsLast10Turns} events in last 10 turns\n`;
         });
         report += `\n`;
-        
+
         if (stats.diagnostics.length > 0) {
             report += `#### Detailed Diagnostics:\n`;
             stats.diagnostics.slice(0, 3).forEach(diag => {
@@ -476,13 +544,13 @@ if (pop10VsVictory.length > 0) {
     const avgGap = pop10VsVictory.reduce((sum, d) => sum + d.gap, 0) / pop10VsVictory.length;
     const avgWinTurn = pop10VsVictory.reduce((sum, d) => sum + d.winTurn, 0) / pop10VsVictory.length;
     const avgPop10Turn = pop10VsVictory.reduce((sum, d) => sum + d.avgPop10Turn, 0) / pop10VsVictory.length;
-    
+
     report += `### Overall Statistics\n`;
     report += `- **Games with Pop 10 Cities:** ${pop10VsVictory.length} of ${results.filter(r => r.winTurn).length} victories\n`;
     report += `- **Average Victory Turn:** ${avgWinTurn.toFixed(1)}\n`;
     report += `- **Average Pop 10 Turn:** ${avgPop10Turn.toFixed(1)}\n`;
     report += `- **Average Gap:** ${avgGap.toFixed(1)} turns (${avgGap > 0 ? 'pop 10 before victory' : 'victory before pop 10'})\n\n`;
-    
+
     report += `### By Map Size\n`;
     MAP_ORDER.forEach(mapSize => {
         const sizeData = pop10VsVictory.filter(d => d.mapSize === mapSize);
@@ -492,7 +560,7 @@ if (pop10VsVictory.length > 0) {
         }
     });
     report += `\n`;
-    
+
     report += `### By Victory Type\n`;
     const byVictoryType = { Conquest: [], Progress: [] };
     pop10VsVictory.forEach(d => {

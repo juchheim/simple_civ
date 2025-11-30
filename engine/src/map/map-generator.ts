@@ -134,7 +134,12 @@ export function generateWorld(settings: WorldGenSettings): GameState {
     // Shuffle valid starts
     rng.shuffle(validStarts);
 
-    const startScore = (tile: Tile) => scoreCitySite(tile, { map: { tiles } });
+    const startScore = (tile: Tile, player?: Player) => scoreCitySite(tile, { map: { tiles } }, player?.id, player ? {
+        settleBias: {
+            hills: player.civName === "ForgeClans" ? 2 : 0,
+            rivers: player.civName === "RiverLeague" ? 2 : 0,
+        }
+    } as any : undefined);
 
     const startingSpotMap = pickStartingSpots({
         players,

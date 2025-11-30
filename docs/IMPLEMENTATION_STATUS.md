@@ -1,6 +1,6 @@
 # Implementation Status - v0.98 codebase
 
-Last Updated: 2025-11-29
+Last Updated: 2025-11-30
 
 ## ✅ Implemented
 - Core turn loop with unit movement/combat (melee/ranged), city production/growth/healing/fortify, city capture & raze, territory claim (radius 2), and worked-tile assignment UI.
@@ -19,6 +19,11 @@ Last Updated: 2025-11-29
     - **Tactical Combat**: AI uses "Smart Buildup" for war prep, coordinates attacks, and uses "Clear the Way" tactics for city capture.
     - **Diplomacy**: AI respects peace durations but can bypass them if overwhelming (Domination Bypass).
 - **Victory/Loss UI**: Full-screen Victory/Defeat overlays with "Restart Game" (same seed/settings) and "Main Menu" options.
+- **Balance Adjustments (v0.99)**:
+    - **Starborne Seekers**: Nerfed Spirit Observatory (no instant tech, reduced science, increased cost). Removed extra starting Scout.
+    - **River League**: Adjusted river bonus to +1 Production per 2 river tiles (balanced from +1/tile). Auto-assigner prioritizes river tiles.
+    - **Jade Covenant**: Buffed Settlers (10 HP, +2 Def). Added "Jade Granary" unique building (Hearth Era, Cost 60, +1 Pop/Food) to kickstart early economy.
+    - **AI Logic**: Improved victory condition pursuit (Scholar/Starborne focus on science/wonders).
 
 ## 🔧 Partially Implemented
 - Map generation: coast-biased edges, terrain variation, mountain clusters, river overlays with edge list, and best-fit start selection (≥6 spacing, nearby food/prod), but no mapGenParams tunables, advanced smoothing, or true edge-driven river gen.

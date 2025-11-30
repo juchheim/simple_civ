@@ -77,7 +77,7 @@ export const GRAND_EXPERIMENT_COST = 140;   // Was 105 - 33% increase
 
 // v0.98: Civ-specific starting bonuses
 export const AETHERIAN_EXTRA_STARTING_UNITS = [UnitType.SpearGuard]; // Extra military at start
-export const STARBORNE_EXTRA_STARTING_UNITS = [UnitType.Scout]; // Extra scout for exploration
+export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout (was too strong)
 // NOTE: JadeCovenant extra settler REMOVED - 80% win rate was too strong
 
 // v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8
@@ -114,10 +114,11 @@ export const SETTLER_COST = 20;
 export const SETTLER_POP_LOSS_ON_BUILD = 1;
 
 // City Defense
+export const UNIT_BASE_DAMAGE = 6;
 export const CITY_DEFENSE_BASE = 3;
 export const CITY_WARD_DEFENSE_BONUS = 4;
 export const CITY_ATTACK_BASE = 3;
-export const FORTIFY_DEFENSE_BONUS = 2;
+export const FORTIFY_DEFENSE_BONUS = 1;
 export const DAMAGE_BASE = 4;
 export const CITY_WARD_ATTACK_BONUS = 1;
 export const CITY_ATTACK_RANGE = 2;
@@ -214,8 +215,8 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 150, conditional: "Summons The Titan upon completion" }, // v0.98: Reduced from 200
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 275, conditional: "The Revelation: completes current tech, grants free tech, +2 Science per city, counts as Observatory milestone" }, // v0.98 Update 6: Increased from 200 to nerf Progress rush
-    [BuildingType.JadeGranary]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 100, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" }, // v0.98 Update 8: Reduced from 150 - was only built 14% of games
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 275, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v0.99: Removed instant tech
+    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 60, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" }, // v0.99 BUFF: Moved to Hearth, Cost 60
 };
 
 export type TechData = {

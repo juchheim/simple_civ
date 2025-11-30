@@ -95,6 +95,8 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
     const adjRiver = isTileAdjacentToRiver(state.map, coord);
     if (civ === "RiverLeague" && adjRiver) {
         food += 1;
+        // v0.99 TWEAK: Value river tiles at +0.5 Prod to chase the 2-tile bonus
+        production += 0.5;
     }
     if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) {
         production += 1;

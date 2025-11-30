@@ -518,7 +518,10 @@ if (isMainThread) {
     const seedsCount = process.env.SIM_SEEDS_COUNT ? parseInt(process.env.SIM_SEEDS_COUNT) : 10;
     const seedOverride = process.env.SIM_SEED_OVERRIDE ? parseInt(process.env.SIM_SEED_OVERRIDE) : null;
 
-    const seeds = [1001, 2002, 3003, 4004, 5005, 6006, 7007, 8008, 9009, 10010].slice(0, seedsCount);
+    const seeds: number[] = [];
+    for (let i = 0; i < seedsCount; i++) {
+        seeds.push((i + 1) * 1001);
+    }
 
     // Create task queue
     const tasks: { seed: number; config: typeof MAP_CONFIGS[0]; mapIndex: number }[] = [];

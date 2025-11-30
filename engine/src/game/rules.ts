@@ -10,6 +10,7 @@ import {
     UnitType,
     ProjectId,
 } from "../core/types.js";
+import { getUnitCost } from "./units.js";
 import {
     BASECOST_POP2,
     BUILDINGS,
@@ -112,10 +113,12 @@ export function getCityYields(city: City, state: GameState): Yields {
     // Civ traits
     const trait = getCivTrait(state, city.ownerId);
     if (trait === "ForgeClans") {
-        // ForgeClans: +1 Production per worked Hill tile
-        for (const c of city.workedTiles) {
-            const t = state.map.tiles.find(tt => hexEquals(tt.coord, c));
-            if (t?.terrain === TerrainType.Hills) total.P += 1;
+        // ForgeClans: +1 Production per worked Hill tile (Capital Only)
+        if (city.isCapital) {
+            for (const c of city.workedTiles) {
+                const t = state.map.tiles.find(tt => hexEquals(tt.coord, c));
+                if (t?.terrain === TerrainType.Hills) total.P += 1;
+            }
         }
     } else if (trait === "ScholarKingdoms") {
         // v0.98 Update 8: BUFFED - Restored +1 Science in Capital (was completely removed)
@@ -138,6 +141,8 @@ export function getCityYields(city: City, state: GameState): Yields {
             total.P += 1;  // River Commerce bonus
             total.S += 1;  // v0.98: River Knowledge bonus
         }
+        // v0.99 BUFF: +1 Production per 2 river tiles (nerf from 1 per 1)
+        total.P += Math.floor(riverAdjacencyCount(state.map, city.workedTiles) / 2);
     } else if (trait === "StarborneSeekers") {
         // v0.98 Update 6: NERFED - Removed Capital science bonus (was too strong for Progress rush)
         // "Stargazers" now only gives +1 Science per Sacred Site worked

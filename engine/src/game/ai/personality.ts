@@ -151,7 +151,7 @@ const personalities: Record<CivName, AiPersonality> = {
         },
         settleBias: {},
         expansionDesire: 1.5,
-        desiredCities: 5,
+        desiredCities: 8, // v0.99: Increased to support "Awakened Giant" strategy
         techWeights: {
             [TechId.Wellworks]: 2.0,
             [TechId.Fieldcraft]: 1.3,

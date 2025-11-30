@@ -184,6 +184,11 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
         boosted.def += popBonus;
     }
 
+    // v0.99 BUFF: "Ancestral Protection" - Settlers get +2 Defense
+    if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
+        boosted.def += 2;
+    }
+
     // v0.98 Update 5: ForgeClans "Forged Arms" - attack bonus from hill production
     // Only applies to military units
     if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {

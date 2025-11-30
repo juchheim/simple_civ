@@ -50,9 +50,9 @@ export function estimateMilitaryPower(playerId: string, state: GameState): numbe
 function hasOverwhelmingPower(playerId: string, state: GameState): boolean {
     const myPower = estimateMilitaryPower(playerId, state);
     const activePlayers = state.players.filter(p => !p.isEliminated && p.id !== playerId);
-    
+
     if (activePlayers.length === 0) return false;
-    
+
     // Check if we have 2x the power of every remaining civ
     return activePlayers.every(p => {
         const theirPower = estimateMilitaryPower(p.id, state);
@@ -66,7 +66,7 @@ function hasOverwhelmingPower(playerId: string, state: GameState): boolean {
 export function findFinishableEnemies(playerId: string, state: GameState): string[] {
     const activePlayers = state.players.filter(p => !p.isEliminated && p.id !== playerId);
     const myPower = estimateMilitaryPower(playerId, state);
-    
+
     return activePlayers
         .filter(p => {
             const theirCities = state.cities.filter(c => c.ownerId === p.id);
@@ -77,18 +77,58 @@ export function findFinishableEnemies(playerId: string, state: GameState): strin
         .map(p => p.id);
 }
 
+/**
+ * v0.99 Update: Jade Covenant "Awakened Giant" Logic
+ * Once they reach critical mass (25+ pop), they should pivot to a victory condition
+ */
+function getJadeCovenantGoal(playerId: string, state: GameState): AiVictoryGoal | null {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const totalPop = myCities.reduce((sum, c) => sum + c.pop, 0);
+
+    // Trigger at 25 population (critical mass)
+    if (totalPop < 25) return null;
+
+    const myPower = estimateMilitaryPower(playerId, state);
+
+    // Calculate average enemy power
+    const enemies = state.players.filter(p => p.id !== playerId && !p.isEliminated);
+    if (enemies.length === 0) return "Conquest"; // Winner!
+
+    const totalEnemyPower = enemies.reduce((sum, p) => sum + estimateMilitaryPower(p.id, state), 0);
+    const avgEnemyPower = totalEnemyPower / enemies.length;
+
+    // If we are stronger than average enemy (1.2x), go CRUSH them
+    if (myPower > avgEnemyPower * 1.2) {
+        console.info(`[AI Goal] JadeCovenant "Awakened Giant" - High Power (${myPower.toFixed(0)} vs avg ${avgEnemyPower.toFixed(0)}) -> CONQUEST`);
+        return "Conquest";
+    }
+
+    // If we are safe (not weak), go PROGRESS to use our economy
+    // Safe = at least 80% of average enemy power
+    if (myPower > avgEnemyPower * 0.8) {
+        console.info(`[AI Goal] JadeCovenant "Awakened Giant" - Safe Economy -> PROGRESS`);
+        return "Progress";
+    }
+
+    // Otherwise stay Balanced/Defensive to survive
+    return null;
+}
+
 export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return "Balanced";
     const personality = getPersonalityForPlayer(state, playerId);
-    
+
     // v0.97: AetherianVanguard with a Titan ALWAYS goes Conquest mode
     // The Titan is too powerful to not use aggressively
     if (player.civName === "AetherianVanguard" && hasTitan(playerId, state)) {
         console.info(`[AI Goal] ${playerId} (AetherianVanguard) switching to Conquest - Titan unleashed!`);
         return "Conquest";
     }
-    
+
     const prefersProgress = personality.projectRush?.type === "Building"
         ? personality.projectRush.id === BuildingType.SpiritObservatory
         : personality.projectRush?.id === ProjectId.Observatory;
@@ -96,19 +136,19 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
     const fallback = player.aiGoal ?? (prefersProgress ? "Progress" : aggressionForward ? "Conquest" : "Balanced");
     const capitals = state.cities.filter(c => c.ownerId === playerId && c.isCapital);
     const capitalsSafe = capitals.every(c => c.hp >= (c.maxHp ?? 15) * 0.6 && !anyEnemyNearCity(c, state, playerId, 2));
-    
+
     // Observatory + safe capital = commit to Progress path (takes priority over aggressive options)
     if (player.completedProjects.includes(ProjectId.Observatory) && capitalsSafe) {
         return "Progress";
     }
-    
+
     // v0.98 Update 4: Overwhelming power (2x all enemies) → aggressive Conquest
     // This addresses stalled games where dominant civs fail to finish off weak opponents
     if (hasOverwhelmingPower(playerId, state)) {
         console.info(`[AI Goal] ${playerId} has overwhelming power (2x all enemies) - switching to Conquest!`);
         return "Conquest";
     }
-    
+
     // v0.98 Update 4: "Finish him" - if any enemy has 1-2 cities and we're stronger, go Conquest
     const finishableEnemies = findFinishableEnemies(playerId, state);
     if (finishableEnemies.length > 0) {
@@ -123,6 +163,12 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
     });
     if (hasArmies && enemyCapitalInStrikeRange) {
         return "Conquest";
+    }
+
+    // v0.99 Update: Jade Covenant specific logic
+    if (player.civName === "JadeCovenant") {
+        const jadeGoal = getJadeCovenantGoal(playerId, state);
+        if (jadeGoal) return jadeGoal;
     }
 
     return fallback;
