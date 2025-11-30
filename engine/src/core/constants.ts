@@ -114,8 +114,8 @@ export const SETTLER_COST = 20;
 export const SETTLER_POP_LOSS_ON_BUILD = 1;
 
 // City Defense
-export const CITY_DEFENSE_BASE = 5;
-export const CITY_WARD_DEFENSE_BONUS = 5;
+export const CITY_DEFENSE_BASE = 3;
+export const CITY_WARD_DEFENSE_BONUS = 4;
 export const CITY_ATTACK_BASE = 3;
 export const FORTIFY_DEFENSE_BONUS = 2;
 export const DAMAGE_BASE = 4;
@@ -186,9 +186,9 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 35, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.RiverBoat]: { atk: 2, def: 2, rng: 1, move: 3, hp: 10, cost: 35, domain: UnitDomain.Naval, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyScout]: { atk: 3, def: 3, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
-    [UnitType.ArmySpearGuard]: { atk: 4, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.ArmyBowGuard]: { atk: 4, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
-    [UnitType.ArmyRiders]: { atk: 4, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.Titan]: { atk: 25, def: 10, rng: 1, move: 3, hp: 50, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
 };
 

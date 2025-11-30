@@ -107,6 +107,7 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
 }
 
 export function captureCity(state: GameState, city: City, newOwnerId: string) {
+    console.info(`[GAME] City Captured: ${city.name} (${city.ownerId} -> ${newOwnerId})`);
     city.ownerId = newOwnerId;
     city.hp = CAPTURED_CITY_HP_RESET;
     city.pop = Math.max(1, city.pop - 1);

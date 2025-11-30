@@ -150,7 +150,7 @@ describe("ai decisions", () => {
     it("declares war at <=8 tiles when stronger and accepts peace when losing", () => {
         const state = baseState();
         state.players = [
-            { id: "p", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
+            { id: "p", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, warPreparation: { targetId: "e", state: "Ready", startedTurn: 0 } },
             { id: "e", civName: "RiverLeague", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
         ] as any;
         state.contacts = { p: { e: true }, e: { p: true } };
@@ -177,7 +177,7 @@ describe("ai decisions", () => {
     it("requires visibility before making contact or declaring war", () => {
         const template = baseState();
         template.players = [
-            { id: "p", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, isEliminated: false },
+            { id: "p", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, isEliminated: false, warPreparation: { targetId: "e", state: "Ready", startedTurn: 0 } },
             { id: "e", civName: "RiverLeague", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, isEliminated: false },
         ] as any;
         template.contacts = { p: {}, e: {} } as any;
@@ -214,7 +214,7 @@ describe("ai decisions", () => {
     it("applies civ aggression thresholds (ForgeClans declares, Scholar turtling defers)", () => {
         const state = baseState();
         state.players = [
-            { id: "forge", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
+            { id: "forge", civName: "ForgeClans", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null, warPreparation: { targetId: "scholar", state: "Ready", startedTurn: 0 } },
             { id: "scholar", civName: "ScholarKingdoms", aiGoal: "Balanced", completedProjects: [], techs: [], currentTech: null },
         ] as any;
         state.contacts = { forge: { scholar: true }, scholar: { forge: true } };
@@ -236,7 +236,65 @@ describe("ai decisions", () => {
         ] as any;
 
         expect(aiWarPeaceDecision("forge", "scholar", state as any)).toBe("DeclareWar");
-        expect(aiWarPeaceDecision("scholar", "forge", state as any)).toBe("None");
+        expect(aiWarPeaceDecision("scholar", "forge", state as any)).toBe("PrepareForWar");
+    });
+
+    it("escalates aggression in late game for Conquest civs", () => {
+        const state = baseState();
+        state.turn = 200; // Late game
+        state.players = [
+            {
+                id: "p",
+                civName: "ForgeClans", // High aggression, likely Conquest
+                aiGoal: "Conquest",
+                completedProjects: [],
+                techs: [],
+                currentTech: null,
+                warPreparation: { targetId: "e", state: "Ready", startedTurn: 0 }
+            },
+            {
+                id: "e",
+                civName: "ScholarKingdoms",
+                aiGoal: "Balanced",
+                completedProjects: [],
+                techs: [],
+                currentTech: null
+            },
+        ] as any;
+        state.contacts = { p: { e: true }, e: { p: true } };
+        state.diplomacy = { p: { e: DiplomacyState.Peace }, e: { p: DiplomacyState.Peace } } as any;
+
+        // Setup: Player is slightly WEAKER than enemy (0.9x power)
+        // Normally ForgeClans needs 1.1x power.
+        // But at turn 200, escalation factor is 0.5.
+        // Threshold becomes 1.1 * 0.5 = 0.55.
+        // So 0.9x power should trigger war.
+
+        state.cities = [
+            { id: "c1", ownerId: "p", coord: hex(0, 0), buildings: [], hp: 20, maxHp: 20, isCapital: true },
+            { id: "c2", ownerId: "e", coord: hex(0, 5), buildings: [], hp: 20, maxHp: 20, isCapital: true },
+        ] as any;
+
+        // Visibility
+        const pCityKey = hexToString(state.cities[0].coord);
+        const eCityKey = hexToString(state.cities[1].coord);
+        state.revealed = { p: [pCityKey, eCityKey], e: [eCityKey, pCityKey] } as any;
+        state.visibility = { p: [pCityKey, eCityKey], e: [eCityKey, pCityKey] } as any;
+
+        // Units: Player has 90 power, Enemy has 100 power
+        state.units = [
+            { id: "p1", ownerId: "p", type: UnitType.ArmySpearGuard, coord: hex(0, 0), hp: 18, maxHp: 20 }, // ~90 power
+            { id: "e1", ownerId: "e", type: UnitType.ArmySpearGuard, coord: hex(0, 5), hp: 20, maxHp: 20 }, // ~100 power
+        ] as any;
+
+        // Verify escalation triggers war
+        expect(aiWarPeaceDecision("p", "e", state as any)).toBe("DeclareWar");
+
+        // Verify non-Conquest civ does NOT escalate
+        state.players[0].aiGoal = "Progress";
+        // Progress civs shouldn't escalate (factor 1.0).
+        // ForgeClans base threshold 1.1. Power ratio 0.9. Should be None.
+        expect(aiWarPeaceDecision("p", "e", state as any)).toBe("PrepareForWar");
     });
 });
 
@@ -556,7 +614,7 @@ describe("ai regression safeguards", () => {
         const state = baseState();
         state.currentPlayerId = "p";
         state.players = [
-            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false, warPreparation: { targetId: "e", state: "Ready", startedTurn: 0 } },
             { id: "e", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
         ] as any;
         state.contacts = { p: { e: true }, e: { p: true } };

@@ -37,6 +37,14 @@ export function patrolAndExplore(state: GameState, playerId: string): GameState 
             );
             if (provocative) continue;
 
+            // Check for peacetime movement restrictions to avoid error spam
+            const tile = next.map.tiles.find(t => hexEquals(t.coord, step));
+            if (tile && tile.ownerId && tile.ownerId !== playerId) {
+                const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
+                const isCity = next.cities.some(c => hexEquals(c.coord, step));
+                if (!isCity && diplomacy !== "War") continue;
+            }
+
             const moved = tryAction(next, {
                 type: "MoveUnit",
                 playerId,

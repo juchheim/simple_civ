@@ -10,6 +10,7 @@ import {
     handleSetAutoExplore,
     handleClearAutoExplore,
     handleFortifyUnit,
+    handleSwapUnits,
 } from "./actions/units.js";
 import {
     handleCityAttack,
@@ -101,6 +102,9 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "FortifyUnit":
             updatedState = handleFortifyUnit(nextState, action);
+            break;
+        case "SwapUnits":
+            updatedState = handleSwapUnits(nextState, action);
             break;
         case "EndTurn":
             updatedState = handleEndTurn(nextState, action);

@@ -1,6 +1,10 @@
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
-import { UNITS } from "../../../core/constants.js";
+import {
+    BUILDINGS,
+    TERRAIN,
+    UNITS,
+} from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { nearestByDistance, sortByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
@@ -67,6 +71,60 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
         const path = findPath(unit.coord, city.coord, unit, next);
         const step = path[0];
         if (step) {
+            // Check if step is blocked by friendly unit
+            const blockingUnit = next.units.find(u => hexEquals(u.coord, step) && u.ownerId === playerId && u.id !== unit.id);
+            if (blockingUnit) {
+                let cleared = false;
+                // Try to move blocking unit aside
+                if (blockingUnit.movesLeft > 0) {
+                    const neighbors = getNeighbors(blockingUnit.coord);
+                    // Find a free neighbor that isn't the city and isn't the capture unit's tile
+                    const escape = neighbors.find(n =>
+                        !hexEquals(n, city.coord) &&
+                        !hexEquals(n, unit.coord) &&
+                        !next.units.some(u => hexEquals(u.coord, n)) &&
+                        // Check terrain/validity
+                        !TERRAIN[next.map.tiles.find(t => hexEquals(t.coord, n))?.terrain!]?.blocksLoS
+                    );
+
+                    if (escape) {
+                        console.info(`[AI CAPTURE] Moving blocking unit ${blockingUnit.type} to make way for ${unit.type}`);
+                        const movedBlocker = tryAction(next, {
+                            type: "MoveUnit",
+                            playerId,
+                            unitId: blockingUnit.id,
+                            to: escape
+                        });
+                        if (movedBlocker !== next) {
+                            next = movedBlocker;
+                            cleared = true;
+                            // Now try moving the capture unit again
+                        }
+                    }
+                }
+
+                if (!cleared) {
+                    // No escape or no moves? Try SWAP!
+                    // "advance through other units by swapping hexes"
+                    if (hexDistance(unit.coord, blockingUnit.coord) === 1) {
+                        console.info(`[AI CAPTURE] Blocking unit ${blockingUnit.type} cannot move aside. Attempting SWAP with ${unit.type}`);
+                        const swapped = tryAction(next, {
+                            type: "SwapUnits",
+                            playerId,
+                            unitId: unit.id,
+                            targetUnitId: blockingUnit.id
+                        });
+                        if (swapped !== next) {
+                            next = swapped;
+                            assigned.add(unit.id); // Unit moved (swapped)
+                            continue;
+                        }
+                    } else {
+                        console.warn(`[AI CAPTURE] Cannot swap: Units not adjacent (${hexDistance(unit.coord, blockingUnit.coord)})`);
+                    }
+                }
+            }
+
             const moved = tryAction(next, {
                 type: "MoveUnit",
                 playerId,
@@ -460,11 +518,24 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                         // Don't move into melee range if we are already in range
                         moved = false;
                     } else {
-                        const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
-                        if (attempt !== next) {
-                            next = attempt;
-                            moved = true;
-                        } else {
+                        // Check for peacetime movement restrictions
+                        const tile = next.map.tiles.find(t => hexEquals(t.coord, step));
+                        let allowed = true;
+                        if (tile && tile.ownerId && tile.ownerId !== playerId) {
+                            const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
+                            const isCity = next.cities.some(c => hexEquals(c.coord, step));
+                            if (!isCity && diplomacy !== DiplomacyState.War) allowed = false;
+                        }
+
+                        if (allowed) {
+                            const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
+                            if (attempt !== next) {
+                                next = attempt;
+                                moved = true;
+                            }
+                        }
+
+                        if (!moved) {
                             // Try neighbors
                             const neighbors = getNeighbors(current.coord);
                             const ordered = sortByDistance(nearest.coord, neighbors, (c: { q: number, r: number }) => c);
@@ -476,6 +547,14 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                                 // Stepping backwards (dist + 1) is bad.
                                 const nDist = hexDistance(n, nearest.coord);
                                 if (nDist > currentDist) continue;
+
+                                // Check for peacetime movement restrictions
+                                const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
+                                if (tile && tile.ownerId && tile.ownerId !== playerId) {
+                                    const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
+                                    const isCity = next.cities.some(c => hexEquals(c.coord, n));
+                                    if (!isCity && diplomacy !== "War") continue;
+                                }
 
                                 const altAttempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n });
                                 if (altAttempt !== next) {
@@ -510,6 +589,14 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                     return b.defense - a.defense;
                 });
                 for (const n of ordered) {
+                    // Check for peacetime movement restrictions
+                    const tile = next.map.tiles.find(t => hexEquals(t.coord, n.coord));
+                    if (tile && tile.ownerId && tile.ownerId !== playerId) {
+                        const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
+                        const isCity = next.cities.some(c => hexEquals(c.coord, n.coord));
+                        if (!isCity && diplomacy !== "War") continue;
+                    }
+
                     const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n.coord });
                     if (attempt !== next) {
                         next = attempt;

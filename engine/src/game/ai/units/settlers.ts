@@ -23,7 +23,7 @@ function validCityTile(tile: any, state: GameState): boolean {
     const terrain = tile.terrain as TerrainType;
     if (!TERRAIN[terrain].workable) return false;
     if (terrain === TerrainType.Coast || terrain === TerrainType.DeepSea) return false;
-    
+
     const MIN_CITY_DISTANCE = 3;
     for (const city of state.cities) {
         const distance = hexDistance(tile.coord, city.coord);
@@ -31,7 +31,7 @@ function validCityTile(tile: any, state: GameState): boolean {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -78,12 +78,12 @@ function assessSettlerSafety(
         warEnemies.includes(u.ownerId)
     );
 
-    const threatLevel: "none" | "low" | "high" = 
+    const threatLevel: "none" | "low" | "high" =
         warEnemyUnitsNearby.length > 0 ? "high" :
-        nearbyEnemyMilitary.length > 0 ? "low" : "none";
+            nearbyEnemyMilitary.length > 0 ? "low" : "none";
 
     const needsEscort = !isInFriendlyBorders || nearbyEnemyMilitary.length > 0;
-    
+
     const isSafe = isInFriendlyBorders && warEnemyUnitsNearby.length === 0;
 
     return { isSafe, needsEscort, threatLevel };
@@ -107,12 +107,12 @@ function detectNearbyDanger(
         .map(p => p.id);
 
     const nearbyEnemies = state.units
-        .filter(u => 
+        .filter(u =>
             allOtherPlayers.includes(u.ownerId) &&
             UNITS[u.type].domain !== "Civilian"
         )
-        .map(u => ({ 
-            coord: u.coord, 
+        .map(u => ({
+            coord: u.coord,
             distance: hexDistance(settlerCoord, u.coord),
             isWarEnemy: warEnemies.includes(u.ownerId)
         }))
@@ -137,12 +137,12 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         if (!currentTile) continue;
 
         const safety = assessSettlerSafety(liveSettler.coord, playerId, next);
-        
-        const linkedEscort = liveSettler.linkedUnitId 
+
+        const linkedEscort = liveSettler.linkedUnitId
             ? next.units.find(u => u.id === liveSettler.linkedUnitId)
             : null;
         const hasLinkedEscort = linkedEscort && hexEquals(linkedEscort.coord, liveSettler.coord);
-        
+
         const hasAdjacentEscort = hasLinkedEscort || next.units.some(u =>
             u.ownerId === playerId &&
             u.id !== liveSettler.id &&
@@ -155,7 +155,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
             continue;
         }
-        
+
         if (safety.threatLevel === "high" && !hasLinkedEscort) {
             console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for linked escort (high threat)`);
             continue;
@@ -204,7 +204,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         }
 
         if (liveSettler.type !== UnitType.Settler) continue;
-        
+
         if (validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
             const player = next.players.find(p => p.id === playerId);
             const civNames = player ? CITY_NAMES[player.civName] : [];
@@ -284,7 +284,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
         const updatedSettler = next.units.find(u => u.id === settler.id);
         if (!updatedSettler) continue;
-        
+
         if (updatedSettler.type !== UnitType.Settler) continue;
 
         currentTile = next.map.tiles.find(t => hexEquals(t.coord, updatedSettler.coord));
@@ -310,12 +310,12 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
     let next = state;
 
     const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
-    
+
     const settlersWithSafety = settlers.map(settler => ({
         settler,
         safety: assessSettlerSafety(settler.coord, playerId, next)
     }));
-    
+
     const sortedSettlers = settlersWithSafety.sort((a, b) => {
         const threatOrder = { high: 0, low: 1, none: 2 };
         return threatOrder[a.safety.threatLevel] - threatOrder[b.safety.threatLevel];
@@ -324,27 +324,29 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
     const garrisonedCities = new Set(
         next.cities.filter(c => c.ownerId === playerId).map(c => hexToString(c.coord))
     );
-    
+
     const militaryUnits = next.units.filter(u =>
         u.ownerId === playerId &&
         UNITS[u.type].domain !== "Civilian" &&
         u.movesLeft > 0 &&
         !u.linkedUnitId
     );
-    
+
     const nonGarrisonUnits = militaryUnits.filter(u => !garrisonedCities.has(hexToString(u.coord)));
     const garrisonUnits = militaryUnits.filter(u => garrisonedCities.has(hexToString(u.coord)));
 
     const escortAssignments = new Map<string, string>();
 
-    for (const { settler, safety } of sortedSettlers) {
+    for (const { settler: staleSettler, safety } of sortedSettlers) {
+        const settler = next.units.find(u => u.id === staleSettler.id);
+        if (!settler) continue;
         if (settler.linkedUnitId) {
             const linkedEscort = next.units.find(u => u.id === settler.linkedUnitId);
             if (linkedEscort && hexEquals(linkedEscort.coord, settler.coord)) {
                 continue;
             }
         }
-        
+
         const adjacentEscort = next.units.find(u =>
             u.ownerId === playerId &&
             u.id !== settler.id &&
@@ -352,21 +354,23 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             hexEquals(u.coord, settler.coord) &&
             !u.linkedUnitId
         );
-        
+
         if (adjacentEscort && !settler.linkedUnitId && !adjacentEscort.linkedUnitId) {
-            const linkResult = tryAction(next, {
-                type: "LinkUnits",
-                playerId,
-                unitId: adjacentEscort.id,
-                partnerId: settler.id
-            });
-            if (linkResult !== next) {
-                next = linkResult;
-                console.info(`[AI Escort] ${playerId} linked ${adjacentEscort.type} to settler at ${hexToString(settler.coord)}`);
-                continue;
+            if (hexEquals(adjacentEscort.coord, settler.coord)) {
+                const linkResult = tryAction(next, {
+                    type: "LinkUnits",
+                    playerId,
+                    unitId: adjacentEscort.id,
+                    partnerId: settler.id
+                });
+                if (linkResult !== next) {
+                    next = linkResult;
+                    console.info(`[AI Escort] ${playerId} linked ${adjacentEscort.type} to settler at ${hexToString(settler.coord)}`);
+                    continue;
+                }
             }
         }
-        
+
         const nearbyEscort = next.units.find(u =>
             u.ownerId === playerId &&
             u.id !== settler.id &&
@@ -375,7 +379,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             u.movesLeft > 0 &&
             !u.linkedUnitId
         );
-        
+
         if (nearbyEscort) {
             const moveResult = tryAction(next, {
                 type: "MoveUnit",
@@ -387,17 +391,19 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                 next = moveResult;
                 const liveEscort = next.units.find(u => u.id === nearbyEscort.id);
                 const liveSettler = next.units.find(u => u.id === settler.id);
-                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) && 
+                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
                     !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
-                    const linkResult = tryAction(next, {
-                        type: "LinkUnits",
-                        playerId,
-                        unitId: liveEscort.id,
-                        partnerId: liveSettler.id
-                    });
-                    if (linkResult !== next) {
-                        next = linkResult;
-                        console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                    if (hexEquals(liveEscort.coord, liveSettler.coord)) {
+                        const linkResult = tryAction(next, {
+                            type: "LinkUnits",
+                            playerId,
+                            unitId: liveEscort.id,
+                            partnerId: liveSettler.id
+                        });
+                        if (linkResult !== next) {
+                            next = linkResult;
+                            console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                        }
                     }
                 }
                 continue;
@@ -405,11 +411,11 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         }
 
         let availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
-        
+
         if (availableUnits.length === 0 && safety.threatLevel === "high") {
             availableUnits = garrisonUnits.filter(u => !escortAssignments.has(u.id));
         }
-        
+
         if (availableUnits.length === 0) continue;
 
         const scoredUnits = availableUnits.map(u => ({
@@ -432,15 +438,17 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
 
         if (distance === 0) {
             if (!escort.linkedUnitId && !settler.linkedUnitId) {
-                const linkResult = tryAction(next, {
-                    type: "LinkUnits",
-                    playerId,
-                    unitId: escort.id,
-                    partnerId: settler.id
-                });
-                if (linkResult !== next) {
-                    next = linkResult;
-                    console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                if (hexEquals(escort.coord, settler.coord)) {
+                    const linkResult = tryAction(next, {
+                        type: "LinkUnits",
+                        playerId,
+                        unitId: escort.id,
+                        partnerId: settler.id
+                    });
+                    if (linkResult !== next) {
+                        next = linkResult;
+                        console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                    }
                 }
             }
             continue;
@@ -460,15 +468,17 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                 const liveSettler = next.units.find(u => u.id === settler.id);
                 if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
                     !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
-                    const linkResult = tryAction(next, {
-                        type: "LinkUnits",
-                        playerId,
-                        unitId: liveEscort.id,
-                        partnerId: liveSettler.id
-                    });
-                    if (linkResult !== next) {
-                        next = linkResult;
-                        console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                    if (hexEquals(liveEscort.coord, liveSettler.coord)) {
+                        const linkResult = tryAction(next, {
+                            type: "LinkUnits",
+                            playerId,
+                            unitId: liveEscort.id,
+                            partnerId: liveSettler.id
+                        });
+                        if (linkResult !== next) {
+                            next = linkResult;
+                            console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                        }
                     }
                 }
             }

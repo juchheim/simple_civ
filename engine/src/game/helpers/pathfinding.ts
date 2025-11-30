@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType, DiplomacyState } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 
@@ -27,6 +27,22 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
         if (tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea) return Infinity;
         if (tile.terrain === TerrainType.Mountain) return Infinity;
 
+        // Check for peacetime movement restrictions
+        if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+            const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
+            const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
+            // We can enter enemy cities to attack them (if at war) or if the game allows capturing.
+            // But the rule is: "Cannot enter enemy territory during peacetime".
+            // Exception: Enemy cities are allowed IF we are at war? 
+            // The validation logic says: if (!isEnemyCityTile && diplomacy !== "War") throw Error.
+            // So if it IS an enemy city, we can enter? Even in peace?
+            // "Allow entering enemy city tiles to resolve capture logic" - implies we might capture in peace?
+            // No, capture usually requires war. But let's match the validation logic exactly.
+            if (!isCity && diplomacy !== "War") {
+                return Infinity;
+            }
+        }
+
         // Check for blocking units
         const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
         if (unitOnTile) {
@@ -40,6 +56,16 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
         return TERRAIN[tile.terrain].moveCostLand ?? Infinity;
     } else if (stats.domain === UnitDomain.Naval) {
         if (tile.terrain !== TerrainType.Coast && tile.terrain !== TerrainType.DeepSea) return Infinity;
+
+        // Check for peacetime movement restrictions (Naval units also respect borders?)
+        // The validation logic applies to all units.
+        if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+            const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
+            const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
+            if (!isCity && diplomacy !== "War") {
+                return Infinity;
+            }
+        }
 
         // Check for blocking units
         const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);

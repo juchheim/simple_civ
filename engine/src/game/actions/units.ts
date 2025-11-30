@@ -410,7 +410,53 @@ export function handleFortifyUnit(state: GameState, action: { type: "FortifyUnit
     unit.state = UnitState.Fortified;
     unit.movesLeft = 0; // Consumes all moves
     unit.isAutoExploring = false;
-    unit.autoMoveTarget = undefined;
+    return state;
+}
+
+export function handleSwapUnits(state: GameState, action: { type: "SwapUnits"; playerId: string; unitId: string; targetUnitId: string }): GameState {
+    const unit = state.units.find(u => u.id === action.unitId);
+    const targetUnit = state.units.find(u => u.id === action.targetUnitId);
+
+    if (!unit || !targetUnit) throw new Error("Unit not found");
+    if (unit.ownerId !== action.playerId || targetUnit.ownerId !== action.playerId) throw new Error("Not your unit");
+    if (unit.movesLeft <= 0) throw new Error("No moves left"); // Only initiator needs moves? Or both?
+    // Let's say initiator needs moves. Target can be 0 moves.
+
+    // Validate adjacency
+    if (hexDistance(unit.coord, targetUnit.coord) !== 1) throw new Error("Units must be adjacent to swap");
+
+    // Validate domain compatibility (e.g. Land unit can't swap into Ocean if it can't go there)
+    // Actually, if they are swapping, they are just trading places.
+    // But we should check if `unit` can enter `targetUnit.coord` and vice versa.
+    const unitTile = state.map.tiles.find(t => hexEquals(t.coord, unit.coord));
+    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, targetUnit.coord));
+
+    if (!unitTile || !targetTile) throw new Error("Invalid tiles");
+
+    // Check if unit can enter targetTile
+    // We can use validateTileOccupancy but we need to ignore the target unit itself (since we are swapping)
+    // But validateTileOccupancy checks for *other* units too.
+    // Simpler: just check terrain domain.
+    const unitStats = UNITS[unit.type];
+    const targetStats = UNITS[targetUnit.type];
+
+    if (unitStats.domain === "Land" && (targetTile.terrain === "Coast" || targetTile.terrain === "DeepSea" || targetTile.terrain === "Mountain")) throw new Error("Unit cannot enter target terrain");
+    if (unitStats.domain === "Naval" && (targetTile.terrain !== "Coast" && targetTile.terrain !== "DeepSea")) throw new Error("Unit cannot enter target terrain");
+
+    if (targetStats.domain === "Land" && (unitTile.terrain === "Coast" || unitTile.terrain === "DeepSea" || unitTile.terrain === "Mountain")) throw new Error("Target unit cannot enter initiator terrain");
+    if (targetStats.domain === "Naval" && (unitTile.terrain !== "Coast" && unitTile.terrain !== "DeepSea")) throw new Error("Target unit cannot enter initiator terrain");
+
+    // Perform Swap
+    const tempCoord = unit.coord;
+    unit.coord = targetUnit.coord;
+    targetUnit.coord = tempCoord;
+
+    // Cost?
+    // Swapping is powerful. Maybe cost 1 move for initiator?
+    unit.movesLeft -= 1;
+
+    // Update vision
+    refreshPlayerVision(state, action.playerId);
 
     return state;
 }

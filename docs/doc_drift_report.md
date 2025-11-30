@@ -29,5 +29,5 @@
 - Build menus now expose full unit/building/project lists; manual worked-tile selection has center enforcement/feedback; fog-of-war shows tinted fog for seen tiles, renders unseen shroud hexes (toggleable), and keeps a legend.
 
 ### docs/IMPLEMENTATION_STATUS.md accuracy issues
-- Listed as “Fully Implemented”: Map generation, city system, combat system, and unit system, but the engine still lacks map-gen guarantees/spec features, diplomacy/fog-of-war, and AI (see above). Most city/combat/tech items are now implemented.
+- Listed as “Fully Implemented”: Map generation, city system, combat system, and unit system, but the engine still lacks map-gen guarantees/spec features and diplomacy/fog-of-war. AI is now fully implemented (see above). Most city/combat/tech items are now implemented.
 - “Partially Implemented: City capture mechanics (damage implemented, capture not)” is outdated; capture/ownership transfer and raze now exist.

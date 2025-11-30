@@ -1,6 +1,6 @@
 import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../core/constants.js";
 import { hexDistance, hexToString } from "../core/hex.js";
-import { estimateMilitaryPower } from "./ai/goals.js";
+import { estimateMilitaryPower, aiVictoryBias } from "./ai/goals.js";
 import {
     BuildingType,
     DiplomacyState,
@@ -210,6 +210,31 @@ function isStalemate(playerId: string, targetId: string, state: GameState): bool
     return longWar && evenlyMatched && noTerritorialGains;
 }
 
+function getWarEscalationFactor(turn: number): number {
+    // Starts at 1.0 (no effect) until turn 100
+    // Decreases linearly to 0.5 at turn 180
+    // Formula: 1.0 - ((turn - 100) / 80) * 0.5
+    if (turn < 100) return 1.0;
+    const progress = Math.min(1, (turn - 100) / 80);
+    return Math.max(0.5, 1.0 - progress * 0.5);
+}
+
+function getEnemyCapitalDistance(playerId: string, targetId: string, state: GameState): number | null {
+    const myUnits = state.units.filter(u => u.ownerId === playerId && u.type.startsWith("Army"));
+    const targetCapitals = state.cities.filter(c => c.ownerId === targetId && c.isCapital);
+
+    if (myUnits.length === 0 || targetCapitals.length === 0) return null;
+
+    let minDist = Infinity;
+    for (const unit of myUnits) {
+        for (const cap of targetCapitals) {
+            const d = hexDistance(unit.coord, cap.coord);
+            if (d < minDist) minDist = d;
+        }
+    }
+    return minDist === Infinity ? null : minDist;
+}
+
 export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState, options?: { ignorePrep?: boolean }): WarPeaceDecision {
     if (!state.contacts?.[playerId]?.[targetId]) {
         const visibleKeys = getVisibleKeys(state, playerId);
@@ -235,7 +260,37 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         }
         return aggression.warPowerThreshold;
     })();
-    const warDistanceMax = aggression.warDistanceMax;
+
+    // v0.99 Update: War Escalation
+    // As the game progresses, Conquest-focused civs become more aggressive
+    // Universal Escalation: After turn 150, EVERYONE gets more aggressive to prevent stalls
+    const victoryBias = aiVictoryBias(playerId, state);
+    let escalationFactor = 1.0;
+
+    if (victoryBias === "Conquest") {
+        escalationFactor = getWarEscalationFactor(state.turn);
+    } else if (state.turn > 150) {
+        // Late game universal escalation (gentler slope than Conquest)
+        // 1.0 -> 0.6 from turn 150 to 230
+        const lateProgress = Math.min(1, (state.turn - 150) / 80);
+        escalationFactor = 1.0 - (lateProgress * 0.4);
+    }
+
+    // Capital Targeting Bonus: If we are escalating AND enemy capital is vulnerable, be even more aggressive
+    let capitalBonus = 1.0;
+    if (escalationFactor < 1.0) {
+        const capDist = getEnemyCapitalDistance(playerId, targetId, state);
+        if (capDist !== null && capDist <= aggression.warDistanceMax) {
+            capitalBonus = 0.9; // 10% easier to declare war if capital is in range
+        }
+    }
+
+    const finalWarPowerThreshold = warPowerThreshold * escalationFactor * capitalBonus;
+
+    // Increase distance range over time (starts at turn 100, +1 tile every 20 turns)
+    // v0.99 Update: If escalating (Conquest civ late game), remove distance limit to ensure we can reach any capital
+    const distanceBonus = Math.max(0, Math.floor((state.turn - 100) / 20));
+    const warDistanceMax = (escalationFactor < 1.0) ? 999 : aggression.warDistanceMax + distanceBonus;
     const stance = state.diplomacy?.[playerId]?.[targetId] ?? DiplomacyState.Peace;
     const aiPower = estimateMilitaryPower(playerId, state);
     const enemyPower = estimateMilitaryPower(targetId, state);
@@ -275,11 +330,25 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
             console.log(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - eligible for peace`);
         }
 
+        // v0.99 Fix: NEVER sign peace if we have a capturable city (HP <= 0)
+        // This prevents the "Stalled Game" scenario where a city sits at -1 HP during forced peace
+        const enemyCities = state.cities.filter(c => c.ownerId === targetId);
+        const hasCapturableCity = enemyCities.some(c => c.hp <= 0);
+
+        if (hasCapturableCity) {
+            console.info(`[AI WAR CONTINUE] ${playerId} refusing peace with ${targetId} - city is CAPTURABLE (HP <= 0)!`);
+            return "None";
+        }
+
         // v0.98 Update 8: War exhaustion overrides "winning" stance
         // After 40 turns, even winners become willing to peace (unless they can finish the enemy)
         // EXCEPTION: Dominating power (5x+) NEVER gets war-weary - finish them!
+        // v0.99 Update: Late Game Escalation (factor < 0.8) ALSO ignores exhaustion/stalemate
+        // If we are in the "Death War" phase, we fight to the end.
         const dominating = hasDominatingPowerOver(playerId, targetId, state);
-        if (exhausted && !finishable && !overwhelming && !dominating) {
+        const lateGameDeathWar = escalationFactor < 0.8;
+
+        if (exhausted && !finishable && !overwhelming && !dominating && !lateGameDeathWar) {
             console.info(`[AI WAR EXHAUSTED] ${playerId} war-weary after ${turnsSinceChange} turns against ${targetId}`);
             const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
             if (incomingPeace) return "AcceptPeace";
@@ -287,7 +356,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         }
 
         // v0.98 Update 8: Stalemate detection - propose peace if war is going nowhere
-        if (stalemate) {
+        if (stalemate && !lateGameDeathWar) {
             console.info(`[AI WAR STALEMATE] ${playerId} recognizes stalemate with ${targetId} after ${turnsSinceChange} turns`);
             const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
             if (incomingPeace) return "AcceptPeace";
@@ -328,12 +397,14 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     const isReady = isPrepping && prep.state === "Ready";
 
     if (dominating && theirCitiesExist) {
+        // v0.99 Update: Domination Bypass
+        // If we have 5x power, we don't need to wait for full preparation.
+        // We are strong enough to crush them immediately.
         if (!options?.ignorePrep && !isReady) {
-            // If we are dominating, we might skip prep? 
-            // Actually, even dominating powers should position troops to be effective.
-            // But if we are REALLY dominating (5x), maybe we just go?
-            // For now: still require prep.
-            return "None";
+            console.info(`[AI DOMINATION] ${playerId} has DOMINATING power (5x) - Bypassing War Prep!`);
+        } else {
+            // Standard log if we were ready anyway
+            // (No-op, just fall through to declare)
         }
         console.info(`[AI DOMINATION] ${playerId} entering DOMINATION mode against ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)} = ${(aiPower / Math.max(1, enemyPower)).toFixed(1)}x)`);
         return "DeclareWar";
@@ -362,8 +433,11 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         return "DeclareWar";
     }
 
-    if (dist !== null && dist <= warDistanceMax && aiPower >= enemyPower * warPowerThreshold) {
+    if (dist !== null && dist <= warDistanceMax && aiPower >= enemyPower * finalWarPowerThreshold) {
         if (!options?.ignorePrep && !isReady) return "None";
+        if (escalationFactor < 1.0) {
+            console.info(`[AI WAR ESCALATION] ${playerId} declaring war on ${targetId} (Escalation: ${(escalationFactor * 100).toFixed(0)}%, CapBonus: ${(capitalBonus * 100).toFixed(0)}%, Threshold: ${finalWarPowerThreshold.toFixed(2)})`);
+        }
         console.info(`[AI WAR] ${playerId} declaring war on ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
     } else if (dist !== null && dist <= warDistanceMax) {
@@ -394,7 +468,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         logVeto(
             `No war: ${playerId}->${targetId} dist ${dist}/${warDistanceMax} power ${aiPower.toFixed(
                 1
-            )} vs ${enemyPower.toFixed(1)} req ${warPowerThreshold} contactTurns=${contactTurns} myCities=${myCities.join(",") || "none"} theirCities=${theirCities.join(",") || "none"}`
+            )} vs ${enemyPower.toFixed(1)} req ${finalWarPowerThreshold.toFixed(2)} (base ${warPowerThreshold}) contactTurns=${contactTurns} myCities=${myCities.join(",") || "none"} theirCities=${theirCities.join(",") || "none"}`
         );
     }
 

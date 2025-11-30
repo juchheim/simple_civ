@@ -3,6 +3,15 @@ import { runAiTurn } from "../game/ai.js";
 import { MapSize, GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import { UNITS } from "../core/constants.js";
+import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
+import { writeFileSync, statSync } from "fs";
+import * as os from "os";
+import * as path from "path";
+import { fileURLToPath } from 'url';
+
+// ==========================================
+// SHARED LOGIC (Copied from comprehensive-analysis.ts)
+// ==========================================
 
 // Simple military power estimation
 function estimateMilitaryPower(playerId: string, state: GameState): number {
@@ -141,12 +150,12 @@ function calculateCivStats(state: GameState, civId: string) {
         civName: player.civName,
         cities: cities.length,
         totalPop,
+        totalProduction,
+        totalScience,
         techs: player.techs.length,
         projects: player.completedProjects.length,
         units: units.length,
         militaryPower: estimateMilitaryPower(civId, state),
-        totalProduction,
-        totalScience,
         isEliminated: player.isEliminated || false,
     };
 }
@@ -205,15 +214,6 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 
     while (!state.winnerId && state.turn <= turnLimit) {
         const playerId = state.currentPlayerId;
-
-        // Emit status updates periodically
-        if (state.turn - lastStatusTurn >= STATUS_INTERVAL) {
-            const activeCivs = state.players.filter(p => !p.isEliminated).length;
-            const totalCities = state.cities.length;
-            const totalUnits = state.units.length;
-            console.error(`  [Seed ${seed}] Turn ${state.turn}: ${activeCivs} civs, ${totalCities} cities, ${totalUnits} units`);
-            lastStatusTurn = state.turn;
-        }
 
         // Capture snapshot BEFORE turn
         const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, hp: u.hp }]));
@@ -293,8 +293,6 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                 const prevUnit = beforeUnits.get(u.id)!;
                 if (prevUnit.type !== u.type) {
                     const city = state.cities.find(c => c.ownerId === u.ownerId);
-                    // If we can't find the city, just use the unit's current location to find nearest city or just log it
-                    // For analysis purposes, we just need to know it was produced.
                     if (city) {
                         events.push({
                             type: "UnitProduction",
@@ -504,65 +502,133 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     };
 }
 
-import { writeFileSync, statSync } from "fs";
+// ==========================================
+// PARALLEL EXECUTION LOGIC
+// ==========================================
 
-// Map sizes and their max civ counts
-const MAP_CONFIGS: { size: MapSize; maxCivs: number }[] = [
-    { size: "Tiny", maxCivs: 2 },
-    { size: "Small", maxCivs: 3 },
-    { size: "Standard", maxCivs: 4 },
-    { size: "Large", maxCivs: 6 },
-    { size: "Huge", maxCivs: 6 },
-];
+if (isMainThread) {
+    const MAP_CONFIGS: { size: MapSize; maxCivs: number }[] = [
+        { size: "Tiny", maxCivs: 2 },
+        { size: "Small", maxCivs: 3 },
+        { size: "Standard", maxCivs: 4 },
+        { size: "Large", maxCivs: 6 },
+        { size: "Huge", maxCivs: 6 },
+    ];
 
-// Run 10 simulations for each map size (default), or fewer if configured
-const seedsCount = process.env.SIM_SEEDS_COUNT ? parseInt(process.env.SIM_SEEDS_COUNT) : 10;
-const seeds = [1001, 2002, 3003, 4004, 5005, 6006, 7007, 8008, 9009, 10010].slice(0, seedsCount);
-const allResults: any[] = [];
+    const seedsCount = process.env.SIM_SEEDS_COUNT ? parseInt(process.env.SIM_SEEDS_COUNT) : 10;
+    const seedOverride = process.env.SIM_SEED_OVERRIDE ? parseInt(process.env.SIM_SEED_OVERRIDE) : null;
 
-const totalSims = MAP_CONFIGS.length * seeds.length;
-let completedSims = 0;
-const startTime = Date.now();
+    const seeds = [1001, 2002, 3003, 4004, 5005, 6006, 7007, 8008, 9009, 10010].slice(0, seedsCount);
 
-for (const config of MAP_CONFIGS) {
-    const mapIndex = MAP_CONFIGS.indexOf(config);
-    console.error(`\n${'='.repeat(60)}`);
-    console.error(`Running 10 simulations for ${config.size} map (${config.maxCivs} civs)`);
-    console.error(`${'='.repeat(60)}`);
+    // Create task queue
+    const tasks: { seed: number; config: typeof MAP_CONFIGS[0]; mapIndex: number }[] = [];
 
-    for (let i = 0; i < seeds.length; i++) {
-        const seed = seeds[i] + (mapIndex * 100000); // Different seed range per map size
-        completedSims++;
-        const elapsedSeconds = (Date.now() - startTime) / 1000;
-        const avgTime = elapsedSeconds / completedSims;
-        const remaining = (totalSims - completedSims) * avgTime;
-
-        console.error(`\n[${completedSims}/${totalSims}] Starting ${config.size} simulation ${i + 1}/10 (seed ${seed})`);
-        console.error(`  Elapsed: ${elapsedSeconds.toFixed(0)}s | Est. remaining: ${remaining.toFixed(0)}s`);
-
-        const result = runComprehensiveSimulation(seed, config.size, 200, config.maxCivs);
-        allResults.push(result);
-
-        const simEndTime = Date.now();
-        const simTime = (simEndTime - startTime) / 1000 - elapsedSeconds;
-        console.error(`  ✓ Completed in ${simTime.toFixed(1)}s - Turn ${result.turnReached}, Winner: ${result.winner?.civ || 'None'} (${result.victoryType || 'None'})`);
+    if (seedOverride) {
+        // Find which map config corresponds to this seed (assuming standard generation)
+        // seed = base + (mapIndex * 100000)
+        // mapIndex = floor((seed - base) / 100000)
+        // But base is variable.
+        // Instead, just try to find a matching map config or default to Standard
+        // Actually, for debugging, we usually know the map size.
+        // Let's just run it on ALL map sizes if override is set, or let user specify map size?
+        // Simpler: Just run it as a single task with "Standard" or infer from seed if possible.
+        // For 101001: 101001 % 100000 = 1001. 101001 / 100000 = 1. Map Index 1 = Small.
+        const mapIndex = Math.floor(seedOverride / 100000);
+        const config = MAP_CONFIGS[mapIndex] || MAP_CONFIGS[2]; // Default to Standard if out of bounds
+        console.log(`Overriding simulation to run ONLY Seed ${seedOverride} on ${config.size} map`);
+        tasks.push({ seed: seedOverride, config, mapIndex });
+    } else {
+        for (const config of MAP_CONFIGS) {
+            const mapIndex = MAP_CONFIGS.indexOf(config);
+            for (let i = 0; i < seeds.length; i++) {
+                const seed = seeds[i] + (mapIndex * 100000);
+                tasks.push({ seed, config, mapIndex });
+            }
+        }
     }
 
-    console.error(`\n✓ Completed all ${config.size} simulations`);
+    const totalTasks = tasks.length;
+    let completedTasks = 0;
+    const allResults: any[] = [];
+    const startTime = Date.now();
+
+    // Determine worker count (use all cores)
+    const numCPUs = os.cpus().length;
+    const workerCount = Math.max(1, numCPUs - 3); // Leave 3 cores free for system/monitoring
+    console.log(`Starting parallel simulation with ${workerCount} workers for ${totalTasks} tasks...`);
+
+    let activeWorkers = 0;
+
+    function startWorker() {
+        if (tasks.length === 0) return;
+
+        const task = tasks.shift()!;
+        activeWorkers++;
+
+        const worker = new Worker(fileURLToPath(import.meta.url), {
+            workerData: task
+        });
+
+        worker.on('message', (result) => {
+            allResults.push(result);
+            completedTasks++;
+            const elapsed = (Date.now() - startTime) / 1000;
+            const avgTime = elapsed / completedTasks;
+            const remaining = (totalTasks - completedTasks) * avgTime;
+
+            console.log(`[${completedTasks}/${totalTasks}] Completed ${result.mapSize} (Seed ${result.seed}) in ${(result.duration / 1000).toFixed(1)}s - Winner: ${result.winner?.civ || 'None'}`);
+            console.log(`  Progress: ${Math.round(completedTasks / totalTasks * 100)}% | Elapsed: ${elapsed.toFixed(0)}s | Est. Remaining: ${remaining.toFixed(0)}s`);
+        });
+
+        worker.on('error', (err) => {
+            console.error(`Worker error for task ${JSON.stringify(task)}:`, err);
+        });
+
+        worker.on('exit', (code) => {
+            activeWorkers--;
+            if (code !== 0) {
+                console.error(`Worker stopped with exit code ${code}`);
+            }
+            // Start next task
+            if (tasks.length > 0) {
+                startWorker();
+            } else if (activeWorkers === 0) {
+                finish();
+            }
+        });
+    }
+
+    // Start initial batch of workers
+    for (let i = 0; i < workerCount; i++) {
+        startWorker();
+    }
+
+    function finish() {
+        const totalTimeSeconds = (Date.now() - startTime) / 1000;
+        console.log(`\n${'='.repeat(60)}`);
+        console.log(`ALL SIMULATIONS COMPLETE!`);
+        console.log(`${'='.repeat(60)}`);
+        console.log(`Total simulations: ${allResults.length}`);
+        console.log(`Total time: ${totalTimeSeconds.toFixed(0)}s (${(totalTimeSeconds / allResults.length).toFixed(1)}s per simulation)`);
+
+        writeFileSync("/tmp/comprehensive-simulation-results.json", JSON.stringify(allResults, null, 2));
+
+        console.log(`✓ Results written to /tmp/comprehensive-simulation-results.json`);
+        console.log(`File size: ${(statSync('/tmp/comprehensive-simulation-results.json').size / 1024 / 1024).toFixed(1)} MB`);
+        process.exit(0);
+    }
+
+} else {
+    // Worker thread logic
+    const { seed, config, mapIndex } = workerData;
+    const start = Date.now();
+
+    try {
+        const result = runComprehensiveSimulation(seed, config.size, 200, config.maxCivs);
+        const duration = Date.now() - start;
+        parentPort?.postMessage({ ...result, duration });
+    } catch (err) {
+        console.error(`Error in worker (Seed ${seed}):`, err);
+        process.exit(1);
+    }
 }
-
-const totalTimeSeconds = (Date.now() - startTime) / 1000;
-console.error(`\n${'='.repeat(60)}`);
-console.error(`ALL SIMULATIONS COMPLETE!`);
-console.error(`${'='.repeat(60)}`);
-console.error(`Total simulations: ${allResults.length}`);
-console.error(`Total time: ${totalTimeSeconds.toFixed(0)}s (${(totalTimeSeconds / allResults.length).toFixed(1)}s per simulation)`);
-console.error(`Writing results...`);
-
-writeFileSync("/tmp/comprehensive-simulation-results.json", JSON.stringify(allResults, null, 2));
-
-console.error(`✓ Results written to /tmp/comprehensive-simulation-results.json (${allResults.length} simulations total)`);
-console.error(`\nFile size: ${(statSync('/tmp/comprehensive-simulation-results.json').size / 1024 / 1024).toFixed(1)} MB`);
-console.error(`\nSimulation complete. Exiting...`);
-process.exit(0);
-

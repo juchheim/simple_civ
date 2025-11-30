@@ -110,7 +110,7 @@
   - Build categories: Unit, Building, Project (one active slot). Switching clears progress.
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
-  - Base city HP 20; capture resets to 8. Base defense strength 5.
+  - Base city HP 20; capture resets to 8. Base defense strength 3.
   - City heal 1 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
   - Garrison enables city attack; City Ward adds +4 defense and +1 city attack.
 - **City Attack**:
@@ -142,9 +142,9 @@
   - River Boat: 2/2/1/3/10/35, Naval, no capture, vision 2.
 - **Army Units** (formed via projects; HP 15):
   - Army Scout 3/3/1/2, no capture, vision 3.
-  - Army Spear Guard 4/4/1/1, capture, vision 2.
-  - Army Bow Guard 4/3/2/1, no capture, vision 2.
-  - Army Riders 4/4/1/2, capture, vision 2.
+  - Army Spear Guard 8/4/1/1, capture, vision 2.
+  - Army Bow Guard 6/3/2/1, no capture, vision 2.
+  - Army Riders 8/4/1/2, capture, vision 2.
 - **Titan**: 25 atk / 10 def / rng 1 / move 3 / HP 50 / capture / vision 3 (summoned by Titan's Core).
 - **States**: Normal, Fortified (+2 defense until move/attack), Garrisoned (on city), PendingSpawn (queued).
 - **Linking**: eligible units can link into armies via Form Army projects; unlink to split back to base units.
@@ -264,6 +264,11 @@
 - **War Duration**: Once war is declared between two civilizations, it must last a **minimum of 15 turns** before either party can propose peace. This ensures wars are sustained conflicts rather than brief skirmishes.
 - **Peace Duration**: After establishing peace (or at initial contact), at least **15 turns** must pass before either civilization can declare war on the other. This creates stable periods for diplomacy and prevents immediate re-hostilities.
 - **Purpose**: These minimum durations make diplomatic states meaningful and prevent rapid oscillation between war and peace.
+
+### AI Diplomacy Behavior
+- **War Escalation**: AI aggression scales with the game turn. In the late game (Turn 50+), AI civilizations become "Bloodthirsty" and will refuse all peace offers to drive the game to a conclusion.
+- **Domination Bypass**: Extremely powerful AI civilizations (3x stronger than target) may bypass the standard peace duration to crush weak neighbors.
+- **War Preparation**: AI will spend up to 10 turns preparing for war (building units, positioning) before declaring hostilities.
 
 ## 17. Victory, Ties, Elimination
 - **Conquest Victory**: you control all enemy capitals.

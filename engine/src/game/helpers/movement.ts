@@ -106,6 +106,7 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
         const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
         // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
         if (!isEnemyCityTile && diplomacy !== "War") {
+            console.log(`[VALIDATION FAIL] Peacetime block: ${playerId} -> ${tile.ownerId} (Diplomacy: ${diplomacy})`);
             throw new Error("Cannot enter enemy territory during peacetime");
         }
     }

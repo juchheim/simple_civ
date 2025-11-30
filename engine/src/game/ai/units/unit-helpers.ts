@@ -245,18 +245,37 @@ export function stepToward(
     if (!unit || unit.movesLeft <= 0) return state;
 
     if (hexDistance(unit.coord, target) === 1) {
-        const movedDirect = tryAction(state, {
-            type: "MoveUnit",
-            playerId,
-            unitId,
-            to: target
-        });
-        if (movedDirect !== state) return movedDirect;
+        // Check for peacetime movement restrictions
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, target));
+        let allowed = true;
+        if (tile && tile.ownerId && tile.ownerId !== playerId) {
+            const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+            const isCity = state.cities.some(c => hexEquals(c.coord, target));
+            if (!isCity && diplomacy !== DiplomacyState.War) allowed = false;
+        }
+
+        if (allowed) {
+            const movedDirect = tryAction(state, {
+                type: "MoveUnit",
+                playerId,
+                unitId,
+                to: target
+            });
+            if (movedDirect !== state) return movedDirect;
+        }
     }
 
     const neighbors = getNeighbors(unit.coord);
     const ordered = sortByDistance(target, neighbors, coord => coord);
     for (const neighbor of ordered) {
+        // Check for peacetime movement restrictions
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, neighbor));
+        if (tile && tile.ownerId && tile.ownerId !== playerId) {
+            const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+            const isCity = state.cities.some(c => hexEquals(c.coord, neighbor));
+            if (!isCity && diplomacy !== DiplomacyState.War) continue;
+        }
+
         const moved = tryAction(state, {
             type: "MoveUnit",
             playerId,

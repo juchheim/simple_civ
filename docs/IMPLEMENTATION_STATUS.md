@@ -1,6 +1,6 @@
 # Implementation Status - v0.98 codebase
 
-Last Updated: 2025-11-24
+Last Updated: 2025-11-29
 
 ## ✅ Implemented
 - Core turn loop with unit movement/combat (melee/ranged), city production/growth/healing/fortify, city capture & raze, territory claim (radius 2), and worked-tile assignment UI.
@@ -13,7 +13,11 @@ Last Updated: 2025-11-24
 - Number of civilizations selection (2-4) with map size constraints enforced.
 - Unique city names: each civ has 20 thematic names, capital is fixed, subsequent names are random and unique.
 - Unit linking: players can link two units on the same hex for synchronized movement, with automatic unlinking on separation.
-- AI heuristics/personality: Full implementation including city site scoring, war/peace decisions, victory bias switching, and civ-specific personalities.
+- **AI & War Escalation**:
+    - Full AI implementation: City founding, tile evaluation, economy management, and tech progression.
+    - **War Escalation**: AI aggression scales with time; "Bloodthirsty" mode in late game (Turn 50+) refuses peace.
+    - **Tactical Combat**: AI uses "Smart Buildup" for war prep, coordinates attacks, and uses "Clear the Way" tactics for city capture.
+    - **Diplomacy**: AI respects peace durations but can bypass them if overwhelming (Domination Bypass).
 - **Victory/Loss UI**: Full-screen Victory/Defeat overlays with "Restart Game" (same seed/settings) and "Main Menu" options.
 
 ## 🔧 Partially Implemented
@@ -32,4 +36,4 @@ Last Updated: 2025-11-24
 - Start: each civ gets Settler + Scout; no start-quality guarantees, spacing is loose (~4 hex min in code). Choose map size (Tiny to Huge) and number of civilizations (2-4).
 - Civilizations: Forge Clans, Scholar Kingdoms, River League, and The Aetherian Vanguard (with unique Titan's Core wonder).
 - Play: move/attack, found cities, build units/buildings/projects, research techs, manage worked tiles, city ranged attack (range 2), offer/accept peace or vision sharing.
-- Limitations: no LoS blocking, no AI, no save/load, contact always active, map quality/generator is basic, no naval embark rules.
+- Limitations: no LoS blocking, no save/load, contact always active, map quality/generator is basic, no naval embark rules.

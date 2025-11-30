@@ -256,4 +256,5 @@ export type Action =
     | { type: "SetAutoExplore"; playerId: string; unitId: string }
     | { type: "ClearAutoExplore"; playerId: string; unitId: string }
     | { type: "FortifyUnit"; playerId: string; unitId: string }
+    | { type: "SwapUnits"; playerId: string; unitId: string; targetUnitId: string }
     | { type: "EndTurn"; playerId: string };

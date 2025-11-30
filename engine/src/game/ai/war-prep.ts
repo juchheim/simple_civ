@@ -50,6 +50,18 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
     const MIN_GATHERING_TURNS = 2; // Must gather for at least 2 turns
     const MIN_POSITIONING_TURNS = 2; // Must position for at least 2 turns
 
+    // v0.99 Update: Timeout - if we take too long, just go!
+    // This prevents getting stuck in "Positioning" forever if units can't reach the border
+    if (turnsSinceStart > 10 && prep.state !== "Buildup") {
+        console.info(`[AI WAR PREP] ${player.id} preparation TIMEOUT against ${target.id} (took >10 turns) - Forcing Ready!`);
+        return {
+            ...state,
+            players: state.players.map(p =>
+                p.id === player.id ? { ...p, warPreparation: { ...prep, state: "Ready" } } : p
+            )
+        };
+    }
+
     let newPrepState = prep;
 
     // State Transitions (only one per turn, with minimum time requirements)
