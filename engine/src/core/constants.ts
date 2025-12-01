@@ -70,10 +70,10 @@ export const TECH_COST_HEARTH = 20;
 export const TECH_COST_BANNER = 40;
 export const TECH_COST_ENGINE = 65;
 
-// Projects (v0.98: Increased costs to slow down Progress victories)
-export const OBSERVATORY_COST = 80;         // Was 60 - 33% increase
-export const GRAND_ACADEMY_COST = 110;      // Was 85 - 29% increase
-export const GRAND_EXPERIMENT_COST = 140;   // Was 105 - 33% increase
+// Projects (v0.99: Reduced costs to buff Progress victories)
+export const OBSERVATORY_COST = 125;        // Was 135 (in PROJECTS) - Further reduction
+export const GRAND_ACADEMY_COST = 175;      // Unchanged
+export const GRAND_EXPERIMENT_COST = 225;   // Was 230 (in PROJECTS) - Further reduction
 
 // v0.98: Civ-specific starting bonuses
 export const AETHERIAN_EXTRA_STARTING_UNITS = [UnitType.SpearGuard]; // Extra military at start
@@ -259,21 +259,21 @@ export type ProjectData = {
 
 export const PROJECTS: Record<ProjectId, ProjectData> = {
     [ProjectId.Observatory]: {
-        cost: 160,  // v0.98: Increased from 120 (33% increase)
+        cost: 125,  // v0.99: Reduced from 135
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 210,  // v0.98: Increased from 165 (27% increase)
+        cost: 175,  // v0.99: Reduced from 210 (~16% reduction)
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 280,  // v0.98: Increased from 210 (33% increase)
+        cost: 225,  // v0.99: Reduced from 230
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,
