@@ -112,12 +112,13 @@ describe("AI War Preparation", () => {
         // Default aggression should trigger if we have power advantage and close distance
 
         // Run prep logic
-        manageWarPreparation(state, aiId);
+        // Run prep logic
+        state = manageWarPreparation(state, aiId);
 
-        const ai = state.players.find(p => p.id === aiId)!;
-        expect(ai.warPreparation).toBeDefined();
-        expect(ai.warPreparation?.targetId).toBe(enemyId);
-        expect(ai.warPreparation?.state).toBe("Gathering");
+        const updatedAi = state.players.find(p => p.id === aiId)!;
+        expect(updatedAi.warPreparation).toBeDefined();
+        expect(updatedAi.warPreparation?.targetId).toBe(enemyId);
+        expect(updatedAi.warPreparation?.state).toBe("Gathering");
     });
 
     it("should advance to Positioning when gathered", () => {
@@ -126,7 +127,7 @@ describe("AI War Preparation", () => {
         ai.warPreparation = {
             targetId: enemyId,
             state: "Gathering",
-            startedTurn: state.turn
+            startedTurn: state.turn - 5
         };
 
         // Give AI strong army
@@ -134,9 +135,10 @@ describe("AI War Preparation", () => {
         state.units.push(createTestUnit(aiId, UnitType.BowGuard, { q: 1, r: 0 }));
         state.units.push(createTestUnit(aiId, UnitType.Riders, { q: -1, r: 1 }));
 
-        manageWarPreparation(state, aiId);
+        state = manageWarPreparation(state, aiId);
 
-        expect(ai.warPreparation?.state).toBe("Positioning");
+        const updatedAi = state.players.find(p => p.id === aiId)!;
+        expect(updatedAi.warPreparation?.state).toBe("Positioning");
     });
 
     it("should move units towards border during Positioning", () => {
@@ -192,7 +194,7 @@ describe("AI War Preparation", () => {
         ai.warPreparation = {
             targetId: enemyId,
             state: "Positioning",
-            startedTurn: state.turn
+            startedTurn: state.turn - 5
         };
 
         // Place units near enemy city (border)
@@ -201,9 +203,10 @@ describe("AI War Preparation", () => {
         state.units.push(createTestUnit(aiId, UnitType.SpearGuard, { q: 0, r: 3 }));
         state.units.push(createTestUnit(aiId, UnitType.BowGuard, { q: 1, r: 3 }));
 
-        manageWarPreparation(state, aiId);
+        state = manageWarPreparation(state, aiId);
 
-        expect(ai.warPreparation?.state).toBe("Ready");
+        const updatedAi = state.players.find(p => p.id === aiId)!;
+        expect(updatedAi.warPreparation?.state).toBe("Ready");
     });
 
     it("should declare war when Ready", () => {

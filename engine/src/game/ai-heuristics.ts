@@ -89,10 +89,10 @@ function cityDistancePenalty(
     // Apply penalties based on distance
     if (minDistance < 4) {
         // Too close - cities will compete for tiles or validation will block
-        return -10;
+        return -5; // v0.99 Tuning: Reduced from -10 to allow tighter packing if needed
     } else if (minDistance > 8) {
         // Too far - harder to defend and support
-        return -5;
+        return -2; // v0.99 Tuning: Reduced from -5 to encourage reaching for good spots
     }
 
     // Sweet spot: 4-8 tiles away

@@ -241,7 +241,7 @@ describe("ai decisions", () => {
 
     it("escalates aggression in late game for Conquest civs", () => {
         const state = baseState();
-        state.turn = 200; // Late game
+        state.turn = 140; // Mid-Late game (Conquest escalates, Progress doesn't yet)
         state.players = [
             {
                 id: "p",
@@ -266,8 +266,8 @@ describe("ai decisions", () => {
 
         // Setup: Player is slightly WEAKER than enemy (0.9x power)
         // Normally ForgeClans needs 1.1x power.
-        // But at turn 200, escalation factor is 0.5.
-        // Threshold becomes 1.1 * 0.5 = 0.55.
+        // But at turn 140, escalation factor is 0.75.
+        // Threshold becomes 1.1 * 0.75 = 0.825.
         // So 0.9x power should trigger war.
 
         state.cities = [

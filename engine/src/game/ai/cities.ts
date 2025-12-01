@@ -35,6 +35,13 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     const hasObservatory = player?.completedProjects.includes(ProjectId.Observatory);
     const hasGrandAcademy = player?.completedProjects.includes(ProjectId.GrandAcademy);
 
+    // Identify rush item if any
+    let rushItem: BuildOption | undefined;
+    if (personality.projectRush) {
+        const rushType = personality.projectRush.type === "Building" ? "Building" : "Project";
+        rushItem = { type: rushType, id: personality.projectRush.id as string };
+    }
+
     // Check if we are safe enough to pursue victory
     // Safe if: Not at war OR we have a decent military (at least 3 units)
     const myUnits = state.units.filter(u => u.ownerId === playerId);
@@ -108,6 +115,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             ];
 
             return [
+                ...(rushItem ? [rushItem] : []),
                 ...prioritizedArmies,
                 { type: "Unit", id: UnitType.Settler }, // Still allow settlers if safe
                 { type: "Unit", id: UnitType.BowGuard },
@@ -161,6 +169,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             unitPriority = unitPriority.filter((v, i, a) => a.findIndex(t => t.type === v.type && t.id === v.id) === i);
 
             return [
+                ...(rushItem ? [rushItem] : []),
                 ...unitPriority,
                 { type: "Building", id: BuildingType.StoneWorkshop },
                 { type: "Building", id: BuildingType.Farmstead },
@@ -181,10 +190,17 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         // Insert army formation opportunities after first few normal priorities
         // This allows peacetime army building without completely disrupting economy
         return [
+            ...(rushItem ? [rushItem] : []),
             ...normalPriorities.slice(0, 2),
             ...armyPriorities,
             ...normalPriorities.slice(2),
         ];
+    }
+
+    // v0.99 Fix: Apply projectRush to the FINAL list, regardless of whether we are at war or not.
+    // This ensures Jade Covenant builds their Granary even if they get into an early war.
+    if (rushItem) {
+        return [rushItem, ...normalPriorities];
     }
 
     return normalPriorities;
@@ -199,8 +215,16 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Project", id: ProjectId.GrandAcademy },
         { type: "Project", id: ProjectId.GrandExperiment },
         { type: "Building", id: BuildingType.Scriptorium },
+        { type: "Building", id: BuildingType.Academy },
+        { type: "Building", id: BuildingType.SpiritObservatory }, // Unique
+        { type: "Building", id: BuildingType.JadeGranary },       // Unique
+        { type: "Building", id: BuildingType.CitySquare },
+        { type: "Building", id: BuildingType.Reservoir },
         { type: "Building", id: BuildingType.Farmstead },
         { type: "Building", id: BuildingType.StoneWorkshop },
+        { type: "Building", id: BuildingType.LumberMill },
+        { type: "Building", id: BuildingType.Forgeworks },
+        { type: "Building", id: BuildingType.CityWard },
         { type: "Unit", id: UnitType.Settler },
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Unit", id: UnitType.Riders },
@@ -213,8 +237,15 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Project", id: ProjectId.FormArmy_SpearGuard },
         { type: "Project", id: ProjectId.FormArmy_Riders },
         { type: "Project", id: ProjectId.FormArmy_BowGuard },
+        { type: "Building", id: BuildingType.Forgeworks },
+        { type: "Building", id: BuildingType.Forgeworks },
+        { type: "Building", id: BuildingType.TitansCore },        // Unique
+        { type: "Building", id: BuildingType.JadeGranary },       // Unique (Jade Covenant needs this for growth even in Conquest)
         { type: "Building", id: BuildingType.StoneWorkshop },
+        { type: "Building", id: BuildingType.LumberMill },
+        { type: "Building", id: BuildingType.CityWard },
         { type: "Building", id: BuildingType.Farmstead },
+        { type: "Building", id: BuildingType.CitySquare },
         { type: "Unit", id: UnitType.Settler },
     ];
     const balanced: BuildOption[] = [
@@ -223,16 +254,17 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Building", id: BuildingType.Farmstead },
         { type: "Building", id: BuildingType.StoneWorkshop },
+        { type: "Building", id: BuildingType.LumberMill },
         { type: "Building", id: BuildingType.Scriptorium },
+        { type: "Building", id: BuildingType.CitySquare },
+        { type: "Building", id: BuildingType.CityWard },
+        { type: "Building", id: BuildingType.JadeGranary },       // Unique
+        { type: "Building", id: BuildingType.SpiritObservatory }, // Unique
+        { type: "Building", id: BuildingType.TitansCore },        // Unique
         { type: "Unit", id: UnitType.Riders },
     ];
 
     let prioritized = goal === "Progress" ? progress : goal === "Conquest" ? conquest : balanced;
-
-    if (personality.projectRush) {
-        const rushType = personality.projectRush.type === "Building" ? "Building" : "Project";
-        prioritized = [{ type: rushType, id: personality.projectRush.id as string }, ...prioritized];
-    }
 
     if (personality.unitBias.navalWeight) {
         prioritized = [{ type: "Unit", id: UnitType.RiverBoat }, ...prioritized];
@@ -358,7 +390,15 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
     // This forces the AI to use its existing settler before building another.
     const mapSize = state.map.width * state.map.height;
     const isLargeMap = mapSize > 200; // Approx threshold for Large+
-    const globalSettlerLimit = isLargeMap ? 2 : 1;
+    // v0.99 Tuning: Increased limits to encourage expansion
+    // Standard: 2 (was 1), Large: 3 (was 2)
+    let globalSettlerLimit = isLargeMap ? 3 : 2;
+
+    // v0.99 Tuning: Expansionist civs get +1 slot
+    const player = state.players.find(p => p.id === playerId);
+    if (player?.civName === "JadeCovenant" || player?.civName === "RiverLeague") {
+        globalSettlerLimit += 1;
+    }
 
     // Cap based on shortfall, available sites, AND the strict global limit
     const settlerCap = Math.min(

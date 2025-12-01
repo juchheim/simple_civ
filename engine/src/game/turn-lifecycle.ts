@@ -54,6 +54,7 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     }
 
     healUnitsAtStart(state, playerId);
+    applyAttrition(state, playerId);
 
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
         const unitStats = UNITS[unit.type];
@@ -253,6 +254,34 @@ function completeBuild(state: GameState, city: City) {
                     c.pop += 1;
                     c.workedTiles = ensureWorkedTiles(c, state);
                 }
+
+                // v0.99 BUFF: Spawn a free Settler at the city
+                // Find valid spawn location (spiral out from city)
+                let spawnCoord = city.coord;
+                const maxRing = 2;
+                const area = hexSpiral(city.coord, maxRing);
+                for (const coord of area) {
+                    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+                    if (!tile) continue;
+                    if (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain") continue;
+                    const occupied = state.units.some(u => hexEquals(u.coord, coord));
+                    if (!occupied) {
+                        spawnCoord = coord;
+                        break;
+                    }
+                }
+
+                state.units.push({
+                    id: `u_${city.ownerId}_free_settler_${Date.now()}`,
+                    type: UnitType.Settler,
+                    ownerId: city.ownerId,
+                    coord: spawnCoord,
+                    hp: 10, // Jade Covenant Bonus
+                    maxHp: 10,
+                    movesLeft: 3, // Jade Covenant Bonus
+                    state: UnitState.Normal,
+                    hasAttacked: false,
+                });
             }
         }
     } else if (build.type === "Project") {
@@ -355,6 +384,64 @@ function healUnitsAtStart(state: GameState, playerId: string) {
         const inCity = state.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, unit.coord));
         const heal = inCity ? HEAL_FRIENDLY_CITY : HEAL_FRIENDLY_TILE;
         unit.hp = Math.min(unit.maxHp, unit.hp + heal);
+    }
+}
+
+function applyAttrition(state: GameState, playerId: string) {
+    // v0.99 Buff: "Nature's Wrath" - Jade Covenant territory damages enemies
+    // At the start of a player's turn, if they are at war with Jade Covenant
+    // and their units are in Jade Covenant territory, they take 1 damage.
+
+    const player = state.players.find(p => p.id === playerId);
+    if (!player || player.isEliminated) return;
+
+    // Find Jade Covenant player ID
+    const jadeCovenant = state.players.find(p => p.civName === "JadeCovenant");
+    if (!jadeCovenant || jadeCovenant.isEliminated) return;
+
+    // Check if at war
+    // Diplomacy is stored as state.diplomacy[id1][id2] = "War" | "Peace"
+    // We need to check both directions or just one depending on implementation,
+    // usually it's symmetric but let's be safe.
+    const relation = state.diplomacy?.[playerId]?.[jadeCovenant.id];
+    if (relation !== "War") return;
+
+    for (const unit of state.units.filter(u => u.ownerId === playerId)) {
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, unit.coord));
+        if (!tile) continue;
+
+        // Check if tile is owned by Jade Covenant
+        if (tile.ownerId === jadeCovenant.id) {
+            // Apply attrition
+            // 1 HP damage (User requested check: 2 HP was deemed too strong with city attacks)
+            const damage = 1;
+            unit.hp = Math.max(1, unit.hp - damage); // Don't kill outright, leave at 1 HP?
+            // Actually, attrition usually kills. Let's allow kill.
+            // But if we kill here, we need to handle unit death cleanup which might be complex inside this loop.
+            // Let's leave at 1 HP for now to be safe, or check if we can remove.
+            // The game loop usually handles 0 HP units in specific phases, but let's see.
+            // If I set to 0, does it get cleaned up?
+            // Usually cleanup happens after combat.
+            // Let's set to 0 and assume a cleanup sweep happens or the unit is just dead.
+            // Wait, `eliminationSweep` checks for no units/cities.
+            // Unit death logic is usually in `handleAttack`.
+            // Let's just deal damage. If it drops to 0, we should probably remove it.
+            unit.hp -= damage;
+            if (unit.hp <= 0) {
+                console.log(`[Attrition] Unit ${unit.id} (${unit.type}) died to Nature's Wrath in Jade territory.`);
+                // We can't splice `state.units` while iterating easily if we are iterating a filtered list.
+                // But `state.units` is the source of truth.
+                // We should mark for deletion or filter after.
+            }
+        }
+    }
+
+    // Cleanup dead units
+    const initialCount = state.units.length;
+    state.units = state.units.filter(u => u.hp > 0);
+    if (state.units.length < initialCount) {
+        // Force vision refresh if units died
+        refreshPlayerVision(state, playerId);
     }
 }
 

@@ -110,6 +110,26 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         return () => window.removeEventListener('resize', calculateLines);
     }, [gameState]); // Recalculate if game state changes (though tech tree structure is static)
 
+    const renderBuildingStats = (buildingId: BuildingType) => {
+        const building = BUILDINGS[buildingId];
+        if (!building) return null;
+        const yields = [];
+        if (building.yieldFlat?.F) yields.push(`+${building.yieldFlat.F} Food`);
+        if (building.yieldFlat?.P) yields.push(`+${building.yieldFlat.P} Prod`);
+        if (building.yieldFlat?.S) yields.push(`+${building.yieldFlat.S} Sci`);
+
+        return (
+            <div style={{ fontSize: "10px", marginTop: "4px", lineHeight: "1.3" }}>
+                <div>Cost: {building.cost}</div>
+                {yields.length > 0 && <div>{yields.join(", ")}</div>}
+                {building.defenseBonus && <div>+{building.defenseBonus} Defense</div>}
+                {building.cityAttackBonus && <div>+{building.cityAttackBonus} City Atk</div>}
+                {building.growthMult && <div>Growth Cost: -{Math.round((1 - building.growthMult) * 100)}%</div>}
+                {building.conditional && <div style={{ fontStyle: "italic" }}>{building.conditional}</div>}
+            </div>
+        );
+    };
+
     const renderUnlockStats = (tech: typeof TECHS[TechId]) => {
         if (tech.unlock.type === "Unit") {
             const unit = UNITS[tech.unlock.id as UnitType];
@@ -123,23 +143,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
             );
         }
         if (tech.unlock.type === "Building") {
-            const building = BUILDINGS[tech.unlock.id as BuildingType];
-            if (!building) return null;
-            const yields = [];
-            if (building.yieldFlat?.F) yields.push(`+${building.yieldFlat.F} Food`);
-            if (building.yieldFlat?.P) yields.push(`+${building.yieldFlat.P} Prod`);
-            if (building.yieldFlat?.S) yields.push(`+${building.yieldFlat.S} Sci`);
-
-            return (
-                <div style={{ fontSize: "10px", marginTop: "4px", lineHeight: "1.3" }}>
-                    <div>Cost: {building.cost}</div>
-                    {yields.length > 0 && <div>{yields.join(", ")}</div>}
-                    {building.defenseBonus && <div>+{building.defenseBonus} Defense</div>}
-                    {building.cityAttackBonus && <div>+{building.cityAttackBonus} City Atk</div>}
-                    {building.growthMult && <div>Growth Cost: -{Math.round((1 - building.growthMult) * 100)}%</div>}
-                    {building.conditional && <div style={{ fontStyle: "italic" }}>{building.conditional}</div>}
-                </div>
-            );
+            return renderBuildingStats(tech.unlock.id as BuildingType);
         }
         return null;
     };
@@ -218,19 +222,28 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
 
                 {/* Civ-Specific Uniques */}
                 {player.civName === "JadeCovenant" && techId === TechId.Fieldcraft && (
-                    <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
-                        Unique: Jade Granary
-                    </div>
+                    <>
+                        <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
+                            Unique: Jade Granary
+                        </div>
+                        {renderBuildingStats(BuildingType.JadeGranary)}
+                    </>
                 )}
                 {player.civName === "AetherianVanguard" && techId === TechId.SteamForges && (
-                    <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
-                        Unique: Titan's Core
-                    </div>
+                    <>
+                        <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
+                            Unique: Titan's Core
+                        </div>
+                        {renderBuildingStats(BuildingType.TitansCore)}
+                    </>
                 )}
                 {player.civName === "StarborneSeekers" && techId === TechId.StarCharts && (
-                    <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
-                        Unique: Spirit Observatory
-                    </div>
+                    <>
+                        <div style={{ fontSize: "10px", color: "var(--color-highlight-strong)", marginTop: "4px", fontWeight: "bold" }}>
+                            Unique: Spirit Observatory
+                        </div>
+                        {renderBuildingStats(BuildingType.SpiritObservatory)}
+                    </>
                 )}
 
                 {renderUnlockStats(tech)}

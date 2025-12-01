@@ -60,10 +60,11 @@ function assessSettlerSafety(
         .filter(p => p.id !== playerId && !p.isEliminated)
         .map(p => p.id);
 
+    // Check for enemies within a wider range (5 tiles)
     const nearbyEnemyMilitary = state.units.filter(u =>
         potentialThreats.includes(u.ownerId) &&
         UNITS[u.type].domain !== "Civilian" &&
-        hexDistance(settlerCoord, u.coord) <= 4
+        hexDistance(settlerCoord, u.coord) <= 5
     );
 
     const warEnemies = state.players
@@ -78,13 +79,27 @@ function assessSettlerSafety(
         warEnemies.includes(u.ownerId)
     );
 
-    const threatLevel: "none" | "low" | "high" =
-        warEnemyUnitsNearby.length > 0 ? "high" :
-            nearbyEnemyMilitary.length > 0 ? "low" : "none";
+    // Determine threat level
+    let threatLevel: "none" | "low" | "high" = "none";
+
+    if (warEnemyUnitsNearby.length > 0) {
+        threatLevel = "high";
+    } else if (nearbyEnemyMilitary.length > 0) {
+        threatLevel = "low";
+    } else if (!isInFriendlyBorders) {
+        // v0.99 Update: Treat "Outside Friendly Borders" as inherently risky (Fog of War)
+        // This forces settlers to wait for escorts before venturing into the unknown
+        // v1.0 Tuning: Relax this for the first expansion to prevent early game stagnation
+        // v0.99 Tuning: Relaxed from 2 to 4 cities to prevent early stagnation
+        if (ownedCities.length < 4) {
+            threatLevel = "none";
+        } else {
+            threatLevel = "low";
+        }
+    }
 
     const needsEscort = !isInFriendlyBorders || nearbyEnemyMilitary.length > 0;
-
-    const isSafe = isInFriendlyBorders && warEnemyUnitsNearby.length === 0;
+    const isSafe = threatLevel === "none";
 
     return { isSafe, needsEscort, threatLevel };
 }
@@ -116,7 +131,7 @@ function detectNearbyDanger(
             distance: hexDistance(settlerCoord, u.coord),
             isWarEnemy: warEnemies.includes(u.ownerId)
         }))
-        .filter(({ distance }) => distance <= 3)
+        .filter(({ distance }) => distance <= 5) // Increased detection range to 5
         .sort((a, b) => {
             if (a.isWarEnemy !== b.isWarEnemy) return a.isWarEnemy ? -1 : 1;
             return a.distance - b.distance;
@@ -129,6 +144,10 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
     let next = state;
     const personality = getPersonalityForPlayer(next, playerId);
     const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
+
+    // Find nearest friendly city for retreat logic
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
+
     for (const settler of settlers) {
         const liveSettler = next.units.find(u => u.id === settler.id);
         if (!liveSettler) continue;
@@ -151,9 +170,19 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             u.movesLeft > 0
         );
 
+        // Safety Check: Wait for escort if threatened or outside borders
         if (safety.threatLevel !== "none" && !hasLinkedEscort && !hasAdjacentEscort) {
-            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
-            continue;
+            // If we are in danger and have no escort, we should RETREAT, not just wait.
+            // Waiting just makes us a sitting duck.
+            const danger = detectNearbyDanger(liveSettler.coord, playerId, next);
+            if (danger) {
+                // Active retreat logic handled below
+            } else {
+                // No visible danger, but we are "unsafe" (e.g. outside borders).
+                // Wait for escort.
+                console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
+                continue;
+            }
         }
 
         if (safety.threatLevel === "high" && !hasLinkedEscort) {
@@ -172,17 +201,29 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                         UNITS[u.type].domain !== "Civilian" &&
                         hexDistance(u.coord, coord) <= 2
                     ) : true;
+
+                    // Retreat Logic: Prioritize moving towards nearest friendly city
+                    let retreatScore = 0;
+                    if (myCities.length > 0) {
+                        const distToCity = Math.min(...myCities.map(c => hexDistance(coord, c.coord)));
+                        retreatScore = -distToCity; // Closer to city is better (higher score)
+                    }
+
                     return {
                         coord,
                         distanceFromThreat: hexDistance(coord, danger.coord),
-                        escortStaysClose
+                        escortStaysClose,
+                        retreatScore
                     };
                 })
                 .sort((a, b) => {
                     if (a.escortStaysClose !== b.escortStaysClose) {
                         return a.escortStaysClose ? -1 : 1;
                     }
-                    return b.distanceFromThreat - a.distanceFromThreat;
+                    // If threatened, prioritize distance from threat AND moving towards safety
+                    const scoreA = a.distanceFromThreat * 2 + a.retreatScore;
+                    const scoreB = b.distanceFromThreat * 2 + b.retreatScore;
+                    return scoreB - scoreA;
                 });
 
             let escaped = false;
@@ -196,6 +237,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                 if (moveResult !== next) {
                     next = moveResult;
                     escaped = true;
+                    console.info(`[AI Settler] ${playerId} retreated to ${hexToString(neighbor.coord)} (threat dist: ${neighbor.distanceFromThreat})`);
                     break;
                 }
             }
@@ -219,7 +261,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             }
         }
 
-        const searchRadius = 6;
+        const searchRadius = 9; // v0.99 Tuning: Increased from 6 to 9 to find better spots
         const nearbyCoords = hexSpiral(liveSettler.coord, searchRadius);
         const potentialSites = nearbyCoords
             .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
@@ -412,7 +454,8 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
 
         let availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
 
-        if (availableUnits.length === 0 && safety.threatLevel === "high") {
+        if (availableUnits.length === 0 && safety.threatLevel !== "none") {
+            // If threatened, take from garrisons too
             availableUnits = garrisonUnits.filter(u => !escortAssignments.has(u.id));
         }
 

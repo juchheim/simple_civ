@@ -104,8 +104,8 @@ describe("AI end-to-end", () => {
             completedProjects: [],
             isEliminated: false,
         } as any);
-        state.contacts = { p: { e: true }, e: { p: true } };
-        state.diplomacy = { p: { e: DiplomacyState.Peace }, e: { p: DiplomacyState.Peace } } as any;
+        (state.contacts as any) = { p: { e: true }, e: { p: true } };
+        (state.diplomacy as any) = { p: { e: DiplomacyState.Peace }, e: { p: DiplomacyState.Peace } };
         state.cities.push({
             id: "c2",
             ownerId: "e",
@@ -125,15 +125,19 @@ describe("AI end-to-end", () => {
         } as any);
         const playerCityKey = hexToString(state.cities[0].coord);
         const enemyCityKey = hexToString({ q: 0, r: 8 });
-        state.revealed.p = [playerCityKey, enemyCityKey];
-        state.visibility.p = [playerCityKey, enemyCityKey];
-        state.revealed.e = [enemyCityKey, playerCityKey];
-        state.visibility.e = [enemyCityKey, playerCityKey];
+        (state.revealed as any).p = [playerCityKey, enemyCityKey];
+        (state.visibility as any).p = [playerCityKey, enemyCityKey];
+        (state.revealed as any).e = [enemyCityKey, playerCityKey];
+        (state.visibility as any).e = [enemyCityKey, playerCityKey];
         state.units = [
             { id: "a", ownerId: "p", type: UnitType.ArmySpearGuard, coord: { q: 0, r: 0 }, hp: 15, maxHp: 15, movesLeft: 2, hasAttacked: false, state: "Normal" } as any,
         ];
 
         const after = runAiTurn(state as any, "p");
-        expect(after.diplomacy.p.e).toBe(DiplomacyState.War);
+        // v0.99: AI now prepares for war first
+        const p = after.players.find((pl: any) => pl.id === "p");
+        expect(p).toBeDefined();
+        expect(p!.warPreparation).toBeDefined();
+        expect(p!.warPreparation?.targetId).toBe("e");
     });
 });

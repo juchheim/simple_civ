@@ -216,7 +216,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 150, conditional: "Summons The Titan upon completion" }, // v0.98: Reduced from 200
     [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 275, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v0.99: Removed instant tech
-    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 60, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city" }, // v0.99 BUFF: Moved to Hearth, Cost 60
+    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v0.99 BUFF: Cost 40, Free Settler
 };
 
 export type TechData = {

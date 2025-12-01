@@ -222,7 +222,7 @@
   - **City Square** (80, Urban Plans): +1 Food, +1 Production.
   - **Titan's Core** (150, Steam Forges): summons Titan on completion (unique per civ).
   - **Spirit Observatory** (275, Star Charts): “The Revelation”—+1 Science per city, counts as Observatory milestone (unique per civ).
-  - **Jade Granary** (60, Fieldcraft): “The Great Harvest”—+1 Pop per city, growth 15% cheaper, +1 Food per city (unique per civ).
+  - **Jade Granary** (40, Fieldcraft): “The Great Harvest”—+1 Pop per city, growth 15% cheaper, +1 Food per city, Spawns Free Settler (unique per civ).
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
@@ -243,7 +243,7 @@
 - **River League**: +1 Production for every 2 river tiles worked.
 - **Aetherian Vanguard**: Unique Unit: Titan (Super-Unit). **Vanguard Logistics**: Cities with a garrison gain +1 Production.
 - **Starborne Seekers**: Unique Building: Spirit Observatory (Science). **Stargazers**: +1 Science from Sacred Sites.
-- **Jade Covenant**: Unique Building: Jade Granary (Hearth Era, 60 Prod) - +1 Pop/City, +1 Food/City. **Nomadic Heritage**: Settlers have 3 Movement (base 2) and 10 HP (base 1).
+- **Jade Covenant**: Unique Building: Jade Granary (Hearth Era, 40 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler. **Nomadic Heritage**: Settlers have 3 Movement (base 2) and 10 HP (base 1). **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation

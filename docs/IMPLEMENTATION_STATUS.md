@@ -22,7 +22,7 @@ Last Updated: 2025-11-30
 - **Balance Adjustments (v0.99)**:
     - **Starborne Seekers**: Nerfed Spirit Observatory (no instant tech, reduced science, increased cost). Removed extra starting Scout.
     - **River League**: Adjusted river bonus to +1 Production per 2 river tiles (balanced from +1/tile). Auto-assigner prioritizes river tiles.
-    - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 60, +1 Pop/Food). AI aggressively expands and pivots to victory earlier.
+    - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 40, +1 Pop/Food, Spawns Free Settler). Added "Nature's Wrath" (1 HP Attrition to enemies in territory). AI aggressively expands and pivots to victory earlier.
     - **Aetherian Vanguard**: Titans now ignore terrain movement costs (always 1 move).
     - **AI Logic**: Improved victory condition pursuit. Aggression scales on Standard+ maps to encourage conquest.
 
