@@ -60,7 +60,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
                 </button>
             </div>
             {unit.type === UnitType.Settler && isMyTurn && (
-                <button className="hud-button small" style={{ marginTop: 8 }} onClick={onFoundCity}>
+                <button className="hud-button small primary" style={{ marginTop: 8 }} onClick={onFoundCity}>
                     Found City
                 </button>
             )}

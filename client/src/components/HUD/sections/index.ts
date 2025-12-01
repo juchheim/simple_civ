@@ -9,3 +9,4 @@ export * from "./Codex";
 export * from "./GameMenu";
 export * from "./TurnTasks";
 export * from "./DiplomacyAlertModal";
+export * from "./TileInfoPanel";

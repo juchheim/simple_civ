@@ -259,6 +259,18 @@
     color: #fecdd3;
 }
 
+.hud-button.primary {
+    background: var(--color-highlight-strong);
+    border-color: var(--color-highlight-strong);
+    color: var(--color-bg-deep);
+}
+
+.hud-button.primary:hover {
+    background: #e09b45;
+    border-color: #e09b45;
+    color: var(--color-bg-deep);
+}
+
 .hud-menu-scroll {
     max-height: 260px;
     overflow: auto;

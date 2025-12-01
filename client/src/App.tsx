@@ -23,6 +23,8 @@ function App() {
         handleLoad,
         lastGameSettings,
         clearSession,
+        error,
+        setError,
     } = useGameSession({ onSessionRestore: handleSessionRestore });
     const mapRef = useRef<GameMapHandle | null>(null);
     const [selectedCoord, setSelectedCoord] = useState<HexCoord | null>(null);
@@ -38,6 +40,14 @@ function App() {
     const [showTitleScreen, setShowTitleScreen] = useState(true);
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
     const [mapView, setMapView] = useState<MapViewport | null>(null);
+
+    // Auto-clear error after 3 seconds
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, setError]);
 
     // Enforce constraints when map size changes
     useEffect(() => {
@@ -519,6 +529,7 @@ function App() {
                 playerId={playerId}
                 onSave={handleSaveGame}
                 onLoad={handleLoadGame}
+                onRestart={handleRestart}
                 onQuit={() => {
                     clearSession();
                     setSelectedCoord(null);
@@ -562,6 +573,42 @@ function App() {
                         setShowTitleScreen(true);
                     }}
                 />
+            )}
+            {error && (
+                <div style={{
+                    position: "fixed",
+                    bottom: 20,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "rgba(220, 38, 38, 0.9)",
+                    color: "white",
+                    padding: "12px 24px",
+                    borderRadius: 8,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                    zIndex: 9999,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    animation: "fadeIn 0.3s ease-out"
+                }}>
+                    <span style={{ fontWeight: 600 }}>Error:</span>
+                    <span>{error}</span>
+                    <button
+                        onClick={() => setError(null)}
+                        style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "white",
+                            cursor: "pointer",
+                            fontSize: 18,
+                            marginLeft: 8,
+                            padding: 4,
+                            lineHeight: 1
+                        }}
+                    >
+                        ×
+                    </button>
+                </div>
             )}
         </div>
     );

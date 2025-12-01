@@ -3,6 +3,7 @@ import React, { useState } from "react";
 type GameMenuProps = {
     onSave: () => void;
     onLoad: () => void;
+    onRestart: () => void;
     onQuit: () => void;
     showShroud: boolean;
     onToggleShroud: () => void;
@@ -13,6 +14,7 @@ type GameMenuProps = {
 export const GameMenu: React.FC<GameMenuProps> = ({
     onSave,
     onLoad,
+    onRestart,
     onQuit,
     showShroud,
     onToggleShroud,
@@ -70,6 +72,9 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                     </button>
                     <button className="hud-button" onClick={onLoad}>
                         Load Game
+                    </button>
+                    <button className="hud-button" onClick={onRestart}>
+                        Restart Game
                     </button>
                     <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 0" }} />
                     <button className="hud-button danger" onClick={onQuit}>

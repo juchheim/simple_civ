@@ -153,6 +153,7 @@ export type City = {
     hasFiredThisTurn: boolean;
     milestones: ProjectId[];
     lastDamagedOnTurn?: number; // Turn when city was last damaged (for healing prevention)
+    savedProduction?: Record<string, number>; // Key: "Type:Id", Value: progress
 };
 
 export type Player = {
@@ -166,6 +167,7 @@ export type Player = {
     completedProjects: ProjectId[];
     isEliminated: boolean;
     warPreparation?: WarPreparationState;
+    researchHistory?: Record<string, number>; // TechId -> progress
 };
 
 export enum PlayerPhase {

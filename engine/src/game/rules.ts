@@ -159,7 +159,8 @@ export function getCityYields(city: City, state: GameState): Yields {
         // This bridges their weak early game to the Titan
         const hasGarrison = state.units.some(u =>
             u.ownerId === city.ownerId &&
-            hexEquals(u.coord, city.coord)
+            hexEquals(u.coord, city.coord) &&
+            u.type !== UnitType.Settler
         );
         if (hasGarrison) {
             total.P += 1;

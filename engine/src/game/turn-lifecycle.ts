@@ -344,10 +344,33 @@ function checkProgressVictory(state: GameState): string | null {
 
 function checkConquestVictory(state: GameState): string | null {
     const alivePlayers = state.players.filter(p => !p.isEliminated);
+
+    // Optimization: Pre-calculate city ownership to avoid repeated lookups
+    const playerCityCounts = new Map<string, number>();
     for (const p of alivePlayers) {
-        const ownsAllCapitals = state.cities.filter(c => c.isCapital).every(c => c.ownerId === p.id);
-        if (ownsAllCapitals && state.cities.some(c => c.ownerId === p.id)) {
+        playerCityCounts.set(p.id, state.cities.filter(c => c.ownerId === p.id).length);
+    }
+
+    for (const p of alivePlayers) {
+        // Condition 1: Owns all capitals
+        const capitals = state.cities.filter(c => c.isCapital);
+        // If there are no capitals yet (rare/impossible if cities exist?), no one wins conquest.
+        if (capitals.length === 0) continue;
+
+        const ownsAllCapitals = capitals.every(c => c.ownerId === p.id);
+
+        if (ownsAllCapitals) {
+            // Fix for start-of-game defeat:
+            // We only block victory if not all players have founded their first capital yet.
+            // If the number of capitals on the map is less than the number of alive players,
+            // it means someone is still wandering with their initial settler.
+            if (capitals.length < alivePlayers.length) {
+                continue;
+            }
+
             return p.id;
+        } else {
+            // console.log(`[ConquestCheck] P${p.id} does NOT own all capitals.`);
         }
     }
     return null;

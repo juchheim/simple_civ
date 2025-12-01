@@ -4,7 +4,7 @@ import { MapViewport } from "./GameMap";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
 import { useDiplomacyAlerts } from "./HUD/hooks/use-diplomacy-alerts";
-import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel, DiplomacyAlertModal } from "./HUD/sections";
+import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel, DiplomacyAlertModal, TileInfoPanel } from "./HUD/sections";
 import { MiniMap } from "./HUD/MiniMap";
 import "./HUD/hud.css";
 
@@ -19,6 +19,7 @@ interface HUDProps {
     playerId: string;
     onSave: () => void;
     onLoad: () => void;
+    onRestart: () => void;
     onQuit: () => void;
     showShroud: boolean;
     onToggleShroud: () => void;
@@ -29,7 +30,7 @@ interface HUDProps {
     onNavigateMap: (point: { x: number; y: number }) => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
@@ -233,6 +234,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         <GameMenu
                             onSave={onSave}
                             onLoad={onLoad}
+                            onRestart={onRestart}
                             onQuit={onQuit}
                             showShroud={showShroud}
                             onToggleShroud={onToggleShroud}
@@ -266,6 +268,13 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                                 gameState={gameState}
                             />
                         )}
+                    </div>
+                )}
+                {selectedCoord && !selectedCity && (
+                    <div className="hud-card hud-selection-card">
+                        <TileInfoPanel
+                            tile={gameState.map.tiles.find(t => t.coord.q === selectedCoord.q && t.coord.r === selectedCoord.r)!}
+                        />
                     </div>
                 )}
             </div>

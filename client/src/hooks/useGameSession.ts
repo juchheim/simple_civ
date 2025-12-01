@@ -29,6 +29,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [playerId, setPlayerId] = useState("p1");
     const [lastGameSettings, setLastGameSettings] = useState<GameSetup | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const skipPersistenceRef = useRef(false);
 
     const runActions = useCallback((actions: Action[]) => {
@@ -36,9 +37,17 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
         setGameState(prev => {
             if (!prev || actions.length === 0) return prev;
             let nextState = prev;
-            for (const action of actions) {
-                nextState = applyAction(nextState, action);
+            try {
+                for (const action of actions) {
+                    nextState = applyAction(nextState, action);
+                }
+                setError(null); // Clear previous errors on success
+            } catch (e: any) {
+                console.warn("Action failed:", e);
+                setError(e.message || "Unknown error occurred");
+                return prev; // Abort and return previous state
             }
+
             const nextPlayer = nextState.players.find(p => p.id === nextState.currentPlayerId);
             if (nextPlayer && !nextPlayer.isAI && nextState.currentPlayerId !== playerId) {
                 setPlayerId(nextState.currentPlayerId);
@@ -137,6 +146,13 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
         localStorage.setItem(SESSION_SAVE_KEY, JSON.stringify(gameState));
     }, [gameState]);
 
+    // Persist lastGameSettings
+    useEffect(() => {
+        if (lastGameSettings) {
+            localStorage.setItem("simple-civ-last-settings", JSON.stringify(lastGameSettings));
+        }
+    }, [lastGameSettings]);
+
     // Session persistence: Load on mount
     useEffect(() => {
         if (skipPersistenceRef.current) return;
@@ -150,6 +166,15 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
             } catch (e) {
                 console.warn("Failed to restore session", e);
                 localStorage.removeItem(SESSION_SAVE_KEY);
+            }
+        }
+
+        const settingsData = localStorage.getItem("simple-civ-last-settings");
+        if (settingsData) {
+            try {
+                setLastGameSettings(JSON.parse(settingsData));
+            } catch {
+                // Ignore bad settings
             }
         }
     }, [onSessionRestore]);
@@ -202,5 +227,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
         setGameState,
         lastGameSettings,
         clearSession,
+        error,
+        setError,
     };
 }

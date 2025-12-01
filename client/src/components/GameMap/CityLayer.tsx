@@ -68,6 +68,28 @@ export const CityLabelLayer: React.FC<CityLayerProps> = React.memo(({ overlays }
 
                 return (
                     <g key={`city-label-${overlay.key}`} transform={`translate(${overlay.position.x},${overlay.position.y})`}>
+                        {/* Health Bar */}
+                        <g transform={`translate(0, ${-CITY_LABEL_OFFSET - 55})`}>
+                            {/* Background */}
+                            <rect
+                                x={-20}
+                                y={0}
+                                width={40}
+                                height={6}
+                                fill="#333"
+                                stroke="black"
+                                strokeWidth={1}
+                            />
+                            {/* Health */}
+                            <rect
+                                x={-19}
+                                y={1}
+                                width={Math.max(0, (38 * overlay.city.hp) / overlay.city.maxHp)}
+                                height={4}
+                                fill={overlay.city.hp > overlay.city.maxHp * 0.5 ? "#4ade80" : "#ef4444"}
+                            />
+                        </g>
+
                         <circle
                             cx={0}
                             cy={-CITY_LABEL_OFFSET - 30}

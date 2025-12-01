@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { terrainImages } from "../assets";
-import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver, findPath } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver, findPath, UnitType } from "@simple-civ/engine";
 import { HexTile } from "./GameMap/HexTile";
 import { CityImageLayer, CityLabelLayer, CityOverlayDescriptor } from "./GameMap/CityLayer";
 import { OverlayLayer } from "./GameMap/OverlayLayer";
@@ -335,7 +335,8 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
             })
             .map(unit => {
                 const key = `${unit.coord.q},${unit.coord.r}`;
-                const isOnCityHex = citiesByCoord.has(key);
+                // Settlers should always be rendered on top (not as garrison)
+                const isOnCityHex = unit.type !== UnitType.Settler && citiesByCoord.has(key);
                 return {
                     unit,
                     position: hexToPixel(unit.coord),

@@ -23,7 +23,7 @@ import {
     UNITS,
     FORGE_CLANS_MILITARY_DISCOUNT,
 } from "../../core/constants.js";
-import { hexEquals, hexDistance, hexSpiral } from "../../core/hex.js";
+import { hexEquals, hexDistance, hexSpiral, hexToString } from "../../core/hex.js";
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
@@ -46,6 +46,12 @@ export function handleCityAttack(state: GameState, action: { type: "CityAttack";
     const dist = hexDistance(city.coord, target.coord);
     if (dist > 2) throw new Error("Target out of range");
     if (!hasClearLineOfSight(state, city.coord, target.coord)) throw new Error("Line of sight blocked");
+
+    // v0.99 Fix: Strictly enforce visibility check
+    const targetKey = hexToString(target.coord);
+    if (state.visibility[action.playerId] && !state.visibility[action.playerId].includes(targetKey)) {
+        throw new Error("Target not visible");
+    }
 
     const randIdx = Math.floor(state.seed % 3);
     state.seed = (state.seed * 9301 + 49297) % 233280;
@@ -122,6 +128,7 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         isCapital: state.cities.filter(c => c.ownerId === action.playerId).length === 0,
         hasFiredThisTurn: false,
         milestones: [],
+        savedProduction: {},
     };
 
     claimCityTerritory(newCity, state, action.playerId, 1);
@@ -147,10 +154,18 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
     if (!city) throw new Error("City not found");
     if (city.ownerId !== action.playerId) throw new Error("Not your city");
 
-    if (city.currentBuild) throw new Error("City already building something");
+    // if (city.currentBuild) throw new Error("City already building something");
+    // Change: Allow switching production. Save progress if switching.
 
     if (!canBuild(city, action.buildType, action.buildId, state)) {
         throw new Error("Cannot build this item");
+    }
+
+    // Save current progress if exists
+    if (city.currentBuild) {
+        const key = `${city.currentBuild.type}:${city.currentBuild.id}`;
+        if (!city.savedProduction) city.savedProduction = {};
+        city.savedProduction[key] = city.buildProgress;
     }
 
     const player = state.players.find(p => p.id === action.playerId);
@@ -173,11 +188,20 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
     if (action.buildType === "Project") cost = PROJECTS[action.buildId as ProjectId].cost;
 
+    // Restore saved progress if exists
+    const newKey = `${action.buildType}:${action.buildId}`;
+    let savedProgress = 0;
+    if (city.savedProduction && city.savedProduction[newKey]) {
+        savedProgress = city.savedProduction[newKey];
+        delete city.savedProduction[newKey]; // Remove from saved since it's now active
+    }
+
     city.currentBuild = {
         type: action.buildType,
         id: action.buildId,
         cost,
     };
+    city.buildProgress = savedProgress;
 
     return state;
 }

@@ -122,7 +122,11 @@ function handleChooseTech(state: GameState, action: { type: "ChooseTech"; player
     const player = state.players.find(p => p.id === action.playerId);
     if (!player) throw new Error("Player not found");
 
-    if (player.currentTech) throw new Error("Already researching a tech");
+    // Save current progress if switching
+    if (player.currentTech) {
+        if (!player.researchHistory) player.researchHistory = {};
+        player.researchHistory[player.currentTech.id] = player.currentTech.progress;
+    }
 
     const tech = TECHS[action.techId];
     if (!tech) throw new Error("Invalid tech");
@@ -145,9 +149,10 @@ function handleChooseTech(state: GameState, action: { type: "ChooseTech"; player
         if (bannerCount < 2) throw new Error("Need 2 Banner techs");
     }
 
+    const savedProgress = player.researchHistory?.[action.techId] || 0;
     player.currentTech = {
         id: action.techId,
-        progress: 0,
+        progress: savedProgress,
         cost: tech.cost,
     };
 

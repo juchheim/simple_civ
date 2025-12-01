@@ -92,23 +92,38 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                     ) : (
                         <div className="hud-subtext" style={{ marginBottom: 6 }}>Choose what to produce.</div>
                     )}
-                    {isMyTurn && !city.currentBuild && (
+                    {isMyTurn && (
                         <div className="city-panel__build-grid" style={{ marginTop: 6 }}>
-                            {buildOptions.units.map(unit => (
-                                <button key={unit.id} className="hud-button small" onClick={() => onBuild("Unit", unit.id)}>
-                                    Train {unit.name}
-                                </button>
-                            ))}
-                            {buildOptions.buildings.map(building => (
-                                <button key={building.id} className="hud-button small" onClick={() => onBuild("Building", building.id)}>
-                                    Construct {building.name}
-                                </button>
-                            ))}
-                            {buildOptions.projects.map(project => (
-                                <button key={project.id} className="hud-button small" onClick={() => onBuild("Project", project.id)}>
-                                    Launch {project.name}
-                                </button>
-                            ))}
+                            {buildOptions.units.map(unit => {
+                                const key = `Unit:${unit.id}`;
+                                const saved = city.savedProduction?.[key];
+                                return (
+                                    <button key={unit.id} className="hud-button small" onClick={() => onBuild("Unit", unit.id)}>
+                                        Train {unit.name}
+                                        {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                    </button>
+                                );
+                            })}
+                            {buildOptions.buildings.map(building => {
+                                const key = `Building:${building.id}`;
+                                const saved = city.savedProduction?.[key];
+                                return (
+                                    <button key={building.id} className="hud-button small" onClick={() => onBuild("Building", building.id)}>
+                                        Construct {building.name}
+                                        {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                    </button>
+                                );
+                            })}
+                            {buildOptions.projects.map(project => {
+                                const key = `Project:${project.id}`;
+                                const saved = city.savedProduction?.[key];
+                                return (
+                                    <button key={project.id} className="hud-button small" onClick={() => onBuild("Project", project.id)}>
+                                        Launch {project.name}
+                                        {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
