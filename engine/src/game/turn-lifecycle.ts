@@ -453,7 +453,7 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
     // Spirit Observatory grants +2 Science per city (tracked via Observatory milestone in completedProjects)
     // Note: This bonus is part of the base Spirit Observatory effect, separate from the normal Observatory project bonus
-    const spiritObservatoryBonus = (player?.completedProjects.includes(ProjectId.Observatory) && player?.civName === "StarborneSeekers") ? cities.length * 2 : 0;
+    const spiritObservatoryBonus = (player?.completedProjects.includes(ProjectId.Observatory) && player?.civName === "StarborneSeekers") ? cities.length * 1 : 0; // v0.99 Nerf: +1 per city (was +2)
     return baseScience + signalRelayBonus + grandAcademyBonus + spiritObservatoryBonus;
 }
 

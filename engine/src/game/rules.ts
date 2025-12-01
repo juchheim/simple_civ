@@ -126,6 +126,7 @@ export function getCityYields(city: City, state: GameState): Yields {
         // They need a head start to actually benefit from their science identity
         if (city.isCapital) {
             total.S += 1; // "Great Library" - Capital generates extra science
+            total.P += 1; // v0.99 BUFF: Capital generates extra production to help early game
         }
         // Also keep the +1 per Scriptorium/Academy for scaling
         const scholarBuildings = city.buildings.filter(b =>

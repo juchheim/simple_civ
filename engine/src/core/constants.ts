@@ -71,9 +71,9 @@ export const TECH_COST_BANNER = 40;
 export const TECH_COST_ENGINE = 65;
 
 // Projects (v0.99: Reduced costs to buff Progress victories)
-export const OBSERVATORY_COST = 125;        // Was 135 (in PROJECTS) - Further reduction
-export const GRAND_ACADEMY_COST = 175;      // Unchanged
-export const GRAND_EXPERIMENT_COST = 225;   // Was 230 (in PROJECTS) - Further reduction
+export const OBSERVATORY_COST = 110;        // Was 125 (in PROJECTS) - Further reduction
+export const GRAND_ACADEMY_COST = 155;      // Was 175 (in PROJECTS) - Further reduction
+export const GRAND_EXPERIMENT_COST = 200;   // Was 225 (in PROJECTS) - Further reduction
 
 // v0.98: Civ-specific starting bonuses
 export const AETHERIAN_EXTRA_STARTING_UNITS = [UnitType.SpearGuard]; // Extra military at start
@@ -85,7 +85,7 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // +1 combat strength per 8 pop
 
 // v0.98: AetherianVanguard military production bonus
-export const AETHERIAN_MILITARY_PRODUCTION_MULT = 0.75; // 25% faster military production
+export const AETHERIAN_MILITARY_PRODUCTION_MULT = 0.90; // 10% faster military production (Nerfed from 15%)
 
 // v0.98 Update 4: ForgeClans "Master Craftsmen" - 25% faster project completion
 export const FORGE_CLANS_PROJECT_SPEED_MULT = 0.80; // Projects cost 20% less effective production
@@ -216,7 +216,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 150, conditional: "Summons The Titan upon completion" }, // v0.98: Reduced from 200
     [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 275, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v0.99: Removed instant tech
-    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v0.99 BUFF: Cost 40, Free Settler
+    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 30, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v0.99 BUFF: Cost 30, Free Settler
 };
 
 export type TechData = {
@@ -259,21 +259,21 @@ export type ProjectData = {
 
 export const PROJECTS: Record<ProjectId, ProjectData> = {
     [ProjectId.Observatory]: {
-        cost: 125,  // v0.99: Reduced from 135
+        cost: 110,  // v0.99: Reduced from 125
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 175,  // v0.99: Reduced from 210 (~16% reduction)
+        cost: 155,  // v0.99: Reduced from 175
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 225,  // v0.99: Reduced from 230
+        cost: 200,  // v0.99: Reduced from 225
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,
