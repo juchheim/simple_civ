@@ -13,6 +13,7 @@ import {
     TechId,
 } from "@simple-civ/engine";
 import * as Engine from "@simple-civ/engine";
+import { MapViewport } from "../GameMap";
 
 const tile = (q: number, r: number, extras: Partial<GameState["map"]["tiles"][number]> = {}) => ({
     coord: { q, r },
@@ -103,6 +104,14 @@ const createCity = (overrides: Partial<City> = {}): City => ({
     ...overrides,
 });
 
+const mockMapView: MapViewport = {
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    size: { width: 800, height: 600 },
+    worldBounds: { minX: -100, maxX: 100, minY: -100, maxY: 100 },
+    center: { x: 0, y: 0 },
+};
+
 describe("HUD", () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -132,6 +141,8 @@ describe("HUD", () => {
                 onToggleYields={vi.fn()}
                 onSelectCoord={vi.fn()}
                 onCenterCity={vi.fn()}
+                mapView={mockMapView}
+                onNavigateMap={vi.fn()}
             />,
         );
 
@@ -166,6 +177,8 @@ describe("HUD", () => {
                 onToggleYields={vi.fn()}
                 onSelectCoord={vi.fn()}
                 onCenterCity={vi.fn()}
+                mapView={mockMapView}
+                onNavigateMap={vi.fn()}
             />,
         );
 
@@ -211,6 +224,8 @@ describe("HUD", () => {
                 onToggleYields={vi.fn()}
                 onSelectCoord={vi.fn()}
                 onCenterCity={vi.fn()}
+                mapView={mockMapView}
+                onNavigateMap={vi.fn()}
             />,
         );
 

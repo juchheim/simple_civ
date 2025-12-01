@@ -40,6 +40,19 @@ for (let q = -RENDER_BUFFER_RADIUS; q <= RENDER_BUFFER_RADIUS; q++) {
     }
 }
 
+export type MapViewport = {
+    pan: { x: number; y: number };
+    zoom: number;
+    size: { width: number; height: number };
+    worldBounds: { minX: number; maxX: number; minY: number; maxY: number };
+    center: { x: number; y: number };
+};
+
+export type GameMapHandle = {
+    centerOnCoord: (coord: HexCoord) => void;
+    centerOnPoint: (point: { x: number; y: number }) => void;
+};
+
 interface GameMapProps {
     gameState: GameState;
     onTileClick: (coord: HexCoord) => void;
@@ -52,18 +65,19 @@ interface GameMapProps {
     hoveredCoord: HexCoord | null;
     onHoverTile: (coord: HexCoord | null) => void;
     cityToCenter?: HexCoord | null;
+    onViewChange?: (view: MapViewport) => void;
 }
 
-export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, hoveredCoord, onHoverTile, cityToCenter }) => {
+const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, hoveredCoord, onHoverTile, cityToCenter, onViewChange }, ref) => {
     const { map, units, cities } = gameState;
     const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
-    const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState.visibility, playerId]);
-    const revealedSet = useMemo(() => new Set(gameState.revealed?.[playerId] ?? []), [gameState.revealed, playerId]);
+    const visibleSet = useMemo(() => new Set(gameState.visibility?.[playerId] ?? []), [gameState, playerId]);
+    const revealedSet = useMemo(() => new Set(gameState.revealed?.[playerId] ?? []), [gameState, playerId]);
     const playersById = useMemo(() => {
         const playerMap = new Map<string, (typeof gameState.players)[number]>();
         gameState.players.forEach(p => playerMap.set(p.id, p));
         return playerMap;
-    }, [gameState.players]);
+    }, [gameState]);
 
     const getTileYieldsWithCiv = useCallback((tile: Tile): Yields => {
         const owner = playersById.get(tile.ownerId ?? playerId) ?? playersById.get(playerId);
@@ -106,6 +120,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
         handleMouseMove,
         handleMouseUp,
         centerOnCoord,
+        centerOnPoint,
     } = useMapInteraction({
         tiles: map.tiles,
         hexToPixel,
@@ -126,6 +141,75 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
             centerOnCoord(cityToCenter);
         }
     }, [cityToCenter, centerOnCoord]);
+
+    React.useImperativeHandle(ref, () => ({
+        centerOnCoord,
+        centerOnPoint,
+    }), [centerOnCoord, centerOnPoint]);
+
+    const [viewportSize, setViewportSize] = React.useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+    React.useLayoutEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const observer = new ResizeObserver(entries => {
+            const entry = entries[0];
+            if (!entry) return;
+            const { width, height } = entry.contentRect;
+            setViewportSize(prev => {
+                if (prev.width === width && prev.height === height) return prev;
+                return { width, height };
+            });
+        });
+
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [containerRef]);
+
+    React.useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        setViewportSize(prev => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            if (prev.width === width && prev.height === height) return prev;
+            return { width, height };
+        });
+    }, [containerRef]);
+
+    const viewport = React.useMemo<MapViewport | null>(() => {
+        if (viewportSize.width === 0 || viewportSize.height === 0) return null;
+        const minX = (-pan.x) / zoom;
+        const minY = (-pan.y) / zoom;
+        const maxX = (viewportSize.width - pan.x) / zoom;
+        const maxY = (viewportSize.height - pan.y) / zoom;
+
+        return {
+            pan,
+            zoom,
+            size: viewportSize,
+            worldBounds: { minX, maxX, minY, maxY },
+            center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+        };
+    }, [pan, zoom, viewportSize]);
+
+    const lastViewportRef = React.useRef<MapViewport | null>(null);
+    React.useEffect(() => {
+        if (!viewport || !onViewChange) return;
+        const last = lastViewportRef.current;
+        const unchanged =
+            last &&
+            last.zoom === viewport.zoom &&
+            last.pan.x === viewport.pan.x &&
+            last.pan.y === viewport.pan.y &&
+            last.size.width === viewport.size.width &&
+            last.size.height === viewport.size.height;
+
+        if (unchanged) return;
+        lastViewportRef.current = viewport;
+        onViewChange(viewport);
+    }, [viewport, onViewChange]);
 
     const citiesByCoord = useMemo(() => {
         const coordMap = new Map<string, City>();
@@ -240,7 +324,7 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
             });
 
         return segments;
-    }, [tileRenderData, playerColorMap, showShroud, tileByKey]);
+    }, [tileRenderData, playerColorMap, tileByKey]);
 
     const unitRenderData = useMemo<UnitDescriptor[]>(() => {
         const linkedPartnerId = selectedUnit?.linkedUnitId ?? null;
@@ -358,4 +442,8 @@ export const GameMap: React.FC<GameMapProps> = ({ gameState, onTileClick, select
             </svg>
         </div>
     );
-};
+});
+
+GameMapComponent.displayName = "GameMap";
+
+export const GameMap = React.memo(GameMapComponent);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { GameState, HexCoord } from "@simple-civ/engine";
 import { buildRiverPolylines } from "../../utils/rivers";
 import { RiverSegment } from "./OverlayLayer";
@@ -14,22 +14,6 @@ type RiverPolylineParams = {
 };
 
 export const useRiverPolylines = ({ map, tileVisibility, hexToPixel, hexCornerOffsets }: RiverPolylineParams): RiverSegment[] => {
-    useEffect(() => {
-        if (map.riverPolylines && map.riverPolylines.length) {
-            const sample = map.riverPolylines[0]?.slice(0, 3);
-            console.log("[River Debug] using descriptor polylines", {
-                count: map.riverPolylines.length,
-                sample,
-            });
-        } else if (map.rivers && map.rivers.length) {
-            console.log("[River Debug] falling back to legacy river edges", {
-                count: map.rivers.length,
-            });
-        } else {
-            console.log("[River Debug] no river data available");
-        }
-    }, [map.riverPolylines, map.rivers]);
-
     return useMemo(() => {
         const segments: RiverSegment[] = [];
         const descriptorPolylines = map.riverPolylines && map.riverPolylines.length ? map.riverPolylines : null;
@@ -41,14 +25,6 @@ export const useRiverPolylines = ({ map, tileVisibility, hexToPixel, hexCornerOf
                     const isVisible = tileVisibility.get(tileKey)?.isVisible ?? false;
                     if (!isVisible) return;
 
-                    if (polyIdx === 0 && segIdx < 3) {
-                        console.log("[River Debug] render check", {
-                            polyIdx,
-                            segIdx,
-                            tile: segment.tile,
-                        });
-                    }
-
                     segments.push({
                         id: `river-${polyIdx}-${segIdx}`,
                         start: segment.start,
@@ -56,10 +32,6 @@ export const useRiverPolylines = ({ map, tileVisibility, hexToPixel, hexCornerOf
                         isMouth: segment.isMouth,
                     });
                 });
-
-                if (polyIdx === 0 && polyline.length) {
-                    console.log("[River Debug] descriptor polyline points", polyline.slice(0, 3).map(seg => ({ start: seg.start, end: seg.end })));
-                }
             });
             return segments;
         }
@@ -112,10 +84,7 @@ export const useRiverPolylines = ({ map, tileVisibility, hexToPixel, hexCornerOf
                     if (shared.length === 2) break;
                 }
 
-                if (shared.length !== 2) {
-                    console.log("[River Debug] failed to find shared corners", { a, b, shared });
-                    continue;
-                }
+                if (shared.length !== 2) continue;
 
                 const lastPoint = points[points.length - 1];
                 const lastIdx = lastPoint?.cornerIdx ?? null;
@@ -140,10 +109,6 @@ export const useRiverPolylines = ({ map, tileVisibility, hexToPixel, hexCornerOf
                 points.push(end);
             }
 
-            if (polyIdx === 0) {
-                console.log("[River Debug] fallback polyline points", points.slice(0, 6));
-            }
-
             for (let i = 0; i < points.length - 1; i++) {
                 segments.push({
                     id: `river-${polyIdx}-${i}`,
@@ -156,4 +121,3 @@ export const useRiverPolylines = ({ map, tileVisibility, hexToPixel, hexCornerOf
         return segments;
     }, [map.riverPolylines, map.rivers, tileVisibility, hexToPixel, hexCornerOffsets]);
 };
-

@@ -315,7 +315,7 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
         };
         setPan(nextPan);
         panRef.current = nextPan;
-    }, [mouseDownPos, panStart, isPanning]);
+    }, [mouseDownPos, panStart, isPanning, findHexAtScreen, onHoverTile]);
 
     const handleMouseUp = useCallback(() => {
         if (isPanning) {
@@ -338,27 +338,29 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
     }, [isPanning, clickTarget, onTileClick, scheduleAnimation]);
 
-    const centerOnCoord = useCallback((coord: HexCoord) => {
+    const centerOnPoint = useCallback((point: { x: number; y: number }) => {
         const container = containerRef.current;
         if (!container) return;
 
-        const hexPos = hexToPixel(coord);
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
-
-        // Calculate pan to center the hex in the viewport
         const centerX = containerWidth / 2;
         const centerY = containerHeight / 2;
 
         const currentZoom = zoomRef.current;
         const newPan = {
-            x: centerX - hexPos.x * currentZoom,
-            y: centerY - hexPos.y * currentZoom,
+            x: centerX - point.x * currentZoom,
+            y: centerY - point.y * currentZoom,
         };
 
         setPan(newPan);
         panRef.current = newPan;
-    }, [hexToPixel]);
+    }, []);
+
+    const centerOnCoord = useCallback((coord: HexCoord) => {
+        const hexPos = hexToPixel(coord);
+        centerOnPoint(hexPos);
+    }, [centerOnPoint, hexToPixel]);
 
     return {
         pan,
@@ -370,7 +372,6 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
         handleMouseMove,
         handleMouseUp,
         centerOnCoord,
+        centerOnPoint,
     };
 };
-
-

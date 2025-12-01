@@ -1,42 +1,43 @@
-import { useState, useEffect, useMemo } from "react";
-import { GameMap } from "./components/GameMap";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GameMap, GameMapHandle, MapViewport } from "./components/GameMap";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
 import { VictoryLossScreen } from "./components/VictoryLossScreen";
-import { GameState, Action, HexCoord, TechId, applyAction, generateWorld, runAiTurn, UNITS, MapSize, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, findPath } from "@simple-civ/engine";
-import { getNeighbors, hexEquals, hexDistance, hexToString } from "./utils/hex";
+import { Action, HexCoord, MapSize, TechId, UNITS, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, findPath } from "@simple-civ/engine";
+import { hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
-
+import { useGameSession } from "./hooks/useGameSession";
+import { useReachablePaths } from "./hooks/useReachablePaths";
 
 function App() {
-    const [gameState, setGameState] = useState<GameState | null>(null);
+    const handleSessionRestore = useCallback(() => setShowTitleScreen(false), []);
+
+    const {
+        gameState,
+        playerId,
+        runActions,
+        startNewGame,
+        restartLastGame,
+        handleSave,
+        handleLoad,
+        lastGameSettings,
+        clearSession,
+    } = useGameSession({ onSessionRestore: handleSessionRestore });
+    const mapRef = useRef<GameMapHandle | null>(null);
     const [selectedCoord, setSelectedCoord] = useState<HexCoord | null>(null);
     const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
     const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);
     const [showTechTree, setShowTechTree] = useState(false);
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
-    const [playerId, setPlayerId] = useState("p1"); // Local player
     const [selectedCiv, setSelectedCiv] = useState<CivId>(CIV_OPTIONS[0].id);
     const [selectedMapSize, setSelectedMapSize] = useState<MapSize>("Small");
     const [numCivs, setNumCivs] = useState(2);
     const [seedInput, setSeedInput] = useState("");
     const [showTitleScreen, setShowTitleScreen] = useState(true);
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
-    const [lastGameSettings, setLastGameSettings] = useState<{
-        mapSize: MapSize;
-        players: { id: string; civName: CivId; color: string; isAI?: boolean }[];
-        seed: number;
-    } | null>(null);
-    const SAVE_KEY = "simple-civ-save";
-    const AUTOSAVE_KEY = "simple-civ-autosave";
-    const SESSION_SAVE_KEY = "simple-civ-session";
-
-    interface SavedGame {
-        timestamp: number;
-        gameState: GameState;
-    }
+    const [mapView, setMapView] = useState<MapViewport | null>(null);
 
     // Enforce constraints when map size changes
     useEffect(() => {
@@ -47,36 +48,6 @@ function App() {
             setNumCivs(effectiveMax);
         }
     }, [selectedMapSize, numCivs]);
-
-    // Session persistence: Save on every state change
-    useEffect(() => {
-        if (gameState) {
-            localStorage.setItem(SESSION_SAVE_KEY, JSON.stringify(gameState));
-        }
-    }, [gameState]);
-
-    // Session persistence: Load on mount
-    useEffect(() => {
-        const sessionData = localStorage.getItem(SESSION_SAVE_KEY);
-        if (sessionData) {
-            try {
-                const parsedState = JSON.parse(sessionData);
-                setGameState(parsedState);
-                setShowTitleScreen(false);
-
-                // Restore player ID
-                const currentPlayer = parsedState.players.find((p: any) => p.id === parsedState.currentPlayerId);
-                const fallbackPlayer = parsedState.players.find((p: any) => !p.isAI);
-                const nextPlayerId = currentPlayer && !currentPlayer.isAI
-                    ? parsedState.currentPlayerId
-                    : fallbackPlayer?.id ?? parsedState.currentPlayerId;
-                setPlayerId(nextPlayerId);
-            } catch (e) {
-                console.warn("Failed to restore session", e);
-                localStorage.removeItem(SESSION_SAVE_KEY);
-            }
-        }
-    }, []);
 
     // Global key listener for shortcuts
     useEffect(() => {
@@ -91,7 +62,7 @@ function App() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
 
-    const startNewGame = () => {
+    const handleStartNewGame = () => {
         try {
             const rawSeed = seedInput.trim() === "" ? undefined : Number(seedInput);
             const parsedSeed = rawSeed != null && !Number.isNaN(rawSeed) ? rawSeed : undefined;
@@ -116,77 +87,35 @@ function App() {
             }
 
             const settings = { mapSize: selectedMapSize, players, seed: parsedSeed };
-            const state = generateWorld(settings);
+            const state = startNewGame(settings);
             console.info("[World] seed", state.seed);
-            setGameState(state);
-            setPlayerId("p1");
             setShowTechTree(true);
-            setLastGameSettings({
-                mapSize: selectedMapSize,
-                players,
-                seed: state.seed,
-            });
+            setShowTitleScreen(false);
+            setSelectedCoord(null);
+            setSelectedUnitId(null);
         } catch (error: any) {
             console.error("App: Error generating world:", error);
             alert(`Failed to start game: ${error?.message ?? error}`);
         }
     };
 
-    const reachablePaths = useMemo(() => {
-        if (!gameState || !selectedUnitId) return {};
-        const selectedUnit = gameState.units.find(u => u.id === selectedUnitId);
-        if (!selectedUnit || selectedUnit.ownerId !== playerId || selectedUnit.movesLeft <= 0) {
-            return {};
-        }
-        try {
-            return computeReachablePaths(gameState, playerId, selectedUnitId);
-        } catch (err) {
-            console.warn("[Movement] failed to compute reachable tiles", err);
-            return {};
-        }
-    }, [gameState, playerId, selectedUnitId]);
+    const { reachablePaths, reachableCoordSet } = useReachablePaths(gameState, playerId, selectedUnitId);
 
-    const reachableCoordSet = useMemo(() => new Set(Object.keys(reachablePaths)), [reachablePaths]);
-
-    const syncState = (nextState: GameState) => {
-        setGameState(nextState);
-        setPlayerId(prev => {
-            const nextPlayer = nextState.players.find(p => p.id === nextState.currentPlayerId);
-            if (nextPlayer && !nextPlayer.isAI && nextState.currentPlayerId !== prev) {
-                return nextState.currentPlayerId;
-            }
-            return prev;
-        });
-    };
-
-    const runActions = (actions: Action[]) => {
-        if (!gameState || actions.length === 0) return;
-        try {
-            let nextState = gameState;
-            for (const action of actions) {
-                nextState = applyAction(nextState, action);
-            }
-            syncState(nextState);
-        } catch (e: any) {
-            alert(e.message);
-        }
-    };
-
-    const handleAction = (action: Action) => {
+    const handleAction = useCallback((action: Action) => {
         runActions([action]);
         // Deselect unit when auto-explore is enabled
         if (action.type === "SetAutoExplore") {
             setSelectedUnitId(null);
             setSelectedCoord(null);
         }
-    };
+    }, [runActions, setSelectedCoord, setSelectedUnitId]);
 
     const handleChooseTech = (techId: TechId) => {
         handleAction({ type: "ChooseTech", playerId, techId });
         setShowTechTree(false);
     };
 
-    const handleTileClick = (coord: HexCoord) => {
+    const handleTileClick = useCallback((coord: HexCoord) => {
         if (!gameState) return;
 
         // If unit selected and clicking another tile -> Move?
@@ -347,137 +276,31 @@ function App() {
             u.linkedUnitId && friendlyUnits.some(partner => partner.id === u.linkedUnitId),
         );
         setSelectedUnitId(linkedUnit?.id ?? friendlyUnits[0].id);
+    }, [gameState, selectedUnitId, playerId, handleAction, reachablePaths, runActions, setSelectedCoord, setSelectedUnitId]);
+
+    const handleSaveGame = () => {
+        const saved = handleSave();
+        alert(saved ? "Game saved." : "Failed to save game.");
     };
 
-    // Autoskip AI turns
-    useEffect(() => {
-        if (!gameState) return;
-        let next = gameState;
-        const current = () => next.players.find(p => p.id === next.currentPlayerId);
-        let safety = 0;
-        while (current()?.isAI && safety < 10) {
-            next = runAiTurn(next, next.currentPlayerId);
-            safety++;
+    const handleLoadGame = () => {
+        const success = handleLoad();
+        if (!success) {
+            alert("No saved game found.");
+            return;
         }
-        if (next !== gameState) {
-            setGameState(next);
-            const nextPlayer = next.players.find(p => p.id === next.currentPlayerId);
-            if (nextPlayer && !nextPlayer.isAI && next.currentPlayerId !== playerId) {
-                setPlayerId(next.currentPlayerId);
-            }
-        }
-    }, [gameState, playerId]);
-
-    // Autosave every 5th turn
-    useEffect(() => {
-        if (!gameState) return;
-        if (gameState.turn > 0 && gameState.turn % 5 === 0 && gameState.currentPlayerId === playerId) {
-            const saveData: SavedGame = {
-                timestamp: Date.now(),
-                gameState: gameState,
-            };
-            try {
-                localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
-                console.log("Autosave created at turn", gameState.turn);
-            } catch (e) {
-                console.warn("Failed to autosave", e);
-            }
-        }
-    }, [gameState?.turn, gameState?.currentPlayerId, playerId]);
-
-    const handleSave = () => {
-        if (!gameState) return;
-        try {
-            const saveData: SavedGame = {
-                timestamp: Date.now(),
-                gameState: gameState,
-            };
-            localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-            alert("Game saved.");
-        } catch (e) {
-            alert("Failed to save game.");
-        }
-    };
-
-    const handleLoad = () => {
-        try {
-            const rawManual = localStorage.getItem(SAVE_KEY);
-            const rawAuto = localStorage.getItem(AUTOSAVE_KEY);
-
-            if (!rawManual && !rawAuto) {
-                alert("No saved game found.");
-                return;
-            }
-
-            let manualSave: SavedGame | null = null;
-            let autoSave: SavedGame | null = null;
-
-            if (rawManual) {
-                try {
-                    const parsed = JSON.parse(rawManual);
-                    // Handle legacy saves without timestamp
-                    if (!parsed.timestamp) {
-                        manualSave = { timestamp: 0, gameState: parsed };
-                    } else {
-                        manualSave = parsed;
-                    }
-                } catch (e) {
-                    console.warn("Failed to parse manual save");
-                }
-            }
-
-            if (rawAuto) {
-                try {
-                    const parsed = JSON.parse(rawAuto);
-                    if (!parsed.timestamp) {
-                        autoSave = { timestamp: 0, gameState: parsed };
-                    } else {
-                        autoSave = parsed;
-                    }
-                } catch (e) {
-                    console.warn("Failed to parse autosave");
-                }
-            }
-
-            let bestSave = manualSave;
-            if (autoSave) {
-                if (!manualSave || autoSave.timestamp > manualSave.timestamp) {
-                    bestSave = autoSave;
-                }
-            }
-
-            if (!bestSave) {
-                alert("Failed to load any valid save.");
-                return;
-            }
-
-            setGameState(bestSave.gameState);
-            const parsed = bestSave.gameState;
-            const currentPlayer = parsed.players.find(p => p.id === parsed.currentPlayerId);
-            const fallbackPlayer = parsed.players.find(p => !p.isAI);
-            const nextPlayerId = currentPlayer && !currentPlayer.isAI
-                ? parsed.currentPlayerId
-                : fallbackPlayer?.id ?? parsed.currentPlayerId;
-            setPlayerId(nextPlayerId);
-            setSelectedCoord(null);
-            setSelectedUnitId(null);
-            setPlayerId(nextPlayerId);
-            setSelectedCoord(null);
-            setSelectedUnitId(null);
-            setShowTitleScreen(false);
-            alert(`Loaded game (Turn ${parsed.turn})`);
-        } catch (e) {
-            alert("Failed to load game.");
-        }
+        setShowTitleScreen(false);
+        setSelectedCoord(null);
+        setSelectedUnitId(null);
+        alert("Loaded saved game.");
     };
 
     const handleRestart = () => {
         if (!lastGameSettings) return;
         try {
-            const state = generateWorld(lastGameSettings);
-            console.info("[World] Restarted with seed", state.seed);
-            setGameState(state);
-            setPlayerId("p1");
+            const restarted = restartLastGame();
+            if (!restarted) return;
+            console.info("[World] Restarted with previous settings");
             setShowTechTree(true);
             setSelectedCoord(null);
             setSelectedUnitId(null);
@@ -495,12 +318,16 @@ function App() {
         }
     }, [cityToCenter]);
 
+    const handleNavigateMapView = (point: { x: number; y: number }) => {
+        mapRef.current?.centerOnPoint(point);
+    };
+
     if (!gameState) {
         if (showTitleScreen) {
             return (
                 <TitleScreen
                     onNewGame={() => setShowTitleScreen(false)}
-                    onLoadGame={handleLoad}
+                    onLoadGame={handleLoadGame}
                 />
             );
         }
@@ -632,7 +459,7 @@ function App() {
                             {/* Buttons Row */}
                             <div style={{ display: "flex", gap: 16, justifyContent: "space-between", alignItems: "center" }}>
                                 <button
-                                    onClick={startNewGame}
+                                    onClick={handleStartNewGame}
                                     style={{
                                         flex: 1,
                                         padding: "16px 32px",
@@ -650,7 +477,7 @@ function App() {
                                     Start Game
                                 </button>
                                 <button
-                                    onClick={handleLoad}
+                                    onClick={handleLoadGame}
                                     style={{ padding: "16px 24px", borderRadius: 12, border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-main)", cursor: "pointer", fontWeight: 600, fontSize: 16 }}
                                 >
                                     Load Save
@@ -667,6 +494,7 @@ function App() {
     return (
         <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
             <GameMap
+                ref={mapRef}
                 gameState={gameState}
                 onTileClick={handleTileClick}
                 selectedCoord={selectedCoord}
@@ -678,6 +506,7 @@ function App() {
                 hoveredCoord={hoveredCoord}
                 onHoverTile={setHoveredCoord}
                 cityToCenter={cityToCenter}
+                onViewChange={setMapView}
             />
             <HUD
                 gameState={gameState}
@@ -688,18 +517,25 @@ function App() {
                 onSelectCoord={setSelectedCoord}
                 onShowTechTree={() => setShowTechTree(true)}
                 playerId={playerId}
-                onSave={handleSave}
-                onLoad={handleLoad}
+                onSave={handleSaveGame}
+                onLoad={handleLoadGame}
                 onQuit={() => {
-                    setGameState(null);
+                    clearSession();
+                    setSelectedCoord(null);
+                    setSelectedUnitId(null);
+                    setHoveredCoord(null);
+                    setShowTechTree(false);
+                    setCityToCenter(null);
+                    setMapView(null);
                     setShowTitleScreen(true);
-                    localStorage.removeItem(SESSION_SAVE_KEY);
                 }}
                 showShroud={showShroud}
                 onToggleShroud={() => setShowShroud(prev => !prev)}
                 showYields={showTileYields}
                 onToggleYields={() => setShowTileYields(prev => !prev)}
                 onCenterCity={setCityToCenter}
+                mapView={mapView}
+                onNavigateMap={handleNavigateMapView}
             />
             {showTechTree && (
                 <TechTree
@@ -716,9 +552,14 @@ function App() {
                     winnerCivName={gameState.players.find((p) => p.id === gameState.winnerId)?.civName ?? "Unknown"}
                     onRestart={handleRestart}
                     onQuit={() => {
-                        setGameState(null);
+                        clearSession();
+                        setSelectedCoord(null);
+                        setSelectedUnitId(null);
+                        setHoveredCoord(null);
+                        setShowTechTree(false);
+                        setCityToCenter(null);
+                        setMapView(null);
                         setShowTitleScreen(true);
-                        localStorage.removeItem(SESSION_SAVE_KEY);
                     }}
                 />
             )}
@@ -727,72 +568,3 @@ function App() {
 }
 
 export default App;
-
-type PathInfo = { path: HexCoord[]; movesLeft: number };
-type PathMap = Record<string, PathInfo>;
-
-function computeReachablePaths(state: GameState, playerId: string, unitId: string): PathMap {
-    const unit = state.units.find(u => u.id === unitId);
-    if (!unit || unit.ownerId !== playerId || unit.movesLeft <= 0) {
-        return {};
-    }
-
-    const results: PathMap = {};
-    type QueueNode = { state: GameState; path: HexCoord[] };
-    const queue: QueueNode[] = [{ state, path: [] }];
-    const bestStateSeen = new Map<string, number>();
-
-    while (queue.length) {
-        const node = queue.shift()!;
-        const currentUnit = node.state.units.find(u => u.id === unitId);
-        if (!currentUnit) {
-            continue;
-        }
-        const partner = currentUnit.linkedUnitId
-            ? node.state.units.find(u => u.id === currentUnit.linkedUnitId)
-            : undefined;
-        const signature = serializeUnitState(currentUnit, partner);
-        const prevBest = bestStateSeen.get(signature);
-        if (prevBest !== undefined && prevBest >= currentUnit.movesLeft) {
-            continue;
-        }
-        bestStateSeen.set(signature, currentUnit.movesLeft);
-
-        if (node.path.length > 0) {
-            const key = hexToString(currentUnit.coord);
-            const existing = results[key];
-            if (!existing || existing.movesLeft < currentUnit.movesLeft) {
-                results[key] = { path: [...node.path], movesLeft: currentUnit.movesLeft };
-            }
-        }
-
-        if (currentUnit.movesLeft <= 0) {
-            continue;
-        }
-
-        for (const neighbor of getNeighbors(currentUnit.coord)) {
-            try {
-                const nextState = applyAction(node.state, {
-                    type: "MoveUnit",
-                    playerId,
-                    unitId,
-                    to: neighbor,
-                });
-                queue.push({
-                    state: nextState,
-                    path: [...node.path, neighbor],
-                });
-            } catch {
-                // Ignore invalid moves
-            }
-        }
-    }
-
-    return results;
-}
-
-function serializeUnitState(unit: GameState["units"][number], partner?: GameState["units"][number]) {
-    const base = `${unit.id}:${unit.coord.q},${unit.coord.r}:${unit.movesLeft}`;
-    if (!partner) return base;
-    return `${base}|${partner.id}:${partner.coord.q},${partner.coord.r}:${partner.movesLeft}`;
-}

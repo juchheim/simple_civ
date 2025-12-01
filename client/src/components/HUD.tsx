@@ -1,9 +1,11 @@
 import React from "react";
 import { GameState, HexCoord, Action, UnitState } from "@simple-civ/engine";
+import { MapViewport } from "./GameMap";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
 import { useDiplomacyAlerts } from "./HUD/hooks/use-diplomacy-alerts";
 import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel, DiplomacyAlertModal } from "./HUD/sections";
+import { MiniMap } from "./HUD/MiniMap";
 import "./HUD/hud.css";
 
 interface HUDProps {
@@ -23,9 +25,11 @@ interface HUDProps {
     showYields: boolean;
     onToggleYields: () => void;
     onCenterCity: (coord: HexCoord) => void;
+    mapView: MapViewport | null;
+    onNavigateMap: (point: { x: number; y: number }) => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
@@ -171,44 +175,53 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
     return (
         <div className="hud-layer">
             <div className="hud-top-row">
-                {showCodex ? (
-                    <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
-                        <button className="hud-close-button" onClick={() => setShowCodex(false)} aria-label="Close codex">
-                            X
-                        </button>
-                        <Codex />
-                    </div>
-                ) : (
-                    <button className="hud-tab-trigger" onClick={() => setShowCodex(true)}>
-                        Codex
-                    </button>
-                )}
-                {isMyTurn && (
-                    showDiplomacy ? (
+                <div className="hud-top-row-buttons">
+                    {showCodex ? (
                         <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
-                            <button className="hud-close-button" onClick={() => setShowDiplomacy(false)} aria-label="Close diplomacy menu">
+                            <button className="hud-close-button" onClick={() => setShowCodex(false)} aria-label="Close codex">
                                 X
                             </button>
-                            <DiplomacySummary rows={diplomacyRows} playerId={playerId} onAction={onAction} />
+                            <Codex />
                         </div>
                     ) : (
-                        <button className="hud-tab-trigger" onClick={() => setShowDiplomacy(true)}>
-                            Diplomacy
+                        <button className="hud-tab-trigger" onClick={() => setShowCodex(true)}>
+                            Codex
                         </button>
-                    )
-                )}
-                {showResearch ? (
-                    <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
-                        <button className="hud-close-button" onClick={() => setShowResearch(false)} aria-label="Close research menu">
-                            X
+                    )}
+                    {isMyTurn && (
+                        showDiplomacy ? (
+                            <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
+                                <button className="hud-close-button" onClick={() => setShowDiplomacy(false)} aria-label="Close diplomacy menu">
+                                    X
+                                </button>
+                                <DiplomacySummary rows={diplomacyRows} playerId={playerId} onAction={onAction} />
+                            </div>
+                        ) : (
+                            <button className="hud-tab-trigger" onClick={() => setShowDiplomacy(true)}>
+                                Diplomacy
+                            </button>
+                        )
+                    )}
+                    {showResearch ? (
+                        <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
+                            <button className="hud-close-button" onClick={() => setShowResearch(false)} aria-label="Close research menu">
+                                X
+                            </button>
+                            <TechButton player={player} onShowTechTree={onShowTechTree} />
+                        </div>
+                    ) : (
+                        <button className="hud-tab-trigger" onClick={() => setShowResearch(true)}>
+                            Research
                         </button>
-                        <TechButton player={player} onShowTechTree={onShowTechTree} />
-                    </div>
-                ) : (
-                    <button className="hud-tab-trigger" onClick={() => setShowResearch(true)}>
-                        Research
-                    </button>
-                )}
+                    )}
+                </div>
+                <MiniMap
+                    gameState={gameState}
+                    playerId={playerId}
+                    mapView={mapView}
+                    selectedUnitId={selectedUnitId}
+                    onNavigate={onNavigateMap}
+                />
             </div>
 
             <div className="hud-top-left">

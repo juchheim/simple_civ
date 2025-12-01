@@ -27,6 +27,13 @@
     pointer-events: none;
 }
 
+.hud-top-row-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    pointer-events: auto;
+}
+
 .hud-top-left {
     position: absolute;
     top: 12px;
@@ -80,6 +87,50 @@
     text-align: center;
     pointer-events: auto;
 }
+
+.hud-minimap-card {
+    width: 230px;
+    padding: 10px 12px;
+    pointer-events: auto;
+}
+
+.hud-minimap-svg {
+    width: 100%;
+    height: 190px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 45%), var(--color-bg-deep);
+    cursor: grab;
+}
+
+.hud-minimap-background {
+    fill: rgba(15, 23, 42, 0.7);
+    stroke: var(--color-border);
+    stroke-width: 1;
+}
+
+.hud-minimap-viewport {
+    fill: rgba(255, 255, 255, 0.06);
+    stroke: var(--color-highlight);
+    stroke-width: 2;
+}
+
+.hud-minimap-unit {
+    animation: minimap-blink 0.8s ease-in-out infinite;
+}
+
+.hud-minimap-empty {
+    color: var(--color-text-muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+@keyframes minimap-blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.25; }
+    100% { opacity: 1; }
+}
+
 
 .hud-section-title {
     font-size: 12px;

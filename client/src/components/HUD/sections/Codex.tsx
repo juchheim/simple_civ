@@ -50,7 +50,7 @@ function pickLatestRulebook(): RulebookBundle | null {
 
 function stripCodexSkippedContent(markdown: string): string {
     // Remove explicit skip blocks
-    let sanitized = markdown.replace(/<!--\s*CODEX_SKIP_START\s*-->[\s\S]*?<!--\s*CODEX_SKIP_END\s*-->/gi, "");
+    const sanitized = markdown.replace(/<!--\s*CODEX_SKIP_START\s*-->[\s\S]*?<!--\s*CODEX_SKIP_END\s*-->/gi, "");
 
     const lines = sanitized.split("\n");
     const result: string[] = [];

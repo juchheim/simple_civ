@@ -1,5 +1,6 @@
 import React from "react";
 import { GameState, HexCoord, Action } from "@simple-civ/engine";
+import { MapViewport } from "./GameMap";
 interface HUDProps {
     gameState: GameState;
     selectedCoord: HexCoord | null;
@@ -16,6 +17,12 @@ interface HUDProps {
     onToggleShroud: () => void;
     showYields: boolean;
     onToggleYields: () => void;
+    onCenterCity: (coord: HexCoord) => void;
+    mapView: MapViewport | null;
+    onNavigateMap: (point: {
+        x: number;
+        y: number;
+    }) => void;
 }
 export declare const HUD: React.FC<HUDProps>;
 export {};

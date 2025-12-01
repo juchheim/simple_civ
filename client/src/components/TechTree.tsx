@@ -10,7 +10,52 @@ interface TechTreeProps {
 
 export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChooseTech, onClose }) => {
     const player = gameState.players.find(p => p.id === playerId);
-    if (!player) return null;
+
+    const [lines, setLines] = React.useState<{ x1: number, y1: number, x2: number, y2: number }[]>([]);
+    const techRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    // Calculate lines on mount and resize
+    React.useEffect(() => {
+        const calculateLines = () => {
+            if (!containerRef.current) return;
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const newLines: { x1: number, y1: number, x2: number, y2: number }[] = [];
+
+            Object.entries(TECHS).forEach(([techId, tech]) => {
+                const targetEl = techRefs.current[techId];
+                if (!targetEl) return;
+                const targetRect = targetEl.getBoundingClientRect();
+
+                // Connect to prerequisites
+                tech.prereqTechs.forEach(prereqId => {
+                    const sourceEl = techRefs.current[prereqId];
+                    if (sourceEl) {
+                        const sourceRect = sourceEl.getBoundingClientRect();
+
+                        // Calculate relative coordinates
+                        newLines.push({
+                            x1: sourceRect.right - containerRect.left - 5, // Slight inset
+                            y1: sourceRect.bottom - containerRect.top,
+                            x2: targetRect.right - containerRect.left - 5, // Slight inset
+                            y2: targetRect.top - containerRect.top
+                        });
+                    }
+                });
+            });
+            setLines(newLines);
+        };
+
+        // Initial calculation
+        setTimeout(calculateLines, 100); // Small delay to ensure layout is settled
+
+        window.addEventListener('resize', calculateLines);
+        return () => window.removeEventListener('resize', calculateLines);
+    }, [gameState]); // Recalculate if game state changes (though tech tree structure is static)
+
+    if (!player) {
+        return null;
+    }
 
     const canResearch = (techId: TechId): boolean => {
         const tech = TECHS[techId];
@@ -67,48 +112,6 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
     const formatName = (name: string): string => {
         return name.replace(/([A-Z])/g, ' $1').trim();
     };
-
-    const [lines, setLines] = React.useState<{ x1: number, y1: number, x2: number, y2: number }[]>([]);
-    const techRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
-    const containerRef = React.useRef<HTMLDivElement>(null);
-
-    // Calculate lines on mount and resize
-    React.useEffect(() => {
-        const calculateLines = () => {
-            if (!containerRef.current) return;
-            const containerRect = containerRef.current.getBoundingClientRect();
-            const newLines: { x1: number, y1: number, x2: number, y2: number }[] = [];
-
-            Object.entries(TECHS).forEach(([techId, tech]) => {
-                const targetEl = techRefs.current[techId];
-                if (!targetEl) return;
-                const targetRect = targetEl.getBoundingClientRect();
-
-                // Connect to prerequisites
-                tech.prereqTechs.forEach(prereqId => {
-                    const sourceEl = techRefs.current[prereqId];
-                    if (sourceEl) {
-                        const sourceRect = sourceEl.getBoundingClientRect();
-
-                        // Calculate relative coordinates
-                        newLines.push({
-                            x1: sourceRect.right - containerRect.left - 5, // Slight inset
-                            y1: sourceRect.bottom - containerRect.top,
-                            x2: targetRect.right - containerRect.left - 5, // Slight inset
-                            y2: targetRect.top - containerRect.top
-                        });
-                    }
-                });
-            });
-            setLines(newLines);
-        };
-
-        // Initial calculation
-        setTimeout(calculateLines, 100); // Small delay to ensure layout is settled
-
-        window.addEventListener('resize', calculateLines);
-        return () => window.removeEventListener('resize', calculateLines);
-    }, [gameState]); // Recalculate if game state changes (though tech tree structure is static)
 
     const renderBuildingStats = (buildingId: BuildingType) => {
         const building = BUILDINGS[buildingId];
@@ -256,6 +259,8 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
             </div>
         );
     };
+
+    if (!player) return null;
 
     return (
         <div style={{
