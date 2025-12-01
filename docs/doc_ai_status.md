@@ -32,7 +32,7 @@
     - **Scholar Kingdoms**: Prioritizes Science buildings/projects to rush Tech victory.
     - **Starborne Seekers**: Prioritizes Spirit Observatory and Progress projects.
     - **River League**: Auto-assigner prioritizes river tiles (valued at +0.5 Prod) to maximize unique trait.
-    - **Jade Covenant**: Aggressively expands (Desire 2.0) using "Nature's Wrath" attrition to defend territory; pivots to victory earlier (20 pop or 6 cities).
+    - **Jade Covenant**: Aggressively expands (Desire 2.0) using "Nature's Wrath" attrition to defend territory; pivots to victory earlier (15 pop or 4 cities). **Efficiency**: Stops building Settlers when in "Conquest" mode to focus on war.
     - **Aetherian Vanguard**: Titans ignore terrain movement; AI spikes aggression when Titan is built.
     - **Map Scaling**: Aggression scales on Standard, Large, and Huge maps to encourage conquest despite distances.
 - Start placement now uses the documented city-site scoring heuristic instead of the prior ad-hoc formula; the client now consumes the shared engine generator (`engine/src/map/map-generator.ts`).

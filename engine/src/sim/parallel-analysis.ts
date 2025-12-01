@@ -627,7 +627,7 @@ if (isMainThread) {
     const start = Date.now();
 
     try {
-        const result = runComprehensiveSimulation(seed, config.size, 200, config.maxCivs);
+        const result = runComprehensiveSimulation(seed, config.size, 250, config.maxCivs);
         const duration = Date.now() - start;
         parentPort?.postMessage({ ...result, duration });
     } catch (err) {

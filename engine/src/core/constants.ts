@@ -10,7 +10,7 @@ import {
     OverlayType,
 } from "./types.js";
 
-export const GAME_VERSION = "0.98";
+export const GAME_VERSION = "0.99";
 export const MAX_PLAYERS = 6;
 
 // Max civilizations per map size

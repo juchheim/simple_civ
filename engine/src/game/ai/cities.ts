@@ -327,7 +327,9 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
 }
 
 function countAvailableCitySites(state: GameState, playerId: string, limit: number = 10): number {
-    const MIN_CITY_DISTANCE = 3;
+    // v0.99 Tuning: Jade Covenant can settle closer (2 tiles) to maximize "wide" playstyle
+    const player = state.players.find(p => p.id === playerId);
+    const MIN_CITY_DISTANCE = player?.civName === "JadeCovenant" ? 2 : 3;
     const MAX_EXPANSION_RANGE = 12; // Reduced from 15 to ensure realistic targets
     let count = 0;
 
@@ -398,6 +400,12 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
     const player = state.players.find(p => p.id === playerId);
     if (player?.civName === "JadeCovenant" || player?.civName === "RiverLeague") {
         globalSettlerLimit += 1;
+    }
+
+    // v0.99 Tuning: Jade Covenant stops settling when in Conquest mode
+    // "I am awake. I do not settle anymore. I take."
+    if (player?.civName === "JadeCovenant" && goal === "Conquest") {
+        globalSettlerLimit = 0;
     }
 
     // Cap based on shortfall, available sites, AND the strict global limit

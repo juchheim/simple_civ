@@ -87,9 +87,10 @@ function hasProgressLead(playerId: string, state: GameState): boolean {
         if (theirPop > otherMaxPop) otherMaxPop = theirPop;
     }
 
-    // Has progress lead if 1.5x the highest enemy population AND 30+ total pop
+    // Has progress lead if 1.5x the highest enemy population AND 20+ total pop
     // Both conditions required - ensures substantial buildup before aggression spike
-    return myPop >= otherMaxPop * 1.5 && myPop >= 30;
+    // v0.99 Tuning: Reduced from 30 to 20 to allow earlier aggression
+    return myPop >= otherMaxPop * 1.5 && myPop >= 20;
 }
 
 /**
