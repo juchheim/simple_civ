@@ -304,11 +304,27 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
                     const neighborKey = `${neighborCoord.q},${neighborCoord.r}`;
                     const neighborEntry = tileByKey.get(neighborKey);
                     if (neighborEntry?.tile.ownerCityId === ownerCityId) return; // interior edge
-                    if (neighborEntry?.tile.ownerCityId) return; // edge touches another city: skip drawing shared boundary
+                    // Removed check for neighborEntry?.tile.ownerCityId to allow drawing boundaries between different cities
 
                     const [cornerA, cornerB] = EDGE_TO_CORNER_INDICES[dir];
-                    const start = corners[cornerA];
-                    const end = corners[cornerB];
+
+                    // Inset the boundary line towards the center of the hex
+                    const insetFactor = 0.1; // 10% inset
+                    const center = entry.position;
+
+                    const startOriginal = corners[cornerA];
+                    const endOriginal = corners[cornerB];
+
+                    const start = {
+                        x: startOriginal.x + (center.x - startOriginal.x) * insetFactor,
+                        y: startOriginal.y + (center.y - startOriginal.y) * insetFactor
+                    };
+
+                    const end = {
+                        x: endOriginal.x + (center.x - endOriginal.x) * insetFactor,
+                        y: endOriginal.y + (center.y - endOriginal.y) * insetFactor
+                    };
+
                     const edgeKey = `${entry.key}|${neighborKey}|${ownerCityId}`;
                     if (dedup.has(edgeKey)) return;
                     dedup.add(edgeKey);

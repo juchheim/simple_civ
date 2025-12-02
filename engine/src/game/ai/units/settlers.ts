@@ -402,6 +402,10 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
 
         if (adjacentEscort && !settler.linkedUnitId && !adjacentEscort.linkedUnitId) {
             if (hexEquals(adjacentEscort.coord, settler.coord)) {
+                if (adjacentEscort.id === settler.id) {
+                    console.error(`[AI Escort Error] Attempted to link unit ${adjacentEscort.id} to itself`);
+                    continue;
+                }
                 const linkResult = tryAction(next, {
                     type: "LinkUnits",
                     playerId,
@@ -439,15 +443,19 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                 if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
                     !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
                     if (hexEquals(liveEscort.coord, liveSettler.coord)) {
-                        const linkResult = tryAction(next, {
-                            type: "LinkUnits",
-                            playerId,
-                            unitId: liveEscort.id,
-                            partnerId: liveSettler.id
-                        });
-                        if (linkResult !== next) {
-                            next = linkResult;
-                            console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                        if (liveEscort.id === liveSettler.id) {
+                            console.error(`[AI Escort Error] Attempted to link unit ${liveEscort.id} to itself`);
+                        } else {
+                            const linkResult = tryAction(next, {
+                                type: "LinkUnits",
+                                playerId,
+                                unitId: liveEscort.id,
+                                partnerId: liveSettler.id
+                            });
+                            if (linkResult !== next) {
+                                next = linkResult;
+                                console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                            }
                         }
                     }
                 }
@@ -485,15 +493,19 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         if (distance === 0) {
             if (!escort.linkedUnitId && !settler.linkedUnitId) {
                 if (hexEquals(escort.coord, settler.coord)) {
-                    const linkResult = tryAction(next, {
-                        type: "LinkUnits",
-                        playerId,
-                        unitId: escort.id,
-                        partnerId: settler.id
-                    });
-                    if (linkResult !== next) {
-                        next = linkResult;
-                        console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                    if (escort.id === settler.id) {
+                        console.error(`[AI Escort Error] Attempted to link unit ${escort.id} to itself`);
+                    } else {
+                        const linkResult = tryAction(next, {
+                            type: "LinkUnits",
+                            playerId,
+                            unitId: escort.id,
+                            partnerId: settler.id
+                        });
+                        if (linkResult !== next) {
+                            next = linkResult;
+                            console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                        }
                     }
                 }
             }
@@ -515,15 +527,19 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                 if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
                     !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
                     if (hexEquals(liveEscort.coord, liveSettler.coord)) {
-                        const linkResult = tryAction(next, {
-                            type: "LinkUnits",
-                            playerId,
-                            unitId: liveEscort.id,
-                            partnerId: liveSettler.id
-                        });
-                        if (linkResult !== next) {
-                            next = linkResult;
-                            console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                        if (liveEscort.id === liveSettler.id) {
+                            console.error(`[AI Escort Error] Attempted to link unit ${liveEscort.id} to itself`);
+                        } else {
+                            const linkResult = tryAction(next, {
+                                type: "LinkUnits",
+                                playerId,
+                                unitId: liveEscort.id,
+                                partnerId: liveSettler.id
+                            });
+                            if (linkResult !== next) {
+                                next = linkResult;
+                                console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                            }
                         }
                     }
                 }

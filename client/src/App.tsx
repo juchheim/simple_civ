@@ -199,10 +199,25 @@ function App() {
                         return;
                     }
                 }
-                // Check if clicking on a friendly unit (that isn't self) -> Select it instead of moving
+                // Check if clicking on a friendly unit (that isn't self)
                 const friendlyUnitOnTile = gameState.units.find(u => hexEquals(u.coord, coord) && u.ownerId === playerId);
                 if (friendlyUnitOnTile && friendlyUnitOnTile.id !== unit.id) {
-                    // Fall through to selection logic
+                    // If units are adjacent, swap them instead of selecting
+                    const distance = hexDistance(unit.coord, friendlyUnitOnTile.coord);
+                    if (distance === 1 && unit.movesLeft > 0) {
+                        // Attempt to swap units
+                        handleAction({
+                            type: "SwapUnits",
+                            playerId,
+                            unitId: unit.id,
+                            targetUnitId: friendlyUnitOnTile.id
+                        });
+                        // Keep the originally selected unit selected after swap (it will now be at the clicked position)
+                        setSelectedCoord(coord);
+                        setSelectedUnitId(unit.id);
+                        return;
+                    }
+                    // If not adjacent, fall through to selection logic
                     setSelectedCoord(coord);
                     setSelectedUnitId(friendlyUnitOnTile.id);
                     return;

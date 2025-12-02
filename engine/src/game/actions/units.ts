@@ -161,6 +161,27 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
         }
         if (!defender) throw new Error("Defender not found");
 
+        // Check if defender is garrisoned in a friendly city
+        const cityAtLocation = state.cities.find(c => hexEquals(c.coord, defender.coord));
+        if (cityAtLocation && cityAtLocation.ownerId === defender.ownerId && defender.type !== UnitType.Settler) {
+            // Redirect attack to city!
+            // We recursively call handleAttack with the city as target
+            // But we need to be careful about infinite recursion if we mess up.
+            // Instead of recursion, let's just switch the target logic here.
+            // Actually, recursion is cleanest if we just change the action target.
+            // But we can't easily "call" the action handler from within itself without passing state.
+            // We can just fall through to the city attack logic?
+            // No, the city attack logic is in the `else` block of `if (action.targetType === "Unit")`.
+
+            // Let's just change the action parameters and restart? No, that's messy.
+            // Let's call handleAttack recursively with the new target.
+            return handleAttack(state, {
+                ...action,
+                targetId: cityAtLocation.id,
+                targetType: "City"
+            });
+        }
+
         // Smart Stack Attack: If targeting a Settler with a military escort, redirect to escort
         if (defender.type === UnitType.Settler) {
             const partner = resolveLinkedPartner(state, defender);

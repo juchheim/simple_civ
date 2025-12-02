@@ -57,7 +57,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
     const scholarActive = civ === "ScholarKingdoms" && city.pop >= 3;
 
     const garrison = units.find(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
-    const targets = units.filter(u => u.ownerId !== playerId && hexDistance(u.coord, city.coord) <= 2);
+
     const workedCount = localWorked.length;
 
     return (
@@ -307,13 +307,7 @@ const WorkedTilesMap: React.FC<WorkedTilesMapProps> = ({ city, map, tiles, worke
                     const { tile, isWorked, isCenter, isLocked, yields, terrainColor } = node;
                     const left = offsetX + node.position.x - HEX_WIDTH / 2;
                     const top = offsetY + node.position.y - HEX_HEIGHT / 2;
-                    const statusLabel = isCenter
-                        ? "City center"
-                        : isWorked
-                            ? "Worked"
-                            : isLocked
-                                ? "Locked"
-                                : "Idle";
+
 
                     return (
                         <button

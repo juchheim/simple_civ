@@ -26,7 +26,7 @@ interface HUDProps {
     showYields: boolean;
     onToggleYields: () => void;
     onCenterCity: (coord: HexCoord) => void;
-    onCenterCity: (coord: HexCoord) => void;
+
     mapView: MapViewport | null;
     onNavigateMap: (point: { x: number; y: number }) => void;
     showGameMenu: boolean;
@@ -83,13 +83,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         onAction({ type: "RazeCity", playerId, cityId: selectedCity.id });
     }, [selectedCity, onAction, playerId]);
 
-    const handleCityAttack = React.useCallback(
-        (targetUnitId: string) => {
-            if (!selectedCity) return;
-            onAction({ type: "CityAttack", playerId, cityId: selectedCity.id, targetUnitId });
-        },
-        [selectedCity, onAction, playerId],
-    );
+
 
     const handleSetWorkedTiles = React.useCallback(
         (cityId: string, tiles: HexCoord[]) => {
@@ -292,7 +286,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         buildOptions={cityBuildOptions}
                         onBuild={handleBuild}
                         onRazeCity={handleRazeCity}
-                        onCityAttack={handleCityAttack}
+
                         onSetWorkedTiles={handleSetWorkedTiles}
                         onSelectUnit={onSelectUnit}
                         onClose={() => onSelectCoord(null)}

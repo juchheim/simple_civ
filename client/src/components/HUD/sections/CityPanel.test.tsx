@@ -99,7 +99,7 @@ describe("CityPanel", () => {
                 buildOptions={defaultBuildOptions}
                 onBuild={onBuild}
                 onRazeCity={vi.fn()}
-                onCityAttack={vi.fn()}
+
                 onSetWorkedTiles={vi.fn()}
                 onSelectUnit={vi.fn()}
                 onClose={vi.fn()}
@@ -124,7 +124,7 @@ describe("CityPanel", () => {
                 buildOptions={defaultBuildOptions}
                 onBuild={vi.fn()}
                 onRazeCity={vi.fn()}
-                onCityAttack={vi.fn()}
+
                 onSetWorkedTiles={onSetWorkedTiles}
                 onSelectUnit={vi.fn()}
                 onClose={vi.fn()}
@@ -155,7 +155,7 @@ describe("CityPanel", () => {
                     buildOptions={defaultBuildOptions}
                     onBuild={vi.fn()}
                     onRazeCity={vi.fn()}
-                    onCityAttack={vi.fn()}
+
                     onSetWorkedTiles={(cityId, tiles) => {
                         setGameState(prev => applyAction(prev, {
                             type: "SetWorkedTiles",

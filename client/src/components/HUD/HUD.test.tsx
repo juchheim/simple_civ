@@ -144,6 +144,8 @@ describe("HUD", () => {
                 onCenterCity={vi.fn()}
                 mapView={mockMapView}
                 onNavigateMap={vi.fn()}
+                showGameMenu={false}
+                onToggleGameMenu={vi.fn()}
             />,
         );
 
@@ -181,6 +183,8 @@ describe("HUD", () => {
                 onCenterCity={vi.fn()}
                 mapView={mockMapView}
                 onNavigateMap={vi.fn()}
+                showGameMenu={false}
+                onToggleGameMenu={vi.fn()}
             />,
         );
 
@@ -229,6 +233,8 @@ describe("HUD", () => {
                 onCenterCity={vi.fn()}
                 mapView={mockMapView}
                 onNavigateMap={vi.fn()}
+                showGameMenu={false}
+                onToggleGameMenu={vi.fn()}
             />,
         );
 
