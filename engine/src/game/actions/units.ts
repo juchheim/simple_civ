@@ -3,17 +3,20 @@ import {
     ATTACK_RANDOM_BAND,
     CITY_DEFENSE_BASE,
     CITY_WARD_DEFENSE_BONUS,
+    CITY_ATTACK_BASE,
+    CITY_WARD_ATTACK_BONUS,
     DAMAGE_BASE,
     DAMAGE_MAX,
     DAMAGE_MIN,
     TERRAIN,
+    GARRISON_RANGED_RETALIATION_RANGE,
     FORTIFY_DEFENSE_BONUS,
     UNITS,
 } from "../../core/constants.js";
 import { hexDistance, hexEquals, hexToString } from "../../core/hex.js";
 import { refreshPlayerVision } from "../vision.js";
 import { captureCity } from "../helpers/cities.js";
-import { findPath } from "../helpers/pathfinding.js";
+import { findPath, findReachableTiles } from "../helpers/pathfinding.js";
 import {
     createMoveContext,
     executeUnitMove,
@@ -26,7 +29,13 @@ import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js
 import { ensureWar } from "../helpers/diplomacy.js";
 
 export function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; playerId: string; unitId: string; to: HexCoord; isAuto?: boolean }): GameState {
-    const unit = state.units.find(u => u.id === action.unitId);
+    let unit: any;
+    for (const u of state.units) {
+        if (u.id === action.unitId) {
+            unit = u;
+            break;
+        }
+    }
     if (!unit) throw new Error("Unit not found");
     if (unit.ownerId !== action.playerId) throw new Error("Not your unit");
     if (unit.movesLeft <= 0) throw new Error("No moves left");
@@ -121,7 +130,13 @@ export function handleUnlinkUnits(state: GameState, action: { type: "UnlinkUnits
 }
 
 export function handleAttack(state: GameState, action: { type: "Attack"; playerId: string; attackerId: string; targetId: string; targetType: "Unit" | "City" }): GameState {
-    const attacker = state.units.find(u => u.id === action.attackerId);
+    let attacker: any;
+    for (const u of state.units) {
+        if (u.id === action.attackerId) {
+            attacker = u;
+            break;
+        }
+    }
     if (!attacker) throw new Error("Attacker not found");
     if (attacker.ownerId !== action.playerId) throw new Error("Not your unit");
     if (attacker.hasAttacked) throw new Error("Already attacked");
@@ -137,7 +152,13 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
     }
 
     if (action.targetType === "Unit") {
-        let defender = state.units.find(u => u.id === action.targetId);
+        let defender: any;
+        for (const u of state.units) {
+            if (u.id === action.targetId) {
+                defender = u;
+                break;
+            }
+        }
         if (!defender) throw new Error("Defender not found");
 
         // Smart Stack Attack: If targeting a Settler with a military escort, redirect to escort
@@ -209,21 +230,30 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
 
             // Move Attacker into tile if melee
             if (attackerStats.rng === 1 && dist === 1) {
-                attacker.coord = defenderCoord;
-                attacker.movesLeft = 0;
+                // Check if there's an unconquered enemy city at the defender's location
+                const cityAtLocation = state.cities.find(c => hexEquals(c.coord, defenderCoord));
+                const isUnconqueredEnemyCity = cityAtLocation &&
+                    cityAtLocation.ownerId !== action.playerId &&
+                    cityAtLocation.hp > 0;
 
-                // Capture any remaining civilians on the tile (e.g. the Settler we just exposed)
-                const remainingEnemies = state.units.filter(u =>
-                    hexEquals(u.coord, defenderCoord) &&
-                    u.ownerId !== action.playerId &&
-                    UNITS[u.type].domain === "Civilian"
-                );
+                // Only move into the tile if there's no unconquered enemy city
+                if (!isUnconqueredEnemyCity) {
+                    attacker.coord = defenderCoord;
+                    attacker.movesLeft = 0;
 
-                for (const enemy of remainingEnemies) {
-                    unlinkPair(enemy, resolveLinkedPartner(state, enemy));
-                    enemy.ownerId = action.playerId;
-                    enemy.movesLeft = 0;
-                    enemy.capturedOnTurn = state.turn;
+                    // Capture any remaining civilians on the tile (e.g. the Settler we just exposed)
+                    const remainingEnemies = state.units.filter(u =>
+                        hexEquals(u.coord, defenderCoord) &&
+                        u.ownerId !== action.playerId &&
+                        UNITS[u.type].domain === "Civilian"
+                    );
+
+                    for (const enemy of remainingEnemies) {
+                        unlinkPair(enemy, resolveLinkedPartner(state, enemy));
+                        enemy.ownerId = action.playerId;
+                        enemy.movesLeft = 0;
+                        enemy.capturedOnTurn = state.turn;
+                    }
                 }
             }
         }
@@ -241,7 +271,28 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
 
         const attackPower = attackerStats.atk + randomMod;
 
-        let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2);
+        // v1.0: Calculate garrison bonuses
+        const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler);
+        let garrisonDefenseBonus = 0;
+        let garrisonAttackBonus = 0;
+        let garrisonRetaliationRange = 0;
+
+        if (garrison) {
+            const garrisonStats = UNITS[garrison.type];
+            // Ranged units (range 2+)
+            if (garrisonStats.rng >= 2) {
+                garrisonDefenseBonus = 1;  // GARRISON_RANGED_DEFENSE_BONUS
+                garrisonAttackBonus = 3;   // GARRISON_RANGED_ATTACK_BONUS
+                garrisonRetaliationRange = 2; // GARRISON_RANGED_RETALIATION_RANGE
+            } else {
+                // Melee units (range 1)
+                garrisonDefenseBonus = 2;  // GARRISON_MELEE_DEFENSE_BONUS
+                garrisonAttackBonus = 1;   // GARRISON_MELEE_ATTACK_BONUS
+                garrisonRetaliationRange = 1; // GARRISON_MELEE_RETALIATION_RANGE
+            }
+        }
+
+        let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2) + garrisonDefenseBonus;
         if (city.buildings.includes(BuildingType.CityWard)) defensePower += CITY_WARD_DEFENSE_BONUS;
 
         const delta = attackPower - defensePower;
@@ -253,83 +304,35 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;
 
+        // v1.0: Automatic retaliation if garrisoned and attacker in range
+        if (garrison && dist <= garrisonRetaliationRange && !attacker.retaliatedAgainstThisTurn) {
+            const cityAttackPower = CITY_ATTACK_BASE +
+                (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) +
+                garrisonAttackBonus;
+
+            let attackerDefense = getEffectiveUnitStats(attacker, state).def;
+            const attackerTile = state.map.tiles.find(t => hexEquals(t.coord, attacker.coord));
+            if (attackerTile) attackerDefense += TERRAIN[attackerTile.terrain].defenseMod;
+            if (attacker.state === UnitState.Fortified) attackerDefense += FORTIFY_DEFENSE_BONUS;
+
+            const retaliationDelta = cityAttackPower - attackerDefense;
+            const retaliationRawDamage = DAMAGE_BASE + Math.floor(retaliationDelta / 2);
+            const retaliationDamage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, retaliationRawDamage));
+
+            attacker.hp -= retaliationDamage;
+            attacker.retaliatedAgainstThisTurn = true;
+
+            if (attacker.hp <= 0) {
+                state.units = state.units.filter(u => u.id !== attacker.id);
+                return state;
+            }
+        }
+
         if (city.hp <= 0) {
             if (attackerStats.canCaptureCity && dist === 1) {
-                // Capture happens via MoveUnit after HP reaches zero.
-                // However, if there is a unit garrisoned, we must allow the capture to proceed.
-                // The actual movement and capture logic is in executeUnitMove, but we need to ensure
-                // the UI/Game loop knows this is a valid state.
-                // Actually, the user requirement says: "instead, the city should be captured and the unit removed from the game."
-                // If we are attacking with a melee unit and the city is at 0 HP, we should probably trigger the capture *now* 
-                // OR ensure that the next MoveUnit call succeeds.
-                // But wait, the attack action itself doesn't move the unit unless it's a unit-vs-unit kill.
-                // For city capture, usually you attack until 0 HP, then you *move* into it.
-                // But if there is a unit there, the move is blocked by "Tile occupied by military unit".
-
-                // So we need to handle the "Attack" that *would* capture.
-                // If the city is at 0 HP (or drops to 0 HP), and we are attacking with a melee unit...
-                // The user said: "1. a city has a unit in it and has zero health and an enemy unit attempts capture."
-                // "2. a city has a unit in it with 1 health and is attacked by a unit who would capture."
-
-                // If we are here, we just reduced HP.
-                // If HP <= 0, we are in a "vulnerable" state.
-                // If we are melee, we *could* move in.
-                // But `handleAttack` usually just deals damage.
-                // EXCEPT for unit combat where it moves in on kill.
-
-                // Let's mirror the unit combat logic: if we "kill" the city (reduce to <= 0 HP) AND we are melee,
-                // we should capture it immediately if we are adjacent.
-
-                // BUT, the existing logic says: "// Capture happens via MoveUnit after HP reaches zero."
-                // This implies the player has to issue a *separate* Move command?
-                // Or does the UI auto-issue a move?
-                // Let's look at `city-combat.test.ts`:
-                // it("should allow capturing a city when HP is 0", () => { ... applyAction(..., { type: "MoveUnit", ... }) ... })
-                // So currently it requires a separate MoveUnit.
-
-                // However, the user scenario 2 says: "is attacked by a unit who would capture".
-                // This implies the Attack action itself might trigger the capture if it's the final blow?
-                // OR it just means the city is now capturable.
-
-                // If the user means "Attack action triggers capture", we should change behavior here.
-                // If the user means "MoveUnit action triggers capture", we should change `validateTileOccupancy`.
-
-                // Re-reading: "right now, if the city is attacked in this state, the garrisoned unit receives damage."
-                // This implies that currently, if I attack a 0 HP city with a unit in it, the UNIT takes damage instead of the city being captured?
-                // Wait, `handleAttack` checks `targetType`.
-                // If I target the CITY, I hit the city.
-                // If I target the UNIT, I hit the unit.
-                // If the city is 0 HP, and I target the CITY, I hit the city (and do nothing effectively, or reduce HP further into negative?).
-
-                // The issue is likely that when I try to *Move* into the city to capture it, `validateTileOccupancy` blocks me because there is a unit there.
-                // So I have to *Attack* the unit.
-                // But the user wants the city to be captured and the unit removed *without* having to kill the unit separately.
-
-                // So, if I MoveUnit into a 0 HP city with a garrison:
-                // `validateTileOccupancy` should allow it.
-                // `executeUnitMove` should remove the garrison.
-
-                // AND, if I Attack a 1 HP city with a garrison:
-                // The attack reduces HP to <= 0.
-                // Does the unit move in automatically?
-                // In `handleAttack` for units: "Move Attacker into tile if melee... if (defender.hp <= 0)".
-                // For cities, it currently says: "// Capture happens via MoveUnit after HP reaches zero."
-
-                // If I want to support "Attack triggers capture", I should add the move logic here.
-                // Given "both scenarios should result in the city being captured", and scenario 2 is "attacked by a unit",
-                // I should probably implement the "Move in on kill" logic for cities too, just like for units.
-
-                // So:
-                // 1. In `handleAttack` (City target):
-                //    If HP <= 0 and attacker is melee/adjacent:
-                //      - Remove any garrison unit.
-                //      - Capture city (change owner, reset HP).
-                //      - Move attacker into city.
-
                 const cityCoord = city.coord;
 
-                // Remove any garrisoned units
-                const garrison = state.units.find(u => hexEquals(u.coord, cityCoord));
+                // v1.0: Remove garrison on capture
                 if (garrison) {
                     unlinkPair(garrison, resolveLinkedPartner(state, garrison));
                     state.units = state.units.filter(u => u.id !== garrison.id);
@@ -500,6 +503,55 @@ export function processAutoMovement(state: GameState, playerId: string, specific
 
                         if (invalid) {
                             unit.autoMoveTarget = undefined;
+                        } else {
+                            // Target is valid but path is blocked (e.g. by units)
+                            // Try to find a partial path: Move to the closest reachable tile to the target
+                            const reachable = findReachableTiles(unit.coord, unit, state, 10); // Search range 10
+                            let bestTile: HexCoord | undefined;
+                            let minDist = Infinity;
+
+                            for (const [key, coord] of reachable) {
+                                const d = hexDistance(coord, unit.autoMoveTarget!);
+                                if (d < minDist) {
+                                    minDist = d;
+                                    bestTile = coord;
+                                }
+                            }
+
+                            if (bestTile && !hexEquals(bestTile, unit.coord)) {
+                                // Found a partial step!
+                                const partialPath = findPath(unit.coord, bestTile, unit, state);
+                                if (partialPath.length > 0) {
+                                    // Override path for this step
+                                    // We don't change autoMoveTarget, just move towards it as best we can
+                                    // Actually, we need to execute the move.
+                                    // Let's just set 'path' to this partial path and let the logic below handle it?
+                                    // But 'path' is const.
+                                    // We can just execute the move here and continue?
+                                    // Or break the loop and try again next turn?
+                                    // Better: Modify the logic to use this partial step.
+
+                                    // Let's just execute the move directly here and `continue` the outer loop (next move step)
+                                    // But we are inside a `while` loop for moves.
+                                    // If we move, we consume moves.
+
+                                    const nextStep = partialPath[0];
+                                    try {
+                                        handleMoveUnit(state, {
+                                            type: "MoveUnit",
+                                            playerId: unit.ownerId,
+                                            unitId: unit.id,
+                                            to: nextStep,
+                                            isAuto: true
+                                        });
+                                        // Continue to next move iteration
+                                        continue;
+                                    } catch (e) {
+                                        // Even partial move failed?
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -532,6 +584,7 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
         explorers = explorers.filter(u => u.id === specificUnitId);
     }
 
+
     if (explorers.length === 0) return;
 
     const revealedSet = new Set(state.revealed[playerId] || []);
@@ -552,36 +605,82 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
         // Check if current target is still valid (unexplored)
         if (unit.autoMoveTarget) {
             const targetKey = hexToString(unit.autoMoveTarget);
-            if (!revealedSet.has(targetKey)) {
-                const pathToTarget = findPath(unit.coord, unit.autoMoveTarget, unit, state);
-                if (pathToTarget.length > 0) {
-                    // Target is still unexplored and reachable, keep going
-                    continue;
-                }
+
+            // If target was revealed/explored, clear it and pick a new one
+            if (revealedSet.has(targetKey)) {
+                unit.autoMoveTarget = undefined;
+            } else {
+                // Target is still unexplored - stick with it!
+                // Don't re-evaluate for "better" targets, this causes loops
+                // The processAutoMovement will handle pathfinding each turn
+                // If temporarily blocked, scout waits; if permanently blocked, keeps trying
+                continue;
             }
-            // Target became explored or unreachable, find new one
-            unit.autoMoveTarget = undefined;
         }
 
-        // Find closest unexplored tile
-        let bestTile = null;
-        let minDist = Infinity;
+        // Find closest REACHABLE unexplored tile
+        // Build a list of candidates with their distances and paths
+        const candidates: Array<{ tile: typeof unexploredTiles[0], dist: number }> = [];
 
         for (const tile of unexploredTiles) {
             const dist = hexDistance(unit.coord, tile.coord);
-            if (dist >= minDist) continue;
-
             const path = findPath(unit.coord, tile.coord, unit, state);
-            if (path.length === 0) continue;
 
-            minDist = dist;
-            bestTile = tile;
+            // Only consider tiles that have a valid path
+            if (path.length > 0) {
+                candidates.push({ tile, dist });
+            }
         }
 
-        if (bestTile) {
-            unit.autoMoveTarget = bestTile.coord;
+        // Sort by distance and pick the closest reachable one
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => a.dist - b.dist);
+            unit.autoMoveTarget = candidates[0].tile.coord;
         } else {
-            unit.autoMoveTarget = undefined;
+            // No reachable unexplored tiles right now
+            // Fallback: Frontier Search
+            // Find the reachable tile that is closest to ANY unexplored tile
+            // This helps when the "unknown" is across water - we move to the coast.
+
+            const reachable = findReachableTiles(unit.coord, unit, state, 15); // Search range 15
+            let bestTile: HexCoord | undefined;
+            let minScore = Infinity; // Score = distance to unexplored
+
+            // Optimization: Instead of checking all unexplored tiles against all reachable tiles (O(N*M)),
+            // we can just check reachable tiles against the *closest* unexplored tile?
+            // Or just iterate reachable tiles and find distance to nearest unexplored?
+            // Since we already have `unexploredTiles`, let's try to find the "closest unexplored" to our current position
+            // and try to get as close to THAT as possible.
+
+            // Find closest unexplored tile (even if unreachable)
+            let closestUnexplored: HexCoord | undefined;
+            let closestDist = Infinity;
+
+            for (const tile of unexploredTiles) {
+                const d = hexDistance(unit.coord, tile.coord);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closestUnexplored = tile.coord;
+                }
+            }
+
+            if (closestUnexplored) {
+                // Now find the reachable tile that minimizes distance to this closest unexplored tile
+                for (const [key, coord] of reachable) {
+                    const d = hexDistance(coord, closestUnexplored);
+                    if (d < minScore) {
+                        minScore = d;
+                        bestTile = coord;
+                    }
+                }
+            }
+
+            if (bestTile && !hexEquals(bestTile, unit.coord)) {
+                unit.autoMoveTarget = bestTile;
+            } else {
+                // Truly stuck
+                unit.autoMoveTarget = undefined;
+            }
         }
     }
 }

@@ -33,8 +33,8 @@ export function generateWorld(settings: WorldGenSettings): GameState {
     const seed = resolveSeed(settings.seed);
     const rng = new WorldRng(seed);
     const dims = MAP_DIMS[settings.mapSize];
-    const width = dims.w;
-    const height = dims.h;
+    const width = dims.width;
+    const height = dims.height;
 
     const tiles: Tile[] = [];
     const tileMap = new Map<string, Tile>();

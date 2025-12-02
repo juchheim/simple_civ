@@ -133,6 +133,7 @@ export type Unit = {
     capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
     autoMoveTarget?: HexCoord;
     isAutoExploring?: boolean;
+    retaliatedAgainstThisTurn?: boolean; // v1.0: Track if unit was hit by city retaliation this turn
 };
 
 export type City = {
@@ -145,6 +146,8 @@ export type City = {
     storedProduction: number;
     buildings: BuildingType[];
     workedTiles: HexCoord[]; // Includes center
+    manualWorkedTiles?: HexCoord[]; // Player-pinned choices that override auto-optimization
+    manualExcludedTiles?: HexCoord[]; // Player explicitly unselected tiles (skip during auto-fill unless re-selected)
     currentBuild: { type: "Unit" | "Building" | "Project"; id: string; cost: number } | null;
     buildProgress: number;
     hp: number;
@@ -232,6 +235,7 @@ export type GameState = {
     contacts: ContactState;
     diplomacyOffers: DiplomacyOffer[];
     winnerId?: string;
+    usedCityNames?: string[]; // Track all city names ever used in this game
 };
 
 export type MapSize = "Tiny" | "Small" | "Standard" | "Large" | "Huge";
@@ -245,7 +249,7 @@ export type Action =
     | { type: "ChooseTech"; playerId: string; techId: TechId }
     | { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string }
     | { type: "RazeCity"; playerId: string; cityId: string }
-    | { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }
+    // | { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }
     | { type: "SetWorkedTiles"; playerId: string; cityId: string; tiles: HexCoord[] }
     | { type: "SetDiplomacy"; playerId: string; targetPlayerId: string; state: DiplomacyState }
     | { type: "ProposePeace"; playerId: string; targetPlayerId: string }

@@ -58,7 +58,7 @@
   - Ties resolve per section 17.
 
 ## 4. Setup & Start State
-- **Map size**: Tiny 12×8, Small 16×12, Standard 20×14, Large 24×18, Huge 32×24.
+- **Map size**: Tiny 15×11, Small 19×15, Standard 23×17, Large 25×19, Huge 34×25.
 - **Civ count caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
 - **Players**: 1–4 (human/AI/hotseat). Rules identical for all.
 - **Starting units**: each civ begins with 1 Settler + 1 Scout.
@@ -86,7 +86,7 @@
 - **City center minimums**: enforce ≥2 Food and ≥1 Production after terrain/overlay/civ modifiers; base city Science +1 per city.
 - **Storage & overflow**: Food and Production overflow carry after growth/completion.
 - **Growth cost**: base 30 for Pop 2; scales by Pop range multipliers:
-  - Pop 2–4: ×1.20, Pop 5–6: ×1.27, Pop 7–8: ×1.32, Pop 9–10: ×1.37, Pop 11+: ×1.42.
+  - Pop 2–4: ×1.30, Pop 5–6: ×1.40, Pop 7–8: ×1.58, Pop 9–10: ×1.68, Pop 11+: ×2.00.
   - Modifiers: Farmstead ×0.9, Jade Granary ×0.85 (stack multiplicatively on base formula).
 - **Production**: stored per city; switching builds discards current progress.
 - **Science**: global per turn; applied only to selected tech; pauses if none selected.
@@ -110,11 +110,15 @@
   - Build categories: Unit, Building, Project (one active slot). Switching clears progress.
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
-  - Base city HP 20; capture resets to 8. Base defense strength 3.
+  - Base city HP 15; capture resets to 8. Base defense strength 3.
   - City heal 1 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
-  - Garrison enables city attack; City Ward adds +4 defense and +1 city attack.
+  - **Garrison Bonuses**:
+    - **Melee Unit**: +2 City Defense, +1 City Attack Strength, Retaliation Range 1.
+    - **Ranged Unit**: +1 City Defense, +3 City Attack Strength, Retaliation Range 2.
+  - City Ward adds +4 defense and +1 city attack.
 - **City Attack**:
   - Base city attack strength 3; range 2; one shot/turn if unfired and garrisoned.
+  - **Automatic Retaliation**: If a city with a garrison is attacked by a unit within the garrison's Retaliation Range, the city automatically strikes back after taking damage.
 - **Razing**:
   - Non-capitals may be razed by owner (removes city). Capitals cannot be razed.
 
@@ -135,12 +139,12 @@
 ## 9. Units
 - **Base Units** (atk/def/rng/move/HP/cost/domain/capture/vision):
   *Note: Unit costs scale with game turn (Base * (1 + Turn/25)).*
-  - Settler: 0/0/1/1/1/20, Civilian, cannot capture, vision 2.
-  - Scout: 1/1/1/2/10/25, Land, no capture, vision 3.
-  - Spear Guard: 2/2/1/1/10/30, Land, can capture, vision 2.
-  - Bow Guard: 2/1/2/1/10/30, Land, no capture, vision 2.
-  - Riders: 2/2/1/2/10/35, Land, can capture, vision 2.
-  - River Boat: 2/2/1/3/10/35, Naval, no capture, vision 2.
+  - Settler: 0/0/1/1/1/18, Civilian, cannot capture, vision 2.
+  - Scout: 1/1/1/2/10/23, Land, no capture, vision 3.
+  - Spear Guard: 2/2/1/1/10/27, Land, can capture, vision 2.
+  - Bow Guard: 2/1/2/1/10/27, Land, no capture, vision 2.
+  - Riders: 2/2/1/2/10/32, Land, can capture, vision 2.
+  - River Boat: 2/2/1/3/10/32, Naval, no capture, vision 2.
 - **Army Units** (formed via projects; HP 15):
   - Army Scout 3/3/1/2, no capture, vision 3.
   - Army Spear Guard 8/4/1/1, capture, vision 2.
@@ -190,7 +194,7 @@
   - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
 
 ## 11. Technology
-- **Costs by era**: Hearth 20, Banner 50, Engine 85 Science.
+- **Costs by era**: Hearth 20, Banner 40, Engine 65 Science.
 - **Single active tech**: Science applies each Start of Turn; on completion choose next (research pauses if none).
 - **Unlocks** (one per tech):
   - Fieldcraft → Farmstead.
@@ -226,13 +230,13 @@
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
-  - Observatory (120, Star Charts) → milestone, +Science in city, unlocks Grand Academy.
-  - Grand Academy (165, after Observatory) → +1 Science per city, unlocks Grand Experiment.
-  - Grand Experiment (210, after Grand Academy) → Progress Victory on completion.
+  - Observatory (110, Star Charts) → milestone, +Science in city, unlocks Grand Academy.
+  - Grand Academy (155, after Observatory) → +1 Science per city, unlocks Grand Experiment.
+  - Grand Experiment (200, after Grand Academy) → Progress Victory on completion.
 - **Form Army Projects** (Army Doctrine):
-  - Form Army — Spear Guard (15): convert Spear Guard → Army Spear Guard.
-  - Form Army — Bow Guard (15): convert Bow Guard → Army Bow Guard.
-  - Form Army — Riders (20): convert Riders → Army Riders.
+  - Form Army — Spear Guard (10): convert Spear Guard → Army Spear Guard.
+  - Form Army — Bow Guard (10): convert Bow Guard → Army Bow Guard.
+  - Form Army — Riders (10): convert Riders → Army Riders.
 - **Milestone Marker**:
   - JadeGranaryComplete (0 cost) tracks Jade Granary completion (not player-selectable).
 - **Wonders**: not otherwise defined in v0.94 beyond unique buildings/projects above.
@@ -247,7 +251,7 @@
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation
-- **Sizes**: Tiny 12×8, Small 16×12, Standard 20×14, Large 24×18, Huge 32×24.
+- **Sizes**: Tiny 15×11, Small 19×15, Standard 23×17, Large 25×19, Huge 34×25.
 - **Civ caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
 - **Terrain generation**: mix of Plains/Hills/Forest/Marsh/Desert/Mountain/Coast/Deep Sea with overlays (River edges, Rich Soil, Ore Vein, Sacred Site).
 - **Start fairness**: each civ placed in balanced start zones with access to workable tiles; capitals get civ-specific first name.

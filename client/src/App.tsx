@@ -4,7 +4,8 @@ import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
 import { VictoryLossScreen } from "./components/VictoryLossScreen";
-import { Action, HexCoord, MapSize, TechId, UNITS, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, findPath } from "@simple-civ/engine";
+import { WarDeclarationModal } from "./components/HUD/sections";
+import { Action, HexCoord, MapSize, TechId, UNITS, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, findPath, DiplomacyState } from "@simple-civ/engine";
 import { hexEquals, hexDistance, hexToString } from "./utils/hex";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
@@ -40,6 +41,8 @@ function App() {
     const [showTitleScreen, setShowTitleScreen] = useState(true);
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
     const [mapView, setMapView] = useState<MapViewport | null>(null);
+    const [pendingWarAttack, setPendingWarAttack] = useState<{ action: Action; targetPlayerId: string } | null>(null);
+    const [showGameMenu, setShowGameMenu] = useState(false);
 
     // Auto-clear error after 3 seconds
     useEffect(() => {
@@ -63,14 +66,22 @@ function App() {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
-                setSelectedCoord(null);
-                setSelectedUnitId(null);
+                if (selectedUnitId || selectedCoord) {
+                    setSelectedCoord(null);
+                    setSelectedUnitId(null);
+                } else if (showTechTree) {
+                    setShowTechTree(false);
+                } else if (showGameMenu) {
+                    setShowGameMenu(false);
+                } else {
+                    setShowGameMenu(true);
+                }
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
+    }, [selectedUnitId, selectedCoord, showTechTree, showGameMenu]);
 
     const handleStartNewGame = () => {
         try {
@@ -138,15 +149,25 @@ function App() {
                 const targetUnit = gameState.units.find(u => hexEquals(u.coord, coord));
 
                 if (targetUnit && targetUnit.ownerId !== playerId) {
-                    handleAction({
+                    const attackAction: Action = {
                         type: "Attack",
                         playerId,
                         attackerId: unit.id,
                         targetId: targetUnit.id,
                         targetType: "Unit"
-                    });
-                    setSelectedCoord(null);
-                    setSelectedUnitId(null);
+                    };
+
+                    // Check if attacking would declare war
+                    const diplomacyState = gameState.diplomacy[playerId]?.[targetUnit.ownerId] || DiplomacyState.Peace;
+                    if (diplomacyState === DiplomacyState.Peace) {
+                        // Show war declaration modal
+                        setPendingWarAttack({ action: attackAction, targetPlayerId: targetUnit.ownerId });
+                    } else {
+                        // Already at war, execute attack immediately
+                        handleAction(attackAction);
+                        setSelectedCoord(null);
+                        setSelectedUnitId(null);
+                    }
                     return;
                 }
 
@@ -156,15 +177,25 @@ function App() {
                     const unitStats = UNITS[unit.type];
                     const dist = hexDistance(unit.coord, coord);
                     if (dist <= unitStats.rng) {
-                        handleAction({
+                        const attackAction: Action = {
                             type: "Attack",
                             playerId,
                             attackerId: unit.id,
                             targetId: targetCity.id,
                             targetType: "City"
-                        });
-                        setSelectedCoord(null);
-                        setSelectedUnitId(null);
+                        };
+
+                        // Check if attacking would declare war
+                        const diplomacyState = gameState.diplomacy[playerId]?.[targetCity.ownerId] || DiplomacyState.Peace;
+                        if (diplomacyState === DiplomacyState.Peace) {
+                            // Show war declaration modal
+                            setPendingWarAttack({ action: attackAction, targetPlayerId: targetCity.ownerId });
+                        } else {
+                            // Already at war, execute attack immediately
+                            handleAction(attackAction);
+                            setSelectedCoord(null);
+                            setSelectedUnitId(null);
+                        }
                         return;
                     }
                 }
@@ -547,6 +578,8 @@ function App() {
                 onCenterCity={setCityToCenter}
                 mapView={mapView}
                 onNavigateMap={handleNavigateMapView}
+                showGameMenu={showGameMenu}
+                onToggleGameMenu={setShowGameMenu}
             />
             {showTechTree && (
                 <TechTree
@@ -574,6 +607,27 @@ function App() {
                     }}
                 />
             )}
+            {pendingWarAttack && gameState && (() => {
+                const targetPlayer = gameState.players.find(p => p.id === pendingWarAttack.targetPlayerId);
+                return targetPlayer ? (
+                    <WarDeclarationModal
+                        targetCivName={targetPlayer.civName}
+                        targetColor={targetPlayer.color}
+                        onConfirm={() => {
+                            // Declare war first
+                            handleAction({ type: "SetDiplomacy", playerId, targetPlayerId: pendingWarAttack.targetPlayerId, state: DiplomacyState.War });
+                            // Then execute the attack
+                            handleAction(pendingWarAttack.action);
+                            setPendingWarAttack(null);
+                            setSelectedCoord(null);
+                            setSelectedUnitId(null);
+                        }}
+                        onCancel={() => {
+                            setPendingWarAttack(null);
+                        }}
+                    />
+                ) : null;
+            })()}
             {error && (
                 <div style={{
                     position: "fixed",

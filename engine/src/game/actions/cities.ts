@@ -27,54 +27,54 @@ import { hexEquals, hexDistance, hexSpiral, hexToString } from "../../core/hex.j
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
-import { canBuild } from "../rules.js";
+import { canBuild, getMinimumCityDistance } from "../rules.js";
 import { getUnitCost } from "../units.js";
 
-export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
-    const city = state.cities.find(c => c.id === action.cityId);
-    if (!city) throw new Error("City not found");
-    if (city.ownerId !== action.playerId) throw new Error("Not your city");
-    if (city.hasFiredThisTurn) throw new Error("City already attacked this turn");
+// export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
+//     const city = state.cities.find(c => c.id === action.cityId);
+//     if (!city) throw new Error("City not found");
+//     if (city.ownerId !== action.playerId) throw new Error("Not your city");
+//     if (city.hasFiredThisTurn) throw new Error("City already attacked this turn");
 
-    const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === action.playerId);
-    if (!garrison) throw new Error("No garrison present");
+//     const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === action.playerId);
+//     if (!garrison) throw new Error("No garrison present");
 
-    const target = state.units.find(u => u.id === action.targetUnitId);
-    if (!target) throw new Error("Target not found");
-    if (target.ownerId === action.playerId) throw new Error("Cannot target own unit");
+//     const target = state.units.find(u => u.id === action.targetUnitId);
+//     if (!target) throw new Error("Target not found");
+//     if (target.ownerId === action.playerId) throw new Error("Cannot target own unit");
 
-    const dist = hexDistance(city.coord, target.coord);
-    if (dist > 2) throw new Error("Target out of range");
-    if (!hasClearLineOfSight(state, city.coord, target.coord)) throw new Error("Line of sight blocked");
+//     const dist = hexDistance(city.coord, target.coord);
+//     if (dist > 2) throw new Error("Target out of range");
+//     if (!hasClearLineOfSight(state, city.coord, target.coord)) throw new Error("Line of sight blocked");
 
-    // v0.99 Fix: Strictly enforce visibility check
-    const targetKey = hexToString(target.coord);
-    if (state.visibility[action.playerId] && !state.visibility[action.playerId].includes(targetKey)) {
-        throw new Error("Target not visible");
-    }
+//     // v0.99 Fix: Strictly enforce visibility check
+//     const targetKey = hexToString(target.coord);
+//     if (state.visibility[action.playerId] && !state.visibility[action.playerId].includes(targetKey)) {
+//         throw new Error("Target not visible");
+//     }
 
-    const randIdx = Math.floor(state.seed % 3);
-    state.seed = (state.seed * 9301 + 49297) % 233280;
-    const randomMod = ATTACK_RANDOM_BAND[randIdx];
+//     const randIdx = Math.floor(state.seed % 3);
+//     state.seed = (state.seed * 9301 + 49297) % 233280;
+//     const randomMod = ATTACK_RANDOM_BAND[randIdx];
 
-    const attackPower = CITY_ATTACK_BASE + (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) + randomMod;
-    let defensePower = getEffectiveUnitStats(target, state).def;
-    const tile = state.map.tiles.find(t => hexEquals(t.coord, target.coord));
-    if (tile) defensePower += TERRAIN[tile.terrain].defenseMod;
-    if (target.state === UnitState.Fortified) defensePower += 1;
+//     const attackPower = CITY_ATTACK_BASE + (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) + randomMod;
+//     let defensePower = getEffectiveUnitStats(target, state).def;
+//     const tile = state.map.tiles.find(t => hexEquals(t.coord, target.coord));
+//     if (tile) defensePower += TERRAIN[tile.terrain].defenseMod;
+//     if (target.state === UnitState.Fortified) defensePower += 1;
 
-    const delta = attackPower - defensePower;
-    const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
-    const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
+//     const delta = attackPower - defensePower;
+//     const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
+//     const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
 
-    target.hp -= damage;
-    if (target.hp <= 0) {
-        state.units = state.units.filter(u => u.id !== target.id);
-    }
+//     target.hp -= damage;
+//     if (target.hp <= 0) {
+//         state.units = state.units.filter(u => u.id !== target.id);
+//     }
 
-    city.hasFiredThisTurn = true;
-    return state;
-}
+//     city.hasFiredThisTurn = true;
+//     return state;
+// }
 
 export function handleFoundCity(state: GameState, action: { type: "FoundCity"; playerId: string; unitId: string; name: string }): GameState {
     const unit = state.units.find(u => u.id === action.unitId);
@@ -93,7 +93,7 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     if (tile.hasCityCenter) throw new Error("City already exists here");
 
     // Check minimum distance to any existing city (distance 3 minimum)
-    const MIN_CITY_DISTANCE = 3;
+    const MIN_CITY_DISTANCE = getMinimumCityDistance(state, action.playerId);
     for (const city of state.cities) {
         const distance = hexDistance(unit.coord, city.coord);
         if (distance < MIN_CITY_DISTANCE) {
@@ -130,6 +130,12 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         milestones: [],
         savedProduction: {},
     };
+
+    // Track used city name
+    if (!state.usedCityNames) state.usedCityNames = [];
+    if (!state.usedCityNames.includes(newCity.name)) {
+        state.usedCityNames.push(newCity.name);
+    }
 
     claimCityTerritory(newCity, state, action.playerId, 1);
     newCity.workedTiles = ensureWorkedTiles(newCity, state);
@@ -237,6 +243,34 @@ export function handleSetWorkedTiles(state: GameState, action: { type: "SetWorke
         if (!TERRAIN[owned.terrain].workable) throw new Error("Tile not workable");
     }
 
-    city.workedTiles = ensureWorkedTiles({ ...city, workedTiles: coords }, state);
+    const pinned = coords.reduce<HexCoord[]>((acc, coord) => {
+        const key = hexToString(coord);
+        if (acc.some(c => hexToString(c) === key)) return acc;
+        acc.push(coord);
+        return acc;
+    }, []);
+
+    const previousPinned = city.manualWorkedTiles ?? [];
+    const previousExcluded = city.manualExcludedTiles ?? [];
+    const removedFromCurrent = city.workedTiles.filter(c => !coords.some(nc => hexEquals(nc, c)));
+    const removedFromPinned = previousPinned.filter(c => !coords.some(nc => hexEquals(nc, c)));
+
+    const nextExcluded: HexCoord[] = [];
+    const pushUnique = (coord: HexCoord) => {
+        if (nextExcluded.some(c => hexEquals(c, coord))) return;
+        nextExcluded.push(coord);
+    };
+    [...previousExcluded, ...removedFromCurrent, ...removedFromPinned].forEach(pushUnique);
+
+    // Do not exclude pins that are explicitly re-selected
+    const finalExcluded = nextExcluded.filter(c => !pinned.some(p => hexEquals(p, c)));
+
+    city.manualWorkedTiles = pinned;
+    city.manualExcludedTiles = finalExcluded;
+    city.workedTiles = ensureWorkedTiles(
+        { ...city, workedTiles: coords, manualWorkedTiles: pinned, manualExcludedTiles: finalExcluded },
+        state,
+        { pinned, excluded: finalExcluded, fillMissing: false },
+    );
     return state;
 }

@@ -84,8 +84,7 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 // At 54 avg pop, this reduces bonus from +10/+10 to +6/+6
 export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // +1 combat strength per 8 pop
 
-// v0.98: AetherianVanguard military production bonus
-export const AETHERIAN_MILITARY_PRODUCTION_MULT = 0.90; // 10% faster military production (Nerfed from 15%)
+
 
 // v0.98 Update 4: ForgeClans "Master Craftsmen" - 25% faster project completion
 export const FORGE_CLANS_PROJECT_SPEED_MULT = 0.80; // Projects cost 20% less effective production
@@ -106,6 +105,7 @@ export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 3; // Tiles from capital
 export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // +1 Defense
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near science buildings
+// v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near Scriptorium/Academy cities
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 2; // Tiles from Scriptorium/Academy city
 export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense (stronger than Starborne to help them survive)
 
@@ -123,13 +123,24 @@ export const DAMAGE_BASE = 4;
 export const CITY_WARD_ATTACK_BONUS = 1;
 export const CITY_ATTACK_RANGE = 2;
 
-// Map Sizes (v0.96 balance: Increased smaller map sizes to reduce stalls)
+// v1.0: Garrison System Redesign
+// Garrisons provide combat bonuses rather than being attackable HP barriers
+export const GARRISON_MELEE_DEFENSE_BONUS = 2;  // SpearGuard, Riders
+export const GARRISON_MELEE_ATTACK_BONUS = 1;
+export const GARRISON_MELEE_RETALIATION_RANGE = 1; // Adjacent only
+
+export const GARRISON_RANGED_DEFENSE_BONUS = 1;  // BowGuard
+export const GARRISON_RANGED_ATTACK_BONUS = 3;
+export const GARRISON_RANGED_RETALIATION_RANGE = 2; // Can hit back at range
+
+// Map Dimensions (Width x Height)
+// v0.98 Update 8: Increased all sizes by ~5% (approx 10% more tiles) to encourage expansion
 export const MAP_DIMS = {
-    Tiny: { w: 14, h: 10 },      // Was 12×8 (96 tiles), now 140 tiles (+46%)
-    Small: { w: 18, h: 14 },     // Was 16×12 (192 tiles), now 252 tiles (+31%)
-    Standard: { w: 22, h: 16 },  // Was 20×14 (280 tiles), now 352 tiles (+26%)
-    Large: { w: 24, h: 18 },     // Unchanged (432 tiles)
-    Huge: { w: 32, h: 24 },      // Unchanged (768 tiles)
+    Tiny: { width: 15, height: 11 },     // Was 14x10 (140) -> 165 (+18%)
+    Small: { width: 19, height: 15 },    // Was 18x14 (252) -> 285 (+13%)
+    Standard: { width: 23, height: 17 }, // Was 22x16 (352) -> 391 (+11%)
+    Large: { width: 25, height: 19 },    // Was 24x18 (432) -> 475 (+10%)
+    Huge: { width: 34, height: 25 },     // Was 32x24 (768) -> 850 (+10%)
 };
 
 // Data Tables
@@ -179,13 +190,13 @@ export type UnitStats = {
 };
 
 export const UNITS: Record<UnitType, UnitStats> = {
-    // v0.98 Update 3: Settler HP set to 1 for testing
-    [UnitType.Settler]: { atk: 0, def: 2, rng: 1, move: 1, hp: 1, cost: 20, domain: UnitDomain.Civilian, canCaptureCity: false, vision: 2 },
-    [UnitType.Scout]: { atk: 1, def: 1, rng: 1, move: 2, hp: 10, cost: 25, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
-    [UnitType.SpearGuard]: { atk: 2, def: 2, rng: 1, move: 1, hp: 10, cost: 30, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.BowGuard]: { atk: 2, def: 1, rng: 2, move: 1, hp: 10, cost: 30, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
-    [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 35, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.RiverBoat]: { atk: 2, def: 2, rng: 1, move: 3, hp: 10, cost: 35, domain: UnitDomain.Naval, canCaptureCity: false, vision: 2 },
+    // v1.0: Unit costs reduced ~10% to encourage more production
+    [UnitType.Settler]: { atk: 0, def: 2, rng: 1, move: 1, hp: 1, cost: 18, domain: UnitDomain.Civilian, canCaptureCity: false, vision: 2 },
+    [UnitType.Scout]: { atk: 1, def: 1, rng: 1, move: 2, hp: 10, cost: 23, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
+    [UnitType.SpearGuard]: { atk: 2, def: 2, rng: 1, move: 1, hp: 10, cost: 27, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.BowGuard]: { atk: 2, def: 1, rng: 2, move: 1, hp: 10, cost: 27, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 32, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.RiverBoat]: { atk: 2, def: 2, rng: 1, move: 3, hp: 10, cost: 32, domain: UnitDomain.Naval, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyScout]: { atk: 3, def: 3, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -259,21 +270,21 @@ export type ProjectData = {
 
 export const PROJECTS: Record<ProjectId, ProjectData> = {
     [ProjectId.Observatory]: {
-        cost: 110,  // v0.99: Reduced from 125
+        cost: 180,  // v1.1: Increased from 150 (+20%, total +63% from base)
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 155,  // v0.99: Reduced from 175
+        cost: 250,  // v1.1: Increased from 210 (+19%, total +61% from base)
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 200,  // v0.99: Reduced from 225
+        cost: 330,  // v1.1: Increased from 270 (+22%, total +65% from base)
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

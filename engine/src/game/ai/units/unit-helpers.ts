@@ -287,3 +287,85 @@ export function stepToward(
 
     return state;
 }
+
+// --- TACTICAL HELPERS (v1.0) ---
+
+export function getThreatLevel(state: GameState, city: any, playerId: string): "none" | "low" | "high" | "critical" {
+    const enemies = enemiesWithin(state, playerId, city.coord, 3);
+    if (enemies === 0) return "none";
+
+    const cityHpPercent = city.hp / city.maxHp;
+    if (cityHpPercent <= 0.5 || enemies >= 3) return "critical";
+    if (enemies >= 1) return "high";
+    return "low";
+}
+
+export function shouldRetreat(unit: any, state: GameState, playerId: string): boolean {
+    const nearbyEnemies = enemiesWithin(state, playerId, unit.coord, 2);
+    if (nearbyEnemies === 0) return false;
+
+    const nearbyFriends = friendlyAdjacencyCount(state, playerId, unit.coord);
+    const unitHpPercent = unit.hp / unit.maxHp;
+
+    // Retreat if critically wounded and outnumbered
+    if (unitHpPercent < 0.3 && nearbyEnemies > nearbyFriends) return true;
+
+    // Retreat if completely overwhelmed (1v3+) even if healthy
+    if (nearbyEnemies >= 3 && nearbyFriends === 0) return true;
+
+    return false;
+}
+
+export function getBestSkirmishPosition(
+    unit: any,
+    target: any,
+    state: GameState,
+    playerId: string
+): { q: number; r: number } | null {
+    const stats = UNITS[unit.type as UnitType];
+    if (stats.rng <= 1) return null; // Melee units don't skirmish
+
+    const currentDist = hexDistance(unit.coord, target.coord);
+    const desiredDist = stats.rng;
+
+    // If we are already at max range, stay there (unless we can move to better terrain at same range)
+    if (currentDist === desiredDist) {
+        // Check if current tile is safe-ish
+        const enemiesAdj = enemiesWithin(state, playerId, unit.coord, 1);
+        if (enemiesAdj === 0) return unit.coord;
+    }
+
+    const neighbors = getNeighbors(unit.coord);
+    const candidates = neighbors.map(n => ({
+        coord: n,
+        dist: hexDistance(n, target.coord),
+        defense: tileDefenseScore(state, n),
+        enemiesAdj: enemiesWithin(state, playerId, n, 1)
+    }));
+
+    // Filter valid moves
+    const valid = candidates.filter(c => {
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, c.coord));
+        if (!tile || (tile.ownerId && tile.ownerId !== playerId && state.diplomacy[playerId]?.[tile.ownerId] !== DiplomacyState.War)) return false; // Respect borders if not at war
+        if (state.units.some(u => hexEquals(u.coord, c.coord))) return false; // Blocked
+        return true;
+    });
+
+    // Sort by: 
+    // 1. Safety (0 adjacent enemies)
+    // 2. Range (closest to max range without exceeding it)
+    // 3. Defense bonus
+    valid.sort((a, b) => {
+        const aSafe = a.enemiesAdj === 0 ? 1 : 0;
+        const bSafe = b.enemiesAdj === 0 ? 1 : 0;
+        if (aSafe !== bSafe) return bSafe - aSafe;
+
+        const aRangeScore = Math.abs(desiredDist - a.dist);
+        const bRangeScore = Math.abs(desiredDist - b.dist);
+        if (aRangeScore !== bRangeScore) return aRangeScore - bRangeScore;
+
+        return b.defense - a.defense;
+    });
+
+    return valid.length > 0 ? valid[0].coord : null;
+}

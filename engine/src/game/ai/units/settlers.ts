@@ -10,13 +10,14 @@ import {
     TERRAIN,
     UNITS
 } from "../../../core/constants.js";
+import { getMinimumCityDistance } from "../../rules.js";
 import { scoreCitySite } from "../../ai-heuristics.js";
 import { tryAction } from "../shared/actions.js";
 import { sortByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { getPersonalityForPlayer } from "../personality.js";
 
-function validCityTile(tile: any, state: GameState): boolean {
+function validCityTile(tile: any, state: GameState, playerId: string): boolean {
     if (!tile) return false;
     if (tile.hasCityCenter) return false;
     if (tile.ownerId) return false;
@@ -24,7 +25,7 @@ function validCityTile(tile: any, state: GameState): boolean {
     if (!TERRAIN[terrain].workable) return false;
     if (terrain === TerrainType.Coast || terrain === TerrainType.DeepSea) return false;
 
-    const MIN_CITY_DISTANCE = 3;
+    const MIN_CITY_DISTANCE = getMinimumCityDistance(state, playerId);
     for (const city of state.cities) {
         const distance = hexDistance(tile.coord, city.coord);
         if (distance < MIN_CITY_DISTANCE) {
@@ -40,7 +41,7 @@ function settleHereIsBest(tile: any, state: GameState, playerId: string): boolea
     const currentScore = scoreCitySite(tile, state, playerId, personality);
     const neighborScores = getNeighbors(tile.coord)
         .map(c => state.map.tiles.find(t => hexEquals(t.coord, c)))
-        .filter((t): t is any => !!t && validCityTile(t, state))
+        .filter((t): t is any => !!t && validCityTile(t, state, playerId))
         .map(t => scoreCitySite(t, state, playerId, personality));
     const bestNeighbor = neighborScores.length ? Math.max(...neighborScores) : -Infinity;
     return currentScore >= bestNeighbor - 1;
@@ -64,7 +65,9 @@ function assessSettlerSafety(
     const nearbyEnemyMilitary = state.units.filter(u =>
         potentialThreats.includes(u.ownerId) &&
         UNITS[u.type].domain !== "Civilian" &&
-        hexDistance(settlerCoord, u.coord) <= 5
+        u.type !== UnitType.Scout && // v1.0 Fix: Ignore scouts so settlers don't freeze
+        u.type !== UnitType.ArmyScout &&
+        hexDistance(settlerCoord, u.coord) <= 3 // v1.0 Fix: Reduced from 5 to 3
     );
 
     const warEnemies = state.players
@@ -131,7 +134,7 @@ function detectNearbyDanger(
             distance: hexDistance(settlerCoord, u.coord),
             isWarEnemy: warEnemies.includes(u.ownerId)
         }))
-        .filter(({ distance }) => distance <= 5) // Increased detection range to 5
+        .filter(({ distance }) => distance <= 3) // v1.0 Fix: Reduced from 5 to 3
         .sort((a, b) => {
             if (a.isWarEnemy !== b.isWarEnemy) return a.isWarEnemy ? -1 : 1;
             return a.distance - b.distance;
@@ -247,7 +250,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
         if (liveSettler.type !== UnitType.Settler) continue;
 
-        if (validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
+        if (validCityTile(currentTile, next, playerId) && settleHereIsBest(currentTile, next, playerId)) {
             const player = next.players.find(p => p.id === playerId);
             const civNames = player ? CITY_NAMES[player.civName] : [];
             const usedNames = new Set(next.cities.map(c => c.name));
@@ -267,7 +270,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
             .filter(({ coord, tile }) =>
                 tile &&
-                validCityTile(tile, next) &&
+                validCityTile(tile, next, playerId) &&
                 !hexEquals(coord, liveSettler.coord)
             )
             .map(({ coord, tile }) => ({
@@ -307,7 +310,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         if (!moved) {
             const neighborOptions = getNeighbors(liveSettler.coord)
                 .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
-                .filter(({ tile }) => tile && validCityTile(tile, next));
+                .filter(({ tile }) => tile && validCityTile(tile, next, playerId));
             const scored = neighborOptions
                 .map(({ coord, tile }) => ({
                     coord,
@@ -330,7 +333,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         if (updatedSettler.type !== UnitType.Settler) continue;
 
         currentTile = next.map.tiles.find(t => hexEquals(t.coord, updatedSettler.coord));
-        if (currentTile && validCityTile(currentTile, next) && settleHereIsBest(currentTile, next, playerId)) {
+        if (currentTile && validCityTile(currentTile, next, playerId) && settleHereIsBest(currentTile, next, playerId)) {
             const player = next.players.find(p => p.id === playerId);
             const civNames = player ? CITY_NAMES[player.civName] : [];
             const usedNames = new Set(next.cities.map(c => c.name));

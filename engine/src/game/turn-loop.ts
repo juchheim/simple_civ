@@ -13,7 +13,7 @@ import {
     handleSwapUnits,
 } from "./actions/units.js";
 import {
-    handleCityAttack,
+    // handleCityAttack,
     handleFoundCity,
     handleRazeCity,
     handleSetCityBuild,
@@ -46,9 +46,9 @@ export function applyAction(state: GameState, action: Action): GameState {
         case "Attack":
             updatedState = handleAttack(nextState, action);
             break;
-        case "CityAttack":
-            updatedState = handleCityAttack(nextState, action);
-            break;
+        // case "CityAttack":
+        //     updatedState = handleCityAttack(nextState, action);
+        //     break;
         case "FoundCity":
             updatedState = handleFoundCity(nextState, action);
             break;

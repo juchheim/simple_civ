@@ -10,7 +10,7 @@ import {
     TerrainType,
     DiplomacyState,
 } from "../../core/types.js";
-import { canBuild, getTileYields } from "../rules.js";
+import { canBuild, getMinimumCityDistance, getTileYields } from "../rules.js";
 import { tryAction } from "./shared/actions.js";
 import { tileWorkingPriority, tilesByPriority } from "./city-heuristics.js";
 import { AiPersonality, getPersonalityForPlayer } from "./personality.js";
@@ -225,10 +225,11 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Building", id: BuildingType.LumberMill },
         { type: "Building", id: BuildingType.Forgeworks },
         { type: "Building", id: BuildingType.CityWard },
-        { type: "Unit", id: UnitType.Settler },
+        { type: "Unit", id: UnitType.Settler }, // Normal priority
         { type: "Unit", id: UnitType.SpearGuard },
         { type: "Unit", id: UnitType.Riders },
     ];
+
     const conquest: BuildOption[] = [
         ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
         { type: "Unit", id: UnitType.SpearGuard },
@@ -327,9 +328,7 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
 }
 
 function countAvailableCitySites(state: GameState, playerId: string, limit: number = 10): number {
-    // v0.99 Tuning: Jade Covenant can settle closer (2 tiles) to maximize "wide" playstyle
-    const player = state.players.find(p => p.id === playerId);
-    const MIN_CITY_DISTANCE = player?.civName === "JadeCovenant" ? 2 : 3;
+    const MIN_CITY_DISTANCE = getMinimumCityDistance(state, playerId);
     const MAX_EXPANSION_RANGE = 12; // Reduced from 15 to ensure realistic targets
     let count = 0;
 

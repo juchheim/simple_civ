@@ -29,6 +29,11 @@ import {
 import { hexEquals, hexDistance } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
 
+export function getMinimumCityDistance(state: GameState, playerId: string): number {
+    const player = state.players.find(p => p.id === playerId);
+    return player?.civName === "JadeCovenant" ? 2 : 3;
+}
+
 // --- Yields ---
 
 export function getTileYields(tile: Tile): Yields {
@@ -172,6 +177,9 @@ export function getCityYields(city: City, state: GameState): Yields {
     if (player?.completedProjects.includes(ProjectId.JadeGranaryComplete)) {
         total.F += 1;
     }
+
+    // v1.0: ScholarKingdoms "Fortified Knowledge" - Science Bonus
+
 
     return total;
 }

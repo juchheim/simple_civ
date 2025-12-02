@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType } from "@simple-civ/engine";
+import React from "react";
+import { applyAction } from "@simple-civ/engine";
 import { CityPanel } from "./CityPanel";
 import { CityBuildOptions } from "../hooks";
 
@@ -129,11 +131,52 @@ describe("CityPanel", () => {
             />,
         );
 
-        fireEvent.click(screen.getByRole("button", { name: /\(0,1\) Plains/ }));
+        fireEvent.click(screen.getByLabelText("Tile 0,1 (Plains)"));
 
         expect(onSetWorkedTiles).toHaveBeenCalledWith(
             "city-1",
             expect.arrayContaining([{ q: 0, r: 1 }]),
         );
+    });
+
+    it("removes a worked tile when clicking to deselect (integration with applyAction)", () => {
+        const city = { ...baseCity(), pop: 2, workedTiles: [{ q: 0, r: 0 }, { q: 0, r: 1 }] };
+        const initialState = baseGameState(city);
+        const Wrapper: React.FC = () => {
+            const [gameState, setGameState] = React.useState<GameState>(initialState);
+            const currentCity = gameState.cities[0];
+            return (
+                <CityPanel
+                    city={currentCity}
+                    isMyTurn={true}
+                    playerId="p1"
+                    gameState={gameState}
+                    units={[]}
+                    buildOptions={defaultBuildOptions}
+                    onBuild={vi.fn()}
+                    onRazeCity={vi.fn()}
+                    onCityAttack={vi.fn()}
+                    onSetWorkedTiles={(cityId, tiles) => {
+                        setGameState(prev => applyAction(prev, {
+                            type: "SetWorkedTiles",
+                            playerId: "p1",
+                            cityId,
+                            tiles,
+                        }));
+                    }}
+                    onSelectUnit={vi.fn()}
+                    onClose={vi.fn()}
+                />
+            );
+        };
+
+        render(<Wrapper />);
+
+        const workedTileButton = screen.getByLabelText("Tile 0,1 (Plains)");
+        expect(workedTileButton).toHaveClass("is-worked");
+
+        fireEvent.click(workedTileButton);
+
+        return waitFor(() => expect(workedTileButton).not.toHaveClass("is-worked"));
     });
 });

@@ -68,6 +68,8 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
             }
         }
         unit.hasAttacked = false;
+        // v1.0: Reset city retaliation tracking each turn
+        unit.retaliatedAgainstThisTurn = false;
     }
 
     for (const city of state.cities.filter(c => c.ownerId === playerId)) {
@@ -82,7 +84,10 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
 
     for (const city of state.cities.filter(c => c.ownerId === playerId)) {
         const claimedRing = getClaimedRing(city, state);
-        city.workedTiles = ensureWorkedTiles(city, state);
+        city.workedTiles = ensureWorkedTiles(city, state, {
+            pinned: city.manualWorkedTiles,
+            excluded: city.manualExcludedTiles,
+        });
         const yields = getCityYields(city, state);
 
         const maxHp = city.maxHp || BASE_CITY_HP;
@@ -104,14 +109,20 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
         while (city.storedFood >= growthCost) {
             city.storedFood -= growthCost;
             city.pop += 1;
-            city.workedTiles = ensureWorkedTiles(city, state);
+            city.workedTiles = ensureWorkedTiles(city, state, {
+                pinned: city.manualWorkedTiles,
+                excluded: city.manualExcludedTiles,
+            });
             growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
         }
 
         const neededRing = Math.max(claimedRing, maxClaimableRing(city));
         if (neededRing > claimedRing) {
             claimCityTerritory(city, state, playerId, neededRing);
-            city.workedTiles = ensureWorkedTiles(city, state);
+            city.workedTiles = ensureWorkedTiles(city, state, {
+                pinned: city.manualWorkedTiles,
+                excluded: city.manualExcludedTiles,
+            });
         }
 
         if (city.currentBuild) {
@@ -195,7 +206,10 @@ function completeBuild(state: GameState, city: City) {
             const isJadeCovenant = player?.civName === "JadeCovenant";
             if (!isJadeCovenant) {
                 city.pop = Math.max(1, city.pop - SETTLER_POP_LOSS_ON_BUILD);
-                city.workedTiles = ensureWorkedTiles(city, state);
+                city.workedTiles = ensureWorkedTiles(city, state, {
+                    pinned: city.manualWorkedTiles,
+                    excluded: city.manualExcludedTiles,
+                });
             } else {
                 // v0.99 BUFF: "Ancestral Protection" - Settlers have 10 HP (instead of 1)
                 // v0.99 BUFF: "Nomadic Heritage" - Settlers have 3 Movement (instead of 2)
@@ -252,7 +266,10 @@ function completeBuild(state: GameState, city: City) {
                 // Every city gains +1 Pop
                 for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
                     c.pop += 1;
-                    c.workedTiles = ensureWorkedTiles(c, state);
+                    c.workedTiles = ensureWorkedTiles(c, state, {
+                        pinned: c.manualWorkedTiles,
+                        excluded: c.manualExcludedTiles,
+                    });
                 }
 
                 // v0.99 BUFF: Spawn a free Settler at the city
@@ -530,5 +547,3 @@ function pickBestAvailableTech(player: Player): TechId | null {
     if (banner) return banner;
     return available[0];
 }
-
-

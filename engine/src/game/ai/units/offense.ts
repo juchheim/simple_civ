@@ -214,6 +214,10 @@ export function attackTargets(state: GameState, playerId: string): GameState {
                 const aKill = a.dmg >= a.u.hp ? 0 : 1;
                 const bKill = b.dmg >= b.u.hp ? 0 : 1;
                 if (aKill !== bKill) return aKill - bKill;
+
+                // Smart Targeting: Maximize damage (Ignore Bait)
+                if (a.dmg !== b.dmg) return b.dmg - a.dmg;
+
                 if (a.isSettler !== b.isSettler) return a.isSettler ? 1 : -1;
                 if (a.d !== b.d) return a.d - b.d;
                 return a.u.hp - b.u.hp;
@@ -484,124 +488,100 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                     hexDistance(u.coord, nearest.coord) <= 3
                 ).length;
 
-                // If we are at range, check if we should hold for reinforcements
-                if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2) {
-                    if (friendliesNearTarget >= requiredSiegeGroup) {
-                        // We have enough support, hold position and bombard (handled by attackTargets)
-                        // But if we are too far (e.g. range 3 unit at range 3), we might want to move to range 2 for better visibility?
-                        // For now, hold at max range is safe.
-                        console.info(`[AI SIEGE] ${playerId} ${current.type} holding at range ${currentDist} from ${nearest.name} (Supported by ${friendliesNearTarget} units)`);
-                        moved = true;
-                    } else {
-                        // We are at range but lack support. 
-                        // If we wait here, we might get picked off.
-                        // But moving closer is worse.
-                        // Moving back?
-                        // For now, just wait, but log it.
-                        console.info(`[AI SIEGE] ${playerId} ${current.type} at range ${currentDist} from ${nearest.name}, waiting for group (${friendliesNearTarget}/${requiredSiegeGroup} units)`);
-                        // If we've been waiting too long (how to track?), we should attack anyway.
-                        // For now, let's say if we have at least 1 other friend, we stay.
-                        if (friendliesNearTarget > 1) {
+                // --- GROUPING LOGIC (v1.0) ---
+                // If we are getting close (dist <= 3) but don't have enough support, WAIT.
+                // This applies to both Ranged and Melee to form a "Deathball".
+                if (currentDist <= 3 && friendliesNearTarget < requiredSiegeGroup) {
+                    // Exception: If the city is weak (HP < 50%), charge anyway
+                    if (nearest.hp > nearest.maxHp * 0.5) {
+                        console.info(`[AI GROUPING] ${playerId} ${current.type} waiting for reinforcements at dist ${currentDist} (${friendliesNearTarget}/${requiredSiegeGroup})`);
+                        moved = true; // "Moved" means we took an action (waiting), so stop loop
+                    }
+                }
+                // -----------------------------
+
+                if (!moved) {
+                    // If we are at range, check if we should hold for reinforcements
+                    if (rangedIds.has(current.id) && currentDist <= desiredRange && currentDist >= 2) {
+                        if (friendliesNearTarget >= requiredSiegeGroup) {
+                            // We have enough support, hold position and bombard (handled by attackTargets)
+                            // But if we are too far (e.g. range 3 unit at range 3), we might want to move to range 2 for better visibility?
+                            // For now, hold at max range is safe.
+                            console.info(`[AI SIEGE] ${playerId} ${current.type} holding at range ${currentDist} from ${nearest.name} (Supported by ${friendliesNearTarget} units)`);
                             moved = true;
                         } else {
-                            // Alone. Maybe retreat or regroup? 
-                            // Or just stay and hope.
-                            moved = true;
-                        }
-                    }
-                } else {
-                    // Not at range, or melee unit. Move closer.
-                    const stepDist = hexDistance(step, nearest.coord);
-
-                    // Ranged units shouldn't move closer than their max range unless necessary
-                    if (rangedIds.has(current.id) && desiredRange > 1 && stepDist < 2 && currentDist <= desiredRange) {
-                        // Don't move into melee range if we are already in range
-                        moved = false;
-                    } else {
-                        // Check for peacetime movement restrictions
-                        const tile = next.map.tiles.find(t => hexEquals(t.coord, step));
-                        let allowed = true;
-                        if (tile && tile.ownerId && tile.ownerId !== playerId) {
-                            const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
-                            const isCity = next.cities.some(c => hexEquals(c.coord, step));
-                            if (!isCity && diplomacy !== DiplomacyState.War) allowed = false;
-                        }
-
-                        if (allowed) {
-                            const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
-                            if (attempt !== next) {
-                                next = attempt;
+                            // We are at range but lack support. 
+                            // If we wait here, we might get picked off.
+                            // But moving closer is worse.
+                            // Moving back?
+                            // For now, just wait, but log it.
+                            console.info(`[AI SIEGE] ${playerId} ${current.type} at range ${currentDist} from ${nearest.name}, waiting for group (${friendliesNearTarget}/${requiredSiegeGroup} units)`);
+                            // If we've been waiting too long (how to track?), we should attack anyway.
+                            // For now, let's say if we have at least 1 other friend, we stay.
+                            if (friendliesNearTarget > 1) {
+                                moved = true;
+                            } else {
+                                // Alone. Maybe retreat or regroup? 
+                                // Or just stay and hope.
                                 moved = true;
                             }
                         }
+                    } else {
+                        // Not at range, or melee unit. Move closer.
+                        const stepDist = hexDistance(step, nearest.coord);
 
-                        if (!moved) {
-                            // Try neighbors
-                            const neighbors = getNeighbors(current.coord);
-                            const ordered = sortByDistance(nearest.coord, neighbors, (c: { q: number, r: number }) => c);
-                            for (const n of ordered) {
-                                // Don't move backwards or stay same distance if possible?
-                                // Actually, just try any neighbor that is closer or same distance?
-                                // Or just any neighbor that works?
-                                // If we are blocked, stepping sideways (same dist) is good.
-                                // Stepping backwards (dist + 1) is bad.
-                                const nDist = hexDistance(n, nearest.coord);
-                                if (nDist > currentDist) continue;
+                        // Ranged units shouldn't move closer than their max range unless necessary
+                        if (rangedIds.has(current.id) && desiredRange > 1 && stepDist < 2 && currentDist <= desiredRange) {
+                            // Don't move into melee range if we are already in range
+                            moved = false;
+                        } else {
+                            // Check for peacetime movement restrictions
+                            const tile = next.map.tiles.find(t => hexEquals(t.coord, step));
+                            let allowed = true;
+                            if (tile && tile.ownerId && tile.ownerId !== playerId) {
+                                const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
+                                const isCity = next.cities.some(c => hexEquals(c.coord, step));
+                                if (!isCity && diplomacy !== DiplomacyState.War) allowed = false;
+                            }
 
-                                // Check for peacetime movement restrictions
-                                const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
-                                if (tile && tile.ownerId && tile.ownerId !== playerId) {
-                                    const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
-                                    const isCity = next.cities.some(c => hexEquals(c.coord, n));
-                                    if (!isCity && diplomacy !== "War") continue;
-                                }
-
-                                const altAttempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n });
-                                if (altAttempt !== next) {
-                                    next = altAttempt;
+                            if (allowed) {
+                                const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
+                                if (attempt !== next) {
+                                    next = attempt;
                                     moved = true;
-                                    break;
+                                }
+                            }
+
+                            if (!moved) {
+                                // Try neighbors
+                                const neighbors = getNeighbors(current.coord);
+                                const ordered = sortByDistance(nearest.coord, neighbors, (c: { q: number, r: number }) => c);
+                                for (const n of ordered) {
+                                    // Don't move backwards or stay same distance if possible?
+                                    // Actually, just try any neighbor that is closer or same distance?
+                                    // Or just any neighbor that works?
+                                    // If we are blocked, stepping sideways (same dist) is good.
+                                    // Stepping backwards (dist + 1) is bad.
+                                    const nDist = hexDistance(n, nearest.coord);
+                                    if (nDist > currentDist) continue;
+
+                                    // Check for peacetime movement restrictions
+                                    const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
+                                    if (tile && tile.ownerId && tile.ownerId !== playerId) {
+                                        const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
+                                        const isCity = next.cities.some(c => hexEquals(c.coord, n));
+                                        if (!isCity && diplomacy !== "War") continue;
+                                    }
+
+                                    const altAttempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n });
+                                    if (altAttempt !== next) {
+                                        next = altAttempt;
+                                        moved = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                    }
-                }
-            }
-            if (!moved) {
-                const neighbors = getNeighbors(current.coord)
-                    .map(coord => ({
-                        coord,
-                        dist: hexDistance(coord, nearest.coord),
-                        defense: tileDefenseScore(next, coord),
-                        friendlyNearby: friendlyAdjacencyCount(next, playerId, coord)
-                    }))
-                    .filter(n => n.friendlyNearby <= 2);
-                const ordered = neighbors.sort((a, b) => {
-                    const desiredRange = UNITS[current.type].rng;
-                    const aRangeScore = rangedIds.has(current.id) && desiredRange > 1
-                        ? Math.abs(desiredRange - a.dist)
-                        : a.dist;
-                    const bRangeScore = rangedIds.has(current.id) && desiredRange > 1
-                        ? Math.abs(desiredRange - b.dist)
-                        : b.dist;
-                    if (aRangeScore !== bRangeScore) return aRangeScore - bRangeScore;
-                    if (a.friendlyNearby !== b.friendlyNearby) return a.friendlyNearby - b.friendlyNearby;
-                    return b.defense - a.defense;
-                });
-                for (const n of ordered) {
-                    // Check for peacetime movement restrictions
-                    const tile = next.map.tiles.find(t => hexEquals(t.coord, n.coord));
-                    if (tile && tile.ownerId && tile.ownerId !== playerId) {
-                        const diplomacy = next.diplomacy[playerId]?.[tile.ownerId];
-                        const isCity = next.cities.some(c => hexEquals(c.coord, n.coord));
-                        if (!isCity && diplomacy !== "War") continue;
-                    }
-
-                    const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n.coord });
-                    if (attempt !== next) {
-                        next = attempt;
-                        moved = true;
-                        break;
                     }
                 }
             }

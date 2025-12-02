@@ -12,7 +12,9 @@ import {
     shouldUseWarProsecutionMode,
     stepToward,
     tileDefenseScore,
-    warGarrisonCap
+    warGarrisonCap,
+    getThreatLevel,
+    getBestSkirmishPosition
 } from "./unit-helpers.js";
 
 export function defendCities(state: GameState, playerId: string): GameState {
@@ -32,6 +34,46 @@ export function defendCities(state: GameState, playerId: string): GameState {
     let availableGarrisonSlots = warEnemyIds.length ? Math.max(0, garrisonCap - garrisonedCities.size) : playerCities.length;
 
     const reserved = new Set<string>();
+
+    // --- CAPITAL DEFENSE PROTOCOL (v1.0) ---
+    const capital = playerCities.find(c => c.isCapital);
+    if (capital) {
+        const threat = getThreatLevel(next, capital, playerId);
+        if (threat === "critical" || threat === "high") {
+            const defendersNeeded = threat === "critical" ? 3 : 1;
+            const defendersNearby = next.units.filter(u =>
+                u.ownerId === playerId &&
+                hexDistance(u.coord, capital.coord) <= 3 &&
+                UNITS[u.type].domain !== "Civilian"
+            );
+
+            if (defendersNearby.length < defendersNeeded) {
+                // Pull units from further away
+                const available = next.units.filter(u =>
+                    u.ownerId === playerId &&
+                    u.movesLeft > 0 &&
+                    !reserved.has(u.id) &&
+                    UNITS[u.type].domain !== "Civilian" &&
+                    !isScoutType(u.type)
+                );
+
+                // Sort by distance to capital
+                const reinforcements = sortByDistance(capital.coord, available, u => u.coord);
+
+                for (const unit of reinforcements) {
+                    if (defendersNearby.length + reserved.size >= defendersNeeded) break;
+
+                    // Move towards capital
+                    const moved = stepToward(next, playerId, unit.id, capital.coord);
+                    if (moved !== next) {
+                        next = moved;
+                        reserved.add(unit.id);
+                    }
+                }
+            }
+        }
+    }
+    // ---------------------------------------
 
     for (const city of playerCities) {
         const hasGarrison = next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
@@ -307,6 +349,31 @@ export function repositionRanged(state: GameState, playerId: string): GameState 
 
     for (const unit of rangedUnits) {
         const enemyAdj = enemiesWithin(next, playerId, unit.coord, 1);
+        if (enemyAdj > 0) {
+            // --- SKIRMISH LOGIC (v1.0) ---
+            // Find nearest enemy
+            const enemies = next.units.filter(u => u.ownerId !== playerId);
+            const nearestEnemy = nearestByDistance(unit.coord, enemies, u => u.coord);
+
+            if (nearestEnemy) {
+                const bestPos = getBestSkirmishPosition(unit, nearestEnemy, next, playerId);
+                if (bestPos && !hexEquals(bestPos, unit.coord)) {
+                    const prevState = next;
+                    const moved = tryAction(next, {
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: unit.id,
+                        to: bestPos
+                    });
+                    if (moved !== prevState) {
+                        next = moved;
+                        continue;
+                    }
+                }
+            }
+            // -----------------------------
+        }
+
         const crowd = friendlyAdjacencyCount(next, playerId, unit.coord);
         if (enemyAdj === 0 && crowd <= 2) continue;
 

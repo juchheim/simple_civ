@@ -160,6 +160,8 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
     return 0;
 }
 
+
+
 export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     const base = UNITS[unit.type];
     const player = state.players.find(p => p.id === unit.ownerId);

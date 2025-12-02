@@ -92,6 +92,33 @@ describe("FoundCity validation", () => {
         }).toThrow("Too close to friendly city");
     });
 
+    it("allows Jade Covenant to found within 2 tiles of own city", () => {
+        const state = baseState();
+        state.players[0].civName = "JadeCovenant";
+        const p1Center = hex(0, 0);
+        const p1SecondCity = hex(0, 2); // Distance 2 - allowed for Jade
+
+        for (let r = 0; r < 5; r++) {
+            for (let q = 0; q < 5; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        state.units.push({
+            id: "u1", ownerId: "p1", type: UnitType.Settler, coord: p1Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        const next = applyAction(state as any, { type: "FoundCity", playerId: "p1", unitId: "u1", name: "City1" });
+
+        next.units.push({
+            id: "u2", ownerId: "p1", type: UnitType.Settler, coord: p1SecondCity, movesLeft: 1, state: "Normal"
+        } as any);
+
+        expect(() => {
+            applyAction(next as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "City2" });
+        }).not.toThrow();
+    });
+
     it("allows founding at distance 3 from friendly city", () => {
         const state = baseState();
         const p1Center = hex(0, 0);
@@ -152,6 +179,35 @@ describe("FoundCity validation", () => {
         // Should not throw
         expect(() => {
             applyAction(next as any, { type: "FoundCity", playerId: "p2", unitId: "u2", name: "City2" });
+        }).not.toThrow();
+    });
+
+    it("allows Jade Covenant to found within 2 tiles of an enemy city", () => {
+        const state = baseState();
+        state.players[0].civName = "JadeCovenant";
+        const p2Center = hex(0, 0);
+        const jadeCity = hex(0, 2); // Distance 2 - allowed for Jade
+
+        for (let r = 0; r < 5; r++) {
+            for (let q = 0; q < 5; q++) {
+                state.map.tiles.push({ coord: hex(q, r), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false });
+            }
+        }
+
+        state.currentPlayerId = "p2";
+        state.units.push({
+            id: "u1", ownerId: "p2", type: UnitType.Settler, coord: p2Center, movesLeft: 1, state: "Normal"
+        } as any);
+
+        const afterP2 = applyAction(state as any, { type: "FoundCity", playerId: "p2", unitId: "u1", name: "CityA" });
+
+        afterP2.currentPlayerId = "p1";
+        afterP2.units.push({
+            id: "u2", ownerId: "p1", type: UnitType.Settler, coord: jadeCity, movesLeft: 1, state: "Normal"
+        } as any);
+
+        expect(() => {
+            applyAction(afterP2 as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "CityB" });
         }).not.toThrow();
     });
 

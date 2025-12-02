@@ -26,18 +26,20 @@ interface HUDProps {
     showYields: boolean;
     onToggleYields: () => void;
     onCenterCity: (coord: HexCoord) => void;
+    onCenterCity: (coord: HexCoord) => void;
     mapView: MapViewport | null;
     onNavigateMap: (point: { x: number; y: number }) => void;
+    showGameMenu: boolean;
+    onToggleGameMenu: (show: boolean) => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap, showGameMenu, onToggleGameMenu }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
     const [showResearch, setShowResearch] = React.useState(false);
     const [showDiplomacy, setShowDiplomacy] = React.useState(false);
     const [showCodex, setShowCodex] = React.useState(false);
-    const [showGame, setShowGame] = React.useState(false);
 
     const { unitsOnTile, selectedUnit, linkedPartner, linkCandidate } = useSelectedUnits({
         selectedCoord,
@@ -226,9 +228,9 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             </div>
 
             <div className="hud-top-left">
-                {showGame ? (
+                {showGameMenu ? (
                     <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
-                        <button className="hud-close-button" onClick={() => setShowGame(false)} aria-label="Close game menu">
+                        <button className="hud-close-button" onClick={() => onToggleGameMenu(false)} aria-label="Close game menu">
                             X
                         </button>
                         <GameMenu
@@ -243,7 +245,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         />
                     </div>
                 ) : (
-                    <button className="hud-tab-trigger" onClick={() => setShowGame(true)}>
+                    <button className="hud-tab-trigger" onClick={() => onToggleGameMenu(true)}>
                         Game
                     </button>
                 )}

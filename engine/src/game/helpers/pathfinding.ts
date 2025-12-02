@@ -10,6 +10,11 @@ import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/he
  */
 export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): number {
     const stats = UNITS[unit.type];
+    if (!stats) {
+        console.error(`[Pathfinding Error] Unknown unit type: ${unit.type}`);
+        console.error(`Available types: ${Object.keys(UNITS).join(", ")}`);
+        return Infinity;
+    }
 
     // Check visibility
     const tileKey = hexToString(tile.coord);
@@ -22,29 +27,18 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
         return 1;
     }
 
-    // v0.99 Buff: Titans ignore terrain movement penalties
-    // They are massive enough to stride over forests and hills effortlessly.
-    if (unit.type === UnitType.Titan) {
-        // Still respect impassable terrain (Mountains/DeepSea) if defined in rules, 
-        // but for now we just check basic passability.
-        // Actually, let's just make them cost 1 for any valid land tile.
-        // We still need to check if it's a valid tile type for Land domain.
-        if (tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea) return Infinity;
-        if (tile.terrain === TerrainType.Mountain) return Infinity;
+    // Check for blocking units (still applies)
+    const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
+    if (unitOnTile && unitOnTile.ownerId !== unit.ownerId) return Infinity;
 
-        // Check for blocking units (still applies)
-        const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
-        if (unitOnTile && unitOnTile.ownerId !== unit.ownerId) return Infinity;
-
-        // Check for peacetime borders (still applies)
-        if (tile.ownerId && tile.ownerId !== unit.ownerId) {
-            const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
-            const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
-            if (!isCity && diplomacy !== "War") return Infinity;
-        }
-
-        return 1;
+    // Check for peacetime borders (still applies)
+    if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+        const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
+        const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
+        if (!isCity && diplomacy !== "War") return Infinity;
     }
+
+
 
     // If visible, check actual terrain constraints
     if (stats.domain === UnitDomain.Land) {
@@ -137,7 +131,7 @@ export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: 
 
     // Safety break to prevent infinite loops in weird edge cases
     let iterations = 0;
-    const MAX_ITERATIONS = 1000;
+    const MAX_ITERATIONS = 5000;
 
     while (openSet.size > 0 && iterations < MAX_ITERATIONS) {
         iterations++;
@@ -207,3 +201,45 @@ export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: 
 
     return []; // No path found
 }
+
+/**
+ * Finds all reachable tiles from a starting point within a given range (or unlimited).
+ * Returns a map of reachable HexCoords to their cost/distance.
+ */
+export function findReachableTiles(start: HexCoord, unit: Unit, gameState: GameState, maxRange: number = 20): Map<string, HexCoord> {
+    const reachable = new Map<string, HexCoord>();
+    const startKey = hexToString(start);
+    reachable.set(startKey, start);
+
+    const queue: { coord: HexCoord; cost: number }[] = [{ coord: start, cost: 0 }];
+    const visited = new Set<string>([startKey]);
+
+    let iterations = 0;
+    const MAX_ITERATIONS = 2000;
+
+    while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+        iterations++;
+        const current = queue.shift()!;
+
+        if (current.cost >= maxRange) continue;
+
+        const neighbors = getNeighbors(current.coord);
+        for (const neighbor of neighbors) {
+            const neighborKey = hexToString(neighbor);
+            if (visited.has(neighborKey)) continue;
+
+            const tile = gameState.map.tiles.find(t => hexEquals(t.coord, neighbor));
+            if (!tile) continue;
+
+            const moveCost = getMovementCost(tile, unit, gameState);
+            if (moveCost === Infinity) continue;
+
+            visited.add(neighborKey);
+            reachable.set(neighborKey, neighbor);
+            queue.push({ coord: neighbor, cost: current.cost + 1 }); // Using simple step distance for range limit
+        }
+    }
+
+    return reachable;
+}
+

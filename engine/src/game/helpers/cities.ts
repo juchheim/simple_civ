@@ -46,16 +46,24 @@ export function clearCityTerritory(city: City, state: GameState) {
     }
 }
 
-export function ensureWorkedTiles(city: City, state: GameState): HexCoord[] {
-    const ownedCoords = hexSpiral(city.coord, CITY_WORK_RADIUS_RINGS)
-        .filter(coord => {
-            const t = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
-            return t && t.ownerId === city.ownerId && TERRAIN[t.terrain].workable;
-        });
+export function ensureWorkedTiles(
+    city: City,
+    state: GameState,
+    opts: { pinned?: HexCoord[]; excluded?: HexCoord[]; fillMissing?: boolean } = {},
+): HexCoord[] {
+    const ownedCoords = hexSpiral(city.coord, CITY_WORK_RADIUS_RINGS).filter(coord => {
+        const t = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
+        return t && t.ownerId === city.ownerId && TERRAIN[t.terrain].workable;
+    });
 
     const allowed = new Set(ownedCoords.map(c => hexToString(c)));
+    const centerKey = hexToString(city.coord);
+    const popSlots = Math.max(1, city.pop);
 
-    const currentValid = city.workedTiles
+    const pinned = opts.pinned ?? city.manualWorkedTiles ?? [];
+    const excluded = opts.excluded ?? city.manualExcludedTiles ?? [];
+    const fillMissing = opts.fillMissing ?? true;
+    const pinnedValid = pinned
         .filter(c => allowed.has(hexToString(c)))
         .reduce<HexCoord[]>((acc, coord) => {
             const key = hexToString(coord);
@@ -64,18 +72,53 @@ export function ensureWorkedTiles(city: City, state: GameState): HexCoord[] {
             return acc;
         }, []);
 
-    if (!currentValid.some(c => hexEquals(c, city.coord))) currentValid.unshift(city.coord);
+    if (!pinnedValid.some(c => hexEquals(c, city.coord)) && allowed.has(centerKey)) {
+        pinnedValid.unshift(city.coord);
+    }
 
-    const worked = currentValid.slice(0, Math.max(1, city.pop));
-    const needed = Math.max(1, city.pop) - worked.length;
-    if (needed > 0) {
-        const workedKeys = new Set(worked.map(c => hexToString(c)));
-        const candidates = ownedCoords
-            .filter(c => !workedKeys.has(hexToString(c)))
-            .sort((a, b) => tileScore(b, state, city) - tileScore(a, state, city));
-        for (let i = 0; i < needed && i < candidates.length; i++) {
-            worked.push(candidates[i]);
+    const excludedKeys = new Set(
+        excluded
+            .filter(c => !hexEquals(c, city.coord))
+            .map(c => hexToString(c)),
+    );
+
+    if (!fillMissing) {
+        const trimmed = pinnedValid.slice(0, popSlots);
+        if (!trimmed.some(c => hexEquals(c, city.coord)) && allowed.has(centerKey)) {
+            trimmed.unshift(city.coord);
         }
+        while (trimmed.length > popSlots) trimmed.pop();
+        return trimmed;
+    }
+
+    const scored = ownedCoords
+        .map(coord => ({ coord, score: tileScore(coord, state, city) }))
+        .sort((a, b) => b.score - a.score)
+        .map(entry => entry.coord);
+
+    const worked: HexCoord[] = [];
+    const workedKeys = new Set<string>();
+
+    for (const coord of pinnedValid) {
+        if (worked.length >= popSlots) break;
+        const key = hexToString(coord);
+        if (workedKeys.has(key)) continue;
+        workedKeys.add(key);
+        worked.push(coord);
+    }
+
+    for (const coord of scored) {
+        if (worked.length >= popSlots) break;
+        const key = hexToString(coord);
+        if (workedKeys.has(key)) continue;
+        if (excludedKeys.has(key)) continue;
+        workedKeys.add(key);
+        worked.push(coord);
+    }
+
+    if (!worked.some(c => hexEquals(c, city.coord)) && allowed.has(centerKey)) {
+        worked.unshift(city.coord);
+        while (worked.length > popSlots) worked.pop();
     }
 
     return worked;
@@ -93,6 +136,9 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
     const science = base.S;
 
     const adjRiver = isTileAdjacentToRiver(state.map, coord);
+    if (adjRiver) {
+        food += 1; // Base river adjacency bonus applied during city yield calc
+    }
     if (civ === "RiverLeague" && adjRiver) {
         food += 1;
         // v0.99 TWEAK: Value river tiles at +0.5 Prod to chase the 2-tile bonus
@@ -115,6 +161,8 @@ export function captureCity(state: GameState, city: City, newOwnerId: string) {
     city.pop = Math.max(1, city.pop - 1);
     city.currentBuild = null;
     city.buildProgress = 0;
+    city.manualWorkedTiles = undefined;
+    city.manualExcludedTiles = undefined;
     const currentRing = getClaimedRing(city, state);
     const targetRing = Math.max(currentRing, maxClaimableRing(city));
     claimCityTerritory(city, state, newOwnerId, targetRing);
@@ -127,19 +175,42 @@ export function getCityName(state: GameState, civName: string, ownerId: string):
     const nameList = CITY_NAMES[civName] || [];
 
     // First city is always the Capital (first name in list)
-    if (playerCities.length === 0) {
-        return nameList[0] || "Capital";
-    }
+    // UNLESS it's already been used (e.g. lost capital and founding new one? No, capital is special)
+    // Actually, if we lost our capital, we might want to reclaim it or found a new one.
+    // But for unique names, we should just check the used list.
 
-    // Filter out used names
-    const usedNames = new Set(state.cities.map(c => c.name));
-    const availableNames = nameList.slice(1).filter(name => !usedNames.has(name));
+    // Initialize if missing
+    if (!state.usedCityNames) state.usedCityNames = [];
+
+    // If this is the player's first city ever (no cities, no used names for this player?), 
+    // we might want to ensure they get their capital name if available.
+    // But simplest logic is: pick first available name from list.
+
+    const usedNames = new Set(state.usedCityNames);
+
+    // Also include current cities just in case sync is off, though usedCityNames should cover it
+    state.cities.forEach(c => usedNames.add(c.name));
+
+    const availableNames = nameList.filter(name => !usedNames.has(name));
 
     if (availableNames.length > 0) {
+        // If it's the very first city for this player, try to give them the first name (Capital)
+        // if it's available.
+        if (playerCities.length === 0 && availableNames.includes(nameList[0])) {
+            return nameList[0];
+        }
+
+        // Otherwise pick random available
         const randomIndex = Math.floor(Math.random() * availableNames.length);
         return availableNames[randomIndex];
     }
 
     // Fallback if all names used
-    return `New ${nameList[0] || "City"} ${playerCities.length + 1}`;
+    let counter = playerCities.length + 1;
+    let fallbackName = `New ${nameList[0] || "City"} ${counter}`;
+    while (usedNames.has(fallbackName)) {
+        counter++;
+        fallbackName = `New ${nameList[0] || "City"} ${counter}`;
+    }
+    return fallbackName;
 }

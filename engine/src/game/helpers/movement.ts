@@ -50,7 +50,8 @@ export function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Ti
         cost = terrainData.moveCostNaval ?? 999;
     }
 
-    if (unitStats.move === 1 || unit.type === UnitType.Titan) {
+    // v1.1 Nerf: Titans no longer ignore terrain costs
+    if (unitStats.move === 1) { // || unit.type === UnitType.Titan) {
         cost = 1;
     }
 

@@ -22,10 +22,10 @@ describe("World Generation", () => {
             players: [{ id: "p1", civName: "Civ A", color: "red" }],
         });
 
-        // v0.96 balance: Small map size increased from 16×12 to 18×14
-        expect(state.map.width).toBe(18);
-        expect(state.map.height).toBe(14);
-        expect(state.map.tiles.length).toBe(18 * 14);
+        // v1.0 balance: Standard map size increased to 23x17
+        expect(state.map.width).toBe(23);
+        expect(state.map.height).toBe(17);
+        expect(state.map.tiles.length).toBe(19 * 15);
     });
 
     it("should place players with starting units", () => {
@@ -119,7 +119,7 @@ describe("World Generation", () => {
         // Verify river polylines are generated with valid structure
         expect(state.map.riverPolylines).toBeDefined();
         expect(state.map.riverPolylines!.length).toBeGreaterThan(0);
-        
+
         // Verify each polyline has valid segments with numeric coordinates
         for (const polyline of state.map.riverPolylines!) {
             expect(polyline.length).toBeGreaterThan(0);
@@ -138,7 +138,7 @@ describe("World Generation", () => {
         // Verify determinism: same seed produces same number of river polylines
         const state2 = generateWorld(createDeterministicSettings());
         expect(state2.map.riverPolylines!.length).toBe(state.map.riverPolylines!.length);
-        
+
         // Verify each polyline has the same number of segments
         for (let i = 0; i < state.map.riverPolylines!.length; i++) {
             expect(state2.map.riverPolylines![i].length).toBe(state.map.riverPolylines![i].length);
@@ -225,7 +225,7 @@ describe("World Generation", () => {
         }, {});
 
         expect(counts).toEqual(counts2);
-        
+
         // Verify overlays exist and have valid counts
         expect(Object.keys(counts).length).toBeGreaterThan(0);
         for (const [, overlays] of Object.entries(counts)) {
