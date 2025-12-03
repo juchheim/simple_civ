@@ -127,17 +127,9 @@ export function getCityYields(city: City, state: GameState): Yields {
         }
     } else if (trait === "ScholarKingdoms") {
         // v0.98 Update 8: BUFFED - Restored +1 Science in Capital (was completely removed)
-        // ScholarKingdoms was weakest civ with lowest tech completion (47.6%)
-        // They need a head start to actually benefit from their science identity
         if (city.isCapital) {
             total.S += 1; // "Great Library" - Capital generates extra science
-            total.P += 1; // v0.99 BUFF: Capital generates extra production to help early game
         }
-        // Also keep the +1 per Scriptorium/Academy for scaling
-        const scholarBuildings = city.buildings.filter(b =>
-            b === BuildingType.Scriptorium || b === BuildingType.Academy
-        ).length;
-        total.S += scholarBuildings;
     } else if (trait === "RiverLeague") {
         // v0.98 BUFF: Added +1 Science in river cities (in addition to Food and Production)
         // River cities now give triple bonus: +1F, +1P, +1S
@@ -150,15 +142,8 @@ export function getCityYields(city: City, state: GameState): Yields {
         // v0.99 BUFF: +1 Production per 2 river tiles (nerf from 1 per 1)
         total.P += Math.floor(riverAdjacencyCount(state.map, city.workedTiles) / 2);
     } else if (trait === "StarborneSeekers") {
-        // v0.98 Update 6: NERFED - Removed Capital science bonus (was too strong for Progress rush)
-        // "Stargazers" now only gives +1 Science per Sacred Site worked
-        // Bonus science from Sacred Sites (they're spiritually attuned)
-        for (const coord of city.workedTiles) {
-            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-            if (tile?.overlays.includes(OverlayType.SacredSite)) {
-                total.S += 1;  // Extra +1 on top of the base Sacred Site bonus
-            }
-        }
+        // v1.2: NERFED - Removed Sacred Site science bonus entirely.
+        // They only rely on Spirit Observatory (+1 Science per City) now.
     } else if (trait === "AetherianVanguard") {
         // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
         // This bridges their weak early game to the Titan
@@ -243,6 +228,14 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (bId === BuildingType.SpiritObservatory && player.civName !== "StarborneSeekers") return false;
         if (bId === BuildingType.JadeGranary && player.civName !== "JadeCovenant") return false;
 
+        // Titans Core: once per civ (check if any city has it or is building it)
+        if (bId === BuildingType.TitansCore) {
+            const hasBuilding = state.cities.some(c => c.ownerId === player.id && c.buildings.includes(bId));
+            if (hasBuilding) return false;
+            const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
+            if (isBuilding) return false;
+        }
+
         // Spirit Observatory: once per civ, replaces Observatory in Progress chain
         // Check if already completed (tracked via Observatory milestone)
         if (bId === BuildingType.SpiritObservatory) {
@@ -290,6 +283,9 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // Milestone req
         if (data.prereqMilestone && !player.completedProjects.includes(data.prereqMilestone)) return false;
 
+        // Building req
+        if (data.prereqBuilding && !city.buildings.includes(data.prereqBuilding)) return false;
+
         // Once per civ
         if (data.oncePerCiv && player.completedProjects.includes(pId)) return false;
 
@@ -317,4 +313,17 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
     }
 
     return false;
+}
+
+export function getProjectCost(projectId: ProjectId, turn: number): number {
+    const data = PROJECTS[projectId];
+    if (!data) return 9999;
+
+    if (data.scalesWithTurn) {
+        // Scale cost by turn number: Base * (1 + floor(Turn / 25))
+        const multiplier = 1 + Math.floor(turn / 25);
+        return data.cost * multiplier;
+    }
+
+    return data.cost;
 }

@@ -385,6 +385,91 @@ function analyzePop10VsVictory(results) {
 }
 
 // ============================================================================
+// QUESTION 7: Titan Performance Analysis
+// ============================================================================
+
+function analyzeTitanPerformance(results) {
+    const titanStats = {
+        totalTitans: 0,
+        totalDeaths: 0,
+        totalWinsWithTitan: 0,
+        conquestWinsWithTitan: 0,
+        avgSupport: 0,
+        supportSamples: 0,
+        byCiv: new Map()
+    };
+
+    CIVS.forEach(civ => {
+        titanStats.byCiv.set(civ, {
+            spawned: 0,
+            died: 0,
+            wins: 0,
+            conquestWins: 0,
+            avgSupport: 0,
+            supportSamples: 0
+        });
+    });
+
+    results.forEach(sim => {
+        const titanSpawns = sim.events.filter(e => e.type === "TitanSpawn");
+        const titanDeaths = sim.events.filter(e => e.type === "TitanDeath");
+        const titanSteps = sim.events.filter(e => e.type === "TitanStep");
+
+        titanSpawns.forEach(spawn => {
+            titanStats.totalTitans++;
+            const civStats = titanStats.byCiv.get(sim.finalState.civs.find(c => c.id === spawn.owner)?.civName);
+            if (civStats) civStats.spawned++;
+        });
+
+        titanDeaths.forEach(death => {
+            titanStats.totalDeaths++;
+            const civStats = titanStats.byCiv.get(sim.finalState.civs.find(c => c.id === death.owner)?.civName);
+            if (civStats) civStats.died++;
+        });
+
+        titanSteps.forEach(step => {
+            titanStats.avgSupport += step.supportCount;
+            titanStats.supportSamples++;
+            const civStats = titanStats.byCiv.get(sim.finalState.civs.find(c => c.id === step.owner)?.civName);
+            if (civStats) {
+                civStats.avgSupport += step.supportCount;
+                civStats.supportSamples++;
+            }
+        });
+
+        // Did the winner have a Titan?
+        if (sim.winner) {
+            const winnerId = sim.winner.id;
+            const hadTitan = titanSpawns.some(s => s.owner === winnerId);
+            if (hadTitan) {
+                titanStats.totalWinsWithTitan++;
+                if (sim.victoryType === "Conquest") {
+                    titanStats.conquestWinsWithTitan++;
+                }
+
+                const civStats = titanStats.byCiv.get(sim.winner.civ);
+                if (civStats) {
+                    civStats.wins++;
+                    if (sim.victoryType === "Conquest") civStats.conquestWins++;
+                }
+            }
+        }
+    });
+
+    if (titanStats.supportSamples > 0) {
+        titanStats.avgSupport /= titanStats.supportSamples;
+    }
+
+    titanStats.byCiv.forEach(stats => {
+        if (stats.supportSamples > 0) {
+            stats.avgSupport /= stats.supportSamples;
+        }
+    });
+
+    return titanStats;
+}
+
+// ============================================================================
 // RUN ALL ANALYSES
 // ============================================================================
 
@@ -397,6 +482,7 @@ const stallDiagnostics = analyzeStallDiagnostics(results);
 const settlerStats = analyzeSettlerStats(results);
 const armyUsage = analyzeArmyUsage(results);
 const pop10VsVictory = analyzePop10VsVictory(results);
+const titanPerformance = analyzeTitanPerformance(results);
 
 // ============================================================================
 // GENERATE ENHANCED REPORT
@@ -574,6 +660,27 @@ if (pop10VsVictory.length > 0) {
         }
     });
 }
+
+// QUESTION 7: Titan Performance
+report += `## 7. Titan Performance Analysis\n\n`;
+const tStats = titanPerformance;
+const survivalRate = tStats.totalTitans > 0 ? ((1 - tStats.totalDeaths / tStats.totalTitans) * 100).toFixed(1) : 'N/A';
+const winRateWithTitan = tStats.totalTitans > 0 ? ((tStats.totalWinsWithTitan / tStats.totalTitans) * 100).toFixed(1) : 'N/A';
+
+report += `### Overall Statistics\n`;
+report += `- **Total Titans Spawned:** ${tStats.totalTitans}\n`;
+report += `- **Total Titan Deaths:** ${tStats.totalDeaths} (Survival Rate: ${survivalRate}%)\n`;
+report += `- **Wins with Titan:** ${tStats.totalWinsWithTitan} (${winRateWithTitan}% of Titans resulted in victory)\n`;
+report += `- **Conquest Wins with Titan:** ${tStats.conquestWinsWithTitan}\n`;
+report += `- **Average "Deathball" Support:** ${tStats.avgSupport.toFixed(1)} units nearby\n\n`;
+
+report += `### By Civilization\n`;
+tStats.byCiv.forEach((stats, civ) => {
+    if (stats.spawned > 0) {
+        const sRate = ((1 - stats.died / stats.spawned) * 100).toFixed(1);
+        report += `- **${civ}:** ${stats.spawned} spawned, ${stats.died} died (${sRate}% survival), ${stats.wins} wins (${stats.conquestWins} Conquest), Avg Support: ${stats.avgSupport.toFixed(1)}\n`;
+    }
+});
 
 writeFileSync('/tmp/enhanced-analysis-report.md', report);
 console.log("Enhanced analysis complete!");

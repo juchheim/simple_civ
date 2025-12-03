@@ -2,7 +2,7 @@
 
 LOG_FILE="/tmp/parallel-sim.log"
 RESULTS_FILE="/tmp/comprehensive-simulation-results.json"
-export SIM_SEEDS_COUNT=20
+export SIM_SEEDS_COUNT=${SIM_SEEDS_COUNT:-100}
 
 # Start simulation in background
 echo "Starting PARALLEL simulation..."

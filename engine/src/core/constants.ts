@@ -8,9 +8,10 @@ import {
     UnitType,
     Yields,
     OverlayType,
+    ProjectDefinition,
 } from "./types.js";
 
-export const GAME_VERSION = "0.99";
+export const GAME_VERSION = "1.0";
 export const MAX_PLAYERS = 6;
 
 // Max civilizations per map size
@@ -56,33 +57,26 @@ export const BASECOST_POP2 = 30;
 export const GROWTH_FACTORS = [
     { min: 2, max: 4, f: 1.30 },
     { min: 5, max: 6, f: 1.40 },
-    { min: 7, max: 8, f: 1.58 },  // Increased from 1.50 (+5.3%) to slow growth for pop 7-8
-    { min: 9, max: 10, f: 1.68 }, // Increased from 1.60 (+5.0%) to slow growth for pop 9-10
-    { min: 11, max: 999, f: 2.00 },
+    { min: 7, max: 8, f: 1.80 },  // Increased from 1.58 to slow growth for pop 7-8
+    { min: 9, max: 10, f: 2.00 }, // Increased from 1.68 to slow growth for pop 9-10
+    { min: 11, max: 999, f: 2.50 }, // Increased from 2.00 to align pop 10+ cities with turn 188 average victory
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 // v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
 export const JADE_COVENANT_GROWTH_MULT = 0.9;
 
-// Tech Costs
-export const TECH_COST_HEARTH = 20;
-export const TECH_COST_BANNER = 40;
-export const TECH_COST_ENGINE = 65;
-
-// Projects (v0.99: Reduced costs to buff Progress victories)
-export const OBSERVATORY_COST = 110;        // Was 125 (in PROJECTS) - Further reduction
-export const GRAND_ACADEMY_COST = 155;      // Was 175 (in PROJECTS) - Further reduction
-export const GRAND_EXPERIMENT_COST = 200;   // Was 225 (in PROJECTS) - Further reduction
+// Tech Costs defined in TECHS object below
+// Project Costs defined in PROJECTS object below
 
 // v0.98: Civ-specific starting bonuses
-export const AETHERIAN_EXTRA_STARTING_UNITS = [UnitType.SpearGuard]; // Extra military at start
+export const AETHERIAN_EXTRA_STARTING_UNITS: UnitType[] = []; // v1.4: Removed extra SpearGuard (was too strong)
 export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout (was too strong)
 // NOTE: JadeCovenant extra settler REMOVED - 80% win rate was too strong
 
-// v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8
-// At 54 avg pop, this reduces bonus from +10/+10 to +6/+6
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // +1 combat strength per 8 pop
+// v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8, then to 10
+// At 54 avg pop, this reduces bonus from +6/+6 (at 8) to +5/+5 (at 10)
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // v1.5: Reverted to 8 (was 10)
 
 
 
@@ -104,10 +98,9 @@ export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (
 export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 3; // Tiles from capital
 export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // +1 Defense
 
-// v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near science buildings
-// v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near Scriptorium/Academy cities
-export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 2; // Tiles from Scriptorium/Academy city
-export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense (stronger than Starborne to help them survive)
+// v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
+export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense
 
 // Settler
 export const SETTLER_COST = 20;
@@ -201,7 +194,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.Titan]: { atk: 25, def: 10, rng: 1, move: 3, hp: 50, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
+    [UnitType.Titan]: { atk: 30, def: 20, rng: 1, move: 2, hp: 60, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
 };
 
 export type BuildingData = {
@@ -225,8 +218,8 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 4, cityAttackBonus: 1 },
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
-    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 150, conditional: "Summons The Titan upon completion" }, // v0.98: Reduced from 200
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 275, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v0.99: Removed instant tech
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 100, conditional: "Summons The Titan upon completion" }, // v1.7: Buffed to 100 (was 120)
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 300, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v1.5: Increased to 300 (was 250)
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 30, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v0.99 BUFF: Cost 30, Free Settler
 };
 
@@ -259,53 +252,49 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Project", id: ProjectId.Observatory } },
 };
 
-export type ProjectData = {
-    cost: number;
-    prereqTechs?: TechId[];
-    prereqMilestone?: ProjectId;
-    oncePerCiv: boolean;
-    oneCityAtATime: boolean;
-    onComplete: { type: "Milestone" | "Victory" | "Transform"; payload: any };
-};
 
-export const PROJECTS: Record<ProjectId, ProjectData> = {
+
+export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     [ProjectId.Observatory]: {
-        cost: 180,  // v1.1: Increased from 150 (+20%, total +63% from base)
+        cost: 220,  // v1.3: Increased from 190
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 250,  // v1.1: Increased from 210 (+19%, total +61% from base)
+        cost: 265,
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 330,  // v1.1: Increased from 270 (+22%, total +65% from base)
+        cost: 350,
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Victory", payload: { victory: "Progress" } },
     },
     [ProjectId.FormArmy_SpearGuard]: {
-        cost: 10,  // v0.98 Update 5: Reduced from 15 to make armies more accessible
+        cost: 10,
         oncePerCiv: false,
         oneCityAtATime: false,
+        scalesWithTurn: true,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.SpearGuard, armyUnit: UnitType.ArmySpearGuard } },
     },
     [ProjectId.FormArmy_BowGuard]: {
-        cost: 10,  // v0.98 Update 5: Reduced from 15 to make armies more accessible
+        cost: 10,
         oncePerCiv: false,
         oneCityAtATime: false,
+        scalesWithTurn: true,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.BowGuard, armyUnit: UnitType.ArmyBowGuard } },
     },
     [ProjectId.FormArmy_Riders]: {
-        cost: 10,  // v0.98 Update 6: Reduced from 15 (was 20) - 0 formations in 50 games!
+        cost: 10,
         oncePerCiv: false,
         oneCityAtATime: false,
+        scalesWithTurn: true,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.Riders, armyUnit: UnitType.ArmyRiders } },
     },
     // Marker project for tracking Jade Granary completion (not buildable directly)
@@ -314,6 +303,22 @@ export const PROJECTS: Record<ProjectId, ProjectData> = {
         oncePerCiv: true,
         oneCityAtATime: false,
         onComplete: { type: "Milestone", payload: { marker: "JadeGranary" } },
+    },
+    [ProjectId.HarvestFestival]: {
+        cost: 100,
+        prereqBuilding: BuildingType.Farmstead,
+        oncePerCiv: false,
+        oneCityAtATime: false,
+        scalesWithTurn: true,
+        onComplete: { type: "GrantYield", payload: { F: 25 } },
+    },
+    [ProjectId.AlchemicalExperiments]: {
+        cost: 100,
+        prereqBuilding: BuildingType.Scriptorium,
+        oncePerCiv: false,
+        oneCityAtATime: false,
+        scalesWithTurn: true,
+        onComplete: { type: "GrantYield", payload: { S: 25 } },
     },
 };
 

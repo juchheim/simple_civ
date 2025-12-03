@@ -202,20 +202,38 @@ function App() {
                 // Check if clicking on a friendly unit (that isn't self)
                 const friendlyUnitOnTile = gameState.units.find(u => hexEquals(u.coord, coord) && u.ownerId === playerId);
                 if (friendlyUnitOnTile && friendlyUnitOnTile.id !== unit.id) {
-                    // If units are adjacent, swap them instead of selecting
                     const distance = hexDistance(unit.coord, friendlyUnitOnTile.coord);
                     if (distance === 1 && unit.movesLeft > 0) {
-                        // Attempt to swap units
-                        handleAction({
-                            type: "SwapUnits",
-                            playerId,
-                            unitId: unit.id,
-                            targetUnitId: friendlyUnitOnTile.id
-                        });
-                        // Keep the originally selected unit selected after swap (it will now be at the clicked position)
-                        setSelectedCoord(coord);
-                        setSelectedUnitId(unit.id);
-                        return;
+                        // Check if units can stack (one military, one civilian)
+                        const unitStats = UNITS[unit.type];
+                        const targetStats = UNITS[friendlyUnitOnTile.type];
+                        const canStack = (unitStats.domain === "Civilian" && targetStats.domain !== "Civilian") ||
+                            (unitStats.domain !== "Civilian" && targetStats.domain === "Civilian");
+
+                        if (canStack) {
+                            // Move to the same hex to stack with the friendly unit
+                            handleAction({
+                                type: "MoveUnit",
+                                playerId,
+                                unitId: unit.id,
+                                to: coord
+                            });
+                            setSelectedCoord(coord);
+                            setSelectedUnitId(unit.id);
+                            return;
+                        } else {
+                            // Both military or both civilian - attempt to swap positions
+                            handleAction({
+                                type: "SwapUnits",
+                                playerId,
+                                unitId: unit.id,
+                                targetUnitId: friendlyUnitOnTile.id
+                            });
+                            // Keep the originally selected unit selected after swap (it will now be at the clicked position)
+                            setSelectedCoord(coord);
+                            setSelectedUnitId(unit.id);
+                            return;
+                        }
                     }
                     // If not adjacent, fall through to selection logic
                     setSelectedCoord(coord);
@@ -323,6 +341,12 @@ function App() {
             u => u.ownerId === playerId && hexEquals(u.coord, coord),
         );
         if (friendlyUnits.length === 0) {
+            // Check for enemy units
+            const enemyUnit = gameState.units.find(u => hexEquals(u.coord, coord));
+            if (enemyUnit) {
+                setSelectedUnitId(enemyUnit.id);
+                return;
+            }
             setSelectedUnitId(null);
             return;
         }

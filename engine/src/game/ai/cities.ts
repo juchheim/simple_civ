@@ -47,21 +47,34 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     const myUnits = state.units.filter(u => u.ownerId === playerId);
     const militaryCount = myUnits.filter(u => u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.RiverBoat).length;
     const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
-    const isSafeEnough = !atWar || militaryCount >= 3;
+
+    let safetyThreshold = 3;
+    // v0.99: Aetherian Vanguard maintains a larger standing army
+    if (player?.civName === "AetherianVanguard") {
+        if (state.turn > 100) safetyThreshold += 2;
+        else if (state.turn > 30) safetyThreshold += 1;
+    }
+
+    // Safe if: Not at war OR we have a decent military
+    // Aetherian Vanguard ALWAYS enforces the threshold (standing army), others only when at war
+    let isSafeEnough = !atWar || militaryCount >= safetyThreshold;
+    if (player?.civName === "AetherianVanguard") {
+        isSafeEnough = militaryCount >= safetyThreshold;
+    }
 
     // If we can work on victory, do it (unless massively losing a war)
     if (canCompleteVictoryProjects && isSafeEnough) {
         const victoryPath: BuildOption[] = [];
         if (!hasObservatory) {
-            victoryPath.push({ type: "Project", id: ProjectId.Observatory });
+            victoryPath.push({ type: "Project" as const, id: ProjectId.Observatory });
         } else if (!hasGrandAcademy) {
-            victoryPath.push({ type: "Project", id: ProjectId.GrandAcademy });
+            victoryPath.push({ type: "Project" as const, id: ProjectId.GrandAcademy });
         } else {
-            victoryPath.push({ type: "Project", id: ProjectId.GrandExperiment });
+            victoryPath.push({ type: "Project" as const, id: ProjectId.GrandExperiment });
         }
 
         // Prepend victory projects to normal priorities
-        const normalPriorities = buildNormalPriorities(goal, personality, scoutCount);
+        const normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
         return [...victoryPath, ...normalPriorities];
     }
 
@@ -87,9 +100,9 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         // So it transforms ONE unit.
         // So we just need 1 unit of that type.
 
-        if (spearCount >= 1) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_SpearGuard });
-        if (bowCount >= 1) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_BowGuard });
-        if (ridersCount >= 1) armyPriorities.push({ type: "Project", id: ProjectId.FormArmy_Riders });
+        if (spearCount >= 1) armyPriorities.push({ type: "Project" as const, id: ProjectId.FormArmy_SpearGuard });
+        if (bowCount >= 1) armyPriorities.push({ type: "Project" as const, id: ProjectId.FormArmy_BowGuard });
+        if (ridersCount >= 1) armyPriorities.push({ type: "Project" as const, id: ProjectId.FormArmy_Riders });
     }
 
     // When at war, heavily prioritize military production
@@ -103,9 +116,9 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             // Prioritize army formation over individual units
             // v0.96: Put army formations first, then units based on what we lack
             const allArmyOptions: BuildOption[] = [
-                { type: "Project", id: ProjectId.FormArmy_BowGuard },
-                { type: "Project", id: ProjectId.FormArmy_SpearGuard },
-                { type: "Project", id: ProjectId.FormArmy_Riders },
+                { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
+                { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
+                { type: "Project" as const, id: ProjectId.FormArmy_Riders },
             ];
 
             // Put armies we can actually form first
@@ -117,12 +130,12 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             return [
                 ...(rushItem ? [rushItem] : []),
                 ...prioritizedArmies,
-                { type: "Unit", id: UnitType.Settler }, // Still allow settlers if safe
-                { type: "Unit", id: UnitType.BowGuard },
-                { type: "Unit", id: UnitType.SpearGuard },
-                { type: "Unit", id: UnitType.Riders },
-                { type: "Building", id: BuildingType.StoneWorkshop },
-                { type: "Building", id: BuildingType.Farmstead },
+                { type: "Unit" as const, id: UnitType.Settler }, // Still allow settlers if safe
+                { type: "Unit" as const, id: UnitType.BowGuard },
+                { type: "Unit" as const, id: UnitType.SpearGuard },
+                { type: "Unit" as const, id: UnitType.Riders },
+                { type: "Building" as const, id: BuildingType.StoneWorkshop },
+                { type: "Building" as const, id: BuildingType.Farmstead },
             ];
         } else {
             // No armies yet, build varied individual units
@@ -139,24 +152,24 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             const hasRider = units.some(u => u.type === UnitType.Riders || u.type === UnitType.ArmyRiders);
 
             const meleeFirst: BuildOption[] = [
-                { type: "Unit", id: UnitType.Settler },
-                { type: "Unit", id: UnitType.SpearGuard },
-                { type: "Unit", id: UnitType.Riders },
-                { type: "Unit", id: UnitType.BowGuard },
+                { type: "Unit" as const, id: UnitType.Settler },
+                { type: "Unit" as const, id: UnitType.SpearGuard },
+                { type: "Unit" as const, id: UnitType.Riders },
+                { type: "Unit" as const, id: UnitType.BowGuard },
             ];
 
             const rangedFirst: BuildOption[] = [
-                { type: "Unit", id: UnitType.Settler },
-                { type: "Unit", id: UnitType.BowGuard },
-                { type: "Unit", id: UnitType.SpearGuard },
-                { type: "Unit", id: UnitType.Riders },
+                { type: "Unit" as const, id: UnitType.Settler },
+                { type: "Unit" as const, id: UnitType.BowGuard },
+                { type: "Unit" as const, id: UnitType.SpearGuard },
+                { type: "Unit" as const, id: UnitType.Riders },
             ];
 
             // If we are missing a specific type, prioritize it
             let unitPriority: BuildOption[] = [];
-            if (!hasSpear) unitPriority.push({ type: "Unit", id: UnitType.SpearGuard });
-            if (!hasBow) unitPriority.push({ type: "Unit", id: UnitType.BowGuard });
-            if (!hasRider) unitPriority.push({ type: "Unit", id: UnitType.Riders });
+            if (!hasSpear) unitPriority.push({ type: "Unit" as const, id: UnitType.SpearGuard });
+            if (!hasBow) unitPriority.push({ type: "Unit" as const, id: UnitType.BowGuard });
+            if (!hasRider) unitPriority.push({ type: "Unit" as const, id: UnitType.Riders });
 
             // Then fill with balanced approach
             if (rangedCount > meleeCount) {
@@ -171,14 +184,14 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             return [
                 ...(rushItem ? [rushItem] : []),
                 ...unitPriority,
-                { type: "Building", id: BuildingType.StoneWorkshop },
-                { type: "Building", id: BuildingType.Farmstead },
+                { type: "Building" as const, id: BuildingType.StoneWorkshop },
+                { type: "Building" as const, id: BuildingType.Farmstead },
             ];
         }
     }
 
     // Not at war, but if we have Army Doctrine and units to form, consider it
-    let normalPriorities = buildNormalPriorities(goal, personality, scoutCount);
+    let normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
 
     // v0.98 Update 7: ForgeClans early military deterrence
     // They get attacked the most - ensure they have military before expanding
@@ -203,78 +216,134 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         return [rushItem, ...normalPriorities];
     }
 
+    // v1.1: Aetherian War Prep
+    // If we are building the Titan's Core, ALL other cities must build military to support it.
+    // This ensures we have a "Deathball" ready when the Titan spawns.
+    const isAetherian = player?.civName === "AetherianVanguard";
+    const buildingTitan = state.cities.some(c => c.ownerId === playerId && c.currentBuild?.id === BuildingType.TitansCore);
+
+    if (isAetherian && buildingTitan) {
+        console.info(`[AI WAR PREP] ${playerId} building Titan - switching all cities to MILITARY production!`);
+        // Prioritize Armies heavily, then strongest units
+        const warPrepPriorities: BuildOption[] = [];
+
+        if (hasFormArmyTech) {
+            warPrepPriorities.push(
+                { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
+                { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
+                { type: "Project" as const, id: ProjectId.FormArmy_Riders }
+            );
+        }
+
+        warPrepPriorities.push(
+            { type: "Unit" as const, id: UnitType.BowGuard },
+            { type: "Unit" as const, id: UnitType.SpearGuard },
+            { type: "Unit" as const, id: UnitType.Riders }
+        );
+
+        // Still allow Stone Workshop for production if we have nothing else
+        warPrepPriorities.push({ type: "Building" as const, id: BuildingType.StoneWorkshop });
+
+        return warPrepPriorities;
+    }
+
     return normalPriorities;
 }
 
-function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, scoutCount: number): BuildOption[] {
+function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, scoutCount: number, isSafeEnough: boolean): BuildOption[] {
     const shouldBuildScout = scoutCount < 2; // Cap scouts at 2
 
     const progress: BuildOption[] = [
-        ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
-        { type: "Project", id: ProjectId.Observatory },
-        { type: "Project", id: ProjectId.GrandAcademy },
-        { type: "Project", id: ProjectId.GrandExperiment },
-        { type: "Building", id: BuildingType.Scriptorium },
-        { type: "Building", id: BuildingType.Academy },
-        { type: "Building", id: BuildingType.SpiritObservatory }, // Unique
-        { type: "Building", id: BuildingType.JadeGranary },       // Unique
-        { type: "Building", id: BuildingType.CitySquare },
-        { type: "Building", id: BuildingType.Reservoir },
-        { type: "Building", id: BuildingType.Farmstead },
-        { type: "Building", id: BuildingType.StoneWorkshop },
-        { type: "Building", id: BuildingType.LumberMill },
-        { type: "Building", id: BuildingType.Forgeworks },
-        { type: "Building", id: BuildingType.CityWard },
-        { type: "Unit", id: UnitType.Settler }, // Normal priority
-        { type: "Unit", id: UnitType.SpearGuard },
-        { type: "Unit", id: UnitType.Riders },
+        ...(shouldBuildScout ? [{ type: "Unit" as const, id: UnitType.Scout } as BuildOption] : []),          // Early exploration
+        { type: "Project" as const, id: ProjectId.Observatory },
+        { type: "Project" as const, id: ProjectId.GrandAcademy },
+        { type: "Project" as const, id: ProjectId.GrandExperiment },
+        { type: "Building" as const, id: BuildingType.Scriptorium },
+        { type: "Building" as const, id: BuildingType.Academy },
+        { type: "Building" as const, id: BuildingType.SpiritObservatory }, // Unique
+        { type: "Building" as const, id: BuildingType.JadeGranary },       // Unique
+        { type: "Building" as const, id: BuildingType.CitySquare },
+        { type: "Building" as const, id: BuildingType.Reservoir },
+        { type: "Building" as const, id: BuildingType.Farmstead },
+        { type: "Building" as const, id: BuildingType.StoneWorkshop },
+        { type: "Building" as const, id: BuildingType.LumberMill },
+        { type: "Building" as const, id: BuildingType.Forgeworks },
+        { type: "Building" as const, id: BuildingType.CityWard },
+        { type: "Building" as const, id: BuildingType.CityWard },
+        ...(isSafeEnough ? [
+            { type: "Project" as const, id: ProjectId.HarvestFestival },
+            { type: "Project" as const, id: ProjectId.AlchemicalExperiments }
+        ] : []),
+        { type: "Unit" as const, id: UnitType.Settler }, // Normal priority
+        { type: "Unit" as const, id: UnitType.SpearGuard },
+        { type: "Unit" as const, id: UnitType.Riders },
+        ...(!isSafeEnough ? [
+            { type: "Project" as const, id: ProjectId.HarvestFestival },
+            { type: "Project" as const, id: ProjectId.AlchemicalExperiments }
+        ] : []),
     ];
 
     const conquest: BuildOption[] = [
-        ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
-        { type: "Unit", id: UnitType.SpearGuard },
-        { type: "Unit", id: UnitType.Riders },
-        { type: "Unit", id: UnitType.BowGuard },
-        { type: "Project", id: ProjectId.FormArmy_SpearGuard },
-        { type: "Project", id: ProjectId.FormArmy_Riders },
-        { type: "Project", id: ProjectId.FormArmy_BowGuard },
-        { type: "Building", id: BuildingType.Forgeworks },
-        { type: "Building", id: BuildingType.Forgeworks },
-        { type: "Building", id: BuildingType.TitansCore },        // Unique
-        { type: "Building", id: BuildingType.JadeGranary },       // Unique (Jade Covenant needs this for growth even in Conquest)
-        { type: "Building", id: BuildingType.StoneWorkshop },
-        { type: "Building", id: BuildingType.LumberMill },
-        { type: "Building", id: BuildingType.CityWard },
-        { type: "Building", id: BuildingType.Farmstead },
-        { type: "Building", id: BuildingType.CitySquare },
-        { type: "Unit", id: UnitType.Settler },
+        ...(shouldBuildScout ? [{ type: "Unit" as const, id: UnitType.Scout } as BuildOption] : []),          // Early exploration
+        { type: "Unit" as const, id: UnitType.SpearGuard },
+        { type: "Unit" as const, id: UnitType.Riders },
+        { type: "Unit" as const, id: UnitType.BowGuard },
+        { type: "Building" as const, id: BuildingType.TitansCore },        // Unique - Prioritize heavily for Aetherian
+        { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
+        { type: "Project" as const, id: ProjectId.FormArmy_Riders },
+        { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
+        { type: "Building" as const, id: BuildingType.Forgeworks },
+        { type: "Building" as const, id: BuildingType.Forgeworks },
+        { type: "Building" as const, id: BuildingType.JadeGranary },       // Unique (Jade Covenant needs this for growth even in Conquest)
+        { type: "Building" as const, id: BuildingType.StoneWorkshop },
+        { type: "Building" as const, id: BuildingType.LumberMill },
+        { type: "Building" as const, id: BuildingType.CityWard },
+        { type: "Building" as const, id: BuildingType.Farmstead },
+        { type: "Building" as const, id: BuildingType.CitySquare },
+        { type: "Building" as const, id: BuildingType.CitySquare },
+        { type: "Unit" as const, id: UnitType.Settler },
+        // Conquest always prioritizes units, so filler goes last
+        { type: "Project" as const, id: ProjectId.HarvestFestival },
+        { type: "Project" as const, id: ProjectId.AlchemicalExperiments },
     ];
     const balanced: BuildOption[] = [
-        ...(shouldBuildScout ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),          // Early exploration
-        { type: "Unit", id: UnitType.Settler },
-        { type: "Unit", id: UnitType.SpearGuard },
-        { type: "Building", id: BuildingType.Farmstead },
-        { type: "Building", id: BuildingType.StoneWorkshop },
-        { type: "Building", id: BuildingType.LumberMill },
-        { type: "Building", id: BuildingType.Scriptorium },
-        { type: "Building", id: BuildingType.CitySquare },
-        { type: "Building", id: BuildingType.CityWard },
-        { type: "Building", id: BuildingType.JadeGranary },       // Unique
-        { type: "Building", id: BuildingType.SpiritObservatory }, // Unique
-        { type: "Building", id: BuildingType.TitansCore },        // Unique
-        { type: "Unit", id: UnitType.Riders },
+        ...(shouldBuildScout ? [{ type: "Unit" as const, id: UnitType.Scout } as BuildOption] : []),          // Early exploration
+        { type: "Unit" as const, id: UnitType.Settler },
+        { type: "Unit" as const, id: UnitType.SpearGuard },
+        { type: "Building" as const, id: BuildingType.Farmstead },
+        { type: "Building" as const, id: BuildingType.StoneWorkshop },
+        { type: "Building" as const, id: BuildingType.LumberMill },
+        { type: "Building" as const, id: BuildingType.Scriptorium },
+        { type: "Building" as const, id: BuildingType.CitySquare },
+        { type: "Building" as const, id: BuildingType.CityWard },
+        { type: "Building" as const, id: BuildingType.TitansCore },        // Unique - Prioritize heavily
+        { type: "Building" as const, id: BuildingType.JadeGranary },       // Unique
+        { type: "Building" as const, id: BuildingType.SpiritObservatory }, // Unique
+        { type: "Building" as const, id: BuildingType.TitansCore },        // Unique (Retry if missed)
+        ...(isSafeEnough ? [
+            { type: "Project" as const, id: ProjectId.HarvestFestival },
+            { type: "Project" as const, id: ProjectId.AlchemicalExperiments }
+        ] : []),
+        { type: "Unit" as const, id: UnitType.Riders },
+        ...(!isSafeEnough ? [
+            { type: "Project" as const, id: ProjectId.HarvestFestival },
+            { type: "Project" as const, id: ProjectId.AlchemicalExperiments }
+        ] : []),
     ];
 
     let prioritized = goal === "Progress" ? progress : goal === "Conquest" ? conquest : balanced;
 
     if (personality.unitBias.navalWeight) {
-        prioritized = [{ type: "Unit", id: UnitType.RiverBoat }, ...prioritized];
+        prioritized = [{ type: "Unit" as const, id: UnitType.RiverBoat }, ...prioritized];
     }
 
     // Ensure at least one military pick near the top to avoid pure builder loops.
-    const hasEarlyMilitary = prioritized.slice(0, 3).some(p => p.type === "Unit" && p.id !== UnitType.Settler);
-    if (!hasEarlyMilitary) {
-        prioritized = [{ type: "Unit", id: UnitType.SpearGuard }, ...prioritized];
+    // v1.1: Only force military if we are not safe enough
+    if (!isSafeEnough) {
+        const hasEarlyMilitary = prioritized.slice(0, 3).some(p => p.type === "Unit" && p.id !== UnitType.Settler);
+        if (!hasEarlyMilitary) {
+            prioritized = [{ type: "Unit" as const, id: UnitType.SpearGuard }, ...prioritized];
+        }
     }
 
     // Remove duplicates (simple check)
@@ -313,12 +382,12 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
 
         // Lighter military focus - one defender then continue normally
         const militaryFirst: BuildOption[] = [
-            ...(scoutCount < 2 ? [{ type: "Unit", id: UnitType.Scout } as BuildOption] : []),           // Still need scouts early
-            { type: "Unit", id: UnitType.SpearGuard },      // One defender
-            { type: "Building", id: BuildingType.StoneWorkshop },  // Production boost
-            { type: "Unit", id: UnitType.Settler },         // Can expand earlier now
-            { type: "Building", id: BuildingType.Farmstead },
-            { type: "Unit", id: UnitType.BowGuard },        // Then ranged support
+            ...(scoutCount < 2 ? [{ type: "Unit" as const, id: UnitType.Scout } as BuildOption] : []),           // Still need scouts early
+            { type: "Unit" as const, id: UnitType.SpearGuard },      // One defender
+            { type: "Building" as const, id: BuildingType.StoneWorkshop },  // Production boost
+            { type: "Unit" as const, id: UnitType.Settler },         // Can expand earlier now
+            { type: "Building" as const, id: BuildingType.Farmstead },
+            { type: "Unit" as const, id: UnitType.BowGuard },        // Then ranged support
         ];
 
         return militaryFirst;

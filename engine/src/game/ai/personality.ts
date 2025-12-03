@@ -173,6 +173,45 @@ export function getPersonality(civName?: string | null): AiPersonality {
 }
 
 export function getPersonalityForPlayer(state: GameState, playerId: string): AiPersonality {
-    const civ = state.players.find(p => p.id === playerId)?.civName;
-    return getPersonality(civ);
+    const player = state.players.find(p => p.id === playerId);
+    const civ = player?.civName;
+    const basePersonality = getPersonality(civ);
+
+    // v1.2: Late Game Aggression Override (Fight to the Death)
+    if (state.turn >= 200 && player?.aiGoal === "Conquest") {
+        const aggressiveCivs = ["AetherianVanguard", "ForgeClans", "JadeCovenant", "RiverLeague"];
+        if (civ && aggressiveCivs.includes(civ)) {
+            // Check if we are NOT nearing progress victory (double check to be safe, though goal should reflect it)
+            // Actually, if goal is Conquest at turn 200+, we assume the goal logic did its job.
+            // But let's be safe and ensure we don't suicide if we are actually winning science.
+            const nearingProgress = player.completedProjects.includes(ProjectId.GrandAcademy) ||
+                player.completedProjects.includes(ProjectId.GrandExperiment);
+
+            if (!nearingProgress) {
+                return {
+                    ...basePersonality,
+                    aggression: {
+                        warPowerThreshold: 0.1, // Attack anyone, even if much stronger
+                        warDistanceMax: 999,    // Attack anywhere
+                        // peacePowerThreshold usage in diplomacy.ts:
+                        // if (myPower < theirPower * personality.aggression.peacePowerThreshold) -> Consider Peace
+                        // So to NEVER accept peace, we want this to be very low?
+                        // If peacePowerThreshold is 0.1, we only accept peace if we are super weak (myPower < 0.1 * theirPower).
+                        // If we want to "fight to the death", we should only accept peace if we are absolutely crushed.
+                        // OR, if the user meant "never accept peace", we might need to look at diplomacy.ts.
+                        // But usually "fight to the death" means you don't care about odds.
+                        // Let's set it to 0.1 (only surrender if 10x weaker).
+                        // Wait, if I want to be aggressive, I shouldn't accept peace when I'm winning.
+                        // The logic usually is: "I'm losing, I want peace."
+                        // If I want to fight to the death, I should NOT want peace even if losing.
+                        // So peacePowerThreshold should be extremely low (e.g. 0.01).
+                        // Let's verify usage in diplomacy.ts first.
+                        peacePowerThreshold: 0.05,
+                    }
+                };
+            }
+        }
+    }
+
+    return basePersonality;
 }

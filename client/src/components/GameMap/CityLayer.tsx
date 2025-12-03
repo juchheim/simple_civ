@@ -90,6 +90,23 @@ export const CityLabelLayer: React.FC<CityLayerProps> = React.memo(({ overlays }
                             />
                         </g>
 
+                        {/* Capital Star */}
+                        {overlay.city.isCapital && (
+                            <text
+                                x={0}
+                                y={-CITY_LABEL_OFFSET - 65}
+                                textAnchor="middle"
+                                fill="#FFD700" // Gold
+                                fontSize={24}
+                                style={{
+                                    pointerEvents: "none",
+                                    filter: "drop-shadow(0px 0px 2px black)"
+                                }}
+                            >
+                                ★
+                            </text>
+                        )}
+
                         <circle
                             cx={0}
                             cy={-CITY_LABEL_OFFSET - 30}

@@ -28,12 +28,12 @@
     - **Domination Bypass**: Overwhelmingly strong AI (3x power) can bypass peace duration.
     - **No Peace**: Late game AI rejects peace to force a conclusion.
   - Stores the AI victory goal on the player (`aiGoal`) so bias is visible/persisted.
-  - **Victory Logic (v0.99)**:
+  - **Victory Logic (v1.0)**:
     - **Scholar Kingdoms**: Prioritizes Science buildings/projects to rush Tech victory.
     - **Starborne Seekers**: Prioritizes Spirit Observatory and Progress projects.
     - **River League**: Auto-assigner prioritizes river tiles (valued at +0.5 Prod) to maximize unique trait.
     - **Jade Covenant**: Aggressively expands (Desire 2.0) using "Nature's Wrath" attrition to defend territory; pivots to victory earlier (15 pop or 4 cities). **Efficiency**: Stops building Settlers when in "Conquest" mode to focus on war.
-    - **Aetherian Vanguard**: Titans ignore terrain movement; AI spikes aggression when Titan is built.
+    - **Aetherian Vanguard**: Titans ignore terrain movement; AI spikes aggression when Titan is built. Perk buffed to +2 HP/era.
     - **Map Scaling**: Aggression scales on Standard, Large, and Huge maps to encourage conquest despite distances.
 - Start placement now uses the documented city-site scoring heuristic instead of the prior ad-hoc formula; the client now consumes the shared engine generator (`engine/src/map/map-generator.ts`).
 - AI turn autoskip loop remains in the client (`client/src/App.tsx:107-121`) and drives the new behavior for `isAI` players.

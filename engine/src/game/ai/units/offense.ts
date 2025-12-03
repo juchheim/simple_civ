@@ -1,5 +1,5 @@
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
-import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
+import { DiplomacyState, GameState, UnitType, UnitState } from "../../../core/types.js";
 import {
     BUILDINGS,
     TERRAIN,
@@ -147,7 +147,9 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
 
 export function attackTargets(state: GameState, playerId: string): GameState {
     let next = state;
-    const units = next.units.filter(u => u.ownerId === playerId && u.type !== UnitType.Settler && !isScoutType(u.type));
+    // v1.0 Fix: Exclude garrisoned units from active attacks to prevent "unprovoked" city attacks.
+    // Garrisoned units will still retaliate if the city is attacked.
+    const units = next.units.filter(u => u.ownerId === playerId && u.type !== UnitType.Settler && !isScoutType(u.type) && u.state !== UnitState.Garrisoned);
     const warTargets = getWarTargets(next, playerId);
     const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
     const warCities = next.cities.filter(c => c.ownerId !== playerId);
@@ -419,6 +421,38 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
         { forceRetarget: isInWarProsecutionMode, preferClosest: isInWarProsecutionMode }
     );
 
+    // v1.1: Titan Deathball Logic
+    // If we have a Titan, ALL units should rally to it or its target.
+    const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
+    let titanTarget: any = null;
+    if (titan) {
+        // Find what the Titan is targeting (closest enemy capital or city)
+        // We replicate the Titan's targeting logic here to ensure sync
+        const warEnemies = next.players.filter(p =>
+            p.id !== playerId &&
+            !p.isEliminated &&
+            next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+        );
+        const enemyCities = next.cities
+            .filter(c => warEnemies.some(e => e.id === c.ownerId))
+            .sort((a, b) => {
+                if (a.isCapital !== b.isCapital) return a.isCapital ? -1 : 1;
+                return a.hp - b.hp;
+            });
+
+        if (enemyCities.length > 0) {
+            // Titan targets the nearest high-value city
+            // We assume Titan logic (titan.ts) picks the best one.
+            // For the Deathball, we just want to be near the Titan.
+            // But if the Titan is far, we should move to where the Titan is GOING.
+
+            // Actually, simplest "Deathball" is: Move to Titan's location.
+            // If we are near Titan, move to Titan's target.
+
+            // Let's define "Near Titan" as distance <= 3.
+        }
+    }
+
     for (const unit of armyUnits) {
         let current = unit;
         let safety = 0;
@@ -449,11 +483,35 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
             }
 
             if (!nearest) {
-                nearest = nearestByDistance(
-                    current.coord,
-                    primaryCity ? [primaryCity] : unitTargets,
-                    city => city.coord
-                );
+                // v1.1: Titan Deathball Override
+                // If Titan exists, rally to it!
+                if (titan && current.id !== titan.id) {
+                    const distToTitan = hexDistance(current.coord, titan.coord);
+
+                    // If we are far from Titan (> 3 tiles), move to Titan
+                    if (distToTitan > 3) {
+                        nearest = { coord: titan.coord, name: "The Titan" };
+                        console.info(`[AI DEATHBALL] ${playerId} ${current.type} rallying to Titan (dist ${distToTitan})`);
+                    } else {
+                        // We are near Titan. Move to Titan's target (if any) or just stick with it.
+                        // If we have a primary city (Titan's likely target), go there.
+                        // If not, stick to Titan.
+                        if (primaryCity) {
+                            nearest = primaryCity;
+                            // console.info(`[AI DEATHBALL] ${playerId} ${current.type} supporting Titan against ${primaryCity.name}`);
+                        } else {
+                            nearest = { coord: titan.coord, name: "The Titan" };
+                        }
+                    }
+                }
+
+                if (!nearest) {
+                    nearest = nearestByDistance(
+                        current.coord,
+                        primaryCity ? [primaryCity] : unitTargets,
+                        city => city.coord
+                    );
+                }
             }
 
             if (!nearest) break;

@@ -1,4 +1,4 @@
-# Simple Civ v0.99
+# Simple Civ v1.0
 
 **A digital board game / light 4X strategy game built with TypeScript.**
 
@@ -99,7 +99,7 @@ npm run lint
 
 Detailed documentation is available in the `docs/` directory:
 
-*   **[Game Rules](docs/rules/simple-civ_v0.99_rulebook.md)**: The official rulebook for v0.99.
+*   **[Game Rules](docs/rules/simple-civ_v1.0_rulebook.md)**: The official rulebook for v1.0.
 *   **[Implementation Status](docs/IMPLEMENTATION_STATUS.md)**: Current feature completion tracking.
 *   **[AI Status](docs/doc_ai_status.md)**: Overview of AI behaviors and logic.
 *   **[Dev Spec](docs/dev-spec/v0.9/README.md)**: Technical specifications and architecture notes.

@@ -166,6 +166,22 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
         return "Conquest";
     }
 
+    // v1.2: Late Game Aggression Shift (Fight to the Death)
+    // At turn 200, specific civs shift to Conquest unless they are close to a Progress victory
+    if (state.turn >= 200) {
+        const aggressiveCivs = ["AetherianVanguard", "ForgeClans", "JadeCovenant", "RiverLeague"];
+        if (player.civName && aggressiveCivs.includes(player.civName)) {
+            // Check if nearing Progress Victory (GrandAcademy completed or GrandExperiment unlocked/completed)
+            const nearingProgress = player.completedProjects.includes(ProjectId.GrandAcademy) ||
+                player.completedProjects.includes(ProjectId.GrandExperiment);
+
+            if (!nearingProgress) {
+                console.info(`[AI Goal] ${playerId} (${player.civName}) Late Game Aggression - Switching to CONQUEST (Fight to the Death)`);
+                return "Conquest";
+            }
+        }
+    }
+
     // v0.99 Update: Jade Covenant specific logic
     if (player.civName === "JadeCovenant") {
         const jadeGoal = getJadeCovenantGoal(playerId, state);

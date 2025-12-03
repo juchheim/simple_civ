@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, BuildingType, UnitState } from "../../core/types.js";
+import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, BuildingType, UnitState, UnitDomain } from "../../core/types.js";
 import {
     UNITS,
     TERRAIN,
@@ -60,7 +60,7 @@ export function getAetherianHpBonus(player: Player, unitType: UnitType): number 
     if (player.civName !== "AetherianVanguard") return 0;
     // Only military units get the bonus
     if (UNITS[unitType].domain === "Civilian") return 0;
-    return countErasResearched(player);
+    return countErasResearched(player) * 2;
 }
 
 /**
@@ -134,23 +134,19 @@ export function getStarborneCelestialBonus(state: GameState, player: Player, uni
 }
 
 /**
- * v0.98 Update 8: Get ScholarKingdoms "Scholarly Retreat" defense bonus.
- * Units within 2 tiles of any city with a Scriptorium or Academy gain +2 Defense.
- * This helps them survive long enough to use their science advantage.
+ * v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city.
+ * Units within 1 tile of any city gain +2 Defense.
  */
 export function getScholarKingdomsDefenseBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "ScholarKingdoms") return 0;
 
-    // Find any of player's cities with Scriptorium or Academy
-    const scholarCities = state.cities.filter(c =>
-        c.ownerId === player.id &&
-        (c.buildings.includes(BuildingType.Scriptorium) || c.buildings.includes(BuildingType.Academy))
-    );
+    // Find any of player's cities
+    const cities = state.cities.filter(c => c.ownerId === player.id);
 
-    if (scholarCities.length === 0) return 0;
+    if (cities.length === 0) return 0;
 
-    // Check if unit is within radius of any scholar city
-    for (const city of scholarCities) {
+    // Check if unit is within radius of any city
+    for (const city of cities) {
         const dist = hexDistance(unit.coord, city.coord);
         if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
             return SCHOLAR_KINGDOMS_DEFENSE_BONUS;
@@ -178,12 +174,23 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
         boosted.def += 1;
     }
 
-    // v0.98: JadeCovenant "Population Power" - combat bonus based on total population
-    // Only applies to military units (not civilians)
+    // v0.98 Update 5: ForgeClans "Forged Arms" - +1 Attack if built in city with 2+ Hills
+    // We approximate this by checking if ANY city has 2+ hills (since we don't track origin city perfectly yet)
+    // Only applies to military units
+    if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
+        const forgeBonus = getForgeClansCombatBonus(state, player);
+        boosted.atk += forgeBonus;
+
+        // v0.98 Update 6: "Industrial Warfare" - +1 Attack per Engine tech
+        const engineBonus = getForgeClansEngineBonus(player);
+        boosted.atk += engineBonus;
+    }
+
+    // v0.98: JadeCovenant "Population Power" - +1 Atk/Def per 8 Pop
     if (player.civName === "JadeCovenant" && UNITS[unit.type].domain !== "Civilian") {
-        const popBonus = getJadeCovenantCombatBonus(state, player);
-        boosted.atk += popBonus;
-        boosted.def += popBonus;
+        const jadeBonus = getJadeCovenantCombatBonus(state, player);
+        boosted.atk += jadeBonus;
+        boosted.def += jadeBonus;
     }
 
     // v0.99 BUFF: "Ancestral Protection" - Settlers get +2 Defense
@@ -191,18 +198,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
         boosted.def += 2;
     }
 
-    // v0.98 Update 5: ForgeClans "Forged Arms" - attack bonus from hill production
-    // Only applies to military units
-    if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
-        const hillBonus = getForgeClansCombatBonus(state, player);
-        boosted.atk += hillBonus;
-
-        // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine tech
-        const engineBonus = getForgeClansEngineBonus(player);
-        boosted.atk += engineBonus;
-    }
-
-    // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
+    // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - +1 Defense near Capital
     // Only applies to military units
     if (player.civName === "StarborneSeekers" && UNITS[unit.type].domain !== "Civilian") {
         const celestialBonus = getStarborneCelestialBonus(state, player, unit);
@@ -236,6 +232,28 @@ export function getUnitCombatStats(unit: Unit, state: GameState) {
     return stats;
 }
 
+/**
+ * Get the max movement for a unit, applying buffs.
+ * v0.99: Aetherian Vanguard military units get +1 Movement if Titan's Core is built.
+ */
+export function getUnitMaxMoves(unit: Unit, state: GameState): number {
+    const stats = UNITS[unit.type];
+    let moves = stats.move;
+
+    // Aetherian Vanguard: +1 Movement for military units if Titan's Core is built
+    if (stats.domain !== UnitDomain.Civilian) {
+        const player = state.players.find(p => p.id === unit.ownerId);
+        if (player?.civName === "AetherianVanguard") {
+            const hasTitansCore = state.cities.some(c => c.ownerId === unit.ownerId && c.buildings.includes(BuildingType.TitansCore));
+            if (hasTitansCore) {
+                moves += 1;
+            }
+        }
+    }
+
+    return moves;
+}
+
 export function buildTileLookup(state: GameState): Map<string, Tile> {
     return new Map(state.map.tiles.map(t => [hexToString(t.coord), t]));
 }
@@ -251,4 +269,3 @@ export function hasClearLineOfSight(state: GameState, from: HexCoord, target: He
     }
     return true;
 }
-

@@ -1,4 +1,4 @@
-# Implementation Status - v0.99 codebase
+# Implementation Status - v1.0 codebase
 
 Last Updated: 2025-11-30
 
@@ -19,11 +19,11 @@ Last Updated: 2025-11-30
     - **Tactical Combat**: AI uses "Smart Buildup" for war prep, coordinates attacks, and uses "Clear the Way" tactics for city capture.
     - **Diplomacy**: AI respects peace durations but can bypass them if overwhelming (Domination Bypass).
 - **Victory/Loss UI**: Full-screen Victory/Defeat overlays with "Restart Game" (same seed/settings) and "Main Menu" options.
-- **Balance Adjustments (v0.99)**:
-    - **Starborne Seekers**: Nerfed Spirit Observatory (no instant tech, reduced science, increased cost). Removed extra starting Scout.
+- **Balance Adjustments (v1.0)**:
+    - **Starborne Seekers**: Nerfed Spirit Observatory (Cost 300). Removed Sacred Site Science Bonus. Restored starting SpearGuard.
     - **River League**: Adjusted river bonus to +1 Production per 2 river tiles (balanced from +1/tile). Auto-assigner prioritizes river tiles.
-    - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 40, +1 Pop/Food, Spawns Free Settler). Added "Nature's Wrath" (1 HP Attrition to enemies in territory). AI aggressively expands (2-tile density) and pivots to victory earlier. Stops settling in late-game wars.
-    - **Aetherian Vanguard**: Titans now ignore terrain movement costs (always 1 move).
+    - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 30, +1 Pop/Food, Spawns Free Settler). Added "Nature's Wrath" (1 HP Attrition to enemies in territory). AI aggressively expands (2-tile density) and pivots to victory earlier. Stops settling in late-game wars.
+    - **Aetherian Vanguard**: Titans ignore terrain movement costs. **Battle Hardened** perk buffed to +2 HP/era (max +6). **Scavenger Doctrine**: Science on Kill.
     - **AI Logic**: Improved victory condition pursuit. Aggression scales on Standard+ maps to encourage conquest.
 
 ## 🔧 Partially Implemented
@@ -39,7 +39,7 @@ Last Updated: 2025-11-30
 - Dev-spec helper modules (cities/states/ai) are not present; logic lives in turn-loop.
 
 ## 🎮 Current Gameplay Notes
-- Start: each civ gets Settler + Scout; no start-quality guarantees, spacing is loose (~4 hex min in code). Choose map size (Tiny to Huge) and number of civilizations (2-4).
-- Civilizations: Forge Clans, Scholar Kingdoms, River League, and The Aetherian Vanguard (with unique Titan's Core wonder).
+- Start: each civ gets Settler + Scout (Aetherian +1 SpearGuard); no start-quality guarantees, spacing is loose (~4 hex min in code). Choose map size (Tiny to Huge) and number of civilizations (2-4).
+- Civilizations: Forge Clans, Scholar Kingdoms, River League, The Aetherian Vanguard, Starborne Seekers, and Jade Covenant.
 - Play: move/attack, found cities, build units/buildings/projects, research techs, manage worked tiles, city ranged attack (range 2), offer/accept peace or vision sharing.
 - Limitations: no LoS blocking, no save/load, contact always active, map quality/generator is basic, no naval embark rules.

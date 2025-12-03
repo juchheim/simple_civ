@@ -32,30 +32,30 @@ function analyzeVictories(results) {
     const byType = { Conquest: 0, Progress: 0, None: 0 };
     const byCiv = new Map();
     const byMapSize = new Map();
-    
+
     // NEW: Track victory type by civ
     const victoryTypeByCiv = new Map();
     CIVS.forEach(civ => victoryTypeByCiv.set(civ, { Conquest: 0, Progress: 0 }));
-    
+
     // NEW: Track victory turns distribution
     const victoryTurns = [];
-    
+
     results.forEach(r => {
         const type = r.victoryType || "None";
         byType[type]++;
-        
+
         if (r.winner) {
             const civ = r.winner.civ;
             byCiv.set(civ, (byCiv.get(civ) || 0) + 1);
-            
+
             // Track victory type per civ
             if (victoryTypeByCiv.has(civ)) {
                 victoryTypeByCiv.get(civ)[type]++;
             }
-            
+
             victoryTurns.push(r.winTurn);
         }
-        
+
         if (!byMapSize.has(r.mapSize)) byMapSize.set(r.mapSize, { total: 0, victories: 0, conquest: 0, progress: 0 });
         const stats = byMapSize.get(r.mapSize);
         stats.total++;
@@ -65,15 +65,15 @@ function analyzeVictories(results) {
             if (type === "Progress") stats.progress++;
         }
     });
-    
-    return { 
-        victories, 
-        byType, 
-        byCiv, 
-        byMapSize, 
+
+    return {
+        victories,
+        byType,
+        byCiv,
+        byMapSize,
         victoryTypeByCiv,
         victoryTurns,
-        avgTurn: victories.length > 0 ? victories.reduce((s, r) => s + r.winTurn, 0) / victories.length : null 
+        avgTurn: victories.length > 0 ? victories.reduce((s, r) => s + r.winTurn, 0) / victories.length : null
     };
 }
 
@@ -82,7 +82,7 @@ function analyzeWars(results) {
     const uniqueWars = new Map(); // key: "simSeed-civA-civB" (sorted), value: { startTurn, endTurn, initiator }
     const peaceTreaties = [];
     const warDurations = [];
-    
+
     // NEW: Track war participation by civ
     const warsInitiatedByCiv = new Map();
     const warsReceivedByCiv = new Map();
@@ -90,14 +90,14 @@ function analyzeWars(results) {
         warsInitiatedByCiv.set(civ, 0);
         warsReceivedByCiv.set(civ, 0);
     });
-    
+
     // NEW: Track time spent at war vs peace
     const warTurnsByCiv = new Map();
     const totalTurnsByCiv = new Map();
-    
+
     results.forEach(sim => {
         const activeWars = new Map(); // key: "civ1-civ2" (sorted), value: startTurn
-        
+
         // Initialize turn tracking
         const civIds = sim.finalState?.civs.map(c => c.id) || [];
         civIds.forEach(id => {
@@ -107,12 +107,12 @@ function analyzeWars(results) {
                 totalTurnsByCiv.set(civName, (totalTurnsByCiv.get(civName) || 0) + sim.turnReached);
             }
         });
-        
+
         sim.events.forEach(e => {
             if (e.type === "WarDeclaration") {
                 const key = [e.initiator, e.target].sort().join("-");
                 const uniqueKey = `${sim.seed}-${key}`;
-                
+
                 if (!uniqueWars.has(uniqueKey)) {
                     uniqueWars.set(uniqueKey, {
                         startTurn: e.turn,
@@ -123,7 +123,7 @@ function analyzeWars(results) {
                         mapSize: sim.mapSize,
                     });
                     activeWars.set(key, e.turn);
-                    
+
                     // Track by civ name
                     const initiatorCiv = sim.finalState?.civs.find(c => c.id === e.initiator)?.civName;
                     const targetCiv = sim.finalState?.civs.find(c => c.id === e.target)?.civName;
@@ -133,18 +133,18 @@ function analyzeWars(results) {
             } else if (e.type === "PeaceTreaty") {
                 const key = [e.civ1, e.civ2].sort().join("-");
                 const uniqueKey = `${sim.seed}-${key}`;
-                
+
                 if (activeWars.has(key)) {
                     const duration = e.turn - activeWars.get(key);
                     warDurations.push(duration);
-                    
+
                     if (uniqueWars.has(uniqueKey)) {
                         uniqueWars.get(uniqueKey).endTurn = e.turn;
                     }
-                    
+
                     activeWars.delete(key);
                 }
-                
+
                 peaceTreaties.push({
                     turn: e.turn,
                     civ1: e.civ1,
@@ -153,17 +153,17 @@ function analyzeWars(results) {
                 });
             }
         });
-        
+
         // Wars that never ended - add their duration
         activeWars.forEach((startTurn, key) => {
             const duration = sim.turnReached - startTurn;
             warDurations.push(duration);
         });
     });
-    
-    return { 
-        uniqueWars: Array.from(uniqueWars.values()), 
-        peaceTreaties, 
+
+    return {
+        uniqueWars: Array.from(uniqueWars.values()),
+        peaceTreaties,
         warDurations,
         warsInitiatedByCiv,
         warsReceivedByCiv,
@@ -175,11 +175,11 @@ function analyzeUnitKills(results) {
     const deathsByCiv = new Map();
     const deathsByType = new Map();
     const killsByCiv = new Map();
-    
+
     // NEW: Track production
     const productionByType = new Map();
     const productionByCiv = new Map();
-    
+
     results.forEach(sim => {
         sim.events.forEach(e => {
             if (e.type === "UnitDeath") {
@@ -190,14 +190,14 @@ function analyzeUnitKills(results) {
                     killedBy: e.killedBy,
                     mapSize: sim.mapSize,
                 });
-                
+
                 // Get civ name for owner
                 const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
                 if (ownerCiv) {
                     deathsByCiv.set(ownerCiv, (deathsByCiv.get(ownerCiv) || 0) + 1);
                 }
                 deathsByType.set(e.unitType, (deathsByType.get(e.unitType) || 0) + 1);
-                
+
                 if (e.killedBy) {
                     const killerCiv = sim.finalState?.civs.find(c => c.id === e.killedBy)?.civName;
                     if (killerCiv) {
@@ -206,7 +206,7 @@ function analyzeUnitKills(results) {
                 }
             } else if (e.type === "UnitProduction") {
                 productionByType.set(e.unitType, (productionByType.get(e.unitType) || 0) + 1);
-                
+
                 const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
                 if (ownerCiv) {
                     productionByCiv.set(ownerCiv, (productionByCiv.get(ownerCiv) || 0) + 1);
@@ -214,7 +214,7 @@ function analyzeUnitKills(results) {
             }
         });
     });
-    
+
     return { kills, deathsByCiv, deathsByType, killsByCiv, productionByType, productionByCiv };
 }
 
@@ -223,27 +223,27 @@ function analyzeCityGrowth(results) {
     const cityFoundings = [];
     const cityCaptures = [];
     const cityRazes = [];
-    
+
     // NEW: Track growth milestones with more detail
     const popMilestones = { pop3: [], pop5: [], pop7: [], pop10: [] };
-    
+
     // NEW: Track cities founded per civ
     const citiesFoundedByCiv = new Map();
     const citiesCapturedByCiv = new Map();
     const citiesLostByCiv = new Map();
-    
+
     results.forEach(sim => {
         sim.events.forEach(e => {
             if (e.type === "CityFound") {
                 cityFoundings.push({ turn: e.turn, owner: e.owner, mapSize: sim.mapSize });
-                
+
                 const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
                 if (ownerCiv) {
                     citiesFoundedByCiv.set(ownerCiv, (citiesFoundedByCiv.get(ownerCiv) || 0) + 1);
                 }
             } else if (e.type === "CityCapture") {
                 cityCaptures.push({ turn: e.turn, from: e.from, to: e.to, mapSize: sim.mapSize });
-                
+
                 const fromCiv = sim.finalState?.civs.find(c => c.id === e.from)?.civName;
                 const toCiv = sim.finalState?.civs.find(c => c.id === e.to)?.civName;
                 if (fromCiv) citiesLostByCiv.set(fromCiv, (citiesLostByCiv.get(fromCiv) || 0) + 1);
@@ -252,17 +252,17 @@ function analyzeCityGrowth(results) {
                 cityRazes.push({ turn: e.turn, owner: e.owner, mapSize: sim.mapSize });
             }
         });
-        
+
         // Track pop milestones from snapshots
         const cityPopTracked = new Map(); // cityId -> { pop3Turn, pop5Turn, pop7Turn, pop10Turn }
-        
+
         sim.turnSnapshots.forEach(snap => {
             snap.cities.forEach(city => {
                 if (!cityPopTracked.has(city.id)) {
                     cityPopTracked.set(city.id, { owner: city.owner });
                 }
                 const tracked = cityPopTracked.get(city.id);
-                
+
                 if (city.pop >= 3 && !tracked.pop3Turn) {
                     tracked.pop3Turn = snap.turn;
                     popMilestones.pop3.push({ turn: snap.turn, cityId: city.id, owner: city.owner, mapSize: sim.mapSize });
@@ -283,7 +283,7 @@ function analyzeCityGrowth(results) {
             });
         });
     });
-    
+
     return { pop10Turns, cityFoundings, cityCaptures, cityRazes, popMilestones, citiesFoundedByCiv, citiesCapturedByCiv, citiesLostByCiv };
 }
 
@@ -291,16 +291,16 @@ function analyzeTechProgress(results) {
     const techCompletions = [];
     const techsByCiv = new Map();
     const techTiming = new Map();
-    
+
     // NEW: Track tech completion rates
     const techsCompletedPerGame = [];
     const techTreeCompletionByCiv = new Map(); // civ -> array of completion percentages
-    
+
     CIVS.forEach(civ => techTreeCompletionByCiv.set(civ, []));
-    
+
     results.forEach(sim => {
         const civTechCounts = new Map();
-        
+
         sim.events.forEach(e => {
             if (e.type === "TechComplete") {
                 techCompletions.push({
@@ -309,7 +309,7 @@ function analyzeTechProgress(results) {
                     tech: e.tech,
                     mapSize: sim.mapSize,
                 });
-                
+
                 // Get civ name
                 const civName = sim.finalState?.civs.find(c => c.id === e.civ)?.civName;
                 if (civName) {
@@ -317,24 +317,24 @@ function analyzeTechProgress(results) {
                     techsByCiv.get(civName).push(e.tech);
                     civTechCounts.set(civName, (civTechCounts.get(civName) || 0) + 1);
                 }
-                
+
                 if (!techTiming.has(e.tech)) techTiming.set(e.tech, []);
                 techTiming.get(e.tech).push(e.turn);
             }
         });
-        
+
         // Track completion percentage per civ in this sim
         civTechCounts.forEach((count, civName) => {
             const completion = (count / TOTAL_TECHS) * 100;
             techTreeCompletionByCiv.get(civName)?.push(completion);
         });
-        
+
         // Total techs this game
         let gameTotal = 0;
         civTechCounts.forEach(count => gameTotal += count);
         techsCompletedPerGame.push(gameTotal);
     });
-    
+
     return { techCompletions, techsByCiv, techTiming, techsCompletedPerGame, techTreeCompletionByCiv };
 }
 
@@ -342,12 +342,12 @@ function analyzeProjects(results) {
     const projectCompletions = [];
     const projectsByCiv = new Map();
     const projectTiming = new Map();
-    
+
     // NEW: Break down by project category
     const progressChainCompletions = []; // Observatory, GrandAcademy, GrandExperiment
     const formArmyCompletions = [];
     const uniqueBuildingCompletions = []; // JadeGranaryComplete, etc.
-    
+
     results.forEach(sim => {
         sim.events.forEach(e => {
             if (e.type === "ProjectComplete") {
@@ -357,16 +357,16 @@ function analyzeProjects(results) {
                     project: e.project,
                     mapSize: sim.mapSize,
                 });
-                
+
                 const civName = sim.finalState?.civs.find(c => c.id === e.civ)?.civName;
                 if (civName) {
                     if (!projectsByCiv.has(civName)) projectsByCiv.set(civName, []);
                     projectsByCiv.get(civName).push(e.project);
                 }
-                
+
                 if (!projectTiming.has(e.project)) projectTiming.set(e.project, []);
                 projectTiming.get(e.project).push(e.turn);
-                
+
                 // Categorize
                 if (["Observatory", "GrandAcademy", "GrandExperiment"].includes(e.project)) {
                     progressChainCompletions.push({ turn: e.turn, civ: civName, project: e.project, mapSize: sim.mapSize });
@@ -378,7 +378,7 @@ function analyzeProjects(results) {
             }
         });
     });
-    
+
     return { projectCompletions, projectsByCiv, projectTiming, progressChainCompletions, formArmyCompletions, uniqueBuildingCompletions };
 }
 
@@ -387,7 +387,7 @@ function analyzeBuildings(results) {
     const buildingsByCiv = new Map();
     const buildingTiming = new Map();
     const buildingsByType = new Map();
-    
+
     results.forEach(sim => {
         sim.events.forEach(e => {
             if (e.type === "BuildingComplete") {
@@ -398,27 +398,27 @@ function analyzeBuildings(results) {
                     building: e.building,
                     mapSize: sim.mapSize,
                 });
-                
+
                 const civName = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
                 if (civName) {
                     if (!buildingsByCiv.has(civName)) buildingsByCiv.set(civName, []);
                     buildingsByCiv.get(civName).push(e.building);
                 }
-                
+
                 if (!buildingTiming.has(e.building)) buildingTiming.set(e.building, []);
                 buildingTiming.get(e.building).push(e.turn);
-                
+
                 buildingsByType.set(e.building, (buildingsByType.get(e.building) || 0) + 1);
             }
         });
     });
-    
+
     return { buildingCompletions, buildingsByCiv, buildingTiming, buildingsByType };
 }
 
 function analyzeCivPerformance(results) {
     const civStats = new Map();
-    
+
     CIVS.forEach(civ => {
         civStats.set(civ, {
             wins: 0,
@@ -438,22 +438,22 @@ function analyzeCivPerformance(results) {
             totalPower: 0,
         });
     });
-    
+
     results.forEach(sim => {
         const finalState = sim.finalState;
         if (!finalState) return;
-        
+
         // Use participatingCivs if available (new format), otherwise fall back to finalState.civs
         const participants = sim.participatingCivs || finalState.civs;
-        
+
         // Track which civs participated
         participants.forEach(civData => {
             const civName = civData.civName;
             const stats = civStats.get(civName);
             if (!stats) return;
-            
+
             stats.gamesPlayed++;
-            
+
             // Get detailed stats from finalState
             const finalCivData = finalState.civs.find(c => c.civName === civName || c.id === civData.id);
             if (finalCivData) {
@@ -463,20 +463,20 @@ function analyzeCivPerformance(results) {
                 stats.totalProjects += finalCivData.projects;
                 stats.totalPower += finalCivData.militaryPower;
             }
-            
+
             if (sim.winner?.civ === civName) {
                 stats.wins++;
                 if (sim.victoryType === "Conquest") stats.conquestWins++;
                 if (sim.victoryType === "Progress") stats.progressWins++;
             }
-            
+
             // Track eliminations
             if (civData.isEliminated) {
                 stats.eliminations++;
             }
         });
     });
-    
+
     // Calculate averages
     civStats.forEach((stats, civ) => {
         if (stats.gamesPlayed > 0) {
@@ -487,17 +487,17 @@ function analyzeCivPerformance(results) {
             stats.avgPower = stats.totalPower / stats.gamesPlayed;
         }
     });
-    
+
     return civStats;
 }
 
 function analyzeStalls(results) {
     const stalls = [];
     const noVictory = results.filter(r => !r.winTurn);
-    
+
     // NEW: Detailed stall diagnostics
     const stallDiagnostics = [];
-    
+
     noVictory.forEach(sim => {
         const diagnostic = {
             seed: sim.seed,
@@ -526,8 +526,42 @@ function analyzeStalls(results) {
         };
         stallDiagnostics.push(diagnostic);
     });
-    
+
     return { stalls, noVictory, stallDiagnostics };
+}
+
+function analyzeTitanStats(results) {
+    const titanSpawns = [];
+    const unitCountsAtSpawn = [];
+    const spawnTurns = [];
+
+    results.forEach(sim => {
+        sim.events.forEach(e => {
+            if (e.type === "TitanSpawn") {
+                titanSpawns.push(e);
+                spawnTurns.push(e.turn);
+                if (e.unitCount !== undefined) {
+                    unitCountsAtSpawn.push(e.unitCount);
+                }
+            }
+        });
+    });
+
+    const avgUnitsAtSpawn = unitCountsAtSpawn.length > 0
+        ? unitCountsAtSpawn.reduce((a, b) => a + b, 0) / unitCountsAtSpawn.length
+        : 0;
+
+    const avgSpawnTurn = spawnTurns.length > 0
+        ? spawnTurns.reduce((a, b) => a + b, 0) / spawnTurns.length
+        : 0;
+
+    return {
+        totalSpawns: titanSpawns.length,
+        avgUnitsAtSpawn,
+        unitCountsAtSpawn,
+        avgSpawnTurn,
+        spawnTurns
+    };
 }
 
 // ============================================================================
@@ -545,6 +579,7 @@ const projectAnalysis = analyzeProjects(results);
 const buildingAnalysis = analyzeBuildings(results);
 const civAnalysis = analyzeCivPerformance(results);
 const stallAnalysis = analyzeStalls(results);
+const titanAnalysis = analyzeTitanStats(results);
 
 // ============================================================================
 // GENERATE REPORT
@@ -554,6 +589,22 @@ let report = `# Comprehensive Simulation Analysis Report\n\n`;
 report += `**Date:** ${new Date().toISOString().split('T')[0]}\n`;
 report += `**Simulations:** ${results.length} total (10 per map size) (AI vs AI)\n`;
 report += `**Map Sizes:** Tiny, Small, Standard, Large, Huge (max number of civs allowed per map size: 2 for tiny, 3 for small, 4 for standard, 6 for large, 6 for huge)\n\n`;
+
+report += `## Titan Analysis\n`;
+report += `- **Total Titans Spawned:** ${titanAnalysis.totalSpawns}\n`;
+report += `- **Average Spawn Turn:** ${titanAnalysis.avgSpawnTurn.toFixed(1)}\n`;
+if (titanAnalysis.spawnTurns.length > 0) {
+    const sorted = [...titanAnalysis.spawnTurns].sort((a, b) => a - b);
+    report += `- **Median Spawn Turn:** ${sorted[Math.floor(sorted.length / 2)]}\n`;
+    report += `- **Spawn Turn Range:** [${sorted[0]}, ${sorted[sorted.length - 1]}]\n`;
+}
+report += `- **Average Units on Creation:** ${titanAnalysis.avgUnitsAtSpawn.toFixed(1)}\n`;
+if (titanAnalysis.unitCountsAtSpawn.length > 0) {
+    const sorted = [...titanAnalysis.unitCountsAtSpawn].sort((a, b) => a - b);
+    report += `- **Median Units on Creation:** ${sorted[Math.floor(sorted.length / 2)]}\n`;
+    report += `- **Range:** [${sorted[0]}, ${sorted[sorted.length - 1]}]\n`;
+}
+report += `\n`;
 
 report += `---\n\n`;
 
@@ -792,7 +843,7 @@ report += `## 10. Map Size Analysis\n\n`;
 MAP_ORDER.forEach(mapSize => {
     const sims = byMapSize.get(mapSize) || [];
     if (sims.length === 0) return;
-    
+
     const stats = victoryAnalysis.byMapSize.get(mapSize);
     const victories = sims.filter(s => s.winTurn);
     report += `### ${mapSize} Maps\n`;
@@ -816,8 +867,8 @@ report += `## 11. Balance Observations\n\n`;
 // Auto-generate some observations based on data
 report += `### Victory Timing vs Pop 10\n`;
 const avgVictoryTurn = victoryAnalysis.avgTurn || 0;
-const avgPop10Turn = cityAnalysis.pop10Turns.length > 0 
-    ? cityAnalysis.pop10Turns.reduce((s, t) => s + t.turn, 0) / cityAnalysis.pop10Turns.length 
+const avgPop10Turn = cityAnalysis.pop10Turns.length > 0
+    ? cityAnalysis.pop10Turns.reduce((s, t) => s + t.turn, 0) / cityAnalysis.pop10Turns.length
     : 0;
 report += `- Average Victory Turn: ${avgVictoryTurn.toFixed(1)}\n`;
 report += `- Average Pop 10 Turn: ${avgPop10Turn.toFixed(1)}\n`;

@@ -52,7 +52,7 @@ export function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; pla
     const targetTile = state.map.tiles.find(t => hexEquals(t.coord, action.to));
     if (!targetTile) throw new Error("Invalid target tile");
 
-    const moveContext = createMoveContext(unit, targetTile);
+    const moveContext = createMoveContext(unit, targetTile, state);
 
     let partner = resolveLinkedPartner(state, unit);
     let partnerContext: MoveContext | null = null;
@@ -96,6 +96,11 @@ export function handleMoveUnit(state: GameState, action: { type: "MoveUnit"; pla
     }
 
     refreshPlayerVision(state, action.playerId);
+
+    // Clear failed targets on successful move (context changed)
+    if (unit.failedAutoMoveTargets) {
+        unit.failedAutoMoveTargets = undefined;
+    }
 
     return state;
 }
@@ -142,6 +147,12 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
     if (attacker.hasAttacked) throw new Error("Already attacked");
     if (attacker.movesLeft <= 0) throw new Error("No moves left to attack");
 
+    // Check if attacker is garrisoned
+    const cityAtAttackerLoc = state.cities.find(c => hexEquals(c.coord, attacker.coord));
+    if (cityAtAttackerLoc && cityAtAttackerLoc.ownerId === attacker.ownerId && attacker.type !== UnitType.Settler) {
+        throw new Error("Garrisoned units cannot attack");
+    }
+
     const attackerStats = getEffectiveUnitStats(attacker, state);
 
     const targetOwner = action.targetType === "Unit"
@@ -163,7 +174,7 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
 
         // Check if defender is garrisoned in a friendly city
         const cityAtLocation = state.cities.find(c => hexEquals(c.coord, defender.coord));
-        if (cityAtLocation && cityAtLocation.ownerId === defender.ownerId && defender.type !== UnitType.Settler) {
+        if (cityAtLocation && cityAtLocation.ownerId === defender.ownerId) {
             // Redirect attack to city!
             // We recursively call handleAttack with the city as target
             // But we need to be careful about infinite recursion if we mess up.
@@ -243,6 +254,26 @@ export function handleAttack(state: GameState, action: { type: "Attack"; playerI
 
         if (defender.hp <= 0) {
             const defenderCoord = defender.coord;
+
+            // v1.1: Aetherian Vanguard "Scavenger Doctrine" - Gain Science from kills
+            // Gain 50% of victim's base Combat Strength as Science
+            if (attacker.ownerId === action.playerId) {
+                const player = state.players.find(p => p.id === attacker.ownerId);
+                if (player && player.civName === "AetherianVanguard" && player.currentTech) {
+                    const victimStats = UNITS[defender.type as UnitType];
+                    // v1.2: Buffed Scavenger Doctrine - Gain 50% of victim's COST as Science
+                    // Previous (50% of Attack) resulted in 0-1 Science.
+                    // Cost based: Scout(23) -> 11 Science. SpearGuard(27) -> 13 Science.
+                    const scienceGain = Math.floor(victimStats.cost * 0.5);
+                    if (scienceGain > 0) {
+                        player.currentTech.progress += scienceGain;
+                        // Check for tech completion immediately? 
+                        // Usually tech completion is checked at start of turn or when adding progress.
+                        // But here we just add progress. It will complete next turn or if we add a check.
+                        // Let's just add progress for now.
+                    }
+                }
+            }
 
             // Unlink partner if defender dies
             unlinkPair(defender, resolveLinkedPartner(state, defender));
@@ -443,6 +474,10 @@ export function handleSwapUnits(state: GameState, action: { type: "SwapUnits"; p
 
     if (!unit || !targetUnit) throw new Error("Unit not found");
     if (unit.ownerId !== action.playerId || targetUnit.ownerId !== action.playerId) throw new Error("Not your unit");
+
+    // Prevent swapping with Settlers (stacking logic should handle them, but swapping is for military shuffling)
+    if (unit.type === UnitType.Settler || targetUnit.type === UnitType.Settler) throw new Error("Cannot swap with Settler");
+
     if (unit.movesLeft <= 0) throw new Error("No moves left"); // Only initiator needs moves? Or both?
     // Let's say initiator needs moves. Target can be 0 moves.
 
@@ -523,6 +558,8 @@ export function processAutoMovement(state: GameState, playerId: string, specific
                         if (isNaval && (targetTile.terrain !== "Coast" && targetTile.terrain !== "DeepSea")) invalid = true;
 
                         if (invalid) {
+                            if (!unit.failedAutoMoveTargets) unit.failedAutoMoveTargets = [];
+                            unit.failedAutoMoveTargets.push(unit.autoMoveTarget!);
                             unit.autoMoveTarget = undefined;
                         } else {
                             // Target is valid but path is blocked (e.g. by units)
@@ -569,9 +606,22 @@ export function processAutoMovement(state: GameState, playerId: string, specific
                                         continue;
                                     } catch (e) {
                                         // Even partial move failed?
+                                        if (!unit.failedAutoMoveTargets) unit.failedAutoMoveTargets = [];
+                                        unit.failedAutoMoveTargets.push(unit.autoMoveTarget!);
+                                        unit.autoMoveTarget = undefined; // Clear target to prevent loop
                                         break;
                                     }
+                                } else {
+                                    if (!unit.failedAutoMoveTargets) unit.failedAutoMoveTargets = [];
+                                    unit.failedAutoMoveTargets.push(unit.autoMoveTarget!);
+                                    unit.autoMoveTarget = undefined; // No partial path found
+                                    break;
                                 }
+                            } else {
+                                if (!unit.failedAutoMoveTargets) unit.failedAutoMoveTargets = [];
+                                unit.failedAutoMoveTargets.push(unit.autoMoveTarget!);
+                                unit.autoMoveTarget = undefined; // No reachable tile closer to target
+                                break;
                             }
                         }
                     }
@@ -593,6 +643,12 @@ export function processAutoMovement(state: GameState, playerId: string, specific
             } catch (e) {
                 // Move failed (blocked by unit, etc)
                 // Stop for this turn, but keep target to try again next turn
+                // UNLESS we are stuck in a loop?
+                // For now, if direct move fails, we rely on the partial path logic above?
+                // No, partial path logic is only if `path.length === 0`.
+                // If `path` was found but `handleMoveUnit` failed (e.g. unit moved in between?),
+                // we should probably clear target too if it persists?
+                // But maybe just break is fine for transient blocks.
                 break;
             }
         }
@@ -644,6 +700,9 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
         const candidates: Array<{ tile: typeof unexploredTiles[0], dist: number }> = [];
 
         for (const tile of unexploredTiles) {
+            // Skip if in failed targets
+            if (unit.failedAutoMoveTargets?.some(t => hexEquals(t, tile.coord))) continue;
+
             const dist = hexDistance(unit.coord, tile.coord);
             const path = findPath(unit.coord, tile.coord, unit, state);
 
@@ -701,6 +760,11 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
             } else {
                 // Truly stuck
                 unit.autoMoveTarget = undefined;
+                // If we have failed targets, maybe clear them and try one last time next turn?
+                // Or just give up.
+                // If we are here, it means we couldn't find ANY reachable unexplored tile AND couldn't find a frontier.
+                // Disabling auto-explore is the safest bet to avoid infinite CPU usage or loops.
+                unit.isAutoExploring = false;
             }
         }
     }

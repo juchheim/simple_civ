@@ -99,6 +99,9 @@ export enum ProjectId {
     FormArmy_SpearGuard = "FormArmy_SpearGuard",
     FormArmy_BowGuard = "FormArmy_BowGuard",
     FormArmy_Riders = "FormArmy_Riders",
+    // Filler Projects
+    HarvestFestival = "HarvestFestival",
+    AlchemicalExperiments = "AlchemicalExperiments",
     // Markers for unique wonder completions
     JadeGranaryComplete = "JadeGranaryComplete",
 }
@@ -134,6 +137,8 @@ export type Unit = {
     autoMoveTarget?: HexCoord;
     isAutoExploring?: boolean;
     retaliatedAgainstThisTurn?: boolean; // v1.0: Track if unit was hit by city retaliation this turn
+    failedAutoMoveTargets?: HexCoord[]; // Track targets that were unreachable to prevent loops
+    statusEffects?: string[]; // Active status effects (e.g. "NaturesWrath")
 };
 
 export type City = {
@@ -172,6 +177,23 @@ export type Player = {
     warPreparation?: WarPreparationState;
     researchHistory?: Record<string, number>; // TechId -> progress
 };
+
+export type ProjectDefinition = {
+    cost: number;
+    prereqTechs?: TechId[];
+    prereqMilestone?: ProjectId;
+    prereqBuilding?: BuildingType;
+    oncePerCiv: boolean;
+    oneCityAtATime: boolean;
+    scalesWithTurn?: boolean;
+    onComplete: { type: "Milestone" | "Victory" | "Transform" | "GrantYield"; payload: any };
+};
+
+export type ProjectData = {
+    id: ProjectId;
+    name: string;
+    description: string;
+} & ProjectDefinition;
 
 export enum PlayerPhase {
     StartOfTurn = "StartOfTurn",

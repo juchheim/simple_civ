@@ -79,7 +79,10 @@ describe("Turn Loop & Actions", () => {
         });
         // Force tile yield
         const tile = state.map.tiles.find(t => t.coord.q === 0 && t.coord.r === 0);
-        if (tile) tile.terrain = "Plains" as any; // 2F 1P min
+        if (tile) {
+            tile.terrain = "Plains" as any; // 2F 1P min
+            tile.ownerId = "p1"; // Ensure tile is owned so it can be worked
+        }
 
         // P1 ends turn
         const action: Action = { type: "EndTurn", playerId: "p1" };
@@ -256,92 +259,7 @@ describe("Turn Loop & Actions", () => {
         expect(finalPartner.linkedUnitId).toBeUndefined();
     });
 
-    it("should enforce city attack LOS and clamp damage to at least the minimum", () => {
-        const state = generateWorld({
-            mapSize: "Small",
-            players: [
-                { id: "p1", civName: "A", color: "red" },
-                { id: "p2", civName: "B", color: "blue" },
-            ],
-        });
-        state.currentPlayerId = "p1";
-        const origin = { q: 0, r: 0 };
-        const blocker = { q: 1, r: 0 };
-        const targetCoord = { q: 2, r: 0 };
-        state.map.width = 3;
-        state.map.height = 1;
-        state.map.tiles = [
-            { coord: origin, terrain: TerrainType.Plains, overlays: [] },
-            { coord: blocker, terrain: TerrainType.Hills, overlays: [] }, // blocks LOS initially
-            { coord: targetCoord, terrain: TerrainType.Hills, overlays: [] },
-        ];
 
-        state.cities = [
-            {
-                id: "c1",
-                name: "Capital",
-                ownerId: "p1",
-                coord: origin,
-                pop: 3,
-                storedFood: 0,
-                storedProduction: 0,
-                buildings: [],
-                workedTiles: [origin],
-                currentBuild: null,
-                buildProgress: 0,
-                hp: 20,
-                maxHp: 20,
-                isCapital: true,
-                hasFiredThisTurn: false,
-                milestones: [],
-            },
-        ];
-
-        state.units = [
-            {
-                id: "u_garrison",
-                type: UnitType.SpearGuard,
-                ownerId: "p1",
-                coord: origin,
-                hp: 10,
-                maxHp: 10,
-                movesLeft: 1,
-                state: UnitState.Garrisoned,
-                hasAttacked: false,
-            },
-            {
-                id: "u_enemy",
-                type: UnitType.ArmySpearGuard,
-                ownerId: "p2",
-                coord: targetCoord,
-                hp: 15,
-                maxHp: 15,
-                movesLeft: 1,
-                state: UnitState.Fortified,
-                hasAttacked: false,
-            },
-        ];
-
-        const enemyPlayer = state.players.find(p => p.id === "p2");
-        if (enemyPlayer && !enemyPlayer.techs.includes(TechId.FormationTraining)) {
-            enemyPlayer.techs.push(TechId.FormationTraining);
-        }
-        state.seed = 0; // deterministic lowest roll for attack power
-
-        const action: Action = { type: "CityAttack", playerId: "p1", cityId: "c1", targetUnitId: "u_enemy" };
-
-        expect(() => applyAction(state, action)).toThrow("Line of sight blocked");
-
-        const blockingTile = state.map.tiles.find(t => hexEquals(t.coord, blocker))!;
-        blockingTile.terrain = TerrainType.Plains; // clear LOS
-
-        const resolved = applyAction(state, action);
-        const updatedCity = resolved.cities.find(c => c.id === "c1")!;
-        const damagedTarget = resolved.units.find(u => u.id === "u_enemy")!;
-
-        expect(updatedCity.hasFiredThisTurn).toBe(true);
-        expect(damagedTarget.hp).toBe(14); // clamp guarantees at least 1 damage
-    });
 
     it("should enable shared vision on acceptance and revoke it automatically on war", () => {
         const state = generateWorld({

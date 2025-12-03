@@ -58,4 +58,48 @@ describe("Movement Logic", () => {
         expect(unit!.coord).toEqual({ q: 0, r: 1 });
         expect(unit!.movesLeft).toBe(0);
     });
+
+    it("should allow a SpearGuard to move to the same hex as a Settler (stacking)", () => {
+        // Setup: SpearGuard at (0,0), Settler at (0,1)
+        state.units.push(
+            {
+                id: "spear1",
+                type: UnitType.SpearGuard,
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 2,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "settler1",
+                type: UnitType.Settler,
+                ownerId: "p1",
+                coord: { q: 0, r: 1 },
+                hp: 1,
+                maxHp: 1,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            }
+        );
+
+        // Action: Move SpearGuard to the same hex as Settler
+        const nextState = applyAction(state, {
+            type: "MoveUnit",
+            playerId: "p1",
+            unitId: "spear1",
+            to: { q: 0, r: 1 },
+        });
+
+        // Verify: Both units should be at (0,1)
+        const spear = nextState.units.find(u => u.id === "spear1");
+        const settler = nextState.units.find(u => u.id === "settler1");
+
+        expect(spear!.coord).toEqual({ q: 0, r: 1 });
+        expect(settler!.coord).toEqual({ q: 0, r: 1 });
+        expect(spear!.movesLeft).toBe(1); // Moving to forest costs 1 move (SpearGuard has 2 moves max)
+    });
 });

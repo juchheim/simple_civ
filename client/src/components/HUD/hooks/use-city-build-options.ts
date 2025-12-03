@@ -31,6 +31,9 @@ const BUILDING_OPTIONS: BuildOption<BuildingType>[] = [
     { id: BuildingType.CityWard, name: "City Ward" },
     { id: BuildingType.Forgeworks, name: "Forgeworks" },
     { id: BuildingType.CitySquare, name: "City Square" },
+    { id: BuildingType.TitansCore, name: "Titan's Core" },
+    { id: BuildingType.SpiritObservatory, name: "Spirit Observatory" },
+    { id: BuildingType.JadeGranary, name: "Jade Granary" },
 ];
 
 const PROJECT_OPTIONS: BuildOption<ProjectId>[] = [
@@ -40,6 +43,8 @@ const PROJECT_OPTIONS: BuildOption<ProjectId>[] = [
     { id: ProjectId.FormArmy_SpearGuard, name: "Form Army (Spear)" },
     { id: ProjectId.FormArmy_BowGuard, name: "Form Army (Bow)" },
     { id: ProjectId.FormArmy_Riders, name: "Form Army (Riders)" },
+    { id: ProjectId.HarvestFestival, name: "Harvest Festival" },
+    { id: ProjectId.AlchemicalExperiments, name: "Alchemical Experiments" },
 ];
 
 export const useCityBuildOptions = (city: City | null, gameState: GameState): CityBuildOptions => {

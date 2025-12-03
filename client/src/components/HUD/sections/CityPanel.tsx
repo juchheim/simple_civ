@@ -167,22 +167,45 @@ export const CityPanel: React.FC<CityPanelProps> = ({
 
                 <div className="city-panel__section">
                     <h5>Defense & Actions</h5>
-                    <div className="hud-chip-row" style={{ marginBottom: 8 }}>
-                        {garrison ? (
-                            <button
-                                className="hud-chip success clickable"
-                                onClick={() => {
-                                    onSelectUnit(garrison.id);
-                                    onClose();
-                                }}
-                                style={{ cursor: "pointer", border: "1px solid var(--color-success)", background: "rgba(34, 197, 94, 0.1)" }}
-                            >
-                                Garrison: {garrison.type}
-                            </button>
-                        ) : (
-                            <span className="hud-chip warn">No garrison</span>
-                        )}
-                        {city.hasFiredThisTurn && <span className="hud-chip warn">Fired this turn</span>}
+                    <div className="hud-chip-row" style={{ marginBottom: 8, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                        {(() => {
+                            const unitsAtCity = units.filter(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
+                            const hasGarrison = unitsAtCity.some(u => u.type !== "Settler");
+
+                            if (unitsAtCity.length === 0) {
+                                return <span className="hud-chip warn">No units in city</span>;
+                            }
+
+                            return (
+                                <>
+                                    {unitsAtCity.map(unit => {
+                                        const isGarrison = unit.type !== "Settler";
+                                        return (
+                                            <button
+                                                key={unit.id}
+                                                className={`hud-chip clickable ${isGarrison ? "success" : ""}`}
+                                                onClick={() => {
+                                                    onSelectUnit(unit.id);
+                                                    onClose();
+                                                }}
+                                                style={{
+                                                    cursor: "pointer",
+                                                    border: isGarrison ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
+                                                    background: isGarrison ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                                                    width: "100%",
+                                                    textAlign: "left"
+                                                }}
+                                            >
+                                                {isGarrison ? "Garrison: " : "Unit: "}{unit.type}
+                                                <span style={{ float: "right", opacity: 0.7 }}>{unit.hp}/{unit.maxHp} HP</span>
+                                            </button>
+                                        );
+                                    })}
+                                    {!hasGarrison && <span className="hud-chip warn" style={{ marginTop: 4 }}>No garrison (Settlers cannot garrison)</span>}
+                                </>
+                            );
+                        })()}
+                        {city.hasFiredThisTurn && <span className="hud-chip warn">City fired this turn</span>}
                     </div>
                     {isMyTurn && city.ownerId === playerId && (
                         <>

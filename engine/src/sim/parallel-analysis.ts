@@ -45,7 +45,11 @@ type Event =
     | { type: "BuildingComplete"; turn: number; cityId: string; owner: string; building: BuildingType }
     | { type: "Contact"; turn: number; civ1: string; civ2: string }
     | { type: "SharedVision"; turn: number; civ1: string; civ2: string; action: "offer" | "accept" | "revoke" }
-    | { type: "Elimination"; turn: number; eliminated: string; by?: string };
+    | { type: "Elimination"; turn: number; eliminated: string; by?: string }
+    | { type: "TitanSpawn"; turn: number; owner: string; unitId: string; unitCount: number }
+    | { type: "TitanDeath"; turn: number; owner: string; killedBy?: string }
+    | { type: "TitanKill"; turn: number; owner: string; victimType: string }
+    | { type: "TitanStep"; turn: number; owner: string; supportCount: number };
 
 type TurnSnapshot = {
     turn: number;
@@ -464,6 +468,63 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                     eliminated: p.id,
                     by: lastCapture?.to,
                 });
+            }
+        });
+
+        // --- TITAN LOGGING ---
+        state.units.forEach(u => {
+            if (u.type === UnitType.Titan) {
+                // Titan Step: Log support count (Deathball metric)
+                const supportCount = state.units.filter(other =>
+                    other.ownerId === u.ownerId &&
+                    other.id !== u.id &&
+                    UNITS[other.type].domain !== "Civilian" &&
+                    // Simple distance check (hexDistance needs import, but we can approximate or assume it's available/copy it)
+                    // Since we don't have hexDistance imported in this file scope easily without adding imports,
+                    // let's just use a simple coordinate check if possible, or assume we can add the import.
+                    // Actually, let's just add the import or a helper.
+                    // For now, let's assume we can use a helper or just skip if too complex.
+                    // Wait, we can just use the same logic as in the game code:
+                    (Math.abs(other.coord.q - u.coord.q) + Math.abs(other.coord.q + other.coord.r - u.coord.q - u.coord.r) + Math.abs(other.coord.r - u.coord.r)) / 2 <= 3
+                ).length;
+
+                events.push({
+                    type: "TitanStep",
+                    turn: state.turn,
+                    owner: u.ownerId,
+                    supportCount
+                });
+
+                if (!beforeUnits.has(u.id)) {
+                    events.push({
+                        type: "TitanSpawn",
+                        turn: state.turn,
+                        owner: u.ownerId,
+                        unitId: u.id,
+                        unitCount: state.units.filter(unit => unit.ownerId === u.ownerId).length
+                    });
+                }
+            }
+        });
+
+        // Titan Deaths & Kills
+        beforeUnits.forEach((prevUnit, unitId) => {
+            const currentUnit = state.units.find(u => u.id === unitId);
+            if (!currentUnit) {
+                // Unit died
+                if (prevUnit.type === UnitType.Titan) {
+                    events.push({
+                        type: "TitanDeath",
+                        turn: state.turn,
+                        owner: prevUnit.ownerId
+                    });
+                }
+            } else {
+                // Unit survived. Did it kill anything?
+                // We don't strictly track "who killed who" in the state, but we can infer if a Titan is on a tile where an enemy was.
+                // This is hard to track perfectly without combat logs.
+                // Alternative: Just track Titan survival and support for now.
+                // Actually, we can check if Titan moved to a tile that was occupied by an enemy unit or city.
             }
         });
 

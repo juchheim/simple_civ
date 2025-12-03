@@ -62,7 +62,7 @@
 - **Civ count caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
 - **Players**: 1–4 (human/AI/hotseat). Rules identical for all.
 - **Starting units**: each civ begins with 1 Settler + 1 Scout.
-- **Starting placement**: fair-start zones with nearby workable tiles; capitals named from civ list (unique first-city name, then list, then “New [Capital] n” if exhausted). Players may rename on founding.
+- **Starting placement**: fair-start zones with nearby workable tiles; capitals named from civ list (unique first-city name, then list, then "New [Capital] n" if exhausted). Players may rename on founding.
 - **Fog**: unseen tiles start in shroud; vision comes from units/cities and shared vision offers.
 
 ## 5. Turn Structure
@@ -86,8 +86,8 @@
 - **City center minimums**: enforce ≥2 Food and ≥1 Production after terrain/overlay/civ modifiers; base city Science +1 per city.
 - **Storage & overflow**: Food and Production overflow carry after growth/completion.
 - **Growth cost**: base 30 for Pop 2; scales by Pop range multipliers:
-  - Pop 2–4: ×1.30, Pop 5–6: ×1.40, Pop 7–8: ×1.58, Pop 9–10: ×1.68, Pop 11+: ×2.00.
-  - Modifiers: Farmstead ×0.9, Jade Granary ×0.85 (stack multiplicatively on base formula).
+  - Pop 2–4: ×1.30, Pop 5–6: ×1.40, Pop 7–8: ×1.80, Pop 9–10: ×2.00, Pop 11+: ×2.50.
+  - Modifiers: Farmstead ×0.9, Jade Granary ×0.85, Jade Covenant passive ×0.9 (stack multiplicatively on base formula).
 - **Production**: stored per city; switching builds discards current progress.
 - **Science**: global per turn; applied only to selected tech; pauses if none selected.
 
@@ -150,7 +150,7 @@
   - Army Spear Guard 8/4/1/1, capture, vision 2.
   - Army Bow Guard 6/3/2/1, no capture, vision 2.
   - Army Riders 8/4/1/2, capture, vision 2.
-  - **Titan**: 25 atk / 10 def / rng 1 / move 3 / HP 50 / capture / vision 3 (summoned by Titan's Core). **Ignores terrain movement costs.**
+  - **Titan**: 30 atk / 20 def / rng 1 / move 2 / HP 60 / capture / vision 3 (summoned by Titan's Core). **Regenerates 2 HP per turn.**
 - **States**: Normal, Fortified (+2 defense until move/attack), Garrisoned (on city), PendingSpawn (queued).
 - **Linking**: eligible units can link into armies via Form Army projects; unlink to split back to base units.
 - **Vision**: provided per unit; shared vision extends via diplomacy.
@@ -194,7 +194,7 @@
   - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
 
 ## 11. Technology
-- **Costs by era**: Hearth 20, Banner 40, Engine 65 Science.
+- **Costs by era**: Hearth 20, Banner 50, Engine 85 Science.
 - **Single active tech**: Science applies each Start of Turn; on completion choose next (research pauses if none).
 - **Unlocks** (one per tech):
   - Fieldcraft → Farmstead.
@@ -224,30 +224,34 @@
   - **City Ward** (60, City Wards): +4 city defense, +1 city attack.
   - **Forgeworks** (80, Steam Forges): +2 Production.
   - **City Square** (80, Urban Plans): +1 Food, +1 Production.
-  - **Titan's Core** (150, Steam Forges): summons Titan on completion (unique per civ).
-  - **Spirit Observatory** (275, Star Charts): “The Revelation”—+1 Science per city, counts as Observatory milestone (unique per civ).
-  - **Jade Granary** (40, Fieldcraft): “The Great Harvest”—+1 Pop per city, growth 15% cheaper, +1 Food per city, Spawns Free Settler (unique per civ).
+  - **Titan's Core**: Cost 100. Summons **The Titan** (Limit 1).
+    - **Titan Stats**: Attack 30, Defense 20, HP 60, Moves 2. Ignores terrain costs.
+- **Spirit Observatory**: Cost 300. +1 Science per city. Counts as Observatory. milestone (unique per civ).
+  - **Jade Granary** (30, Fieldcraft): "The Great Harvest"—+1 Pop per city, growth 15% cheaper, +1 Food per city, Spawns Free Settler (unique per civ).
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
-  - Observatory (110, Star Charts) → milestone, +Science in city, unlocks Grand Academy.
-  - Grand Academy (155, after Observatory) → +1 Science per city, unlocks Grand Experiment.
-  - Grand Experiment (200, after Grand Academy) → Progress Victory on completion.
-- **Form Army Projects** (Army Doctrine):
-  - Form Army — Spear Guard (10): convert Spear Guard → Army Spear Guard.
-  - Form Army — Bow Guard (10): convert Bow Guard → Army Bow Guard.
-  - Form Army — Riders (10): convert Riders → Army Riders.
+  - Observatory (300, Star Charts) → milestone, +Science in city, unlocks Grand Academy.
+  - Grand Academy (265, after Observatory) → +1 Science per city, unlocks Grand Experiment.
+  - Grand Experiment (350, after Grand Academy) → Progress Victory on completion.
+- **Form Army Projects** (Army Doctrine) [Costs scale with turn]:
+  - Form Army — Spear Guard (10 base): convert Spear Guard → Army Spear Guard.
+  - Form Army — Bow Guard (10 base): convert Bow Guard → Army Bow Guard.
+  - Form Army — Riders (10 base): convert Riders → Army Riders.
+- **Filler Projects** (Repeatable) [Costs scale with turn]:
+  - Harvest Festival (100 base, Farmstead): Grants 25 Food.
+  - Alchemical Experiments (100 base, Scriptorium): Grants 25 Science.
 - **Milestone Marker**:
   - JadeGranaryComplete (0 cost) tracks Jade Granary completion (not player-selectable).
 - **Wonders**: not otherwise defined in v0.94 beyond unique buildings/projects above.
 
 ## 14. Civilizations & Traits
-- **ForgeClans**: +1 Production from each worked Hill (Capital Only).
-- **Scholar Kingdoms**: +1 Science in cities with Pop ≥3.
-- **River League**: +1 Production for every 2 river tiles worked.
-- **Aetherian Vanguard**: Unique Unit: Titan (Super-Unit). **Vanguard Logistics**: Cities with a garrison gain +1 Production.
-- **Starborne Seekers**: Unique Building: Spirit Observatory (Science). **Stargazers**: +1 Science from Sacred Sites.
-- **Jade Covenant**: Unique Building: Jade Granary (Hearth Era, 40 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler. **Nomadic Heritage**: Settlers have 3 Movement (base 2) and 10 HP (base 1). **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
+- **ForgeClans**: +1 Production from each worked Hill (Capital Only). **Master Craftsmen**: Projects 20% faster. **Forged Arms**: Military units 20% cheaper; units from cities with 2+ Hills get +1 Attack. **Industrial Warfare**: +1 Attack per Engine tech.
+- **Scholar Kingdoms**: **Great Library**: Capital gets +1 Science. **Scholarly Retreat**: Units near cities get +2 Defense.
+- **River League**: +1 Food per river tile. **River Commerce**: River cities get +1 Production, +1 Science. **River Industry**: +1 Production per 2 river tiles worked.
+- **AetherianVanguard**: Unique Unit: Titan (Super-Unit). **Battle Hardened**: Military units gain +2 HP per era researched (max +6). **Scavenger Doctrine**: Units gain Science on kill. **Vanguard Logistics**: Cities with a garrison gain +1 Production.
+- **StarborneSeekers**: Unique Building: Spirit Observatory (Science). **Celestial Guidance**: Units near capital +1 Defense. Starts with Scout + SpearGuard.
+- **JadeCovenant**: Unique Building: Jade Granary (Hearth Era, 30 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler. **Bountiful Harvest**: Cities start with +5 stored Food. **Verdant Growth**: 10% cheaper growth globally. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 8 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation
@@ -305,3 +309,4 @@
   - Tech progression: ChooseTech required to spend Science.
   - Vision sharing/diplomacy stored in gameState.sharedVision/diplomacy/diplomacyOffers.
   - Progress tracking: milestones stored via projects (Observatory, Grand Academy, Grand Experiment, JadeGranaryComplete).
+

@@ -1,9 +1,10 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType, BuildingType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
 import { hexEquals, getNeighbors } from "../../core/hex.js";
 import { captureCity } from "./cities.js";
 import { ensureWar } from "./diplomacy.js";
+import { getUnitMaxMoves } from "./combat.js";
 
 export type MoveContext = {
     stats: UnitStats;
@@ -16,8 +17,11 @@ export type MoveParticipant = {
     stats: UnitStats;
 };
 
-export function createMoveContext(unit: Unit, targetTile: Tile): MoveContext {
-    const stats = UNITS[unit.type];
+export function createMoveContext(unit: Unit, targetTile: Tile, state?: GameState): MoveContext {
+    const stats = { ...UNITS[unit.type] };
+    if (state) {
+        stats.move = getUnitMaxMoves(unit, state);
+    }
     ensureTerrainEntry(stats, targetTile);
     const cost = computeMoveCost(unit, stats, targetTile);
     return {
@@ -50,8 +54,8 @@ export function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Ti
         cost = terrainData.moveCostNaval ?? 999;
     }
 
-    // v1.1 Nerf: Titans no longer ignore terrain costs
-    if (unitStats.move === 1) { // || unit.type === UnitType.Titan) {
+    // v1.1 Nerf: Titans no longer ignore terrain costs -> REVERTED: Titans ignore terrain costs again
+    if (unitStats.move === 1 || unit.type === UnitType.Titan) {
         cost = 1;
     }
 
@@ -125,8 +129,11 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
         if (enemyCivilian) {
             ensureWar(state, playerId, enemyCivilian.ownerId);
             state.units = state.units.filter(u => u.id !== enemyCivilian.id);
+            // Generate unique ID using seed
+            const rand = Math.floor(state.seed * 10000);
+            state.seed = (state.seed * 9301 + 49297) % 233280;
             state.units.push({
-                id: `u_${playerId}_captured_${Date.now()}`,
+                id: `u_${playerId}_captured_${Date.now()}_${rand}`,
                 type: enemyCivilian.type,
                 ownerId: playerId,
                 coord: destination,

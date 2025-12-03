@@ -26,6 +26,13 @@ export function computeVisibility(state: GameState, playerId: string): string[] 
                 }
             }
         }
+
+        // Always see own territory
+        for (const tile of state.map.tiles) {
+            if (tile.ownerId === ownerId) {
+                visible.add(hexToString(tile.coord));
+            }
+        }
     };
 
     addVisionFrom(playerId);

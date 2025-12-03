@@ -58,6 +58,22 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 height={UNIT_IMAGE_SIZE}
             />
 
+            {/* Nature's Wrath Indicator - Rendered ON TOP of unit */}
+            {unit.statusEffects?.includes("NaturesWrath") && (
+                <circle
+                    cx={0}
+                    cy={0}
+                    r={UNIT_IMAGE_SIZE * 0.52}
+                    fill="none"
+                    stroke="#10b981" // Emerald-500 (Jade Green)
+                    strokeWidth={5}
+                    opacity={0.8}
+                    style={{ filter: "drop-shadow(0 0 4px #10b981)" }}
+                >
+                    <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+                </circle>
+            )}
+
             {showLinkIcon && (
                 <g transform={`translate(${unitImageOffset * 0.45}, ${-unitImageOffset * 0.6})`}>
                     <circle cx={0} cy={0} r={9} stroke="#fef3c7" strokeWidth={2} fill="rgba(17,24,39,0.75)" />

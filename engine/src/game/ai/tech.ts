@@ -31,15 +31,32 @@ function goalTechPath(goal: AiVictoryGoal): TechId[] {
     return [];
 }
 
+function getAllPrereqs(techId: TechId): TechId[] {
+    const data = TECHS[techId];
+    if (!data.prereqTechs || data.prereqTechs.length === 0) return [];
+
+    let prereqs: TechId[] = [...data.prereqTechs];
+    for (const p of data.prereqTechs) {
+        prereqs = [...prereqs, ...getAllPrereqs(p)];
+    }
+    return [...new Set(prereqs)];
+}
+
 function rushTechs(personality: AiPersonality): TechId[] {
     if (!personality.projectRush) return [];
+
+    let targetTech: TechId | undefined;
     if (personality.projectRush.type === "Building") {
-        return [BUILDINGS[personality.projectRush.id].techReq];
+        targetTech = BUILDINGS[personality.projectRush.id].techReq;
+    } else {
+        const entry = Object.entries(TECHS).find(([, data]) => data.unlock.type === "Project" && data.unlock.id === personality.projectRush?.id);
+        if (entry) targetTech = entry[0] as TechId;
     }
-    const entry = Object.entries(TECHS).find(([, data]) => data.unlock.type === "Project" && data.unlock.id === personality.projectRush?.id);
-    if (!entry) return [];
-    const [id, data] = entry as [TechId, (typeof TECHS)[TechId]];
-    return [...(data.prereqTechs ?? []), id];
+
+    if (!targetTech) return [];
+
+    // Return target AND all its prerequisites so we beeline the whole chain
+    return [targetTech, ...getAllPrereqs(targetTech)];
 }
 
 export function aiChooseTech(playerId: string, state: GameState, goal: AiVictoryGoal): TechId | null {

@@ -1,5 +1,5 @@
 import React from "react";
-import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, UnitType, BuildingType } from "@simple-civ/engine";
+import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType } from "@simple-civ/engine";
 
 interface TechTreeProps {
     gameState: GameState;
@@ -121,6 +121,8 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         if (building.yieldFlat?.P) yields.push(`+${building.yieldFlat.P} Prod`);
         if (building.yieldFlat?.S) yields.push(`+${building.yieldFlat.S} Sci`);
 
+        const unlockedProjects = Object.entries(PROJECTS).filter(([_, p]) => p.prereqBuilding === buildingId);
+
         return (
             <div style={{ fontSize: "10px", marginTop: "4px", lineHeight: "1.3" }}>
                 <div>Cost: {building.cost}</div>
@@ -129,6 +131,11 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                 {building.cityAttackBonus && <div>+{building.cityAttackBonus} City Atk</div>}
                 {building.growthMult && <div>Growth Cost: -{Math.round((1 - building.growthMult) * 100)}%</div>}
                 {building.conditional && <div style={{ fontStyle: "italic" }}>{building.conditional}</div>}
+                {unlockedProjects.length > 0 && (
+                    <div style={{ marginTop: "2px", color: "var(--color-highlight)" }}>
+                        Unlocks: {unlockedProjects.map(([id, _]) => formatName(id)).join(", ")}
+                    </div>
+                )}
             </div>
         );
     };

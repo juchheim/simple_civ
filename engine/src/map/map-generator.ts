@@ -13,7 +13,7 @@ import {
     UnitType,
     OverlayType,
 } from "../core/types.js";
-import { MAP_DIMS, UNITS } from "../core/constants.js";
+import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS } from "../core/constants.js";
 import { hexEquals, hexToString, hexSpiral, getNeighbors } from "../core/hex.js";
 import { getTileYields } from "../game/rules.js";
 import { scoreCitySite } from "../game/ai-heuristics.js";
@@ -199,43 +199,29 @@ export function generateWorld(settings: WorldGenSettings): GameState {
             hasAttacked: false,
         });
 
-        // v0.98 Update 2: AetherianVanguard starts with TWO SpearGuards
-        // They were being attacked 3x more than they initiate (bullied)
-        // Need strong military presence to survive to their Titan power spike
+        // v0.98 Update 2: AetherianVanguard starts with extra units (defined in constants)
         if (p.civName === "AetherianVanguard") {
-            const spearStats = UNITS[UnitType.SpearGuard];
-            // First SpearGuard
-            const spearCoord = findSpawnCoord(usedCoords);
-            usedCoords.push(spearCoord);
-            units.push({
-                id: `u_${p.id}_spear`,
-                type: UnitType.SpearGuard,
-                ownerId: p.id,
-                coord: spearCoord,
-                hp: spearStats.hp,
-                maxHp: spearStats.hp,
-                movesLeft: spearStats.move,
-                state: UnitState.Normal,
-                hasAttacked: false,
-            });
-            // Second SpearGuard
-            const spear2Coord = findSpawnCoord(usedCoords);
-            usedCoords.push(spear2Coord);
-            units.push({
-                id: `u_${p.id}_spear2`,
-                type: UnitType.SpearGuard,
-                ownerId: p.id,
-                coord: spear2Coord,
-                hp: spearStats.hp,
-                maxHp: spearStats.hp,
-                movesLeft: spearStats.move,
-                state: UnitState.Normal,
-                hasAttacked: false,
-            });
+            const extraUnits = AETHERIAN_EXTRA_STARTING_UNITS;
+            for (const unitType of extraUnits) {
+                const stats = UNITS[unitType];
+                const coord = findSpawnCoord(usedCoords);
+                usedCoords.push(coord);
+                units.push({
+                    id: `u_${p.id}_extra_${units.length}`,
+                    type: unitType,
+                    ownerId: p.id,
+                    coord: coord,
+                    hp: stats.hp,
+                    maxHp: stats.hp,
+                    movesLeft: stats.move,
+                    state: UnitState.Normal,
+                    hasAttacked: false,
+                });
+            }
         }
 
         // v0.98 Update 4: StarborneSeekers starts with a SpearGuard (was extra Scout)
-        // They had highest elimination rate (32.4%) - need defensive capability
+        // v1.8: Restored starting SpearGuard (win rate dropped to 11.8% without it)
         if (p.civName === "StarborneSeekers") {
             const spearStats = UNITS[UnitType.SpearGuard];
             const spearCoord = findSpawnCoord(usedCoords);

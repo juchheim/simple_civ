@@ -13,7 +13,7 @@ import {
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
-import { getAetherianHpBonus } from "./helpers/combat.js";
+import { getAetherianHpBonus, getUnitMaxMoves } from "./helpers/combat.js";
 import { hexDistance, hexEquals, hexToString, hexSpiral } from "../core/hex.js";
 import { refreshPlayerVision } from "./vision.js";
 import { handleMoveUnit, processAutoExplore, processAutoMovement } from "./actions/units.js";
@@ -22,7 +22,11 @@ export function handleEndTurn(state: GameState, action: Extract<Action, { type: 
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
         const stats = UNITS[unit.type];
         const stayed = !unit.hasAttacked && unit.movesLeft === stats.move;
-        unit.state = stayed ? UnitState.Fortified : UnitState.Normal;
+
+        // Fix: If already fortified, stay fortified.
+        if (unit.state !== UnitState.Fortified) {
+            unit.state = stayed ? UnitState.Fortified : UnitState.Normal;
+        }
     }
 
     const pIdx = state.players.findIndex(p => p.id === action.playerId);
@@ -54,6 +58,12 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     }
 
     healUnitsAtStart(state, playerId);
+
+    // Clear status effects from previous turn BEFORE applying new ones (like attrition)
+    for (const unit of state.units.filter(u => u.ownerId === playerId)) {
+        unit.statusEffects = [];
+    }
+
     applyAttrition(state, playerId);
 
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
@@ -64,7 +74,7 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
             if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
                 unit.movesLeft = 3;
             } else {
-                unit.movesLeft = unitStats.move;
+                unit.movesLeft = getUnitMaxMoves(unit, state);
             }
         }
         unit.hasAttacked = false;
@@ -189,14 +199,18 @@ function completeBuild(state: GameState, city: City) {
         const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
         const unitHp = UNITS[uType].hp + hpBonus;
 
+        // Generate unique ID using seed to prevent collisions in same tick
+        const rand = Math.floor(state.seed * 10000);
+        state.seed = (state.seed * 9301 + 49297) % 233280;
+
         state.units.push({
-            id: `u_${city.ownerId}_${Date.now()} `,
+            id: `u_${city.ownerId}_${Date.now()}_${rand}`,
             type: uType,
             ownerId: city.ownerId,
             coord: spawnCoord,
             hp: unitHp,
             maxHp: unitHp,
-            movesLeft: UNITS[uType].move,
+            movesLeft: getUnitMaxMoves({ type: uType, ownerId: city.ownerId } as any, state),
             state: UnitState.Normal,
             hasAttacked: false,
         });
@@ -222,7 +236,10 @@ function completeBuild(state: GameState, city: City) {
             }
         }
     } else if (build.type === "Building") {
-        city.buildings.push(build.id as BuildingType);
+        // v1.1: TitansCore is consumed and NOT added to buildings list
+        if (build.id !== BuildingType.TitansCore) {
+            city.buildings.push(build.id as BuildingType);
+        }
 
         if (build.id === BuildingType.TitansCore) {
             // Special case: TitansCore spawns a Titan and is consumed (not added to buildings)
@@ -230,8 +247,12 @@ function completeBuild(state: GameState, city: City) {
             const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
             const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
 
+            // Generate unique ID
+            const rand = Math.floor(state.seed * 10000);
+            state.seed = (state.seed * 9301 + 49297) % 233280;
+
             state.units.push({
-                id: `u_${city.ownerId}_titan_${Date.now()} `,
+                id: `u_${city.ownerId}_titan_${Date.now()}_${rand}`,
                 type: UnitType.Titan,
                 ownerId: city.ownerId,
                 coord: city.coord,
@@ -288,8 +309,12 @@ function completeBuild(state: GameState, city: City) {
                     }
                 }
 
+                // Generate unique ID
+                const rand = Math.floor(state.seed * 10000);
+                state.seed = (state.seed * 9301 + 49297) % 233280;
+
                 state.units.push({
-                    id: `u_${city.ownerId}_free_settler_${Date.now()}`,
+                    id: `u_${city.ownerId}_free_settler_${Date.now()}_${rand}`,
                     type: UnitType.Settler,
                     ownerId: city.ownerId,
                     coord: spawnCoord,
@@ -328,6 +353,31 @@ function completeBuild(state: GameState, city: City) {
                 candidate.maxHp = UNITS[armyType].hp;
                 candidate.hp = candidate.maxHp;
                 candidate.movesLeft = UNITS[armyType].move;
+            }
+        } else if (PROJECTS[pId].onComplete.type === "GrantYield") {
+            const payload = PROJECTS[pId].onComplete.payload;
+            if (payload.F) {
+                city.storedFood += payload.F;
+                // Check growth immediately
+                const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
+                const hasJadeGranary = player?.completedProjects.includes(ProjectId.JadeGranaryComplete) ?? false;
+                let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player?.civName);
+                while (city.storedFood >= growthCost) {
+                    city.storedFood -= growthCost;
+                    city.pop += 1;
+                    city.workedTiles = ensureWorkedTiles(city, state, {
+                        pinned: city.manualWorkedTiles,
+                        excluded: city.manualExcludedTiles,
+                    });
+                    growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player?.civName);
+                }
+            }
+            if (payload.S && player && player.currentTech) {
+                player.currentTech.progress += payload.S;
+                if (player.currentTech.progress >= player.currentTech.cost) {
+                    player.techs.push(player.currentTech.id);
+                    player.currentTech = null;
+                }
             }
         }
     }
@@ -409,9 +459,9 @@ function healUnitsAtStart(state: GameState, playerId: string) {
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
         const stats = UNITS[unit.type];
 
-        // Titan regeneration: always heals 5 HP
+        // Titan regeneration: always heals 2 HP
         if (unit.type === UnitType.Titan) {
-            unit.hp = Math.min(unit.maxHp, unit.hp + 5);
+            unit.hp = Math.min(unit.maxHp, unit.hp + 2);
             continue;
         }
 
@@ -455,18 +505,16 @@ function applyAttrition(state: GameState, playerId: string) {
             // Apply attrition
             // 1 HP damage (User requested check: 2 HP was deemed too strong with city attacks)
             const damage = 1;
-            unit.hp = Math.max(1, unit.hp - damage); // Don't kill outright, leave at 1 HP?
-            // Actually, attrition usually kills. Let's allow kill.
-            // But if we kill here, we need to handle unit death cleanup which might be complex inside this loop.
-            // Let's leave at 1 HP for now to be safe, or check if we can remove.
-            // The game loop usually handles 0 HP units in specific phases, but let's see.
-            // If I set to 0, does it get cleaned up?
-            // Usually cleanup happens after combat.
-            // Let's set to 0 and assume a cleanup sweep happens or the unit is just dead.
-            // Wait, `eliminationSweep` checks for no units/cities.
-            // Unit death logic is usually in `handleAttack`.
-            // Let's just deal damage. If it drops to 0, we should probably remove it.
+
+            // Apply damage
             unit.hp -= damage;
+
+            // Mark with status effect for UI
+            if (!unit.statusEffects) unit.statusEffects = [];
+            if (!unit.statusEffects.includes("NaturesWrath")) {
+                unit.statusEffects.push("NaturesWrath");
+            }
+
             if (unit.hp <= 0) {
                 console.log(`[Attrition] Unit ${unit.id} (${unit.type}) died to Nature's Wrath in Jade territory.`);
                 // We can't splice `state.units` while iterating easily if we are iterating a filtered list.

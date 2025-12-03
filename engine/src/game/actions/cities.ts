@@ -27,7 +27,7 @@ import { hexEquals, hexDistance, hexSpiral, hexToString } from "../../core/hex.j
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
-import { canBuild, getMinimumCityDistance } from "../rules.js";
+import { canBuild, getMinimumCityDistance, getProjectCost } from "../rules.js";
 import { getUnitCost } from "../units.js";
 
 // export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
@@ -105,7 +105,10 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         }
     }
 
-    const cityId = `c_${action.playerId}_${Date.now()}`;
+    // Generate unique ID using seed
+    const rand = Math.floor(state.seed * 10000);
+    state.seed = (state.seed * 9301 + 49297) % 233280;
+    const cityId = `c_${action.playerId}_${Date.now()}_${rand}`;
     const player = state.players.find(p => p.id === action.playerId);
 
     // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
@@ -192,7 +195,7 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
         }
     }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
-    if (action.buildType === "Project") cost = PROJECTS[action.buildId as ProjectId].cost;
+    if (action.buildType === "Project") cost = getProjectCost(action.buildId as ProjectId, state.turn);
 
     // Restore saved progress if exists
     const newKey = `${action.buildType}:${action.buildId}`;

@@ -1,5 +1,11 @@
 # Working Memory
 
+- **v1.0 Final Balance (Dec 3, 2025):** Final tuning based on 600-game statistical verification:
+  - **Aetherian Vanguard BUFF**: "Battle Hardened" perk increased to **+2 HP per era** (max +6).
+    - *Reasoning*: Win rate was slightly low (14.8%). This solidifies their late-game "God-Killer" identity.
+  - **Titan Stats**: Defense set to 20 (was 18), Cost 100. Survival rate is now 99.4%.
+  - **Starborne Seekers**: Spirit Observatory cost increased to 300. Win rate stabilized at 31.4%.
+
 - **v0.98 Update 6 - War Completion & Civ Identity (Nov 27, 2025):** Fixing wars ending at exactly 15 turns and civ balance:
   - **CRITICAL: War Completion Logic** — Wars now last 25 turns (not 15) when winning. Added `hasCityAdvantage()`, `isWinningWar()`, `isActuallyLosingWar()` checks. Never peace if any advantage exists.
   - **ForgeClans "Industrial Warfare"** — +1 Attack per Engine-era tech (max +5). Fully teched ForgeClans get +5 Attack bonus! AI waits longer to declare (declareAfterContactTurns 4).
