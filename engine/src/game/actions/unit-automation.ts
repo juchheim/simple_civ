@@ -1,17 +1,47 @@
-import { GameState, HexCoord } from "../../core/types.js";
-import { hexDistance, hexEquals, hexToString } from "../../core/hex.js";
-import { findPath, findReachableTiles } from "../helpers/pathfinding.js";
+import { GameState, HexCoord, Tile, Unit } from "../../core/types.js";
+import { hexDistance, hexEquals, hexToString, getNeighbors } from "../../core/hex.js";
+import { findPath, findReachableTiles, getMovementCost } from "../helpers/pathfinding.js";
 import { refreshPlayerVision } from "../vision.js";
 import { MoveUnitAction, SetAutoMoveTargetAction, SetAutoExploreAction, ClearAutoMoveTargetAction, ClearAutoExploreAction } from "./unit-action-types.js";
 import { assertOwnership, getUnitOrThrow } from "../helpers/action-helpers.js";
 import { handleMoveUnit } from "./unit-movement.js";
 import { UNITS } from "../../core/constants.js";
+import { buildTileLookup } from "../helpers/combat.js";
+
+function getReachableTiles(unit: Unit, state: GameState, tilesByKey: Map<string, Tile>): Set<string> {
+    const reachable = new Set<string>();
+    const queue: HexCoord[] = [unit.coord];
+    reachable.add(hexToString(unit.coord));
+
+    let idx = 0;
+    const MAX_ITERATIONS = state.map.tiles.length + 100; // safety cap
+
+    while (idx < queue.length && idx < MAX_ITERATIONS) {
+        const current = queue[idx++];
+        for (const neighbor of getNeighbors(current)) {
+            const key = hexToString(neighbor);
+            if (reachable.has(key)) continue;
+
+            const tile = tilesByKey.get(key);
+            if (!tile) continue;
+
+            const moveCost = getMovementCost(tile, unit, state);
+            if (moveCost === Infinity) continue;
+
+            reachable.add(key);
+            queue.push(neighbor);
+        }
+    }
+
+    return reachable;
+}
 
 export function handleSetAutoMoveTarget(state: GameState, action: SetAutoMoveTargetAction): GameState {
     const unit = getUnitOrThrow(state, action.unitId);
     assertOwnership(unit, action.playerId);
 
-    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, action.target));
+    const tilesByKey = buildTileLookup(state);
+    const targetTile = tilesByKey.get(hexToString(action.target));
     if (!targetTile) throw new Error("Invalid target tile");
 
     unit.autoMoveTarget = action.target;
@@ -58,6 +88,8 @@ export function processAutoMovement(state: GameState, playerId: string, specific
         unitsWithTargets = unitsWithTargets.filter(u => u.id === specificUnitId);
     }
 
+    const tilesByKey = buildTileLookup(state);
+
     for (const unit of unitsWithTargets) {
         let moves = 0;
         const MAX_MOVES = 10;
@@ -71,7 +103,7 @@ export function processAutoMovement(state: GameState, playerId: string, specific
                 if (hexEquals(unit.coord, unit.autoMoveTarget)) {
                     unit.autoMoveTarget = undefined;
                 } else {
-                    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, unit.autoMoveTarget!));
+                    const targetTile = tilesByKey.get(hexToString(unit.autoMoveTarget!));
                     if (targetTile) {
                         const stats = UNITS[unit.type];
                         const isLand = stats.domain === "Land";
@@ -160,6 +192,7 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
     if (explorers.length === 0) return;
 
     const revealedSet = new Set(state.revealed[playerId] || []);
+    const tilesByKey = buildTileLookup(state);
 
     const unexploredTiles = state.map.tiles.filter(t => !revealedSet.has(hexToString(t.coord)));
 
@@ -182,54 +215,59 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
             }
         }
 
-        const candidates: Array<{ tile: typeof unexploredTiles[0]; dist: number }> = [];
+        const reachableKeys = getReachableTiles(unit, state, tilesByKey);
+
+        let bestTarget: HexCoord | undefined;
+        let bestDist = Infinity;
 
         for (const tile of unexploredTiles) {
+            const key = hexToString(tile.coord);
+            if (!reachableKeys.has(key)) continue;
+            if (hexEquals(tile.coord, unit.coord)) continue;
             if (unit.failedAutoMoveTargets?.some(t => hexEquals(t, tile.coord))) continue;
 
             const dist = hexDistance(unit.coord, tile.coord);
-            const path = findPath(unit.coord, tile.coord, unit, state);
-
-            if (path.length > 0) {
-                candidates.push({ tile, dist });
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestTarget = tile.coord;
             }
         }
 
-        if (candidates.length > 0) {
-            candidates.sort((a, b) => a.dist - b.dist);
-            unit.autoMoveTarget = candidates[0].tile.coord;
+        if (bestTarget) {
+            unit.autoMoveTarget = bestTarget;
+            continue;
+        }
+
+        const reachable = findReachableTiles(unit.coord, unit, state, 15);
+        let bestTile: HexCoord | undefined;
+        let minScore = Infinity;
+
+        let closestUnexplored: HexCoord | undefined;
+        let closestDist = Infinity;
+
+        for (const tile of unexploredTiles) {
+            const d = hexDistance(unit.coord, tile.coord);
+            if (d < closestDist) {
+                closestDist = d;
+                closestUnexplored = tile.coord;
+            }
+        }
+
+        if (closestUnexplored) {
+            for (const [, coord] of reachable) {
+                const d = hexDistance(coord, closestUnexplored);
+                if (d < minScore) {
+                    minScore = d;
+                    bestTile = coord;
+                }
+            }
+        }
+
+        if (bestTile && !hexEquals(bestTile, unit.coord)) {
+            unit.autoMoveTarget = bestTile;
         } else {
-            const reachable = findReachableTiles(unit.coord, unit, state, 15);
-            let bestTile: HexCoord | undefined;
-            let minScore = Infinity;
-
-            let closestUnexplored: HexCoord | undefined;
-            let closestDist = Infinity;
-
-            for (const tile of unexploredTiles) {
-                const d = hexDistance(unit.coord, tile.coord);
-                if (d < closestDist) {
-                    closestDist = d;
-                    closestUnexplored = tile.coord;
-                }
-            }
-
-            if (closestUnexplored) {
-                for (const [, coord] of reachable) {
-                    const d = hexDistance(coord, closestUnexplored);
-                    if (d < minScore) {
-                        minScore = d;
-                        bestTile = coord;
-                    }
-                }
-            }
-
-            if (bestTile && !hexEquals(bestTile, unit.coord)) {
-                unit.autoMoveTarget = bestTile;
-            } else {
-                unit.autoMoveTarget = undefined;
-                unit.isAutoExploring = false;
-            }
+            unit.autoMoveTarget = undefined;
+            unit.isAutoExploring = false;
         }
     }
 }

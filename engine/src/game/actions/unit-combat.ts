@@ -12,9 +12,9 @@ import {
     FORTIFY_DEFENSE_BONUS,
     UNITS,
 } from "../../core/constants.js";
-import { hexDistance, hexEquals } from "../../core/hex.js";
+import { hexDistance, hexEquals, hexToString } from "../../core/hex.js";
 import { captureCity } from "../helpers/cities.js";
-import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
+import { buildTileLookup, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { ensureWar } from "../helpers/diplomacy.js";
 import { assertHasNotAttacked, assertMovesLeft, assertOwnership, getCityAt, getUnitOrThrow } from "../helpers/action-helpers.js";
 import { resolveLinkedPartner, unlinkPair } from "../helpers/movement.js";
@@ -25,6 +25,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
     assertOwnership(attacker, action.playerId);
     assertHasNotAttacked(attacker, "Already attacked");
     assertMovesLeft(attacker, "No moves left to attack");
+    const tileLookup = buildTileLookup(state);
 
     // Check if attacker is garrisoned
     const cityAtAttackerLoc = getCityAt(state, attacker.coord);
@@ -94,7 +95,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         const attackPower = attackerStats.atk + randomMod;
 
         let defensePower = getEffectiveUnitStats(defender, state).def;
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, defender.coord));
+        const tile = tileLookup.get(hexToString(defender.coord));
         if (tile) {
             defensePower += TERRAIN[tile.terrain].defenseMod;
         }
@@ -207,7 +208,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 garrisonAttackBonus;
 
             let attackerDefense = getEffectiveUnitStats(attacker, state).def;
-            const attackerTile = state.map.tiles.find(t => hexEquals(t.coord, attacker.coord));
+            const attackerTile = tileLookup.get(hexToString(attacker.coord));
             if (attackerTile) attackerDefense += TERRAIN[attackerTile.terrain].defenseMod;
             if (attacker.state === UnitState.Fortified) attackerDefense += FORTIFY_DEFENSE_BONUS;
 

@@ -85,7 +85,6 @@ export function markRiverOverlays(path: HexCoord[], tiles: Tile[], isLand: (tile
         if (!isLand(tile)) continue;
         if (!tile.overlays.includes(OverlayType.RiverEdge)) {
             tile.overlays.push(OverlayType.RiverEdge);
-            tile.features = tile.overlays;
         }
     }
 }

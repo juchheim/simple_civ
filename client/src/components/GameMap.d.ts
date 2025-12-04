@@ -37,8 +37,6 @@ interface GameMapProps {
     selectedUnitId: string | null;
     reachableCoords: Set<string>;
     showTileYields: boolean;
-    hoveredCoord: HexCoord | null;
-    onHoverTile: (coord: HexCoord | null) => void;
     cityToCenter?: HexCoord | null;
     onViewChange?: (view: MapViewport) => void;
 }

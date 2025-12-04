@@ -82,7 +82,5 @@ export function applyTerrainNoise(context: TerrainContext) {
             else if (n < 0.1) t.overlays.push(OverlayType.OreVein);
             else if (n < 0.12) t.overlays.push(OverlayType.SacredSite);
         }
-        t.features = t.overlays;
     });
 }
-

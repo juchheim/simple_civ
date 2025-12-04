@@ -49,7 +49,6 @@ export function generateWorld(settings: WorldGenSettings): GameState {
                 coord,
                 terrain: TerrainType.DeepSea, // Default
                 overlays: [],
-                features: undefined,
             };
             tiles.push(tile);
             tileMap.set(hexToString(coord), tile);

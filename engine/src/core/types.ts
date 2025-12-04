@@ -116,7 +116,6 @@ export type Tile = {
     coord: HexCoord;
     terrain: TerrainType;
     overlays: OverlayType[];
-    features?: OverlayType[]; // alias for overlays for spec parity
     ownerId?: string; // Player ID
     ownerCityId?: string; // City that owns this tile (no sharing)
     hasCityCenter?: boolean;

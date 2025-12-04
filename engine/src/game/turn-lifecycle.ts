@@ -9,7 +9,7 @@ import {
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
-import { hexEquals } from "../core/hex.js";
+import { hexEquals, hexToString } from "../core/hex.js";
 import { refreshPlayerVision } from "./vision.js";
 import { processCityBuild } from "./helpers/builds.js";
 import { ensureTechSelected } from "./helpers/turn.js";
@@ -92,10 +92,14 @@ function clearStatusEffects(state: GameState, playerId: string) {
 
 function processCityForTurn(state: GameState, city: City, player: Player) {
     const claimedRing = getClaimedRing(city, state);
-    city.workedTiles = ensureWorkedTiles(city, state, {
-        pinned: city.manualWorkedTiles,
-        excluded: city.manualExcludedTiles,
+    const pinOverrides = city.manualWorkedTiles;
+    const excludedOverrides = city.manualExcludedTiles;
+    const recomputeWorkedTiles = () => ensureWorkedTiles(city, state, {
+        pinned: pinOverrides,
+        excluded: excludedOverrides,
     });
+
+    city.workedTiles = recomputeWorkedTiles();
     const yields = getCityYields(city, state);
 
     const maxHp = city.maxHp || BASE_CITY_HP;
@@ -112,23 +116,22 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
     const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
     const hasJadeGranary = player.completedProjects.includes(ProjectId.JadeGranaryComplete);
     let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
+    let needsWorkedTileRefresh = false;
     while (city.storedFood >= growthCost) {
         city.storedFood -= growthCost;
         city.pop += 1;
-        city.workedTiles = ensureWorkedTiles(city, state, {
-            pinned: city.manualWorkedTiles,
-            excluded: city.manualExcludedTiles,
-        });
+        needsWorkedTileRefresh = true;
         growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
     }
 
     const neededRing = Math.max(claimedRing, maxClaimableRing(city));
     if (neededRing > claimedRing) {
         claimCityTerritory(city, state, player.id, neededRing);
-        city.workedTiles = ensureWorkedTiles(city, state, {
-            pinned: city.manualWorkedTiles,
-            excluded: city.manualExcludedTiles,
-        });
+        needsWorkedTileRefresh = true;
+    }
+
+    if (needsWorkedTileRefresh) {
+        city.workedTiles = recomputeWorkedTiles();
     }
 
     if (city.currentBuild) {
@@ -253,8 +256,10 @@ function applyAttrition(state: GameState, playerId: string) {
     const relation = state.diplomacy?.[playerId]?.[jadeCovenant.id];
     if (relation !== "War") return;
 
+    const tileLookup = new Map(state.map.tiles.map(t => [hexToString(t.coord), t]));
+
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, unit.coord));
+        const tile = tileLookup.get(hexToString(unit.coord));
         if (!tile) continue;
 
         // Check if tile is owned by Jade Covenant

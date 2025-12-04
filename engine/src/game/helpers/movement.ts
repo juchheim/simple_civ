@@ -1,10 +1,10 @@
 import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
-import { hexEquals, getNeighbors } from "../../core/hex.js";
+import { hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 import { captureCity } from "./cities.js";
 import { ensureWar } from "./diplomacy.js";
-import { getUnitMaxMoves } from "./combat.js";
+import { buildTileLookup, getUnitMaxMoves } from "./combat.js";
 
 export type MoveContext = {
     stats: UnitStats;
@@ -66,7 +66,8 @@ export function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Ti
     return cost;
 }
 
-export function validateTileOccupancy(state: GameState, target: HexCoord, movers: MoveParticipant[], playerId: string) {
+export function validateTileOccupancy(state: GameState, target: HexCoord, movers: MoveParticipant[], playerId: string, tileLookup?: Map<string, Tile>) {
+    const tilesByKey = tileLookup ?? buildTileLookup(state);
     const unitsOnTile = state.units.filter(u => hexEquals(u.coord, target));
     let friendlyMilitaryOnTile = unitsOnTile.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== UnitDomain.Civilian).length;
     let friendlyCivilianOnTile = unitsOnTile.filter(u => u.ownerId === playerId && UNITS[u.type].domain === UnitDomain.Civilian).length;
@@ -82,7 +83,7 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
         if (isMilitary) {
             if (hasEnemyMilitary) {
                 // Exception: If it's an enemy city with <= 0 HP, and we can capture it, we can ignore the enemy military (it will be removed)
-                const targetCity = state.cities.find(c => hexEquals(c.coord, target));
+                const targetCity = cityOnTile ?? state.cities.find(c => hexEquals(c.coord, target));
                 const canCapture = mover.stats.canCaptureCity;
                 const isVulnerableCity = targetCity && targetCity.ownerId !== playerId && targetCity.hp <= 0;
 
@@ -106,7 +107,7 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
     }
 
     // Peacetime movement restriction
-    const tile = state.map.tiles.find(t => hexEquals(t.coord, target));
+    const tile = tilesByKey.get(hexToString(target));
     if (tile && tile.ownerId && tile.ownerId !== playerId) {
         const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
         // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
@@ -202,9 +203,11 @@ export function enforceLinkedUnitIntegrity(state: GameState) {
 }
 
 export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, territoryOwnerId: string) {
+    const tilesByKey = buildTileLookup(state);
+    const occupiedKeys = new Set(state.units.map(u => hexToString(u.coord)));
     const unitsToExpel = state.units.filter(u => {
         if (u.ownerId !== unitOwnerId) return false;
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, u.coord));
+        const tile = tilesByKey.get(hexToString(u.coord));
         return tile && tile.ownerId === territoryOwnerId;
     });
 
@@ -212,7 +215,8 @@ export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, t
         // BFS to find nearest valid tile
         const visited = new Set<string>();
         const queue: HexCoord[] = [unit.coord];
-        visited.add(`${unit.coord.q},${unit.coord.r}`);
+        const originKey = hexToString(unit.coord);
+        visited.add(originKey);
 
         let foundDest: HexCoord | undefined;
 
@@ -225,7 +229,8 @@ export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, t
             const current = queue.shift()!;
 
             // Check if this tile is valid
-            const tile = state.map.tiles.find(t => hexEquals(t.coord, current));
+            const key = hexToString(current);
+            const tile = tilesByKey.get(key);
             if (tile) {
                 // Must be passable for unit domain
                 const stats = UNITS[unit.type];
@@ -243,7 +248,7 @@ export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, t
                 // Actually, stacking rules are strict: 1 military, 1 civilian.
                 // To be safe, let's look for completely empty tiles or tiles where we can stack.
                 // For expulsion, let's just find an empty tile to avoid stacking complexity.
-                const occupied = state.units.some(u => hexEquals(u.coord, current));
+                const occupied = occupiedKeys.has(key);
 
                 if (passable && isSafeTerritory && !occupied) {
                     foundDest = current;
@@ -254,15 +259,18 @@ export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, t
             // Add neighbors
             const neighbors = getNeighbors(current);
             for (const n of neighbors) {
-                const key = `${n.q},${n.r}`;
-                if (!visited.has(key)) {
-                    visited.add(key);
+                const nKey = hexToString(n);
+                if (!visited.has(nKey)) {
+                    visited.add(nKey);
                     queue.push(n);
                 }
             }
         }
 
         if (foundDest) {
+            const destKey = hexToString(foundDest);
+            occupiedKeys.delete(originKey);
+            occupiedKeys.add(destKey);
             unit.coord = foundDest;
             unit.movesLeft = 0; // Exhaust movement after expulsion
             unit.autoMoveTarget = undefined;

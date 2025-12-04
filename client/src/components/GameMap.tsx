@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { GameState, HexCoord } from "@simple-civ/engine";
 import { getHexPoints, hexToPixel as projectHexToPixel } from "./GameMap/geometry";
 import { useMapController, MapViewport } from "../hooks/useMapController";
@@ -25,14 +25,13 @@ interface GameMapProps {
     selectedUnitId: string | null;
     reachableCoords: Set<string>;
     showTileYields: boolean;
-    hoveredCoord: HexCoord | null;
-    onHoverTile: (coord: HexCoord | null) => void;
     cityToCenter?: HexCoord | null;
     onViewChange?: (view: MapViewport) => void;
 }
 
-const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, hoveredCoord, onHoverTile, cityToCenter, onViewChange }, ref) => {
+const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, cityToCenter, onViewChange }, ref) => {
     const { map, units, cities } = gameState;
+    const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);
 
     const {
         tileVisibility,
@@ -82,7 +81,7 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
         tiles: map.tiles,
         hexToPixel,
         onTileClick,
-        onHoverTile,
+        onHoverTile: setHoveredCoord,
         initialCenter: useMemo(() => {
             if (selectedUnit) return selectedUnit.coord;
             const unit = units.find(u => u.ownerId === playerId);

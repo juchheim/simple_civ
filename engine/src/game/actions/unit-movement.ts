@@ -1,6 +1,6 @@
 import { GameState, UnitState, UnitType } from "../../core/types.js";
 import { UNITS } from "../../core/constants.js";
-import { hexEquals } from "../../core/hex.js";
+import { hexEquals, hexToString } from "../../core/hex.js";
 import {
     assertAdjacent,
     assertMovesLeft,
@@ -22,6 +22,7 @@ import {
     FortifyUnitAction,
 } from "./unit-action-types.js";
 import { refreshPlayerVision } from "../vision.js";
+import { buildTileLookup } from "../helpers/combat.js";
 
 export function handleMoveUnit(state: GameState, action: MoveUnitAction): GameState {
     const unit = getUnitOrThrow(state, action.unitId);
@@ -36,7 +37,8 @@ export function handleMoveUnit(state: GameState, action: MoveUnitAction): GameSt
 
     assertAdjacent(unit.coord, action.to, "Can only move 1 tile at a time");
 
-    const targetTile = state.map.tiles.find(t => hexEquals(t.coord, action.to));
+    const tileLookup = buildTileLookup(state);
+    const targetTile = tileLookup.get(hexToString(action.to));
     if (!targetTile) throw new Error("Invalid target tile");
 
     const moveContext = createMoveContext(unit, targetTile, state);
@@ -55,7 +57,8 @@ export function handleMoveUnit(state: GameState, action: MoveUnitAction): GameSt
                     { unit, stats: moveContext.stats },
                     { unit: partner, stats: partnerStatsContext.stats },
                 ],
-                action.playerId
+                action.playerId,
+                tileLookup
             );
             partnerWillMove = true;
         } catch {
@@ -66,7 +69,7 @@ export function handleMoveUnit(state: GameState, action: MoveUnitAction): GameSt
     }
 
     if (!partnerWillMove) {
-        assertTileCanBeOccupied(state, action.to, [{ unit, stats: moveContext.stats }], action.playerId);
+        assertTileCanBeOccupied(state, action.to, [{ unit, stats: moveContext.stats }], action.playerId, tileLookup);
     }
 
     executeUnitMove(state, unit, moveContext, action.to, action.playerId);

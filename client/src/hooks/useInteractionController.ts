@@ -19,7 +19,6 @@ export function useInteractionController({
 }: InteractionControllerParams) {
     const [selectedCoord, setSelectedCoord] = useState<HexCoord | null>(null);
     const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
-    const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);
     const [pendingWarAttack, setPendingWarAttack] = useState<PendingWar>(null);
 
     const { reachablePaths, reachableCoordSet } = useReachablePaths(gameState, playerId, selectedUnitId);
@@ -248,8 +247,6 @@ export function useInteractionController({
         setSelectedCoord,
         selectedUnitId,
         setSelectedUnitId,
-        hoveredCoord,
-        setHoveredCoord,
         pendingWarAttack,
         setPendingWarAttack,
         handleTileClick,

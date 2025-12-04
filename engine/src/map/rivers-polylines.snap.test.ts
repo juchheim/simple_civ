@@ -15,7 +15,7 @@ function buildSyntheticMap(mapSize: MapSize) {
         const rOffset = Math.floor(r / 2);
         for (let q = -rOffset; q < width - rOffset; q++) {
             const coord = { q, r };
-            const tile: any = { coord, terrain: "Plains", overlays: [], features: undefined };
+            const tile: any = { coord, terrain: "Plains", overlays: [] };
             const minQ = -rOffset;
             const maxQ = width - rOffset - 1;
             const isOuter = r === 0 || r === height - 1 || q === minQ || q === maxQ;

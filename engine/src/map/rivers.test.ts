@@ -6,7 +6,7 @@ const baseTile = (q: number, r: number, overlays: Tile["overlays"] = []): Tile =
     coord: { q, r },
     terrain: TerrainType.Plains,
     overlays,
-    features: overlays,
+    overlays,
 });
 
 describe("river helpers", () => {
@@ -55,4 +55,3 @@ describe("river helpers", () => {
         expect(isTileAdjacentToRiver(map, neighbor.coord)).toBe(true);
     });
 });
-

@@ -1,4 +1,4 @@
-import { City, GameState, HexCoord, Unit } from "../../core/types.js";
+import { City, GameState, HexCoord, Tile, Unit } from "../../core/types.js";
 import { hexDistance, hexEquals } from "../../core/hex.js";
 import { MoveParticipant, validateTileOccupancy } from "./movement.js";
 
@@ -36,6 +36,12 @@ export function assertAdjacent(a: HexCoord, b: HexCoord, errorMessage = "Units m
     }
 }
 
-export function assertTileCanBeOccupied(state: GameState, target: HexCoord, movers: MoveParticipant[], playerId: string): void {
-    validateTileOccupancy(state, target, movers, playerId);
+export function assertTileCanBeOccupied(
+    state: GameState,
+    target: HexCoord,
+    movers: MoveParticipant[],
+    playerId: string,
+    tileLookup?: Map<string, Tile>
+): void {
+    validateTileOccupancy(state, target, movers, playerId, tileLookup);
 }

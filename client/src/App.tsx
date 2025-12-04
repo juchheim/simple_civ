@@ -50,8 +50,6 @@ function App() {
         setSelectedCoord,
         selectedUnitId,
         setSelectedUnitId,
-        hoveredCoord,
-        setHoveredCoord,
         pendingWarAttack,
         setPendingWarAttack,
         handleTileClick,
@@ -385,8 +383,6 @@ function App() {
                 selectedUnitId={selectedUnitId}
                 reachableCoords={reachableCoordSet}
                 showTileYields={showTileYields}
-                hoveredCoord={hoveredCoord}
-                onHoverTile={setHoveredCoord}
                 cityToCenter={cityToCenter}
                 onViewChange={setMapView}
             />
@@ -406,7 +402,6 @@ function App() {
                     clearSession();
                     setSelectedCoord(null);
                     setSelectedUnitId(null);
-                    setHoveredCoord(null);
                     setShowTechTree(false);
                     setCityToCenter(null);
                     setMapView(null);
@@ -440,7 +435,6 @@ function App() {
                         clearSession();
                         setSelectedCoord(null);
                         setSelectedUnitId(null);
-                        setHoveredCoord(null);
                         setShowTechTree(false);
                         setCityToCenter(null);
                         setMapView(null);

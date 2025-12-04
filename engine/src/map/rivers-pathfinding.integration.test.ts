@@ -13,7 +13,6 @@ function makeGrid(width: number, height: number): Tile[] {
                 coord: { q, r },
                 terrain: TerrainType.Plains,
                 overlays: [],
-                features: undefined,
             });
         }
     }
@@ -53,7 +52,6 @@ function cloneTiles(tiles: Tile[]): Tile[] {
         coord: { ...t.coord },
         terrain: t.terrain,
         overlays: [...t.overlays],
-        features: t.features ? [...(t.features as any)] : undefined,
     }));
 }
 

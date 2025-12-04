@@ -61,7 +61,7 @@
 - **Map size**: Tiny 15×11, Small 19×15, Standard 23×17, Large 25×19, Huge 34×25.
 - **Civ count caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
 - **Players**: 1–4 (human/AI/hotseat). Rules identical for all.
-- **Starting units**: each civ begins with 1 Settler + 1 Scout.
+- **Starting units**: each civ begins with 1 Settler + 1 Scout (Starborne Seekers start with an additional SpearGuard).
 - **Starting placement**: fair-start zones with nearby workable tiles; capitals named from civ list (unique first-city name, then list, then "New [Capital] n" if exhausted). Players may rename on founding.
 - **Fog**: unseen tiles start in shroud; vision comes from units/cities and shared vision offers.
 
@@ -120,7 +120,7 @@
   - Base city attack strength 3; range 2; one shot/turn if unfired and garrisoned.
   - **Automatic Retaliation**: If a city with a garrison is attacked by a unit within the garrison's Retaliation Range, the city automatically strikes back after taking damage.
 - **Razing**:
-  - Non-capitals may be razed by owner (removes city). Capitals cannot be razed.
+  - Non-capitals may be razed by owner if a garrison is present (removes city). Capitals cannot be razed.
 
 ## 8. Terrain & Features
 - **Terrain (yield F/P/S | move cost | defense | LoS | workable)**:
@@ -139,7 +139,7 @@
 ## 9. Units
 - **Base Units** (atk/def/rng/move/HP/cost/domain/capture/vision):
   *Note: Unit costs scale with game turn (Base * (1 + Turn/25)).*
-  - Settler: 0/0/1/1/1/18, Civilian, cannot capture, vision 2.
+  - Settler: 0/2/1/1/1/18, Civilian, cannot capture, vision 2.
   - Scout: 1/1/1/2/10/23, Land, no capture, vision 3.
   - Spear Guard: 2/2/1/1/10/27, Land, can capture, vision 2.
   - Bow Guard: 2/1/2/1/10/27, Land, no capture, vision 2.
@@ -170,7 +170,7 @@
 - **Fortify**:
   - Action available to non-Settler units with moves left.
   - Consumes all remaining moves.
-  - Grants +2 Defense bonus.
+  - Grants +1 Defense bonus.
   - Unit remains Fortified until it moves or attacks.
   - Fortified units are not considered "idle" for turn blocking.
 - **Attacking**:
@@ -231,7 +231,7 @@
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
-  - Observatory (300, Star Charts) → milestone, +Science in city, unlocks Grand Academy.
+  - Observatory (220, Star Charts) → milestone, +Science in city, unlocks Grand Academy.
   - Grand Academy (265, after Observatory) → +1 Science per city, unlocks Grand Experiment.
   - Grand Experiment (350, after Grand Academy) → Progress Victory on completion.
 - **Form Army Projects** (Army Doctrine) [Costs scale with turn]:
