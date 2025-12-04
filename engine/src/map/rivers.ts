@@ -3,12 +3,24 @@ import { getNeighbors, hexEquals, hexNeighbor, hexToString } from "../core/hex.j
 
 export type RiverEdge = { a: HexCoord; b: HexCoord };
 
+/**
+ * Generates a unique string key for a river edge.
+ * Canonicalizes the edge by sorting the coordinates.
+ * @param edge - The river edge.
+ * @returns A string key "q1,r1|q2,r2".
+ */
 export function riverEdgeKey(edge: RiverEdge): string {
     const a = hexToString(edge.a);
     const b = hexToString(edge.b);
     return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
+/**
+ * Normalizes a river edge so that the first coordinate is always "less than" the second.
+ * Useful for consistent storage and comparison.
+ * @param edge - The river edge to normalize.
+ * @returns The normalized edge.
+ */
 export function normalizeRiverEdge(edge: RiverEdge): RiverEdge {
     const a = hexToString(edge.a);
     const b = hexToString(edge.b);
@@ -30,6 +42,12 @@ export function riverDirectionFrom(edge: RiverEdge, origin: HexCoord): number | 
     return null;
 }
 
+/**
+ * Finds all river edges adjacent to a specific tile.
+ * @param map - The map state containing river data.
+ * @param coord - The tile coordinate.
+ * @returns Array of adjacent river edges.
+ */
 export function tileRiverEdges(map: GameState["map"], coord: HexCoord): RiverEdge[] {
     if (map.rivers && map.rivers.length) {
         return map.rivers.filter(edge => hexEquals(edge.a, coord) || hexEquals(edge.b, coord));
@@ -37,6 +55,13 @@ export function tileRiverEdges(map: GameState["map"], coord: HexCoord): RiverEdg
     return [];
 }
 
+/**
+ * Checks if a tile is adjacent to any river.
+ * Supports both new river edge data and legacy tile overlays.
+ * @param map - The map state.
+ * @param coord - The tile coordinate.
+ * @returns True if the tile touches a river.
+ */
 export function isTileAdjacentToRiver(map: GameState["map"], coord: HexCoord): boolean {
     if (map.rivers && map.rivers.length) {
         return map.rivers.some(edge => hexEquals(edge.a, coord) || hexEquals(edge.b, coord));
@@ -53,6 +78,13 @@ export function isTileAdjacentToRiver(map: GameState["map"], coord: HexCoord): b
     });
 }
 
+/**
+ * Counts how many tiles in a list are adjacent to a river.
+ * Used for RiverLeague bonuses.
+ * @param map - The map state.
+ * @param coords - List of tile coordinates.
+ * @returns The count of river-adjacent tiles.
+ */
 export function riverAdjacencyCount(map: GameState["map"], coords: HexCoord[]): number {
     return coords.reduce((sum, coord) => sum + (isTileAdjacentToRiver(map, coord) ? 1 : 0), 0);
 }

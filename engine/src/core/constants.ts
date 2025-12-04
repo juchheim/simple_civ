@@ -12,9 +12,14 @@ import {
 } from "./types.js";
 
 export const GAME_VERSION = "1.0";
+/** Maximum number of players allowed in a game session. */
 export const MAX_PLAYERS = 6;
 
 // Max civilizations per map size
+/**
+ * Maximum number of civilizations (players + AI) allowed for each map size.
+ * Used to constrain the "Number of Civs" selector in the UI.
+ */
 export const MAX_CIVS_BY_MAP_SIZE: Record<string, number> = {
     Tiny: 2,
     Small: 3,
@@ -24,19 +29,32 @@ export const MAX_CIVS_BY_MAP_SIZE: Record<string, number> = {
 };
 
 // Yields
+// Yields
+/** Base science yield for every city (before buildings/modifiers). */
 export const BASE_CITY_SCIENCE = 1;
+/** Minimum food yield for a city center tile. */
 export const CITY_CENTER_MIN_FOOD = 2;
+/** Minimum production yield for a city center tile. */
 export const CITY_CENTER_MIN_PROD = 1;
 
 // City Borders
+// City Borders
+/** Radius of tiles around a city that can be worked by citizens. */
 export const CITY_WORK_RADIUS_RINGS = 2;
 
 // HP / Combat
+// HP / Combat
+/** Base HP for standard units (Settler, Scout, etc.). */
 export const BASE_UNIT_HP = 10;
+/** Base HP for Army units (formed from projects). */
 export const ARMY_UNIT_HP = 15;
+/** Base HP for a City. */
 export const BASE_CITY_HP = 15;  // Was 20 - easier to capture
+/** HP a city resets to after being captured. */
 export const CAPTURED_CITY_HP_RESET = 8;  // Was 10 - proportional reduction
+/** Minimum damage a unit can deal in combat. */
 export const DAMAGE_MIN = 1;
+/** Maximum damage a unit can deal in combat. */
 export const DAMAGE_MAX = 7;
 
 // Diplomacy Constants
@@ -53,7 +71,15 @@ export const HEAL_FRIENDLY_CITY = 5;
 export const CITY_HEAL_PER_TURN = 1;  // Was 2 - slower regen
 
 // Growth
+// Growth
+/** Base food cost for a city to grow from population 1 to 2. */
 export const BASECOST_POP2 = 30;
+/**
+ * Growth cost multipliers for higher population levels.
+ * @property min - Minimum population for this factor.
+ * @property max - Maximum population for this factor.
+ * @property f - Multiplier applied to the previous level's cost.
+ */
 export const GROWTH_FACTORS = [
     { min: 2, max: 4, f: 1.30 },
     { min: 5, max: 6, f: 1.40 },

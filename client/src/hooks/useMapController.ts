@@ -33,6 +33,18 @@ type PanState = { x: number; y: number };
 type PointerSample = { x: number; y: number; time: number };
 type Velocity = { vx: number; vy: number };
 
+/**
+ * Hook to manage map interaction (pan, zoom, click, hover).
+ * Handles mouse events, inertia animation, and coordinate conversion.
+ * @param params - Configuration parameters.
+ * @param params.tiles - The map tiles.
+ * @param params.hexToPixel - Function to convert hex coordinates to pixel positions.
+ * @param params.onTileClick - Callback for tile clicks.
+ * @param params.onHoverTile - Callback for tile hover.
+ * @param params.initialCenter - Optional initial center coordinate.
+ * @param params.onViewChange - Optional callback for viewport changes.
+ * @returns Map controller state and handlers.
+ */
 export const useMapController = ({
     tiles,
     hexToPixel,

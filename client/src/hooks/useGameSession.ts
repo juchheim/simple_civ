@@ -41,6 +41,13 @@ type SessionState = {
     setError: (msg: string | null) => void;
 };
 
+/**
+ * Hook to manage the game session state (start, save, load, restart).
+ * Handles persistence to localStorage and auto-saving.
+ * @param options - Configuration options.
+ * @param options.onSessionRestore - Callback fired when a session is restored from storage.
+ * @returns The session state and command functions.
+ */
 export function useGameSession(options?: { onSessionRestore?: () => void }): SessionState & SessionCommands {
     const { onSessionRestore } = options ?? {};
     const [gameState, setGameState] = useState<GameState | null>(null);

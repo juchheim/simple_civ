@@ -15,6 +15,13 @@ import { processCityBuild } from "./helpers/builds.js";
 import { ensureTechSelected } from "./helpers/turn.js";
 import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from "./helpers/turn-movement.js";
 
+/**
+ * Handles the end of a player's turn.
+ * Updates unit states (fortification), advances the current player, and triggers end-of-round logic if needed.
+ * @param state - The current game state.
+ * @param action - The EndTurn action payload.
+ * @returns The updated game state.
+ */
 export function handleEndTurn(state: GameState, action: Extract<Action, { type: "EndTurn" }>): GameState {
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
         const stats = UNITS[unit.type];
@@ -40,6 +47,13 @@ export function handleEndTurn(state: GameState, action: Extract<Action, { type: 
     return advancePlayerTurn(state, nextPlayer.id);
 }
 
+/**
+ * Advances the game state to the specified player's turn.
+ * Triggers start-of-turn processing (healing, production, research).
+ * @param state - The current game state.
+ * @param playerId - The ID of the player whose turn is starting.
+ * @returns The updated game state.
+ */
 export function advancePlayerTurn(state: GameState, playerId: string): GameState {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return state;
@@ -65,6 +79,12 @@ function processResearch(state: GameState, player: Player) {
     }
 }
 
+/**
+ * Executes all start-of-turn logic for a player.
+ * Includes healing units, clearing status effects, applying attrition, and resetting movement.
+ * @param state - The current game state.
+ * @param player - The player whose turn is starting.
+ */
 export function startPlayerTurn(state: GameState, player: Player): void {
     state.phase = PlayerPhase.StartOfTurn;
 
@@ -145,6 +165,11 @@ function processPlayerCities(state: GameState, player: Player) {
     }
 }
 
+/**
+ * Runs end-of-round logic when all players have completed their turns.
+ * Checks for victory conditions and eliminates defeated players.
+ * @param state - The current game state.
+ */
 export function runEndOfRound(state: GameState) {
     processEndOfRound(state);
 }

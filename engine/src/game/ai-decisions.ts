@@ -234,6 +234,15 @@ function getEnemyCapitalDistance(playerId: string, targetId: string, state: Game
     return minDist === Infinity ? null : minDist;
 }
 
+/**
+ * Determines the best diplomatic action (War, Peace, or None) for an AI player against a target.
+ * Evaluates military power, distance, personality traits, and game state (winning/losing).
+ * @param playerId - The AI player making the decision.
+ * @param targetId - The target player to evaluate.
+ * @param state - The current game state.
+ * @param options - Optional flags (e.g., ignorePrep to bypass war preparation).
+ * @returns The decision: "DeclareWar", "ProposePeace", "AcceptPeace", "PrepareForWar", or "None".
+ */
 export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState, options?: { ignorePrep?: boolean }): WarPeaceDecision {
     if (!state.contacts?.[playerId]?.[targetId]) {
         const visibleKeys = getVisibleKeys(state, playerId);

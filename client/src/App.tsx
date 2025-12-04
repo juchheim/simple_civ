@@ -12,6 +12,11 @@ import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 
+/**
+ * The main application component.
+ * Handles the game loop, UI state (Title Screen, HUD, Tech Tree), and global hotkeys.
+ * Manages the top-level game session via `useGameSession`.
+ */
 function App() {
     const handleSessionRestore = useCallback(() => setShowTitleScreen(false), []);
 
@@ -328,15 +333,15 @@ function App() {
                         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <button
                                 onClick={handleStartNewGame}
-                                    style={{
-                                        flex: 1,
-                                        padding: "12px",
-                                        borderRadius: 10,
-                                        border: "none",
-                                        background: "var(--color-highlight-strong, #cd8a36)",
-                                        color: "white",
-                                        fontWeight: 700,
-                                        fontSize: 16,
+                                style={{
+                                    flex: 1,
+                                    padding: "12px",
+                                    borderRadius: 10,
+                                    border: "none",
+                                    background: "var(--color-highlight-strong, #cd8a36)",
+                                    color: "white",
+                                    fontWeight: 700,
+                                    fontSize: 16,
                                     cursor: "pointer",
                                     boxShadow: "0 10px 30px rgba(0,0,0,0.25)"
                                 }}
@@ -348,7 +353,6 @@ function App() {
                                     setShowTitleScreen(true);
                                     setSelectedCoord(null);
                                     setSelectedUnitId(null);
-                                    setHoveredCoord(null);
                                     setShowTechTree(false);
                                     setCityToCenter(null);
                                     setMapView(null);

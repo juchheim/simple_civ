@@ -30,6 +30,12 @@ export type WorldGenSettings = {
     riverOptions?: RiverGenerationOptions;
 };
 
+/**
+ * Generates a new game world based on the provided settings.
+ * Creates the map grid, generates terrain and rivers, and places starting units for all players.
+ * @param settings - Configuration for map size, players, and seed.
+ * @returns The initial GameState.
+ */
 export function generateWorld(settings: WorldGenSettings): GameState {
     const seed = resolveSeed(settings.seed);
     const rng = new WorldRng(seed);

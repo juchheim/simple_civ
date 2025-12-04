@@ -16,19 +16,36 @@ export type GameMapHandle = {
     centerOnPoint: (point: { x: number; y: number }) => void;
 };
 
+/**
+ * Props for the GameMap component.
+ */
 interface GameMapProps {
+    /** The current game state. */
     gameState: GameState;
+    /** Callback when a tile is clicked. */
     onTileClick: (coord: HexCoord) => void;
+    /** The currently selected coordinate. */
     selectedCoord: HexCoord | null;
+    /** The ID of the local player. */
     playerId: string;
+    /** Whether to show the fog of war shroud. */
     showShroud: boolean;
+    /** The ID of the currently selected unit. */
     selectedUnitId: string | null;
+    /** Set of coordinates reachable by the selected unit. */
     reachableCoords: Set<string>;
+    /** Whether to show tile yield overlays. */
     showTileYields: boolean;
+    /** Coordinate to center the camera on. */
     cityToCenter?: HexCoord | null;
+    /** Callback when the viewport changes (pan/zoom). */
     onViewChange?: (view: MapViewport) => void;
 }
 
+/**
+ * The main game map component.
+ * Renders tiles, units, cities, and handles map interaction (pan/zoom).
+ */
 const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, cityToCenter, onViewChange }, ref) => {
     const { map, units, cities } = gameState;
     const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);

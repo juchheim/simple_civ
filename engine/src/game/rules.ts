@@ -27,6 +27,12 @@ import {
 import { hexEquals, hexDistance } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
 
+/**
+ * Determines the minimum distance required between cities for a given player.
+ * @param state - The current game state.
+ * @param playerId - The ID of the player founding a city.
+ * @returns The minimum hex distance (usually 3, but 2 for JadeCovenant).
+ */
 export function getMinimumCityDistance(state: GameState, playerId: string): number {
     const player = state.players.find(p => p.id === playerId);
     return player?.civName === "JadeCovenant" ? 2 : 3;
@@ -34,6 +40,11 @@ export function getMinimumCityDistance(state: GameState, playerId: string): numb
 
 // --- Yields ---
 
+/**
+ * Calculates the base yields of a tile, including terrain and overlays.
+ * @param tile - The tile to calculate yields for.
+ * @returns The base yields (Food, Production, Science).
+ */
 export function getTileYields(tile: Tile): Yields {
     const base = { ...TERRAIN[tile.terrain].yields };
 
@@ -49,6 +60,13 @@ export function getTileYields(tile: Tile): Yields {
     return base;
 }
 
+/**
+ * Calculates the yields for a city center tile.
+ * Ensures minimum food and production values are met.
+ * @param city - The city occupying the tile.
+ * @param tile - The tile the city is on.
+ * @returns The adjusted yields for the city center.
+ */
 export function getCityCenterYields(city: City, tile: Tile): Yields {
     const y = getTileYields(tile);
 
@@ -59,6 +77,13 @@ export function getCityCenterYields(city: City, tile: Tile): Yields {
     return y;
 }
 
+/**
+ * Calculates the total yields per turn for a city.
+ * Includes worked tiles, buildings, civ traits, and project bonuses.
+ * @param city - The city to calculate yields for.
+ * @param state - The current game state.
+ * @returns The total yields (Food, Production, Science).
+ */
 export function getCityYields(city: City, state: GameState): Yields {
     const total: Yields = { F: 0, P: 0, S: 0 };
 
@@ -162,8 +187,7 @@ export function getCityYields(city: City, state: GameState): Yields {
     }
 
     // v1.0: ScholarKingdoms "Fortified Knowledge" - Science Bonus
-
-
+    // (Logic moved or implemented elsewhere, or this is a placeholder for future expansion)
     return total;
 }
 
@@ -180,6 +204,14 @@ function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "Schola
 
 // --- Growth ---
 
+/**
+ * Calculates the food cost required for a city to grow to the next population level.
+ * @param pop - The current population of the city.
+ * @param hasFarmstead - Whether the city has a Farmstead (10% discount).
+ * @param hasJadeGranary - Whether the player has the Jade Granary project (15% discount).
+ * @param civName - The name of the civilization (JadeCovenant gets 10% discount).
+ * @returns The food cost for the next growth step.
+ */
 export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary: boolean = false, civName?: string): number {
     if (pop < 1) return 0; // Should not happen
 
@@ -208,6 +240,15 @@ export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary
 
 // --- Tech & Production Helpers ---
 
+/**
+ * Checks if a city can build a specific unit, building, or project.
+ * Verifies tech requirements, resource costs, and unique constraints.
+ * @param city - The city attempting to build.
+ * @param type - The type of item ("Unit", "Building", "Project").
+ * @param id - The ID of the item.
+ * @param state - The current game state.
+ * @returns True if the item can be built.
+ */
 export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: string, state: GameState): boolean {
     const player = state.players.find(p => p.id === city.ownerId);
     if (!player) return false;
@@ -313,6 +354,12 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
     return false;
 }
 
+/**
+ * Calculates the production cost of a project, potentially scaling with the game turn.
+ * @param projectId - The ID of the project.
+ * @param turn - The current game turn.
+ * @returns The production cost.
+ */
 export function getProjectCost(projectId: ProjectId, turn: number): number {
     const data = PROJECTS[projectId];
     if (!data) return 9999;
