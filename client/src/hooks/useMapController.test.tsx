@@ -1,7 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { useMapController } from "./useMapController";
 import { HexCoord } from "@simple-civ/engine";
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
@@ -11,7 +11,7 @@ global.ResizeObserver = class ResizeObserver {
 };
 
 // Mock requestAnimationFrame
-global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+global.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 0) as any;
 global.cancelAnimationFrame = (id) => clearTimeout(id);
 
 describe("useMapController", () => {
@@ -26,7 +26,12 @@ describe("useMapController", () => {
     const mockOnViewChange = vi.fn();
 
     beforeEach(() => {
+        vi.useFakeTimers();
         vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it("initializes with default state", () => {
@@ -109,5 +114,48 @@ describe("useMapController", () => {
 
         expect(result.current.isPanning).toBe(true);
         expect(result.current.pan.x).toBeGreaterThan(0); // Should have moved
+    });
+
+    it("pans when mouse is near edge", () => {
+        const { result } = renderHook(() =>
+            useMapController({
+                tiles: mockTiles,
+                hexToPixel: mockHexToPixel,
+                onTileClick: mockOnTileClick,
+                onHoverTile: mockOnHoverTile,
+                onViewChange: mockOnViewChange,
+            })
+        );
+
+        // Mock container ref
+        Object.defineProperty(result.current.containerRef, "current", {
+            value: { clientWidth: 800, clientHeight: 600 },
+            writable: true,
+        });
+
+        // Mock svg ref
+        Object.defineProperty(result.current.svgRef, "current", {
+            value: { clientWidth: 800, clientHeight: 600, getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+            writable: true,
+        });
+
+        // Capture initial pan
+        const initialPanX = result.current.pan.x;
+
+        // Move mouse to left edge (x=10, threshold=50)
+        act(() => {
+            result.current.handleMouseMove({
+                clientX: 10,
+                clientY: 300,
+            } as any);
+        });
+
+        // Advance timers to trigger animation frame
+        act(() => {
+            vi.advanceTimersByTime(100);
+        });
+
+        // Should have panned right (pan.x increases to move view left)
+        expect(result.current.pan.x).toBeGreaterThan(initialPanX);
     });
 });

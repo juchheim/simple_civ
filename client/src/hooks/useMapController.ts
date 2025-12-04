@@ -12,6 +12,9 @@ import {
     ZOOM_WHEEL_SENSITIVITY,
 } from "../components/GameMap/constants";
 
+const EDGE_PAN_THRESHOLD = 100; // pixels
+const EDGE_PAN_SPEED = 0.8; // pixels per ms
+
 export type MapViewport = {
     pan: { x: number; y: number };
     zoom: number;
@@ -73,6 +76,7 @@ export const useMapController = ({
     const isInertiaActiveRef = useRef(false);
     const rafRef = useRef<number | null>(null);
     const lastFrameTimeRef = useRef<number | null>(null);
+    const mousePositionRef = useRef<{ x: number; y: number } | null>(null);
 
     // --- Viewport State (from GameMap) ---
     const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -134,6 +138,36 @@ export const useMapController = ({
                 const nextPan = {
                     x: panRef.current.x + velocity.vx * deltaMs,
                     y: panRef.current.y + velocity.vy * deltaMs,
+                };
+                panRef.current = nextPan;
+                setPan(nextPan);
+                shouldContinue = true;
+            }
+        }
+
+        // --- Edge Panning ---
+        if (mousePositionRef.current && !isPanning && containerRef.current) {
+            const { x, y } = mousePositionRef.current;
+            const { clientWidth, clientHeight } = containerRef.current;
+            let vx = 0;
+            let vy = 0;
+
+            if (x < EDGE_PAN_THRESHOLD) {
+                vx = EDGE_PAN_SPEED * (1 - x / EDGE_PAN_THRESHOLD);
+            } else if (x > clientWidth - EDGE_PAN_THRESHOLD) {
+                vx = -EDGE_PAN_SPEED * (1 - (clientWidth - x) / EDGE_PAN_THRESHOLD);
+            }
+
+            if (y < EDGE_PAN_THRESHOLD) {
+                vy = EDGE_PAN_SPEED * (1 - y / EDGE_PAN_THRESHOLD);
+            } else if (y > clientHeight - EDGE_PAN_THRESHOLD) {
+                vy = -EDGE_PAN_SPEED * (1 - (clientHeight - y) / EDGE_PAN_THRESHOLD);
+            }
+
+            if (vx !== 0 || vy !== 0) {
+                const nextPan = {
+                    x: panRef.current.x + vx * deltaMs,
+                    y: panRef.current.y + vy * deltaMs,
                 };
                 panRef.current = nextPan;
                 setPan(nextPan);
@@ -320,6 +354,23 @@ export const useMapController = ({
         const hex = findHexAtScreen(screenX, screenY);
         onHoverTile(hex);
 
+        // Update mouse position for edge panning
+        mousePositionRef.current = { x: screenX, y: screenY };
+
+        // Check if we need to start edge panning
+        if (!isPanning && !mouseDownPos) {
+            const { clientWidth, clientHeight } = svgRef.current;
+            const isNearEdge =
+                screenX < EDGE_PAN_THRESHOLD ||
+                screenX > clientWidth - EDGE_PAN_THRESHOLD ||
+                screenY < EDGE_PAN_THRESHOLD ||
+                screenY > clientHeight - EDGE_PAN_THRESHOLD;
+
+            if (isNearEdge) {
+                scheduleAnimation();
+            }
+        }
+
         if (!mouseDownPos) return;
 
         const deltaX = e.clientX - mouseDownPos.x;
@@ -375,6 +426,11 @@ export const useMapController = ({
         lastPointerRef.current = null;
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
     }, [isPanning, clickTarget, onTileClick, scheduleAnimation]);
+
+    const handleMouseLeave = useCallback(() => {
+        mousePositionRef.current = null;
+        handleMouseUp();
+    }, [handleMouseUp]);
 
     // --- API ---
     const centerOnPoint = useCallback((point: { x: number; y: number }) => {
@@ -475,6 +531,7 @@ export const useMapController = ({
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
+        handleMouseLeave,
         centerOnCoord,
         centerOnPoint,
         viewport,
