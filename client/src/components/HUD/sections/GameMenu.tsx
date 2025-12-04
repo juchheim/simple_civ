@@ -22,6 +22,78 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     onToggleYields,
 }) => {
     const [showPreferences, setShowPreferences] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    React.useEffect(() => {
+        const handleFullscreenChange = () => {
+            const isFs = !!(
+                document.fullscreenElement ||
+                (document as any).webkitFullscreenElement ||
+                (document as any).mozFullScreenElement ||
+                (document as any).msFullscreenElement
+            );
+            setIsFullscreen(isFs);
+
+            // Unlock keyboard when exiting fullscreen
+            if (!isFs && (navigator as any).keyboard?.unlock) {
+                (navigator as any).keyboard.unlock();
+            }
+        };
+
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+        document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+        document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+        // Initial check
+        handleFullscreenChange();
+
+        return () => {
+            document.removeEventListener("fullscreenchange", handleFullscreenChange);
+            document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+            document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+            document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+        };
+    }, []);
+
+    const toggleFullscreen = async () => {
+        if (!isFullscreen) {
+            const docEl = document.documentElement as any;
+            try {
+                if (docEl.requestFullscreen) {
+                    await docEl.requestFullscreen();
+                } else if (docEl.webkitRequestFullscreen) {
+                    await docEl.webkitRequestFullscreen();
+                } else if (docEl.mozRequestFullScreen) {
+                    await docEl.mozRequestFullScreen();
+                } else if (docEl.msRequestFullscreen) {
+                    await docEl.msRequestFullscreen();
+                }
+
+                // Lock Escape key if supported
+                if ((navigator as any).keyboard?.lock) {
+                    await (navigator as any).keyboard.lock(["Escape"]);
+                }
+            } catch (err) {
+                console.error("Error attempting to enable fullscreen:", err);
+            }
+        } else {
+            const doc = document as any;
+            if (doc.exitFullscreen) {
+                doc.exitFullscreen();
+            } else if (doc.webkitExitFullscreen) {
+                doc.webkitExitFullscreen();
+            } else if (doc.mozCancelFullScreen) {
+                doc.mozCancelFullScreen();
+            } else if (doc.msExitFullscreen) {
+                doc.msExitFullscreen();
+            }
+
+            if ((navigator as any).keyboard?.unlock) {
+                (navigator as any).keyboard.unlock();
+            }
+        }
+    };
 
     if (showPreferences) {
         return (
@@ -34,6 +106,15 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                 </div>
                 <div className="hud-menu-scroll">
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
+                            <input
+                                type="checkbox"
+                                checked={isFullscreen}
+                                onChange={toggleFullscreen}
+                                style={{ width: 16, height: 16, cursor: "pointer" }}
+                            />
+                            Fullscreen
+                        </label>
                         <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
                             <input
                                 type="checkbox"
