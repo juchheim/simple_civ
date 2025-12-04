@@ -142,7 +142,7 @@ export function generateRivers(context: RiverGenerationContext): RiverGeneration
 
         const polylines = buildRiverPolylines(path, waterDistance, addRiverEdge);
         riverPolylines.push(...polylines);
-        markRiverOverlays(path, tiles, isLand, getTile);
+        markRiverOverlays(riverEdges, tiles, isLand, getTile);
         for (const coord of path) {
             existingRiverTiles.add(hexToString(coord));
         }

@@ -151,6 +151,8 @@ describe("useInteractionController", () => {
             units: [
                 { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
             ],
+            visibility: { "p1": ["0,0", "0,1"] },
+            revealed: { "p1": ["0,0", "0,1"] },
         });
 
         const { result } = renderHook(() => useInteractionController({ gameState, playerId: "p1", dispatchAction, runActions }));
@@ -172,5 +174,34 @@ describe("useInteractionController", () => {
         ]);
         expect(result.current.selectedUnitId).toBeNull();
         expect(result.current.selectedCoord).toBeNull();
+    });
+
+    it("selects tile but deselects unit when clicking a fogged tile", () => {
+        const dispatchAction = vi.fn();
+        const runActions = vi.fn();
+        const gameState = makeState({
+            units: [
+                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
+            ],
+            // 0,0 is visible, 0,1 is fogged (revealed but not visible)
+            visibility: { "p1": ["0,0"] },
+            revealed: { "p1": ["0,0", "0,1"] },
+        });
+
+        const { result } = renderHook(() => useInteractionController({ gameState, playerId: "p1", dispatchAction, runActions }));
+
+        act(() => {
+            result.current.setSelectedUnitId("u1");
+        });
+
+        // Click on fogged tile 0,1
+        act(() => {
+            result.current.handleTileClick({ q: 0, r: 1 } as HexCoord);
+        });
+
+        expect(dispatchAction).not.toHaveBeenCalled();
+        expect(runActions).not.toHaveBeenCalled();
+        expect(result.current.selectedUnitId).toBeNull();
+        expect(result.current.selectedCoord).toEqual({ q: 0, r: 1 });
     });
 });

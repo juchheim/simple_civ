@@ -184,6 +184,21 @@ export function useInteractionController({
     const handleTileClick = useCallback((coord: HexCoord) => {
         if (!gameState) return;
 
+        // Check visibility
+        const key = `${coord.q},${coord.r}`;
+        // Note: We don't have the pre-computed sets here, so we check the raw arrays.
+        // This is slightly less efficient but fine for a click handler.
+        const isVisible = gameState.visibility?.[playerId]?.includes(key) ?? false;
+        const isRevealed = gameState.revealed?.[playerId]?.includes(key) ?? false;
+        const isFogged = !isVisible && isRevealed;
+
+        if (isFogged) {
+            // Allow selecting the tile to see terrain info, but do NOT allow selecting units or interacting
+            setSelectedCoord(coord);
+            setSelectedUnitId(null);
+            return;
+        }
+
         if (selectedUnitId) {
             const unit = gameState.units.find(u => u.id === selectedUnitId);
             if (unit && unit.ownerId === playerId) {

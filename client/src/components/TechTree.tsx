@@ -354,14 +354,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                     </div>
                 </div>
 
-                <div style={{ marginTop: "20px", padding: "15px", background: "var(--color-bg-panel)", borderRadius: "4px", border: "1px solid var(--color-border)", position: "relative", zIndex: 2 }}>
-                    <h4>Legend:</h4>
-                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "10px" }}>
-                        <div><span style={{ display: "inline-block", width: "20px", height: "20px", background: "var(--color-bg-panel)", border: "1px solid var(--color-border)", marginRight: "5px" }}></span> Researched</div>
-                        <div><span style={{ display: "inline-block", width: "20px", height: "20px", background: "var(--color-highlight)", marginRight: "5px" }}></span> Currently Researching</div>
-                        <div><span style={{ display: "inline-block", width: "20px", height: "20px", background: "var(--color-bg-deep)", border: "2px solid var(--color-highlight)", marginRight: "5px" }}></span> Available</div>
-                    </div>
-                </div>
+
             </div>
         </div>
     );

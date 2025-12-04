@@ -1,6 +1,6 @@
 import { HexCoord, RiverPoint, RiverSegmentDescriptor, Tile, OverlayType } from "../../core/types.js";
 import { EDGE_TO_CORNER_INDICES, directionBetween } from "../rivers.js";
-import { hexToString } from "../../core/hex.js";
+import { hexToString, hexNeighbor } from "../../core/hex.js";
 
 const HEX_SIZE = 75;
 const HEX_CORNER_OFFSETS = Array.from({ length: 6 }, (_v, i) => {
@@ -62,6 +62,31 @@ export function buildRiverPolylines(
                 let currentIdx = entryIdx;
                 for (const nextIdx of bridgePath) {
                     pushCornerSegment(polylineDescriptor, from, cornerPoints, currentIdx, nextIdx, false);
+
+                    // Identify the neighbor sharing this edge segment
+                    // Edge from corner i to (i+1)%6 is neighbor (6-i)%6
+                    let neighborDir = -1;
+                    if (nextIdx === (currentIdx + 1) % 6) {
+                        neighborDir = (6 - currentIdx) % 6;
+                    } else if (currentIdx === (nextIdx + 1) % 6) {
+                        neighborDir = (6 - nextIdx) % 6;
+                    }
+
+                    if (neighborDir !== -1) {
+                        // Calculate neighbor coordinate
+                        // We need hexNeighbor from core/hex, but we don't have it imported.
+                        // We can use the logic: DIRECTIONS[neighborDir]
+                        // But DIRECTIONS is in core/hex. We imported EDGE_TO_CORNER_INDICES.
+                        // Let's import hexNeighbor or calculate it.
+                        // Since we are in rivers-polylines, let's just use the imported directionBetween logic or similar.
+                        // Actually, we can just import hexNeighbor.
+                        // But wait, we need to add the edge.
+                        // We need the neighbor coord.
+                        // Let's assume we can import hexNeighbor.
+                        const neighbor = hexNeighbor(from, neighborDir);
+                        addRiverEdge(from, neighbor);
+                    }
+
                     currentIdx = nextIdx;
                 }
             }
@@ -77,14 +102,16 @@ export function buildRiverPolylines(
     return riverPolylines;
 }
 
-export function markRiverOverlays(path: HexCoord[], tiles: Tile[], isLand: (tile: Tile | undefined) => boolean, getTile: (coord: HexCoord) => Tile | undefined) {
-    for (let i = 0; i < path.length; i++) {
-        const coord = path[i];
-        const tile = getTile(coord);
-        if (!tile) continue;
-        if (!isLand(tile)) continue;
-        if (!tile.overlays.includes(OverlayType.RiverEdge)) {
-            tile.overlays.push(OverlayType.RiverEdge);
+export function markRiverOverlays(riverEdges: { a: HexCoord; b: HexCoord }[], tiles: Tile[], isLand: (tile: Tile | undefined) => boolean, getTile: (coord: HexCoord) => Tile | undefined) {
+    for (const edge of riverEdges) {
+        for (const coord of [edge.a, edge.b]) {
+            const tile = getTile(coord);
+            if (!tile) continue;
+            // Allow Coast tiles to have RiverEdge overlay now, to fix asymmetry
+            if (!isLand(tile)) continue;
+            if (!tile.overlays.includes(OverlayType.RiverEdge)) {
+                tile.overlays.push(OverlayType.RiverEdge);
+            }
         }
     }
 }

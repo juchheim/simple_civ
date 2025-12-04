@@ -83,6 +83,16 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
         FALLBACK_VISIBILITY,
     });
 
+    const handleTileClickWrapper = useCallback((coord: HexCoord) => {
+        const key = `${coord.q},${coord.r}`;
+        const visibility = tileVisibility.get(key) ?? FALLBACK_VISIBILITY;
+
+        // If it's shroud (unexplored), ignore click
+        if (visibility.isShroud) return;
+
+        onTileClick(coord);
+    }, [onTileClick, tileVisibility, FALLBACK_VISIBILITY]);
+
     const {
         pan,
         zoom,
@@ -98,7 +108,7 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
     } = useMapController({
         tiles: map.tiles,
         hexToPixel,
-        onTileClick,
+        onTileClick: handleTileClickWrapper,
         onHoverTile: setHoveredCoord,
         initialCenter: useMemo(() => {
             if (selectedUnit) return selectedUnit.coord;
