@@ -5,9 +5,9 @@ import { describe, it, expect } from "vitest";
 
 describe("useMapVisibility", () => {
     const mockTiles: Tile[] = [
-        { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains },
-        { coord: { q: 1, r: 0 }, terrain: TerrainType.Plains },
-        { coord: { q: 2, r: 0 }, terrain: TerrainType.Plains },
+        { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+        { coord: { q: 1, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+        { coord: { q: 2, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
     ];
 
     const mockGameState = {

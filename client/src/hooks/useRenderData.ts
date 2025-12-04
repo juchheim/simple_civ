@@ -70,7 +70,7 @@ export const useRenderData = ({
         let production = base.P;
         const science = base.S;
 
-        const adjRiver = isTileAdjacentToRiver(map, tile.coord);
+        const adjRiver = isTileAdjacentToRiver(gameState.map, tile.coord);
         if (civ === "RiverLeague" && adjRiver) food += 1;
         if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) production += 1;
 
@@ -227,7 +227,7 @@ export const useRenderData = ({
     }, [unitRenderData]);
 
     const riverLineSegments = useRiverPolylines({
-        map,
+        map: gameState.map,
         tileVisibility,
         hexToPixel,
         hexCornerOffsets: HEX_CORNER_OFFSETS,

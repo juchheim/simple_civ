@@ -16,7 +16,7 @@ type GameMapLayersProps = {
     isPanning: boolean;
     svgRef: React.RefObject<SVGSVGElement>;
     onMouseDown: React.MouseEventHandler<SVGSVGElement>;
-    hexPoints: { x: number; y: number }[];
+    hexPoints: string;
     hexToPixel: (hex: HexCoord) => { x: number; y: number };
     tileRenderData: TileRenderEntry[];
     cityOverlayData: CityOverlayDescriptor[];

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useInteractionController } from "./useInteractionController";
 import { useReachablePaths } from "./useReachablePaths";
-import { DiplomacyState, GameState, HexCoord, UnitType } from "@simple-civ/engine";
+import { DiplomacyState, GameState, HexCoord, UnitType, UnitState } from "@simple-civ/engine";
 
 vi.mock("./useReachablePaths", () => ({
     useReachablePaths: vi.fn(),
@@ -54,8 +54,8 @@ describe("useInteractionController", () => {
                 "p2": { "p1": DiplomacyState.Peace },
             },
             units: [
-                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1 },
-                { id: "u2", ownerId: "p2", type: UnitType.Scout, coord: { q: 0, r: 1 }, movesLeft: 1 },
+                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
+                { id: "u2", ownerId: "p2", type: UnitType.Scout, coord: { q: 0, r: 1 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
             ],
         });
 
@@ -84,8 +84,8 @@ describe("useInteractionController", () => {
                 "p2": { "p1": DiplomacyState.War },
             },
             units: [
-                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1 },
-                { id: "u2", ownerId: "p2", type: UnitType.Scout, coord: { q: 0, r: 1 }, movesLeft: 1 },
+                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
+                { id: "u2", ownerId: "p2", type: UnitType.Scout, coord: { q: 0, r: 1 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
             ],
         });
 
@@ -113,8 +113,8 @@ describe("useInteractionController", () => {
         const runActions = vi.fn();
         const gameState = makeState({
             units: [
-                { id: "settler", ownerId: "p1", type: UnitType.Settler, coord: { q: 0, r: 0 }, movesLeft: 1 },
-                { id: "guard", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 1, r: 0 }, movesLeft: 1 },
+                { id: "settler", ownerId: "p1", type: UnitType.Settler, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
+                { id: "guard", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 1, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
             ],
         });
 
@@ -149,7 +149,7 @@ describe("useInteractionController", () => {
         const runActions = vi.fn();
         const gameState = makeState({
             units: [
-                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1 },
+                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
             ],
         });
 

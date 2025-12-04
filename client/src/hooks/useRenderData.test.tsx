@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { useRenderData } from "./useRenderData";
-import { GameState, Tile, TerrainType, Unit, City, UnitType } from "@simple-civ/engine";
+import { GameState, Tile, TerrainType, Unit, City, UnitType, UnitState } from "@simple-civ/engine";
 import { describe, it, expect, vi } from "vitest";
 import { TileVisibilityState } from "./useMapVisibility";
 
@@ -16,12 +16,12 @@ describe("useRenderData", () => {
     ];
 
     const mockUnits: Unit[] = [
-        { id: "u1", ownerId: "p1", type: UnitType.Warrior, coord: { q: 0, r: 0 }, movesLeft: 2, maxMoves: 2, hp: 100, maxHp: 100, status: "idle" },
-        { id: "u2", ownerId: "p2", type: UnitType.Warrior, coord: { q: 1, r: 0 }, movesLeft: 2, maxMoves: 2, hp: 100, maxHp: 100, status: "idle" },
+        { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 2, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
+        { id: "u2", ownerId: "p2", type: UnitType.SpearGuard, coord: { q: 1, r: 0 }, movesLeft: 2, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
     ];
 
     const mockCities: City[] = [
-        { id: "c1", ownerId: "p1", name: "City 1", coord: { q: 0, r: 0 }, population: 1, buildings: [], productionQueue: [], storedFood: 0, storedProduction: 0, tiles: [] },
+        { id: "c1", ownerId: "p1", name: "City 1", coord: { q: 0, r: 0 }, pop: 1, buildings: [], storedFood: 0, storedProduction: 0, workedTiles: [], currentBuild: null, buildProgress: 0, hp: 100, maxHp: 100, isCapital: false, hasFiredThisTurn: false, milestones: [] },
     ];
 
     const mockGameState = {

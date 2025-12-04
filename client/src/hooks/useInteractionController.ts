@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Action, DiplomacyState, GameState, HexCoord, UNITS, findPath, hexDistance, hexEquals, hexToString } from "@simple-civ/engine";
+import { Action, DiplomacyState, GameState, HexCoord, UNITS, findPath, hexDistance, hexEquals, hexToString, Unit } from "@simple-civ/engine";
 import { useReachablePaths } from "./useReachablePaths";
 
 type PendingWar = { action: Action; targetPlayerId: string } | null;
@@ -75,7 +75,7 @@ export function useInteractionController({
         return true;
     }, [diplomacy, dispatchAction, playerId, setPendingWarAttack, setSelectedCoord, setSelectedUnitId]);
 
-    const trySwapOrStack = useCallback((unit: any, friendlyUnitOnTile: any, coord: HexCoord) => {
+    const trySwapOrStack = useCallback((unit: Unit, friendlyUnitOnTile: Unit, coord: HexCoord) => {
         const distance = hexDistance(unit.coord, friendlyUnitOnTile.coord);
         if (distance !== 1 || unit.movesLeft <= 0) {
             setSelectedCoord(coord);

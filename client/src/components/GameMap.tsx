@@ -46,7 +46,6 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
         tileRenderData,
         cityOverlayData,
         cityBounds,
-        unitRenderData,
         unitRenderDataOnCity,
         unitRenderDataOffCity,
         riverLineSegments,
@@ -190,7 +189,6 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
                 tileRenderData={tileRenderData}
                 cityOverlayData={cityOverlayData}
                 cityBounds={cityBounds}
-                unitRenderData={unitRenderData}
                 unitRenderDataOnCity={unitRenderDataOnCity}
                 unitRenderDataOffCity={unitRenderDataOffCity}
                 riverLineSegments={riverLineSegments}
