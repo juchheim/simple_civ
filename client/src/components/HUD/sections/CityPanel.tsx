@@ -67,6 +67,66 @@ export const CityPanel: React.FC<CityPanelProps> = ({
             .trim();
     };
 
+    const isEnemyCity = city.ownerId !== playerId;
+
+    if (isEnemyCity) {
+        return (
+            <div>
+                <div className="hud-section-title">City</div>
+                <div className="hud-menu-header" style={{ alignItems: "flex-start", marginBottom: 6 }}>
+                    <div>
+                        <p className="hud-title" style={{ margin: "0 0 4px 0" }}>{city.name}</p>
+                        <div className="hud-subtext" style={{ marginTop: 0 }}>
+                            {civ} · Pop {city.pop} · HP {city.hp}/{city.maxHp}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="city-panel__section">
+                    <h5>Stationed Units</h5>
+                    <div className="hud-chip-row" style={{ marginBottom: 8, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                        {(() => {
+                            const unitsAtCity = units.filter(u => u.coord.q === city.coord.q && u.coord.r === city.coord.r);
+
+                            if (unitsAtCity.length === 0) {
+                                return <span className="hud-chip warn">No units in city</span>;
+                            }
+
+                            return (
+                                <>
+                                    {unitsAtCity.map(unit => {
+                                        const isGarrison = unit.type !== "Settler";
+                                        // We can select enemy units now, so allow clicking
+                                        return (
+                                            <button
+                                                key={unit.id}
+                                                className={`hud-chip clickable ${isGarrison ? "success" : ""}`}
+                                                onClick={() => {
+                                                    onSelectUnit(unit.id);
+                                                    onClose();
+                                                }}
+                                                style={{
+                                                    cursor: "pointer",
+                                                    border: isGarrison ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
+                                                    background: isGarrison ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                                                    width: "100%",
+                                                    textAlign: "left"
+                                                }}
+                                            >
+                                                {isGarrison ? "Garrison: " : "Unit: "}{unit.type}
+                                                <span style={{ float: "right", opacity: 0.7 }}>{unit.hp}/{unit.maxHp} HP</span>
+                                            </button>
+                                        );
+                                    })}
+                                </>
+                            );
+                        })()}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div>
             <div className="hud-section-title">City</div>

@@ -273,9 +273,26 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         />
                     </div>
                 )}
+                {selectedCity && selectedCity.ownerId !== playerId && (
+                    <div className="hud-card hud-enemy-city-card">
+                        <CityPanel
+                            city={selectedCity}
+                            isMyTurn={isMyTurn}
+                            playerId={playerId}
+                            gameState={gameState}
+                            units={units}
+                            buildOptions={cityBuildOptions}
+                            onBuild={handleBuild}
+                            onRazeCity={handleRazeCity}
+                            onSetWorkedTiles={handleSetWorkedTiles}
+                            onSelectUnit={onSelectUnit}
+                            onClose={() => onSelectCoord(null)}
+                        />
+                    </div>
+                )}
             </div>
 
-            {selectedCity && (
+            {selectedCity && selectedCity.ownerId === playerId && (
                 <div className="hud-card hud-city-panel">
                     <CityPanel
                         city={selectedCity}
@@ -286,7 +303,6 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         buildOptions={cityBuildOptions}
                         onBuild={handleBuild}
                         onRazeCity={handleRazeCity}
-
                         onSetWorkedTiles={handleSetWorkedTiles}
                         onSelectUnit={onSelectUnit}
                         onClose={() => onSelectCoord(null)}

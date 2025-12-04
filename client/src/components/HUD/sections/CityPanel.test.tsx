@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType } from "@simple-civ/engine";
+import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType, UnitState } from "@simple-civ/engine";
 import React from "react";
 import { applyAction } from "@simple-civ/engine";
 import { CityPanel } from "./CityPanel";
@@ -178,5 +178,53 @@ describe("CityPanel", () => {
         fireEvent.click(workedTileButton);
 
         return waitFor(() => expect(workedTileButton).not.toHaveClass("is-worked"));
+    });
+
+    it("renders sparse view for enemy cities", () => {
+        const city = { ...baseCity(), ownerId: "p2" }; // Owned by p2
+        const units: Unit[] = [
+            {
+                id: "u1",
+                ownerId: "p2",
+                type: UnitType.SpearGuard,
+                coord: { q: 0, r: 0 },
+                hp: 100,
+                maxHp: 100,
+                movesLeft: 2,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            }
+        ];
+        const gameState = baseGameState(city, units);
+
+        render(
+            <CityPanel
+                city={city}
+                isMyTurn={true}
+                playerId="p1" // Viewing as p1
+                gameState={gameState}
+                units={units}
+                buildOptions={defaultBuildOptions}
+                onBuild={vi.fn()}
+                onRazeCity={vi.fn()}
+                onSetWorkedTiles={vi.fn()}
+                onSelectUnit={vi.fn()}
+                onClose={vi.fn()}
+            />
+        );
+
+        // Should show basic info
+        expect(screen.getByText("Capital")).toBeInTheDocument();
+        expect(screen.getByText(/Pop 2/)).toBeInTheDocument();
+        expect(screen.getByText(/HP 20\/20/)).toBeInTheDocument();
+
+        // Should show stationed units
+        expect(screen.getByText("Garrison: SpearGuard")).toBeInTheDocument();
+
+        // Should NOT show sensitive info
+        expect(screen.queryByText("Production")).not.toBeInTheDocument();
+        expect(screen.queryByText("Worked Tiles")).not.toBeInTheDocument();
+        expect(screen.queryByText(/Yields:/)).not.toBeInTheDocument();
+        expect(screen.queryByText("Stored Food:")).not.toBeInTheDocument();
     });
 });

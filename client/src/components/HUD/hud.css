@@ -64,6 +64,11 @@
     pointer-events: auto;
 }
 
+.hud-enemy-city-card {
+    width: 300px;
+    pointer-events: auto;
+}
+
 .hud-city-panel {
     position: absolute;
     bottom: 14px;
@@ -126,9 +131,17 @@
 }
 
 @keyframes minimap-blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.25; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.25;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 
@@ -659,9 +672,17 @@
     letter-spacing: 0.01em;
 }
 
-.city-panel__yield--food { color: #d1fae5; }
-.city-panel__yield--prod { color: #fde68a; }
-.city-panel__yield--science { color: #bfdbfe; }
+.city-panel__yield--food {
+    color: #d1fae5;
+}
+
+.city-panel__yield--prod {
+    color: #fde68a;
+}
+
+.city-panel__yield--science {
+    color: #bfdbfe;
+}
 }
 
 .city-panel__footer {
