@@ -1,10 +1,6 @@
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType, UnitState } from "../../../core/types.js";
-import {
-    BUILDINGS,
-    TERRAIN,
-    UNITS,
-} from "../../../core/constants.js";
+import { TERRAIN, UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { nearestByDistance, sortByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
@@ -15,14 +11,12 @@ import {
     expectedDamageFrom,
     expectedDamageToCity,
     expectedDamageToUnit,
-    friendlyAdjacencyCount,
     getWarTargets,
     isScoutType,
     shouldUseWarProsecutionMode,
     selectHeldGarrisons,
     selectPrimarySiegeCity,
     stepToward,
-    tileDefenseScore,
     warGarrisonCap
 } from "./unit-helpers.js";
 
@@ -79,13 +73,13 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
                 if (blockingUnit.movesLeft > 0) {
                     const neighbors = getNeighbors(blockingUnit.coord);
                     // Find a free neighbor that isn't the city and isn't the capture unit's tile
-                    const escape = neighbors.find(n =>
-                        !hexEquals(n, city.coord) &&
-                        !hexEquals(n, unit.coord) &&
-                        !next.units.some(u => hexEquals(u.coord, n)) &&
-                        // Check terrain/validity
-                        !TERRAIN[next.map.tiles.find(t => hexEquals(t.coord, n))?.terrain!]?.blocksLoS
-                    );
+                    const escape = neighbors.find(n => {
+                        if (hexEquals(n, city.coord) || hexEquals(n, unit.coord)) return false;
+                        if (next.units.some(u => hexEquals(u.coord, n))) return false;
+                        const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
+                        const blocksLos = tile ? TERRAIN[tile.terrain]?.blocksLoS : false;
+                        return !blocksLos;
+                    });
 
                     if (escape) {
                         console.info(`[AI CAPTURE] Moving blocking unit ${blockingUnit.type} to make way for ${unit.type}`);
@@ -149,7 +143,13 @@ export function attackTargets(state: GameState, playerId: string): GameState {
     let next = state;
     // v1.0 Fix: Exclude garrisoned units from active attacks to prevent "unprovoked" city attacks.
     // Garrisoned units will still retaliate if the city is attacked.
-    const units = next.units.filter(u => u.ownerId === playerId && u.type !== UnitType.Settler && !isScoutType(u.type) && u.state !== UnitState.Garrisoned);
+    // v1.3 Fix: Explicitly check for presence in city, as u.state might not be updated yet.
+    const units = next.units.filter(u => {
+        if (u.ownerId !== playerId || u.type === UnitType.Settler || isScoutType(u.type) || u.state === UnitState.Garrisoned) return false;
+        const city = next.cities.find(c => hexEquals(c.coord, u.coord));
+        if (city && city.ownerId === playerId) return false;
+        return true;
+    });
     const warTargets = getWarTargets(next, playerId);
     const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
     const warCities = next.cities.filter(c => c.ownerId !== playerId);
@@ -347,10 +347,6 @@ export function moveUnitsForPreparation(state: GameState, playerId: string): Gam
         // Find a tile near the city that is NOT owned by the enemy
         // Ideally distance 2 or 3 from city center.
 
-        const neighbors = getNeighbors(nearestCity.coord);
-        // Expand to radius 3
-        const candidates: { coord: { q: number, r: number }, dist: number }[] = [];
-
         // Scan area around city
         // We can just scan area around UNIT and move towards city, stopping at border.
 
@@ -358,8 +354,6 @@ export function moveUnitsForPreparation(state: GameState, playerId: string): Gam
         if (path.length === 0) continue;
 
         // Walk the path until we hit enemy territory
-        let targetStep: { q: number, r: number } | null = null;
-
         // If we are far away, just move closer.
         // If we are close, ensure we don't step into enemy territory.
 
@@ -379,6 +373,11 @@ export function moveUnitsForPreparation(state: GameState, playerId: string): Gam
 
         // If we are already adjacent to enemy territory, we might want to stay or move along the border.
         // For simplicity: Move towards city, but stop if next tile is enemy territory.
+
+        // Check for friendly military on target tile (Stacking Limit)
+        const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, nextStep));
+        const friendlyMilitary = unitsOnTarget.some(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+        if (friendlyMilitary) continue;
 
         const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: nextStep });
         if (moved !== next) {
@@ -424,7 +423,7 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
     // v1.1: Titan Deathball Logic
     // If we have a Titan, ALL units should rally to it or its target.
     const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
-    let titanTarget: any = null;
+    const _titanTarget = null as any;
     if (titan) {
         // Find what the Titan is targeting (closest enemy capital or city)
         // We replicate the Titan's targeting logic here to ensure sync
@@ -603,10 +602,16 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                             }
 
                             if (allowed) {
-                                const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
-                                if (attempt !== next) {
-                                    next = attempt;
-                                    moved = true;
+                                // Check for friendly military on target tile (Stacking Limit)
+                                const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, step));
+                                const friendlyMilitary = unitsOnTarget.some(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+
+                                if (!friendlyMilitary) {
+                                    const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
+                                    if (attempt !== next) {
+                                        next = attempt;
+                                        moved = true;
+                                    }
                                 }
                             }
 
@@ -630,6 +635,11 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                                         const isCity = next.cities.some(c => hexEquals(c.coord, n));
                                         if (!isCity && diplomacy !== "War") continue;
                                     }
+
+                                    // Check for friendly military on target tile (Stacking Limit)
+                                    const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, n));
+                                    const friendlyMilitary = unitsOnTarget.some(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+                                    if (friendlyMilitary) continue;
 
                                     const altAttempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: n });
                                     if (altAttempt !== next) {

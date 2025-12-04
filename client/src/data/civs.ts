@@ -33,7 +33,7 @@ export const CIV_OPTIONS: CivOption[] = [
     {
         id: "AetherianVanguard",
         title: "The Aetherian Vanguard",
-        summary: "Gains power through the ages and summons a legendary Titan.",
+        summary: "Gains power through the ages and can summon legendary Titans.",
         perk: "Units +2 HP per era (max +6) • Scavenger Doctrine: Science on Kill • Can build Titan's Core (100)",
         color: "#9333ea",
     },

@@ -1,16 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { GameState, Player, City, UnitType, BuildingType, ProjectId, TechId, TerrainType, PlayerPhase, DiplomacyState, UnitState, OverlayType } from "../core/types.js";
+import { GameState, Player, City, UnitType, BuildingType, ProjectId, TechId, TerrainType, PlayerPhase, UnitState } from "../core/types.js";
 import { canBuild } from "./rules.js";
 import { handleEndTurn } from "./turn-lifecycle.js";
 import { pickCityBuilds } from "./ai/cities.js";
-import { tryAction } from "./ai/shared/actions.js";
-import { hexEquals } from "../core/hex.js";
-
-type HexCoord = { q: number; r: number };
-
-function hex(q: number, r: number) {
-    return { q, r };
-}
 
 function baseState(): GameState {
     return {

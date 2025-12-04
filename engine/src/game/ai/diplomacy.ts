@@ -7,7 +7,7 @@ export function handleDiplomacy(state: GameState, playerId: string): GameState {
     const player = next.players.find(p => p.id === playerId);
     for (const other of next.players) {
         if (other.id === playerId || other.isEliminated) continue;
-        let decision = aiWarPeaceDecision(playerId, other.id, next);
+        const decision = aiWarPeaceDecision(playerId, other.id, next);
         // If we are in war preparation for this target, the prep gate may block the decision.
         // We respect the prep gate and wait until the AI is Ready.
         if (decision === "None" && player?.warPreparation?.targetId === other.id) {

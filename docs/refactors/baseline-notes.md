@@ -1,0 +1,29 @@
+# Refactor Baselines (pre-move)
+
+## Engine: actions/units
+- Error strings in `engine/src/game/actions/units.ts`: "Unit not found", "Not your unit", "No moves left", "Can only move 1 tile at a time", "Invalid target tile", "Cannot link unit to itself", "Units must share a tile to link", "Units already linked", "Units are combat-engaged", "Unit is not linked", "Partner mismatch", "Attacker not found", "Already attacked", "No moves left to attack", "Garrisoned units cannot attack", "Defender not found", "Target out of range", "Line of sight blocked", "Must be adjacent to capture settler", "City not found", "Cannot swap with Settler", "Units must be adjacent to swap", "Invalid tiles", "Unit cannot enter target terrain", "Target unit cannot enter initiator terrain", "Settlers cannot fortify".
+- Auto-move/auto-explore: `processAutoMovement` caps loop at `MAX_MOVES = 10`, uses partial path search radius 10 and frontier search radius 15; auto target is cleared and logged as failed when terrain is invalid or no closer reachable tile exists.
+- Vision timing: `refreshPlayerVision` fires after each `handleMoveUnit` call (including auto), after swaps, inside `handleSetAutoExplore` before immediate auto behavior, and during attrition cleanup if units die.
+- Coupling points to preserve: uses `findPath/findReachableTiles`, `ensureWar`, `refreshPlayerVision`, and link semantics (`resolveLinkedPartner`, `unlinkPair`) for move/attack/stacking flows.
+
+## Engine: turn lifecycle
+- Side-effect order in `advancePlayerTurn`: set phase to StartOfTurn → auto-pick cheapest tech if none → heal rested units → clear statusEffects → apply Jade attrition → reset moves/attacks/retaliation (captured units keep grace) and city hasFired flags → vision refresh → `processAutoExplore` then `processAutoMovement` → per-city loop (ensure worked tiles, city healing unless damaged this turn or hp <= 0, food/growth with Farmstead/Jade Granary modifiers, territory claims, build progress with ForgeClans project bonus and `completeBuild`) → science tick and tech completion → phase set to Planning.
+- RNG/ID semantics: attack randomness and unit/project spawns use LCG `state.seed = (state.seed * 9301 + 49297) % 233280`; spawn IDs include `Date.now()` plus `Math.floor(state.seed * 10000)`; multiple spawn hooks (units, Titan, Jade Granary settler) consume the same seed steps. Preserve to avoid save/replay drift.
+- Logging: city healing emits console messages when healing or blocked by 0 hp; attrition logs deaths.
+
+## Engine: river generation
+- Constants: `riverTargetsBySize` Tiny 2-4, Small 4-7, Standard 8-13, Large 10-15, Huge 14-20; `MAX_COAST_ENTRY_ATTEMPTS = 12`, `COAST_BAND_ALLOWANCE = 5`, `MAX_COAST_BAND_STREAK = 4`, `MAX_SHORELINE_PLATEAU = 1`, `MAX_RIVER_SEARCH_STATES = 1500`, `minStartSpacing = 4`, `minRiverLength = 4`, `minStartCoastDistance = 2`, elevation threshold 3 (TERRAIN_ELEVATION Mountain 5 → Coast 0 → DeepSea -1). Uses `HEX_SIZE = 75` for polyline geometry and dedupes edges via sorted keys.
+- Path/edge rules: avoids existing river tiles in search, limits turns to <= 60° per step, restricts coastal band runs, and only one river enters a given coast target (degree < 1). `OverlayType.RiverEdge` is added to land tiles along the path; mouth flagged when `waterDistance` is 0.
+- Seeded sample metrics (seed 12345, two players) via `engine/dist` generator: Tiny rivers=1 lengths [6]; Small rivers=3 lengths [4,6,7]; Standard rivers=5 lengths [6,6,6,6,10]; Large rivers=7 lengths [4,6,6,6,7,7,14]; Huge rivers=13 lengths [4,6,6,6,6,6,6,6,7,7,7,8,8] (length = edges per connected component).
+
+## Client: App (`client/src/App.tsx`)
+- Keyboard/menu: single global shortcut on Escape → deselect unit/tile if selected, else close tech tree, else close game menu, else open menu. Error state auto-clears after 3s.
+- Tile-click outcomes with a selected friendly unit: enemy unit on tile → Attack action (war modal if at peace); enemy city in range with hp>0 → Attack city (war modal if at peace); friendly unit on tile → if adjacent and mover has moves: stack if civilian+military else attempt `SwapUnits`; if non-adjacent friendly, selects that unit. Clicking own tile deselects. Planned path from `reachablePaths` → batched `MoveUnit` steps (deselect if movesLeft hits 0); neighbor fallback move if moves>0; otherwise set `SetAutoMoveTarget` (plus first step move when adjacent) and fully deselect. Without selected unit: selects tile; city on tile clears unit selection; friendly units prefer linked pair on tile; enemy unit selection otherwise.
+- Alerts/flows: `handleSave`/`handleLoad`/`restartLastGame` still use alert messaging; saved-game load hides title screen and clears selection.
+- UI dependency: move/attack errors bubble through `runActions` so engine error strings above should remain stable.
+
+## Client: GameMap (`client/src/components/GameMap.tsx`)
+- Ref API: forwarded handle exposes `centerOnCoord` and `centerOnPoint`; initial camera centers on first owned unit then city. `mapRef` users rely on this.
+- Memoization pattern: visibility/revealed sets and player map memoized; renderable keys include a 2-hex buffer around visible/revealed; tile render data, city overlays, bounds, units, and river polylines all memoized off those sets; viewport change callbacks gated by stable comparisons.
+- Geometry/constants: uses `HEX_SIZE = 75`, `HEX_POINTS`/corner offsets from `getHexPoints/getHexCornerOffsets`, river opacity 0.9, zoom range 0.5–3.0, drag threshold 3px, city image size `HEX_SIZE * 2`, label offset `HEX_SIZE * 0.4`.
+- Layer order (inside `<g>`): HexTile terrain → OverlayLayer (rivers) → CityBoundsLayer → CityImageLayer → UnitLayer (city-hex units) → CityLabelLayer → UnitLayer (other units) → PathLayer for hovered path. Shroud/reachability styling inherited from HexTile props.

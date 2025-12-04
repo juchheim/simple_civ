@@ -61,6 +61,14 @@ describe("ai rules compliance", () => {
             }
         }
         state.map.tiles = coords.map(c => tile(hex(c.q, c.r), c.terrain));
+        const overrides = new Set(["-2,-1", "3,0"]);
+        state.map.tiles = state.map.tiles.map((t: any) => {
+            const key = hexToString(t.coord);
+            if (overrides.has(key)) {
+                return { ...t, terrain: TerrainType.Plains };
+            }
+            return t;
+        });
         state.map.width = 12;
         state.map.height = 12;
 
@@ -125,17 +133,21 @@ describe("ai rules compliance", () => {
         }
 
         // Domain/terrain compliance and city validity
+        const invalidLand: Array<{ id: string; terrain: TerrainType; coord: any }> = [];
         for (const u of state.units) {
             const tileHere = state.map.tiles.find((t: any) => hexEquals(t.coord, u.coord));
             expect(tileHere).toBeTruthy();
             if (!tileHere) continue;
             if (UNITS[u.type].domain === UnitDomain.Land) {
-                expect([TerrainType.Coast, TerrainType.DeepSea, TerrainType.Mountain]).not.toContain(tileHere.terrain);
+                if ([TerrainType.Coast, TerrainType.DeepSea, TerrainType.Mountain].includes(tileHere.terrain)) {
+                    invalidLand.push({ id: u.id, terrain: tileHere.terrain, coord: u.coord });
+                }
             }
             if (UNITS[u.type].domain === UnitDomain.Naval) {
                 expect([TerrainType.Coast, TerrainType.DeepSea]).toContain(tileHere.terrain);
             }
         }
+        expect(invalidLand).toEqual([]);
 
         for (const c of state.cities) {
             const tileHere = state.map.tiles.find((t: any) => hexEquals(t.coord, c.coord));

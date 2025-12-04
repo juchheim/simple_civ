@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { GameState, Player, UnitType, TerrainType, DiplomacyState, PlayerPhase } from "../../core/types.js";
+import { GameState, UnitType, TerrainType, DiplomacyState, PlayerPhase } from "../../core/types.js";
 import { manageWarPreparation } from "./war-prep.js";
 import { moveUnitsForPreparation } from "./units/offense.js";
 import { aiWarPeaceDecision } from "../ai-decisions.js";

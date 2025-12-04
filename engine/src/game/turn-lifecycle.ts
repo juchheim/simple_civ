@@ -5,18 +5,15 @@ import {
     CITY_HEAL_PER_TURN,
     HEAL_FRIENDLY_CITY,
     HEAL_FRIENDLY_TILE,
-    PROJECTS,
-    SETTLER_POP_LOSS_ON_BUILD,
     UNITS,
-    CITY_WORK_RADIUS_RINGS,
-    TECHS,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
-import { getAetherianHpBonus, getUnitMaxMoves } from "./helpers/combat.js";
-import { hexDistance, hexEquals, hexToString, hexSpiral } from "../core/hex.js";
+import { hexEquals } from "../core/hex.js";
 import { refreshPlayerVision } from "./vision.js";
-import { handleMoveUnit, processAutoExplore, processAutoMovement } from "./actions/units.js";
+import { processCityBuild } from "./helpers/builds.js";
+import { ensureTechSelected } from "./helpers/turn.js";
+import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from "./helpers/turn-movement.js";
 
 export function handleEndTurn(state: GameState, action: Extract<Action, { type: "EndTurn" }>): GameState {
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
@@ -47,109 +44,18 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     const player = state.players.find(p => p.id === playerId);
     if (!player) return state;
 
-    state.phase = PlayerPhase.StartOfTurn;
+    startPlayerTurn(state, player);
 
-    // If no tech is selected, auto-pick the cheapest available to avoid research stalls.
-    if (!player.currentTech) {
-        const autoTech = pickBestAvailableTech(player);
-        if (autoTech) {
-            player.currentTech = { id: autoTech, progress: 0, cost: TECHS[autoTech].cost };
-        }
-    }
+    processPlayerCities(state, player);
 
-    healUnitsAtStart(state, playerId);
+    processResearch(state, player);
 
-    // Clear status effects from previous turn BEFORE applying new ones (like attrition)
-    for (const unit of state.units.filter(u => u.ownerId === playerId)) {
-        unit.statusEffects = [];
-    }
+    state.phase = PlayerPhase.Planning;
+    return state;
+}
 
-    applyAttrition(state, playerId);
-
-    for (const unit of state.units.filter(u => u.ownerId === playerId)) {
-        const unitStats = UNITS[unit.type];
-        const wasJustCaptured = unit.capturedOnTurn != null && unit.capturedOnTurn > state.turn - 2;
-        if (!wasJustCaptured) {
-            // v0.99 Buff: Jade Covenant Settlers have 3 movement (base 2)
-            if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
-                unit.movesLeft = 3;
-            } else {
-                unit.movesLeft = getUnitMaxMoves(unit, state);
-            }
-        }
-        unit.hasAttacked = false;
-        // v1.0: Reset city retaliation tracking each turn
-        unit.retaliatedAgainstThisTurn = false;
-    }
-
-    for (const city of state.cities.filter(c => c.ownerId === playerId)) {
-        city.hasFiredThisTurn = false;
-    }
-
-    refreshPlayerVision(state, playerId);
-
-    processAutoExplore(state, playerId);
-
-    processAutoMovement(state, playerId);
-
-    for (const city of state.cities.filter(c => c.ownerId === playerId)) {
-        const claimedRing = getClaimedRing(city, state);
-        city.workedTiles = ensureWorkedTiles(city, state, {
-            pinned: city.manualWorkedTiles,
-            excluded: city.manualExcludedTiles,
-        });
-        const yields = getCityYields(city, state);
-
-        const maxHp = city.maxHp || BASE_CITY_HP;
-        const wasDamagedThisTurn = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn === state.turn;
-        // Cities at 0 or negative HP should NOT heal - they are capturable!
-        if (city.hp > 0 && city.hp < maxHp && !wasDamagedThisTurn) {
-            console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
-            city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
-            if (!city.maxHp) city.maxHp = maxHp;
-        } else if (city.hp <= 0) {
-            console.log(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
-        }
-
-        city.storedFood += yields.F;
-        const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
-        const hasJadeGranary = player.completedProjects.includes(ProjectId.JadeGranaryComplete);
-        // v0.97: Pass civName for JadeCovenant's Verdant Growth passive
-        let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
-        while (city.storedFood >= growthCost) {
-            city.storedFood -= growthCost;
-            city.pop += 1;
-            city.workedTiles = ensureWorkedTiles(city, state, {
-                pinned: city.manualWorkedTiles,
-                excluded: city.manualExcludedTiles,
-            });
-            growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
-        }
-
-        const neededRing = Math.max(claimedRing, maxClaimableRing(city));
-        if (neededRing > claimedRing) {
-            claimCityTerritory(city, state, playerId, neededRing);
-            city.workedTiles = ensureWorkedTiles(city, state, {
-                pinned: city.manualWorkedTiles,
-                excluded: city.manualExcludedTiles,
-            });
-        }
-
-        if (city.currentBuild) {
-            // v0.98 Update 4: ForgeClans "Master Craftsmen" - 20% faster project completion
-            let effectiveProd = yields.P;
-            if (city.currentBuild.type === "Project" && player.civName === "ForgeClans") {
-                // Apply bonus production (20% more effective) for projects
-                effectiveProd = Math.ceil(yields.P * 1.25);
-            }
-            city.buildProgress += effectiveProd;
-            if (city.buildProgress >= city.currentBuild.cost) {
-                completeBuild(state, city);
-            }
-        }
-    }
-
-    const totalScience = getSciencePerTurn(state, playerId);
+function processResearch(state: GameState, player: Player) {
+    const totalScience = getSciencePerTurn(state, player.id);
     if (player.currentTech) {
         player.currentTech.progress += totalScience;
         if (player.currentTech.progress >= player.currentTech.cost) {
@@ -157,247 +63,87 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
             player.currentTech = null;
         }
     }
-
-    state.phase = PlayerPhase.Planning;
-    return state;
 }
 
-function completeBuild(state: GameState, city: City) {
-    if (!city.currentBuild) return;
+export function startPlayerTurn(state: GameState, player: Player): void {
+    state.phase = PlayerPhase.StartOfTurn;
 
-    const build = city.currentBuild;
-    const overflow = city.buildProgress - build.cost;
-    const player = state.players.find(p => p.id === city.ownerId);
+    ensureTechSelected(state, player);
 
-    if (build.type === "Unit") {
-        const uType = build.id as UnitType;
+    healUnitsAtStart(state, player.id);
 
-        // Find valid spawn location (spiral out from city)
-        // Units cannot stack, so we must find a free tile
-        let spawnCoord = city.coord;
-        const maxRing = 2; // Search up to 2 rings out
-        const area = hexSpiral(city.coord, maxRing);
+    clearStatusEffects(state, player.id);
 
-        for (const coord of area) {
-            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-            if (!tile) continue;
+    applyAttrition(state, player.id);
 
-            // Check terrain validity
-            const stats = UNITS[uType];
-            if (stats.domain === "Land" && (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain")) continue;
-            if (stats.domain === "Naval" && (tile.terrain !== "Coast" && tile.terrain !== "DeepSea")) continue;
+    resetUnitsForTurn(state, player);
+    resetCityFireFlags(state, player.id);
 
-            // Check occupancy
-            const occupied = state.units.some(u => hexEquals(u.coord, coord));
-            if (!occupied) {
-                spawnCoord = coord;
-                break;
-            }
-        }
+    refreshPlayerVision(state, player.id);
 
-        // Apply AetherianVanguard "Battle Hardened" HP bonus
-        const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
-        const unitHp = UNITS[uType].hp + hpBonus;
+    runPlayerAutoBehaviors(state, player.id);
+}
 
-        // Generate unique ID using seed to prevent collisions in same tick
-        const rand = Math.floor(state.seed * 10000);
-        state.seed = (state.seed * 9301 + 49297) % 233280;
+function clearStatusEffects(state: GameState, playerId: string) {
+    for (const unit of state.units.filter(u => u.ownerId === playerId)) {
+        unit.statusEffects = [];
+    }
+}
 
-        state.units.push({
-            id: `u_${city.ownerId}_${Date.now()}_${rand}`,
-            type: uType,
-            ownerId: city.ownerId,
-            coord: spawnCoord,
-            hp: unitHp,
-            maxHp: unitHp,
-            movesLeft: getUnitMaxMoves({ type: uType, ownerId: city.ownerId } as any, state),
-            state: UnitState.Normal,
-            hasAttacked: false,
-        });
+function processCityForTurn(state: GameState, city: City, player: Player) {
+    const claimedRing = getClaimedRing(city, state);
+    city.workedTiles = ensureWorkedTiles(city, state, {
+        pinned: city.manualWorkedTiles,
+        excluded: city.manualExcludedTiles,
+    });
+    const yields = getCityYields(city, state);
 
-        if (uType === UnitType.Settler) {
-            // v0.98 Update 9: JadeCovenant "Expansionist" - Settlers do not consume population
-            const isJadeCovenant = player?.civName === "JadeCovenant";
-            if (!isJadeCovenant) {
-                city.pop = Math.max(1, city.pop - SETTLER_POP_LOSS_ON_BUILD);
-                city.workedTiles = ensureWorkedTiles(city, state, {
-                    pinned: city.manualWorkedTiles,
-                    excluded: city.manualExcludedTiles,
-                });
-            } else {
-                // v0.99 BUFF: "Ancestral Protection" - Settlers have 10 HP (instead of 1)
-                // v0.99 BUFF: "Nomadic Heritage" - Settlers have 3 Movement (instead of 2)
-                const unit = state.units[state.units.length - 1]; // The newly added unit
-                if (unit && unit.type === UnitType.Settler) {
-                    unit.maxHp = 10;
-                    unit.hp = 10;
-                    unit.movesLeft = 3;
-                }
-            }
-        }
-    } else if (build.type === "Building") {
-        // v1.1: TitansCore is consumed and NOT added to buildings list
-        if (build.id !== BuildingType.TitansCore) {
-            city.buildings.push(build.id as BuildingType);
-        }
-
-        if (build.id === BuildingType.TitansCore) {
-            // Special case: TitansCore spawns a Titan and is consumed (not added to buildings)
-            // Apply AetherianVanguard "Battle Hardened" HP bonus (Titans are their unique unit!)
-            const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
-            const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
-
-            // Generate unique ID
-            const rand = Math.floor(state.seed * 10000);
-            state.seed = (state.seed * 9301 + 49297) % 233280;
-
-            state.units.push({
-                id: `u_${city.ownerId}_titan_${Date.now()}_${rand}`,
-                type: UnitType.Titan,
-                ownerId: city.ownerId,
-                coord: city.coord,
-                hp: titanHp,
-                maxHp: titanHp,
-                movesLeft: UNITS[UnitType.Titan].move,
-                state: UnitState.Normal,
-                hasAttacked: false,
-            });
-        } else if (build.id === BuildingType.SpiritObservatory) {
-            // Spirit Observatory: The Revelation
-            // 1. (REMOVED v0.99) Complete current tech instantly
-            // 2. (REMOVED v0.99) Grant one free tech
-            // 3. +1 Science per city permanently (tracked via marker)
-            // 4. Counts as Observatory milestone for Progress chain
-            if (player) {
-                // Mark as completed
-                player.completedProjects.push(ProjectId.Observatory);
-                city.milestones.push(ProjectId.Observatory);
-            }
-            // Note: +1 Science per city is applied via getSciencePerTurn checking for Observatory milestone
-        } else if (build.id === BuildingType.JadeGranary) {
-            // Jade Granary: The Great Harvest
-            // 1. Every city gains +1 Pop
-            // 2. 15% cheaper growth permanently (tracked via marker)
-            // 3. +1 Food per city permanently (tracked via marker)
-            if (player) {
-                // Track completion
-                player.completedProjects.push(ProjectId.JadeGranaryComplete);
-                city.milestones.push(ProjectId.JadeGranaryComplete);
-
-                // Every city gains +1 Pop
-                for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
-                    c.pop += 1;
-                    c.workedTiles = ensureWorkedTiles(c, state, {
-                        pinned: c.manualWorkedTiles,
-                        excluded: c.manualExcludedTiles,
-                    });
-                }
-
-                // v0.99 BUFF: Spawn a free Settler at the city
-                // Find valid spawn location (spiral out from city)
-                let spawnCoord = city.coord;
-                const maxRing = 2;
-                const area = hexSpiral(city.coord, maxRing);
-                for (const coord of area) {
-                    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-                    if (!tile) continue;
-                    if (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain") continue;
-                    const occupied = state.units.some(u => hexEquals(u.coord, coord));
-                    if (!occupied) {
-                        spawnCoord = coord;
-                        break;
-                    }
-                }
-
-                // Generate unique ID
-                const rand = Math.floor(state.seed * 10000);
-                state.seed = (state.seed * 9301 + 49297) % 233280;
-
-                state.units.push({
-                    id: `u_${city.ownerId}_free_settler_${Date.now()}_${rand}`,
-                    type: UnitType.Settler,
-                    ownerId: city.ownerId,
-                    coord: spawnCoord,
-                    hp: 10, // Jade Covenant Bonus
-                    maxHp: 10,
-                    movesLeft: 3, // Jade Covenant Bonus
-                    state: UnitState.Normal,
-                    hasAttacked: false,
-                });
-            }
-        }
-    } else if (build.type === "Project") {
-        const pId = build.id as ProjectId;
-        if (player) {
-            player.completedProjects.push(pId);
-        }
-
-        if (pId === ProjectId.Observatory) {
-            city.milestones.push(pId);
-        }
-        if (pId === ProjectId.GrandAcademy && player && !player.completedProjects.includes(ProjectId.GrandAcademy)) {
-            city.milestones.push(pId);
-        }
-        if (pId.startsWith("FormArmy")) {
-            const payload = PROJECTS[pId].onComplete.payload;
-            const baseType = payload.baseUnit as UnitType;
-            const armyType = payload.armyUnit as UnitType;
-            const candidate = state.units.find(u =>
-                u.ownerId === city.ownerId &&
-                u.type === baseType &&
-                u.hp === u.maxHp &&
-                hexDistance(u.coord, city.coord) <= CITY_WORK_RADIUS_RINGS
-            );
-            if (candidate) {
-                candidate.type = armyType;
-                candidate.maxHp = UNITS[armyType].hp;
-                candidate.hp = candidate.maxHp;
-                candidate.movesLeft = UNITS[armyType].move;
-            }
-        } else if (PROJECTS[pId].onComplete.type === "GrantYield") {
-            const payload = PROJECTS[pId].onComplete.payload;
-            if (payload.F) {
-                city.storedFood += payload.F;
-                // Check growth immediately
-                const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
-                const hasJadeGranary = player?.completedProjects.includes(ProjectId.JadeGranaryComplete) ?? false;
-                let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player?.civName);
-                while (city.storedFood >= growthCost) {
-                    city.storedFood -= growthCost;
-                    city.pop += 1;
-                    city.workedTiles = ensureWorkedTiles(city, state, {
-                        pinned: city.manualWorkedTiles,
-                        excluded: city.manualExcludedTiles,
-                    });
-                    growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player?.civName);
-                }
-            }
-            if (payload.S && player && player.currentTech) {
-                player.currentTech.progress += payload.S;
-                if (player.currentTech.progress >= player.currentTech.cost) {
-                    player.techs.push(player.currentTech.id);
-                    player.currentTech = null;
-                }
-            }
-        }
+    const maxHp = city.maxHp || BASE_CITY_HP;
+    const wasDamagedThisTurn = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn === state.turn;
+    if (city.hp > 0 && city.hp < maxHp && !wasDamagedThisTurn) {
+        console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
+        city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
+        if (!city.maxHp) city.maxHp = maxHp;
+    } else if (city.hp <= 0) {
+        console.log(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
     }
 
-    city.currentBuild = null;
-    city.buildProgress = overflow;
+    city.storedFood += yields.F;
+    const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
+    const hasJadeGranary = player.completedProjects.includes(ProjectId.JadeGranaryComplete);
+    let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
+    while (city.storedFood >= growthCost) {
+        city.storedFood -= growthCost;
+        city.pop += 1;
+        city.workedTiles = ensureWorkedTiles(city, state, {
+            pinned: city.manualWorkedTiles,
+            excluded: city.manualExcludedTiles,
+        });
+        growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player.civName);
+    }
+
+    const neededRing = Math.max(claimedRing, maxClaimableRing(city));
+    if (neededRing > claimedRing) {
+        claimCityTerritory(city, state, player.id, neededRing);
+        city.workedTiles = ensureWorkedTiles(city, state, {
+            pinned: city.manualWorkedTiles,
+            excluded: city.manualExcludedTiles,
+        });
+    }
+
+    if (city.currentBuild) {
+        processCityBuild(state, city, player, yields.P);
+    }
+}
+
+function processPlayerCities(state: GameState, player: Player) {
+    for (const city of state.cities.filter(c => c.ownerId === player.id)) {
+        processCityForTurn(state, city, player);
+    }
 }
 
 export function runEndOfRound(state: GameState) {
-    if (state.winnerId) return;
-    const progressWinner = checkProgressVictory(state);
-    if (progressWinner) {
-        state.winnerId = progressWinner;
-        return;
-    }
-    const conquestWinner = checkConquestVictory(state);
-    if (conquestWinner) {
-        state.winnerId = conquestWinner;
-    }
-    eliminationSweep(state);
+    processEndOfRound(state);
 }
 
 function checkProgressVictory(state: GameState): string | null {
@@ -412,12 +158,6 @@ function checkProgressVictory(state: GameState): string | null {
 function checkConquestVictory(state: GameState): string | null {
     const alivePlayers = state.players.filter(p => !p.isEliminated);
 
-    // Optimization: Pre-calculate city ownership to avoid repeated lookups
-    const playerCityCounts = new Map<string, number>();
-    for (const p of alivePlayers) {
-        playerCityCounts.set(p.id, state.cities.filter(c => c.ownerId === p.id).length);
-    }
-
     for (const p of alivePlayers) {
         // Condition 1: Owns all capitals
         const capitals = state.cities.filter(c => c.isCapital);
@@ -427,17 +167,20 @@ function checkConquestVictory(state: GameState): string | null {
         const ownsAllCapitals = capitals.every(c => c.ownerId === p.id);
 
         if (ownsAllCapitals) {
-            // Fix for start-of-game defeat:
-            // We only block victory if not all players have founded their first capital yet.
-            // If the number of capitals on the map is less than the number of alive players,
-            // it means someone is still wandering with their initial settler.
-            if (capitals.length < alivePlayers.length) {
-                continue;
-            }
+            // Check if any OTHER alive player blocks victory
+            const blockers = alivePlayers.filter(other => {
+                if (other.id === p.id) return false; // I don't block myself
 
-            return p.id;
-        } else {
-            // console.log(`[ConquestCheck] P${p.id} does NOT own all capitals.`);
+                const hasCapital = capitals.some(c => c.ownerId === other.id);
+                if (hasCapital) return true; // They have a capital, so I haven't conquered them yet
+
+                // They have NO capital.
+                // If they haven't founded yet, they block victory (running around).
+                // If they HAVE founded, they don't block (they lost their capital).
+                return !other.hasFoundedFirstCity;
+            });
+
+            if (blockers.length === 0) return p.id;
         }
     }
     return null;
@@ -453,6 +196,20 @@ function eliminationSweep(state: GameState) {
             state.units = state.units.filter(u => u.ownerId !== player.id);
         }
     }
+}
+
+function processEndOfRound(state: GameState) {
+    if (state.winnerId) return;
+    const progressWinner = checkProgressVictory(state);
+    if (progressWinner) {
+        state.winnerId = progressWinner;
+        return;
+    }
+    const conquestWinner = checkConquestVictory(state);
+    if (conquestWinner) {
+        state.winnerId = conquestWinner;
+    }
+    eliminationSweep(state);
 }
 
 function healUnitsAtStart(state: GameState, playerId: string) {
@@ -549,49 +306,4 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
  * Pick the best available tech for the Starborne Seekers' free tech bonus.
  * Prioritizes techs useful for Progress victory path.
  */
-function pickBestAvailableTech(player: Player): TechId | null {
-    const allTechs = Object.keys(TECHS) as TechId[];
-
-    // Filter to techs the player doesn't have and meets prerequisites for
-    const available = allTechs.filter(techId => {
-        if (player.techs.includes(techId)) return false;
-        const tech = TECHS[techId];
-
-        // Check era gate (need 2 techs from previous era)
-        const hearthCount = player.techs.filter(t => TECHS[t].era === "Hearth").length;
-        const bannerCount = player.techs.filter(t => TECHS[t].era === "Banner").length;
-        if (tech.era === "Banner" && hearthCount < 2) return false;
-        if (tech.era === "Engine" && bannerCount < 2) return false;
-
-        // Check specific prerequisites
-        return tech.prereqTechs.every(prereq => player.techs.includes(prereq));
-    });
-
-    if (available.length === 0) return null;
-
-    // Priority order for Progress-focused civs:
-    // 1. Star Charts (unlocks Progress chain)
-    // 2. Scholar Courts (unlocks Academy, prereq for Signal Relay)
-    // 3. Signal Relay (+1 Science per city)
-    // 4. Script Lore (prereq for Star Charts)
-    // 5. Any Engine tech
-    // 6. Any Banner tech
-    // 7. Any Hearth tech
-    const priorityOrder: TechId[] = [
-        TechId.StarCharts,
-        TechId.ScholarCourts,
-        TechId.SignalRelay,
-        TechId.ScriptLore,
-    ];
-
-    for (const techId of priorityOrder) {
-        if (available.includes(techId)) return techId;
-    }
-
-    // Fall back to any available Engine tech, then Banner, then Hearth
-    const engine = available.find(t => TECHS[t].era === "Engine");
-    if (engine) return engine;
-    const banner = available.find(t => TECHS[t].era === "Banner");
-    if (banner) return banner;
-    return available[0];
-}
+// pickBestAvailableTech is exported from helpers/turn.ts to avoid duplication

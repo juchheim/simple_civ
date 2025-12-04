@@ -1,0 +1,245 @@
+import { GameState, UnitState, UnitType, BuildingType } from "../../core/types.js";
+import {
+    ATTACK_RANDOM_BAND,
+    CITY_DEFENSE_BASE,
+    CITY_WARD_DEFENSE_BONUS,
+    CITY_ATTACK_BASE,
+    CITY_WARD_ATTACK_BONUS,
+    DAMAGE_BASE,
+    DAMAGE_MAX,
+    DAMAGE_MIN,
+    TERRAIN,
+    FORTIFY_DEFENSE_BONUS,
+    UNITS,
+} from "../../core/constants.js";
+import { hexDistance, hexEquals } from "../../core/hex.js";
+import { captureCity } from "../helpers/cities.js";
+import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
+import { ensureWar } from "../helpers/diplomacy.js";
+import { assertHasNotAttacked, assertMovesLeft, assertOwnership, getCityAt, getUnitOrThrow } from "../helpers/action-helpers.js";
+import { resolveLinkedPartner, unlinkPair } from "../helpers/movement.js";
+import { AttackAction } from "./unit-action-types.js";
+
+export function handleAttack(state: GameState, action: AttackAction): GameState {
+    const attacker = getUnitOrThrow(state, action.attackerId, "Attacker not found");
+    assertOwnership(attacker, action.playerId);
+    assertHasNotAttacked(attacker, "Already attacked");
+    assertMovesLeft(attacker, "No moves left to attack");
+
+    // Check if attacker is garrisoned
+    const cityAtAttackerLoc = getCityAt(state, attacker.coord);
+    if (cityAtAttackerLoc && cityAtAttackerLoc.ownerId === attacker.ownerId && attacker.type !== UnitType.Settler) {
+        throw new Error("Garrisoned units cannot attack");
+    }
+
+    const attackerStats = getEffectiveUnitStats(attacker, state);
+
+    const targetOwner = action.targetType === "Unit"
+        ? state.units.find(u => u.id === action.targetId)?.ownerId
+        : state.cities.find(c => c.id === action.targetId)?.ownerId;
+    if (targetOwner && targetOwner !== action.playerId) {
+        ensureWar(state, action.playerId, targetOwner);
+    }
+
+    if (action.targetType === "Unit") {
+        let defender = getUnitOrThrow(state, action.targetId, "Defender not found");
+
+        // If defender is garrisoned in a friendly city, redirect attack to the city.
+        const cityAtLocation = state.cities.find(c => hexEquals(c.coord, defender.coord));
+        if (cityAtLocation && cityAtLocation.ownerId === defender.ownerId) {
+            return handleAttack(state, {
+                ...action,
+                targetId: cityAtLocation.id,
+                targetType: "City",
+            });
+        }
+
+        // Smart Stack Attack: If targeting a Settler with a military escort, redirect to escort
+        if (defender.type === UnitType.Settler) {
+            const partner = resolveLinkedPartner(state, defender);
+            if (partner && partner.ownerId === defender.ownerId && hexEquals(partner.coord, defender.coord)) {
+                const partnerStats = UNITS[partner.type];
+                if (partnerStats.domain !== "Civilian") {
+                    // Redirect attack to the escort
+                    defender = partner;
+                }
+            }
+        }
+
+        const dist = hexDistance(attacker.coord, defender.coord);
+        if (dist > attackerStats.rng) throw new Error("Target out of range");
+        if (!hasClearLineOfSight(state, attacker.coord, defender.coord)) throw new Error("Line of sight blocked");
+
+        if (defender.type === UnitType.Settler) {
+            if (dist !== 1) throw new Error("Must be adjacent to capture settler");
+            const defenderCoord = defender.coord;
+
+            // Unlink from any partner before capture
+            unlinkPair(defender, resolveLinkedPartner(state, defender));
+
+            defender.ownerId = action.playerId;
+            defender.movesLeft = 0;
+            defender.capturedOnTurn = state.turn;
+            attacker.coord = defenderCoord;
+            attacker.hasAttacked = true;
+            attacker.movesLeft = 0;
+            attacker.state = UnitState.Normal;
+            return state;
+        }
+
+        const randIdx = Math.floor(state.seed % 3);
+        state.seed = (state.seed * 9301 + 49297) % 233280;
+        const randomMod = ATTACK_RANDOM_BAND[randIdx];
+
+        const attackPower = attackerStats.atk + randomMod;
+
+        let defensePower = getEffectiveUnitStats(defender, state).def;
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, defender.coord));
+        if (tile) {
+            defensePower += TERRAIN[tile.terrain].defenseMod;
+        }
+        if (defender.state === UnitState.Fortified) defensePower += FORTIFY_DEFENSE_BONUS;
+
+        const delta = attackPower - defensePower;
+        const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
+        const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
+
+        defender.hp -= damage;
+        attacker.hasAttacked = true;
+        attacker.movesLeft = 0;
+        attacker.state = UnitState.Normal;
+
+        if (defender.hp <= 0) {
+            const defenderCoord = defender.coord;
+
+            // v1.1: Aetherian Vanguard "Scavenger Doctrine" - Gain Science from kills
+            if (attacker.ownerId === action.playerId) {
+                const player = state.players.find(p => p.id === attacker.ownerId);
+                if (player && player.civName === "AetherianVanguard" && player.currentTech) {
+                    const victimStats = UNITS[defender.type as UnitType];
+                    // v1.2: Buffed Scavenger Doctrine - Gain 50% of victim's COST as Science
+                    const scienceGain = Math.floor(victimStats.cost * 0.5);
+                    if (scienceGain > 0) {
+                        player.currentTech.progress += scienceGain;
+                    }
+                }
+            }
+
+            // Unlink partner if defender dies
+            unlinkPair(defender, resolveLinkedPartner(state, defender));
+
+            state.units = state.units.filter(u => u.id !== defender.id);
+
+            // Move Attacker into tile if melee
+            if (attackerStats.rng === 1 && dist === 1) {
+                const cityAtLocation = state.cities.find(c => hexEquals(c.coord, defenderCoord));
+                const isUnconqueredEnemyCity = cityAtLocation &&
+                    cityAtLocation.ownerId !== action.playerId &&
+                    cityAtLocation.hp > 0;
+
+                if (!isUnconqueredEnemyCity) {
+                    attacker.coord = defenderCoord;
+                    attacker.movesLeft = 0;
+
+                    // Capture any remaining civilians on the tile
+                    const remainingEnemies = state.units.filter(u =>
+                        hexEquals(u.coord, defenderCoord) &&
+                        u.ownerId !== action.playerId &&
+                        UNITS[u.type].domain === "Civilian"
+                    );
+
+                    for (const enemy of remainingEnemies) {
+                        unlinkPair(enemy, resolveLinkedPartner(state, enemy));
+                        enemy.ownerId = action.playerId;
+                        enemy.movesLeft = 0;
+                        enemy.capturedOnTurn = state.turn;
+                    }
+                }
+            }
+        }
+    } else {
+        const city = state.cities.find(c => c.id === action.targetId);
+        if (!city) throw new Error("City not found");
+
+        const dist = hexDistance(attacker.coord, city.coord);
+        if (dist > attackerStats.rng) throw new Error("Target out of range");
+        if (!hasClearLineOfSight(state, attacker.coord, city.coord)) throw new Error("Line of sight blocked");
+
+        const randIdx = Math.floor(state.seed % 3);
+        state.seed = (state.seed * 9301 + 49297) % 233280;
+        const randomMod = ATTACK_RANDOM_BAND[randIdx];
+
+        const attackPower = attackerStats.atk + randomMod;
+
+        const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler);
+        let garrisonDefenseBonus = 0;
+        let garrisonAttackBonus = 0;
+        let garrisonRetaliationRange = 0;
+
+        if (garrison) {
+            const garrisonStats = UNITS[garrison.type];
+            if (garrisonStats.rng >= 2) {
+                garrisonDefenseBonus = 1;
+                garrisonAttackBonus = 3;
+                garrisonRetaliationRange = 2;
+            } else {
+                garrisonDefenseBonus = 2;
+                garrisonAttackBonus = 1;
+                garrisonRetaliationRange = 1;
+            }
+        }
+
+        let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2) + garrisonDefenseBonus;
+        if (city.buildings.includes(BuildingType.CityWard)) defensePower += CITY_WARD_DEFENSE_BONUS;
+
+        const delta = attackPower - defensePower;
+        const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
+        const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
+
+        city.hp -= damage;
+        city.lastDamagedOnTurn = state.turn;
+        attacker.hasAttacked = true;
+        attacker.movesLeft = 0;
+
+        if (garrison && dist <= garrisonRetaliationRange && !attacker.retaliatedAgainstThisTurn) {
+            const cityAttackPower = CITY_ATTACK_BASE +
+                (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) +
+                garrisonAttackBonus;
+
+            let attackerDefense = getEffectiveUnitStats(attacker, state).def;
+            const attackerTile = state.map.tiles.find(t => hexEquals(t.coord, attacker.coord));
+            if (attackerTile) attackerDefense += TERRAIN[attackerTile.terrain].defenseMod;
+            if (attacker.state === UnitState.Fortified) attackerDefense += FORTIFY_DEFENSE_BONUS;
+
+            const retaliationDelta = cityAttackPower - attackerDefense;
+            const retaliationRawDamage = DAMAGE_BASE + Math.floor(retaliationDelta / 2);
+            const retaliationDamage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, retaliationRawDamage));
+
+            attacker.hp -= retaliationDamage;
+            attacker.retaliatedAgainstThisTurn = true;
+
+            if (attacker.hp <= 0) {
+                state.units = state.units.filter(u => u.id !== attacker.id);
+                return state;
+            }
+        }
+
+        if (city.hp <= 0) {
+            if (attackerStats.canCaptureCity && dist === 1) {
+                const cityCoord = city.coord;
+
+                if (garrison) {
+                    unlinkPair(garrison, resolveLinkedPartner(state, garrison));
+                    state.units = state.units.filter(u => u.id !== garrison.id);
+                }
+
+                captureCity(state, city, action.playerId);
+
+                attacker.coord = cityCoord;
+                attacker.movesLeft = 0;
+            }
+        }
+    }
+
+    return state;
+}

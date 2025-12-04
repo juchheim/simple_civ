@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GameState, UnitType, UnitState } from '../core/types';
 import { handleAttack } from './actions/units';
-import { UNITS } from '../core/constants';
 
 // Mock state creation if helper not available
 function createTestState(): GameState {

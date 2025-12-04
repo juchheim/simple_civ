@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { GameState, UnitType, Player, City, HexCoord, Unit, UnitState, PlayerPhase, DiplomacyState } from "../core/types.js";
+import { GameState, UnitType, Unit, UnitState, PlayerPhase } from "../core/types.js";
 import { handleFoundCity, handleRazeCity } from "./actions/cities.js";
 import { getCityName, captureCity } from "./helpers/cities.js";
 import { CITY_NAMES } from "../core/constants.js";

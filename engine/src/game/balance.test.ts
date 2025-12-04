@@ -2,28 +2,25 @@ import { describe, it, expect } from "vitest";
 import { getUnitCost } from "./units.js";
 import { UnitType, City, TerrainType, Tile, GameState } from "../core/types.js";
 import { getCityYields } from "./rules.js";
-import { UNIT_BASE_DAMAGE, FORTIFY_DEFENSE_BONUS } from "../core/constants.js";
+import { UNIT_BASE_DAMAGE, FORTIFY_DEFENSE_BONUS, UNITS } from "../core/constants.js";
 
 describe("Balance Adjustments", () => {
     describe("Unit Cost Scaling", () => {
+        const baseCost = UNITS[UnitType.SpearGuard].cost;
         it("should have base cost at Turn 1", () => {
-            // SpearGuard base cost 30
-            expect(getUnitCost(UnitType.SpearGuard, 1)).toBe(30);
+            expect(getUnitCost(UnitType.SpearGuard, 1)).toBe(baseCost);
         });
 
         it("should double cost at Turn 25", () => {
-            // 30 * (1 + floor(25/25)) = 30 * 2 = 60
-            expect(getUnitCost(UnitType.SpearGuard, 25)).toBe(60);
+            expect(getUnitCost(UnitType.SpearGuard, 25)).toBe(baseCost * 2);
         });
 
         it("should triple cost at Turn 50", () => {
-            // 30 * (1 + floor(50/25)) = 30 * 3 = 90
-            expect(getUnitCost(UnitType.SpearGuard, 50)).toBe(90);
+            expect(getUnitCost(UnitType.SpearGuard, 50)).toBe(baseCost * 3);
         });
 
         it("should scale linearly", () => {
-            // Turn 100: 30 * (1 + 4) = 150
-            expect(getUnitCost(UnitType.SpearGuard, 100)).toBe(150);
+            expect(getUnitCost(UnitType.SpearGuard, 100)).toBe(baseCost * 5);
         });
     });
 

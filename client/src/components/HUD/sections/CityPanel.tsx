@@ -50,7 +50,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
 
         const centerTile = gameState.map.tiles.find(t => t.coord.q === city.coord.q && t.coord.r === city.coord.r);
         return centerTile ? [centerTile, ...tilesForMap] : tilesForMap;
-    }, [city.coord.q, city.coord.r, city.id, city.ownerId, gameState.map.tiles]);
+    }, [city.coord, city.id, city.ownerId, gameState.map.tiles]);
 
     const yields = getCityYields(city, gameState);
     const civ = gameState.players.find(p => p.id === city.ownerId)?.civName;
@@ -59,6 +59,13 @@ export const CityPanel: React.FC<CityPanelProps> = ({
     const garrison = units.find(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
 
     const workedCount = localWorked.length;
+
+    const formatBuildId = (id: string) => {
+        return id
+            .replace(/_/g, " ")
+            .replace(/([A-Z])/g, " $1")
+            .trim();
+    };
 
     return (
         <div>
@@ -84,7 +91,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
             <div className="city-panel__stats">
                 <span className="hud-chip">Yields: {yields.F}F / {yields.P}P / {yields.S}S</span>
                 <span className="hud-chip">Worked: {workedCount}/{city.pop}</span>
-                <span className="hud-chip">Build: {city.currentBuild ? city.currentBuild.id : "Idle"}</span>
+                <span className="hud-chip">Build: {city.currentBuild ? formatBuildId(city.currentBuild.id) : "Idle"}</span>
             </div>
 
             <div className="city-panel__grid">
@@ -92,7 +99,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                     <h5>Production</h5>
                     {city.currentBuild ? (
                         <>
-                            <div className="hud-subtext">Building {city.currentBuild.id}</div>
+                            <div className="hud-subtext">Building {formatBuildId(city.currentBuild.id)}</div>
                             <div className="hud-progress" style={{ marginTop: 6 }}>
                                 <div
                                     className="hud-progress-fill"

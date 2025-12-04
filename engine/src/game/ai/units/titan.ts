@@ -1,4 +1,4 @@
-import { hexDistance, getNeighbors } from "../../../core/hex.js";
+import { hexDistance } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";

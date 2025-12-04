@@ -3,7 +3,6 @@ import { GameState, Player, UnitType, DiplomacyState, TerrainType, UnitState, Pl
 import { hexEquals, hexDistance } from "../../../core/hex.js";
 import { defendCities, repositionRanged } from "./defense.js";
 import { attackTargets } from "./offense.js";
-import { UNITS } from "../../../core/constants.js";
 
 // Helper to find unit by ID using manual loop (Array.find doesn't work reliably in test env)
 function findUnit(units: any[], id: string): any {

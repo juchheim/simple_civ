@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { getProjectCost } from "./rules";
 import { ProjectId, GameState, Player, City, PlayerPhase, TerrainType } from "../core/types";
 import { handleSetCityBuild } from "./actions/cities";
-import { PROJECTS } from "../core/constants";
 
 describe("Project Cost Scaling", () => {
     it("should return base cost at turn 0", () => {

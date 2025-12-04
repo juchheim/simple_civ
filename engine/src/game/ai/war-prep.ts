@@ -1,6 +1,5 @@
-import { GameState, Player, WarPreparationState, DiplomacyState } from "../../core/types.js";
+import { GameState, Player, DiplomacyState } from "../../core/types.js";
 import { aiWarPeaceDecision } from "../ai-decisions.js";
-import { estimateMilitaryPower } from "./goals.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { isScoutType } from "./units/unit-helpers.js";

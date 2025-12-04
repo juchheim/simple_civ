@@ -174,7 +174,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             <div className="hud-top-row">
                 <div className="hud-top-row-buttons">
                     {showCodex ? (
-                        <div className="hud-card hud-menu-card" style={{ position: "relative" }}>
+                        <div className="hud-card hud-menu-card" style={{ position: "relative", width: "500px", maxWidth: "90vw" }}>
                             <button className="hud-close-button" onClick={() => setShowCodex(false)} aria-label="Close codex">
                                 X
                             </button>

@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, UnitType, UnitState } from '../core/types';
+import { DiplomacyState, GameState, UnitType, UnitState } from '../core/types';
 import { handleAttack } from './actions/units';
-import { UNITS } from '../core/constants';
 
 // Mock state creation if helper not available
 function createTestState(): GameState {
@@ -18,15 +17,17 @@ function createTestState(): GameState {
             ]
         },
         players: [
-            { id: 'p1', civ: 'AetherianVanguard', techs: [] },
-            { id: 'p2', civ: 'ForgeClans', techs: [] }
+            { id: 'p1', civName: 'AetherianVanguard', color: 'red', techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+            { id: 'p2', civName: 'ForgeClans', color: 'blue', techs: [], currentTech: null, completedProjects: [], isEliminated: false }
         ],
         units: [],
         cities: [],
-        revealed: {},
-        research: {},
-        projects: {},
-        stats: {}
+        revealed: { p1: [], p2: [] },
+        visibility: { p1: [], p2: [] },
+        diplomacy: { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } },
+        sharedVision: {},
+        contacts: {},
+        diplomacyOffers: [],
     } as any;
 }
 
@@ -37,7 +38,7 @@ describe('Bowguard Settler Capture in City', () => {
         state = createTestState();
     });
 
-    it('should currently allow Bowguard to capture Settler in enemy city (Reproduction)', () => {
+    it("should NOT capture Settler in enemy city (redirects to city damage) for Bowguard", () => {
         // Setup:
         // P1 Bowguard at (0,0)
         // P2 City at (0,1)
@@ -91,19 +92,19 @@ describe('Bowguard Settler Capture in City', () => {
             targetType: "Unit" as const
         };
 
-        // Expectation (Current Bug): It succeeds
         const newState = handleAttack(state, action);
 
         const updatedBowguard = newState.units.find(u => u.id === 'u1');
         const updatedSettler = newState.units.find(u => u.id === 'u2');
+        const cityAfter = newState.cities.find(c => c.id === 'c1');
 
-        // Bowguard moved into city
-        expect(updatedBowguard?.coord).toEqual({ q: 0, r: 1 });
-        // Settler captured
-        expect(updatedSettler?.ownerId).toBe('p1');
+        // Attack is redirected to the city; Settler is untouched and not captured.
+        expect(updatedBowguard?.coord).toEqual({ q: 0, r: 0 });
+        expect(updatedSettler?.ownerId).toBe('p2');
+        expect(cityAfter?.hp).toBe(17);
     });
 
-    it('should currently allow SpearGuard to capture Settler in enemy city (Reproduction)', () => {
+    it("should NOT capture Settler in enemy city (redirects to city damage) for SpearGuard", () => {
         // Setup:
         // P1 SpearGuard at (0,0)
         // P2 City at (0,1)
@@ -157,15 +158,15 @@ describe('Bowguard Settler Capture in City', () => {
             targetType: "Unit" as const
         };
 
-        // Expectation (Current Bug): It succeeds
         const newState = handleAttack(state, action);
 
         const updatedSpearguard = newState.units.find(u => u.id === 'u3');
         const updatedSettler = newState.units.find(u => u.id === 'u2');
+        const cityAfter = newState.cities.find(c => c.id === 'c1');
 
-        // SpearGuard moved into city
-        expect(updatedSpearguard?.coord).toEqual({ q: 0, r: 1 });
-        // Settler captured
-        expect(updatedSettler?.ownerId).toBe('p1');
+        // Attack is redirected to the city; Settler is untouched and not captured.
+        expect(updatedSpearguard?.coord).toEqual({ q: 0, r: 0 });
+        expect(updatedSettler?.ownerId).toBe('p2');
+        expect(cityAfter?.hp).toBe(17);
     });
 });

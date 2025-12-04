@@ -2,7 +2,6 @@ import {
     BuildingType,
     City,
     GameState,
-    OverlayType,
     TerrainType,
     Tile,
     Yields,
@@ -10,7 +9,6 @@ import {
     UnitType,
     ProjectId,
 } from "../core/types.js";
-import { getUnitCost } from "./units.js";
 import {
     BASECOST_POP2,
     BUILDINGS,

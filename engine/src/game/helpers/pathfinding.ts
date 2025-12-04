@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType, DiplomacyState, UnitType } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 
@@ -242,4 +242,3 @@ export function findReachableTiles(start: HexCoord, unit: Unit, gameState: GameS
 
     return reachable;
 }
-

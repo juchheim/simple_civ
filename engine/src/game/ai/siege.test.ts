@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { generateWorld } from '../../map/map-generator.js';
-import { GameState, UnitType, BuildingType, DiplomacyState, TerrainType, UnitState } from '../../core/types.js';
+import { GameState, UnitType, DiplomacyState, TerrainType, UnitState } from '../../core/types.js';
 import { runAiTurn } from '../ai.js';
-import { hexNeighbor } from '../../core/hex.js';
 
 function createTestTile(coord: { q: number; r: number }, ownerId?: string) {
     return {
@@ -56,6 +55,8 @@ describe('AI Siege Logic', () => {
         state.map.width = 10;
         state.map.height = 10;
         state.map.tiles = [];
+        state.units = [];
+        state.cities = [];
         for (let q = 0; q < 10; q++) {
             for (let r = 0; r < 10; r++) {
                 state.map.tiles.push(createTestTile({ q, r }, 'p1'));
@@ -84,7 +85,7 @@ describe('AI Siege Logic', () => {
             { q: 5, r: 6 }, { q: 4, r: 6 }, { q: 4, r: 5 }
         ];
 
-        neighbors.forEach((coord, i) => {
+        neighbors.forEach((coord) => {
             state.units.push(createTestUnit('p1', UnitType.SpearGuard, coord));
         });
 

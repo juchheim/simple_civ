@@ -3,8 +3,6 @@ import { describe, it, expect } from 'vitest';
 import { handleFortifyUnit } from './actions/units';
 import { handleEndTurn } from './turn-lifecycle';
 import { UnitType, UnitState, GameState, HexCoord } from '../core/types';
-import { UNITS } from '../core/constants';
-import { hex } from '../core/hex';
 
 // --- Local Helpers ---
 

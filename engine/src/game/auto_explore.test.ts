@@ -117,8 +117,8 @@ describe('Auto Explore', () => {
 
         const unit = state.units.find(u => u.id === 'u1');
         expect(unit?.isAutoExploring).toBe(true);
-        expect(unit?.coord).toEqual({ q: 0, r: 2 }); // Moved toward the reachable target
-        // Target might be cleared or updated, but as long as we moved correctly (not towards 5,0), it's fine.
+        // Should move toward a reachable target (not the unreachable 5,0 path)
+        expect(unit?.coord).toEqual({ q: 0, r: 1 });
         expect(unit?.autoMoveTarget).not.toEqual({ q: 5, r: 0 });
     });
 });

@@ -1,8 +1,6 @@
-import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../core/constants.js";
 import { hexDistance, hexToString } from "../core/hex.js";
 import { estimateMilitaryPower, aiVictoryBias } from "./ai/goals.js";
 import {
-    BuildingType,
     DiplomacyState,
     GameState,
     ProjectId,

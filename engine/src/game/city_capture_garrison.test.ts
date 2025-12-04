@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { GameState, PlayerPhase, UnitType, TerrainType, UnitState, BuildingType, DiplomacyState } from "../core/types.js";
+import { GameState, PlayerPhase, UnitType, TerrainType, UnitState, DiplomacyState } from "../core/types.js";
 import { applyAction } from "./turn-loop.js";
 
 describe("City Capture with Garrison", () => {

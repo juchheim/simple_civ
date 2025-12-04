@@ -1,0 +1,192 @@
+import { BuildingType, City, GameState, Player, ProjectId, UnitState, UnitType } from "../../core/types.js";
+import { CITY_WORK_RADIUS_RINGS, PROJECTS, SETTLER_POP_LOSS_ON_BUILD, UNITS } from "../../core/constants.js";
+import { hexDistance, hexEquals, hexSpiral } from "../../core/hex.js";
+import { ensureWorkedTiles } from "./cities.js";
+import { getAetherianHpBonus, getUnitMaxMoves } from "./combat.js";
+import { getGrowthCost } from "../rules.js";
+import { generateUnitId, findSpawnCoord } from "./spawn.js";
+
+export function completeBuild(state: GameState, city: City) {
+    if (!city.currentBuild) return;
+
+    const build = city.currentBuild;
+    const overflow = city.buildProgress - build.cost;
+    const player = state.players.find(p => p.id === city.ownerId);
+
+    if (build.type === "Unit") {
+        const uType = build.id as UnitType;
+
+        const spawnCoord = findSpawnCoord(state, city, uType, 2);
+
+        const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
+        const unitHp = UNITS[uType].hp + hpBonus;
+
+        const unitId = generateUnitId(state, city.ownerId, undefined, Date.now());
+
+        state.units.push({
+            id: unitId,
+            type: uType,
+            ownerId: city.ownerId,
+            coord: spawnCoord,
+            hp: unitHp,
+            maxHp: unitHp,
+            movesLeft: getUnitMaxMoves({ type: uType, ownerId: city.ownerId } as any, state),
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        if (uType === UnitType.Settler) {
+            const isJadeCovenant = player?.civName === "JadeCovenant";
+            if (!isJadeCovenant) {
+                city.pop = Math.max(1, city.pop - SETTLER_POP_LOSS_ON_BUILD);
+                city.workedTiles = ensureWorkedTiles(city, state, {
+                    pinned: city.manualWorkedTiles,
+                    excluded: city.manualExcludedTiles,
+                });
+            } else {
+                const unit = state.units[state.units.length - 1];
+                if (unit && unit.type === UnitType.Settler) {
+                    unit.maxHp = 10;
+                    unit.hp = 10;
+                    unit.movesLeft = 3;
+                }
+            }
+        }
+    } else if (build.type === "Building") {
+        if (build.id !== BuildingType.TitansCore) {
+            city.buildings.push(build.id as BuildingType);
+        }
+
+        if (build.id === BuildingType.TitansCore) {
+            const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
+            const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
+
+            state.units.push({
+                id: generateUnitId(state, city.ownerId, "titan", Date.now()),
+                type: UnitType.Titan,
+                ownerId: city.ownerId,
+                coord: city.coord,
+                hp: titanHp,
+                maxHp: titanHp,
+                movesLeft: UNITS[UnitType.Titan].move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            });
+        } else if (build.id === BuildingType.SpiritObservatory) {
+            if (player) {
+                player.completedProjects.push(ProjectId.Observatory);
+                city.milestones.push(ProjectId.Observatory);
+            }
+        } else if (build.id === BuildingType.JadeGranary) {
+            if (player) {
+                player.completedProjects.push(ProjectId.JadeGranaryComplete);
+                city.milestones.push(ProjectId.JadeGranaryComplete);
+
+                for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
+                    c.pop += 1;
+                    c.workedTiles = ensureWorkedTiles(c, state, {
+                        pinned: c.manualWorkedTiles,
+                        excluded: c.manualExcludedTiles,
+                    });
+                }
+
+                let spawnCoord = city.coord;
+                const maxRing = 2;
+                const area = hexSpiral(city.coord, maxRing);
+                for (const coord of area) {
+                    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+                    if (!tile) continue;
+                    if (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain") continue;
+                    const occupied = state.units.some(u => hexEquals(u.coord, coord));
+                    if (!occupied) {
+                        spawnCoord = coord;
+                        break;
+                    }
+                }
+
+                state.units.push({
+                    id: generateUnitId(state, city.ownerId, "free_settler", Date.now()),
+                    type: UnitType.Settler,
+                    ownerId: city.ownerId,
+                    coord: spawnCoord,
+                    hp: 10,
+                    maxHp: 10,
+                    movesLeft: 3,
+                    state: UnitState.Normal,
+                    hasAttacked: false,
+                });
+            }
+        }
+    } else if (build.type === "Project") {
+        const pId = build.id as ProjectId;
+        if (player) {
+            player.completedProjects.push(pId);
+        }
+
+        if (pId === ProjectId.Observatory) {
+            city.milestones.push(pId);
+        }
+        if (pId === ProjectId.GrandAcademy && player && !player.completedProjects.includes(ProjectId.GrandAcademy)) {
+            city.milestones.push(pId);
+        }
+        if (pId.startsWith("FormArmy")) {
+            const payload = PROJECTS[pId].onComplete.payload;
+            const baseType = payload.baseUnit as UnitType;
+            const armyType = payload.armyUnit as UnitType;
+            const candidate = state.units.find(u =>
+                u.ownerId === city.ownerId &&
+                u.type === baseType &&
+                u.hp === u.maxHp &&
+                hexDistance(u.coord, city.coord) <= CITY_WORK_RADIUS_RINGS
+            );
+            if (candidate) {
+                candidate.type = armyType;
+                candidate.maxHp = UNITS[armyType].hp;
+                candidate.hp = candidate.maxHp;
+                candidate.movesLeft = UNITS[armyType].move;
+            }
+        } else if (PROJECTS[pId].onComplete.type === "GrantYield") {
+            const payload = PROJECTS[pId].onComplete.payload;
+            if (payload.F) {
+                city.storedFood += payload.F;
+                const hasFarmstead = city.buildings.includes(BuildingType.Farmstead);
+                const hasJadeGranary = player?.completedProjects.includes(ProjectId.JadeGranaryComplete) ?? false;
+                let growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player?.civName);
+                while (city.storedFood >= growthCost) {
+                    city.storedFood -= growthCost;
+                    city.pop += 1;
+                    city.workedTiles = ensureWorkedTiles(city, state, {
+                        pinned: city.manualWorkedTiles,
+                        excluded: city.manualExcludedTiles,
+                    });
+                    growthCost = getGrowthCost(city.pop, hasFarmstead, hasJadeGranary, player?.civName);
+                }
+            }
+            if (payload.S && player && player.currentTech) {
+                player.currentTech.progress += payload.S;
+                if (player.currentTech.progress >= player.currentTech.cost) {
+                    player.techs.push(player.currentTech.id);
+                    player.currentTech = null;
+                }
+            }
+        }
+    }
+
+    city.currentBuild = null;
+    city.buildProgress = overflow;
+}
+
+export function applyCityProduction(state: GameState, city: City, player: Player, baseProduction: number) {
+    let effectiveProd = baseProduction;
+    if (city.currentBuild?.type === "Project" && player.civName === "ForgeClans") {
+        effectiveProd = Math.ceil(baseProduction * 1.25);
+    }
+    city.buildProgress += effectiveProd;
+    if (city.currentBuild && city.buildProgress >= city.currentBuild.cost) {
+        completeBuild(state, city);
+    }
+}
+
+export function processCityBuild(state: GameState, city: City, player: Player, production: number) {
+    applyCityProduction(state, city, player, production);
+}

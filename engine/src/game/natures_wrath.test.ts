@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, Player, UnitType, UnitState, DiplomacyState } from '../core/types.js';
+import { GameState, UnitType, UnitState, DiplomacyState } from '../core/types.js';
 import { generateWorld } from '../map/map-generator.js';
 import { handleFoundCity } from './actions/cities.js';
 import { handleEndTurn } from './turn-lifecycle.js';

@@ -38,7 +38,7 @@ describe("Garrison Attack in Unconquered City", () => {
         };
     });
 
-    it("should NOT allow unit to enter city after defeating garrison when city has health > 0", () => {
+    it("should redirect attack to the city when garrisoned city still has health > 0", () => {
         // Setup City for P2 with full health
         state.cities.push({
             id: "c1",
@@ -97,18 +97,20 @@ describe("Garrison Attack in Unconquered City", () => {
             targetType: "Unit",
         });
 
-        // Verify garrison was defeated
+        // Attack is redirected to city; garrison remains
         const garrison = nextState.units.find(u => u.id === "u_garrison");
-        expect(garrison).toBeUndefined();
+        expect(garrison).toBeDefined();
+        expect(garrison?.hp).toBe(1);
 
         // Verify attacker did NOT move into the city
         const attacker = nextState.units.find(u => u.id === "u_attacker");
         expect(attacker!.coord).toEqual({ q: 0, r: 1 }); // Still at original position
+        expect(attacker!.hp).toBe(5);
 
-        // Verify city still belongs to P2 and has health
+        // Verify city still belongs to P2 and took damage instead
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city!.ownerId).toBe("p2");
-        expect(city!.hp).toBe(20);
+        expect(city!.hp).toBe(18);
     });
 
     it("should allow unit to enter empty tile after defeating enemy unit (no city)", () => {

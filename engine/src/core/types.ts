@@ -176,6 +176,7 @@ export type Player = {
     isEliminated: boolean;
     warPreparation?: WarPreparationState;
     researchHistory?: Record<string, number>; // TechId -> progress
+    hasFoundedFirstCity?: boolean;
 };
 
 export type ProjectDefinition = {

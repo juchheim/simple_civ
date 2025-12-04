@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { GameState, UnitType, BuildingType, ProjectId, Player, City, HexCoord, TerrainType, OverlayType, PlayerPhase, DiplomacyState } from "../core/types";
-import { handleSetCityBuild, handleFoundCity } from "./actions/cities";
-import { handleEndTurn } from "./turn-lifecycle";
-import { UNITS, BUILDINGS, PROJECTS } from "../core/constants";
+import { GameState, UnitType, BuildingType, Player, City, TerrainType, PlayerPhase } from "../core/types";
+import { handleSetCityBuild } from "./actions/cities";
 
 describe("City Production Switching", () => {
     const mockPlayer: Player = {

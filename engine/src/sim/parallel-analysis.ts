@@ -6,7 +6,6 @@ import { UNITS } from "../core/constants.js";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { writeFileSync, statSync } from "fs";
 import * as os from "os";
-import * as path from "path";
 import { fileURLToPath } from 'url';
 
 // ==========================================
@@ -213,8 +212,6 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     const eliminationsLogged = new Set<string>();
 
     let winTurn: number | null = null;
-    let lastStatusTurn = 0;
-    const STATUS_INTERVAL = 25; // Emit status every 25 turns
 
     while (!state.winnerId && state.turn <= turnLimit) {
         const playerId = state.currentPlayerId;
@@ -618,12 +615,13 @@ if (isMainThread) {
 
     // Determine worker count (use all cores)
     const numCPUs = os.cpus().length;
-    const workerCount = Math.max(1, numCPUs - 3); // Leave 3 cores free for system/monitoring
-    console.log(`Starting parallel simulation with ${workerCount} workers for ${totalTasks} tasks...`);
+    // Use 50% of cores to prevent system stalling, leaving enough room for other tasks
+    const workerCount = Math.max(1, Math.floor(numCPUs * 0.5));
+    console.log(`Starting parallel simulation with ${workerCount} workers (Total CPUs: ${numCPUs}) for ${totalTasks} tasks...`);
 
     let activeWorkers = 0;
 
-    function startWorker() {
+    const startWorker = () => {
         if (tasks.length === 0) return;
 
         const task = tasks.shift()!;
@@ -660,14 +658,14 @@ if (isMainThread) {
                 finish();
             }
         });
-    }
+    };
 
     // Start initial batch of workers
     for (let i = 0; i < workerCount; i++) {
         startWorker();
     }
 
-    function finish() {
+    const finish = () => {
         const totalTimeSeconds = (Date.now() - startTime) / 1000;
         console.log(`\n${'='.repeat(60)}`);
         console.log(`ALL SIMULATIONS COMPLETE!`);
@@ -680,11 +678,11 @@ if (isMainThread) {
         console.log(`✓ Results written to /tmp/comprehensive-simulation-results.json`);
         console.log(`File size: ${(statSync('/tmp/comprehensive-simulation-results.json').size / 1024 / 1024).toFixed(1)} MB`);
         process.exit(0);
-    }
+    };
 
 } else {
     // Worker thread logic
-    const { seed, config, mapIndex } = workerData;
+    const { seed, config, mapIndex: _mapIndex } = workerData;
     const start = Date.now();
 
     try {

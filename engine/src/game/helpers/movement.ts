@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType, BuildingType } from "../../core/types.js";
+import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
 import { hexEquals, getNeighbors } from "../../core/hex.js";

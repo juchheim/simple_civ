@@ -3,7 +3,6 @@ import { runAiTurn } from "../game/ai.js";
 import { MapSize, GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import { UNITS } from "../core/constants.js";
-import { hexDistance } from "../core/hex.js";
 
 // Simple military power estimation
 function estimateMilitaryPower(playerId: string, state: GameState): number {
@@ -454,7 +453,6 @@ const MAP_CONFIGS: { size: MapSize; maxCivs: number }[] = [
 ];
 
 // Run 1 simulation for Standard map size
-const seedsCount = 1;
 const seeds = [1001];
 const allResults: any[] = [];
 

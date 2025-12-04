@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, Player, UnitType, TerrainType, BuildingType, UnitState } from '../core/types';
+import { GameState, Player, UnitType, TerrainType, UnitState } from '../core/types';
 import { handleCityAttack } from './actions/cities';
-import { createTestState } from './test-utils'; // Assuming this exists or I'll mock it
 import { computeVisibility } from './vision';
 
 // Mock createTestState if not available or just build state manually

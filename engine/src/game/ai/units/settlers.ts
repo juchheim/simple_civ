@@ -231,6 +231,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
             let escaped = false;
             for (const neighbor of neighborsWithSafety) {
+                // Check for stacking violation if linked
+                if (liveSettler.linkedUnitId) {
+                    const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, neighbor.coord));
+                    const hasMilitary = unitsOnTarget.some(u => UNITS[u.type].domain !== "Civilian");
+                    if (hasMilitary) continue;
+                }
+
                 const moveResult = tryAction(next, {
                     type: "MoveUnit",
                     playerId,
@@ -291,6 +298,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             const neighbors = getNeighbors(liveSettler.coord);
             const neighborsWithDistance = sortByDistance(site.coord, neighbors, coord => coord);
             for (const neighbor of neighborsWithDistance) {
+                // Check for stacking violation if linked
+                if (liveSettler.linkedUnitId) {
+                    const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, neighbor));
+                    const hasMilitary = unitsOnTarget.some(u => UNITS[u.type].domain !== "Civilian");
+                    if (hasMilitary) continue;
+                }
+
                 const moveResult = tryAction(next, {
                     type: "MoveUnit",
                     playerId,
@@ -319,6 +333,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                 .sort((a, b) => b.score - a.score);
 
             for (const candidate of scored) {
+                // Check for stacking violation if linked
+                if (liveSettler.linkedUnitId) {
+                    const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, candidate.coord));
+                    const hasMilitary = unitsOnTarget.some(u => UNITS[u.type].domain !== "Civilian");
+                    if (hasMilitary) continue;
+                }
+
                 const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: liveSettler.id, to: candidate.coord });
                 if (moveResult !== next) {
                     next = moveResult;
@@ -513,38 +534,49 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         }
 
         const path = findPath(escort.coord, settler.coord, escort, next);
+        let moved = false;
+
         if (path.length > 0) {
-            const moveResult = tryAction(next, {
-                type: "MoveUnit",
-                playerId,
-                unitId: escort.id,
-                to: path[0]
-            });
-            if (moveResult !== next) {
-                next = moveResult;
-                const liveEscort = next.units.find(u => u.id === escort.id);
-                const liveSettler = next.units.find(u => u.id === settler.id);
-                if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
-                    !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
-                    if (hexEquals(liveEscort.coord, liveSettler.coord)) {
-                        if (liveEscort.id === liveSettler.id) {
-                            console.error(`[AI Escort Error] Attempted to link unit ${liveEscort.id} to itself`);
-                        } else {
-                            const linkResult = tryAction(next, {
-                                type: "LinkUnits",
-                                playerId,
-                                unitId: liveEscort.id,
-                                partnerId: liveSettler.id
-                            });
-                            if (linkResult !== next) {
-                                next = linkResult;
-                                console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+            // Check for stacking violation
+            const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, path[0]));
+            const hasMilitary = unitsOnTarget.some(u => UNITS[u.type].domain !== "Civilian");
+
+            if (!hasMilitary) {
+                const moveResult = tryAction(next, {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId: escort.id,
+                    to: path[0]
+                });
+                if (moveResult !== next) {
+                    next = moveResult;
+                    moved = true;
+                    const liveEscort = next.units.find(u => u.id === escort.id);
+                    const liveSettler = next.units.find(u => u.id === settler.id);
+                    if (liveEscort && liveSettler && hexEquals(liveEscort.coord, liveSettler.coord) &&
+                        !liveEscort.linkedUnitId && !liveSettler.linkedUnitId) {
+                        if (hexEquals(liveEscort.coord, liveSettler.coord)) {
+                            if (liveEscort.id === liveSettler.id) {
+                                console.error(`[AI Escort Error] Attempted to link unit ${liveEscort.id} to itself`);
+                            } else {
+                                const linkResult = tryAction(next, {
+                                    type: "LinkUnits",
+                                    playerId,
+                                    unitId: liveEscort.id,
+                                    partnerId: liveSettler.id
+                                });
+                                if (linkResult !== next) {
+                                    next = linkResult;
+                                    console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                                }
                             }
                         }
                     }
                 }
             }
-        } else {
+        }
+
+        if (!moved) {
             const neighbors = getNeighbors(escort.coord);
             const neighborsWithDistance = sortByDistance(
                 settler.coord,
@@ -553,6 +585,11 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             );
 
             for (const neighbor of neighborsWithDistance) {
+                // Check for stacking violation
+                const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, neighbor));
+                const hasMilitary = unitsOnTarget.some(u => UNITS[u.type].domain !== "Civilian");
+                if (hasMilitary) continue;
+
                 const moveResult = tryAction(next, {
                     type: "MoveUnit",
                     playerId,

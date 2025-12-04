@@ -1,10 +1,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GameState, UnitType, UnitState, TerrainType } from '../core/types.js';
-import { handleSetAutoExplore, handleSetAutoMoveTarget, handleMoveUnit, processAutoMovement, processAutoExplore } from './actions/units.js';
-import { advancePlayerTurn } from './turn-lifecycle.js';
+import { handleSetAutoExplore, handleSetAutoMoveTarget } from './actions/units.js';
 import { generateWorld } from '../map/map-generator.js';
-import { hexEquals } from '../core/hex.js';
 
 describe('Pathing Fixes', () => {
     let state: GameState;

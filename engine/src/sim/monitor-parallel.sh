@@ -25,7 +25,7 @@ if [ -f "engine/dist/sim/sim/parallel-analysis.js" ]; then
 fi
 
 # Run the compiled JS
-node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
+nice -n 10 node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
 SIM_PID=$!
 echo "Simulation started with PID: $SIM_PID"
 echo "Logs: $LOG_FILE"

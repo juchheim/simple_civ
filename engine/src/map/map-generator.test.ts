@@ -18,14 +18,14 @@ const createDeterministicSettings = () => ({
 describe("World Generation", () => {
     it("should generate a map with correct dimensions", () => {
         const state = generateWorld({
-            mapSize: "Small",
+            mapSize: "Standard",
             players: [{ id: "p1", civName: "Civ A", color: "red" }],
         });
 
         // v1.0 balance: Standard map size increased to 23x17
         expect(state.map.width).toBe(23);
         expect(state.map.height).toBe(17);
-        expect(state.map.tiles.length).toBe(19 * 15);
+        expect(state.map.tiles.length).toBe(23 * 17);
     });
 
     it("should place players with starting units", () => {

@@ -24,7 +24,24 @@ function pickActivePlayerId(state: GameState) {
         : fallbackPlayer?.id ?? state.currentPlayerId;
 }
 
-export function useGameSession(options?: { onSessionRestore?: () => void }) {
+type SessionCommands = {
+    startNewGame: (settings: GameSetup) => GameState;
+    restartLastGame: () => boolean;
+    saveGame: () => boolean;
+    loadGame: () => boolean;
+    clearSession: () => void;
+    runActions: (actions: Action[]) => void;
+};
+
+type SessionState = {
+    gameState: GameState | null;
+    playerId: string;
+    lastGameSettings: GameSetup | null;
+    error: string | null;
+    setError: (msg: string | null) => void;
+};
+
+export function useGameSession(options?: { onSessionRestore?: () => void }): SessionState & SessionCommands {
     const { onSessionRestore } = options ?? {};
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [playerId, setPlayerId] = useState("p1");
@@ -74,7 +91,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
         return true;
     }, [lastGameSettings]);
 
-    const handleSave = useCallback(() => {
+    const saveGame = useCallback(() => {
         if (!gameState) return false;
         try {
             const saveData: SavedGame = {
@@ -88,7 +105,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
         }
     }, [gameState]);
 
-    const handleLoad = useCallback(() => {
+    const loadGame = useCallback(() => {
         skipPersistenceRef.current = false;
         try {
             const rawManual = localStorage.getItem(SAVE_KEY);
@@ -218,16 +235,14 @@ export function useGameSession(options?: { onSessionRestore?: () => void }) {
     return {
         gameState,
         playerId,
-        setPlayerId,
-        runActions,
-        startNewGame,
-        restartLastGame,
-        handleSave,
-        handleLoad,
-        setGameState,
         lastGameSettings,
-        clearSession,
         error,
         setError,
+        startNewGame,
+        restartLastGame,
+        saveGame,
+        loadGame,
+        clearSession,
+        runActions,
     };
 }

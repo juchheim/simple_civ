@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, Player, UnitType, BuildingType, TechId, ProjectId, DiplomacyState, TerrainType, PlayerPhase } from '../../core/types.js';
+import { GameState, Player, UnitType, TechId, DiplomacyState, TerrainType, PlayerPhase } from '../../core/types.js';
 import { pickCityBuilds } from './cities.js';
 
 // --- Helper Functions ---
@@ -24,7 +24,7 @@ function createTestState(): GameState {
     };
 }
 
-function createTestPlayer(id: string, name: string): Player {
+function createTestPlayer(id: string): Player {
     return {
         id,
         civName: 'TestCiv',

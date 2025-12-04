@@ -81,7 +81,7 @@ describe('Post-Attack Movement Bug', () => {
         } as any;
 
         // Perform the attack
-        let nextState = handleAttack(state, {
+        const nextState = handleAttack(state, {
             type: 'Attack',
             playerId: 'p1',
             attackerId: 'attacker',
@@ -185,7 +185,7 @@ describe('Post-Attack Movement Bug', () => {
         } as any;
 
         // Perform the attack
-        let nextState = handleAttack(state, {
+        const nextState = handleAttack(state, {
             type: 'Attack',
             playerId: 'p1',
             attackerId: 'attacker',

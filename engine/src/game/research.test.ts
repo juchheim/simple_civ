@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { GameState, Player, TechId, PlayerPhase, Action } from "../core/types.js";
+import { GameState, Player, TechId, PlayerPhase } from "../core/types.js";
 import { applyAction } from "./turn-loop.js";
-import { TECHS } from "../core/constants.js";
 
 describe("Research Preservation", () => {
     const createInitialState = (): GameState => {
@@ -37,7 +36,6 @@ describe("Research Preservation", () => {
 
     it("should save progress when switching research", () => {
         let state = createInitialState();
-        const player = state.players[0];
 
         // 1. Start researching Fieldcraft
         state = applyAction(state, {

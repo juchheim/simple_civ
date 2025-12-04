@@ -20,13 +20,14 @@ import { scoreCitySite } from "../game/ai-heuristics.js";
 import { applyTerrainNoise } from "./generation/terrain.js";
 import { resolveSeed, WorldRng } from "./generation/seeding.js";
 import { pickStartingSpots } from "./generation/starts.js";
-import { generateRivers } from "./generation/rivers.js";
+import { generateRivers, type RiverGenerationOptions } from "./generation/rivers.js";
 
 
 export type WorldGenSettings = {
     mapSize: MapSize;
     players: { id: string; civName: string; color: string; ai?: boolean }[];
     seed?: number;
+    riverOptions?: RiverGenerationOptions;
 };
 
 export function generateWorld(settings: WorldGenSettings): GameState {
@@ -105,6 +106,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         rng,
         getTile,
         isLand,
+        options: settings.riverOptions ?? { usePathfinderModule: true },
     });
 
     // 3. Players & Starting Units

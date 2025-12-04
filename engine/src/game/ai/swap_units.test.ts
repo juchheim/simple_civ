@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GameState, UnitType, UnitDomain, UnitState, HexCoord, PlayerPhase, DiplomacyState, TerrainType } from "../../core/types.js";
+import { GameState, UnitType, UnitState, PlayerPhase, DiplomacyState, TerrainType } from "../../core/types.js";
 import { handleSwapUnits } from "../actions/units.js";
 import { routeCityCaptures } from "./units/offense.js";
 import { hexEquals } from "../../core/hex.js";

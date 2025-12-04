@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameMap, GameMapHandle, MapViewport } from "./components/GameMap";
+import { AppShell } from "./components/AppShell";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
 import { VictoryLossScreen } from "./components/VictoryLossScreen";
 import { WarDeclarationModal } from "./components/HUD/sections";
-import { Action, HexCoord, MapSize, TechId, UNITS, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, findPath, DiplomacyState } from "@simple-civ/engine";
-import { hexEquals, hexDistance, hexToString } from "./utils/hex";
+import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
-import { useReachablePaths } from "./hooks/useReachablePaths";
+import { useInteractionController } from "./hooks/useInteractionController";
+import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 
 function App() {
     const handleSessionRestore = useCallback(() => setShowTitleScreen(false), []);
@@ -20,17 +21,14 @@ function App() {
         runActions,
         startNewGame,
         restartLastGame,
-        handleSave,
-        handleLoad,
+        saveGame,
+        loadGame,
         lastGameSettings,
         clearSession,
         error,
         setError,
     } = useGameSession({ onSessionRestore: handleSessionRestore });
     const mapRef = useRef<GameMapHandle | null>(null);
-    const [selectedCoord, setSelectedCoord] = useState<HexCoord | null>(null);
-    const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
-    const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);
     const [showTechTree, setShowTechTree] = useState(false);
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
@@ -41,8 +39,29 @@ function App() {
     const [showTitleScreen, setShowTitleScreen] = useState(true);
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
     const [mapView, setMapView] = useState<MapViewport | null>(null);
-    const [pendingWarAttack, setPendingWarAttack] = useState<{ action: Action; targetPlayerId: string } | null>(null);
     const [showGameMenu, setShowGameMenu] = useState(false);
+
+    const dispatchAction = useCallback((action: Action) => {
+        runActions([action]);
+    }, [runActions]);
+
+    const {
+        selectedCoord,
+        setSelectedCoord,
+        selectedUnitId,
+        setSelectedUnitId,
+        hoveredCoord,
+        setHoveredCoord,
+        pendingWarAttack,
+        setPendingWarAttack,
+        handleTileClick,
+        reachableCoordSet,
+    } = useInteractionController({
+        gameState,
+        playerId,
+        dispatchAction,
+        runActions,
+    });
 
     // Auto-clear error after 3 seconds
     useEffect(() => {
@@ -62,26 +81,25 @@ function App() {
         }
     }, [selectedMapSize, numCivs]);
 
-    // Global key listener for shortcuts
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                if (selectedUnitId || selectedCoord) {
-                    setSelectedCoord(null);
-                    setSelectedUnitId(null);
-                } else if (showTechTree) {
-                    setShowTechTree(false);
-                } else if (showGameMenu) {
-                    setShowGameMenu(false);
-                } else {
-                    setShowGameMenu(true);
-                }
-            }
-        };
+    const clearSelection = useCallback(() => {
+        setSelectedCoord(null);
+        setSelectedUnitId(null);
+    }, [setSelectedCoord, setSelectedUnitId]);
 
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [selectedUnitId, selectedCoord, showTechTree, showGameMenu]);
+    const closeTechTree = useCallback(() => setShowTechTree(false), []);
+    const closeGameMenu = useCallback(() => setShowGameMenu(false), []);
+    const openGameMenu = useCallback(() => setShowGameMenu(true), []);
+
+    useGlobalHotkeys({
+        selectedCoord,
+        selectedUnitId,
+        showTechTree,
+        showGameMenu,
+        clearSelection,
+        closeTechTree,
+        closeGameMenu,
+        openGameMenu,
+    });
 
     const handleStartNewGame = () => {
         try {
@@ -120,251 +138,26 @@ function App() {
         }
     };
 
-    const { reachablePaths, reachableCoordSet } = useReachablePaths(gameState, playerId, selectedUnitId);
-
     const handleAction = useCallback((action: Action) => {
         runActions([action]);
-        // Deselect unit when auto-explore is enabled
         if (action.type === "SetAutoExplore") {
             setSelectedUnitId(null);
             setSelectedCoord(null);
         }
     }, [runActions, setSelectedCoord, setSelectedUnitId]);
 
-    const handleChooseTech = (techId: TechId) => {
+    const handleChooseTech = useCallback((techId: TechId) => {
         handleAction({ type: "ChooseTech", playerId, techId });
         setShowTechTree(false);
-    };
+    }, [handleAction, playerId]);
 
-    const handleTileClick = useCallback((coord: HexCoord) => {
-        if (!gameState) return;
-
-        // If unit selected and clicking another tile -> Move?
-        if (selectedUnitId) {
-            const unit = gameState.units.find(u => u.id === selectedUnitId);
-            if (unit && unit.ownerId === playerId) {
-                // Try to move
-                // Or Attack?
-                // Simple heuristic: if enemy unit on target -> Attack. Else -> Move.
-                const targetUnit = gameState.units.find(u => hexEquals(u.coord, coord));
-
-                if (targetUnit && targetUnit.ownerId !== playerId) {
-                    const attackAction: Action = {
-                        type: "Attack",
-                        playerId,
-                        attackerId: unit.id,
-                        targetId: targetUnit.id,
-                        targetType: "Unit"
-                    };
-
-                    // Check if attacking would declare war
-                    const diplomacyState = gameState.diplomacy[playerId]?.[targetUnit.ownerId] || DiplomacyState.Peace;
-                    if (diplomacyState === DiplomacyState.Peace) {
-                        // Show war declaration modal
-                        setPendingWarAttack({ action: attackAction, targetPlayerId: targetUnit.ownerId });
-                    } else {
-                        // Already at war, execute attack immediately
-                        handleAction(attackAction);
-                        setSelectedCoord(null);
-                        setSelectedUnitId(null);
-                    }
-                    return;
-                }
-
-                // Check for enemy city attack
-                const targetCity = gameState.cities.find(c => hexEquals(c.coord, coord));
-                if (targetCity && targetCity.ownerId !== playerId && targetCity.hp > 0) {
-                    const unitStats = UNITS[unit.type];
-                    const dist = hexDistance(unit.coord, coord);
-                    if (dist <= unitStats.rng) {
-                        const attackAction: Action = {
-                            type: "Attack",
-                            playerId,
-                            attackerId: unit.id,
-                            targetId: targetCity.id,
-                            targetType: "City"
-                        };
-
-                        // Check if attacking would declare war
-                        const diplomacyState = gameState.diplomacy[playerId]?.[targetCity.ownerId] || DiplomacyState.Peace;
-                        if (diplomacyState === DiplomacyState.Peace) {
-                            // Show war declaration modal
-                            setPendingWarAttack({ action: attackAction, targetPlayerId: targetCity.ownerId });
-                        } else {
-                            // Already at war, execute attack immediately
-                            handleAction(attackAction);
-                            setSelectedCoord(null);
-                            setSelectedUnitId(null);
-                        }
-                        return;
-                    }
-                }
-                // Check if clicking on a friendly unit (that isn't self)
-                const friendlyUnitOnTile = gameState.units.find(u => hexEquals(u.coord, coord) && u.ownerId === playerId);
-                if (friendlyUnitOnTile && friendlyUnitOnTile.id !== unit.id) {
-                    const distance = hexDistance(unit.coord, friendlyUnitOnTile.coord);
-                    if (distance === 1 && unit.movesLeft > 0) {
-                        // Check if units can stack (one military, one civilian)
-                        const unitStats = UNITS[unit.type];
-                        const targetStats = UNITS[friendlyUnitOnTile.type];
-                        const canStack = (unitStats.domain === "Civilian" && targetStats.domain !== "Civilian") ||
-                            (unitStats.domain !== "Civilian" && targetStats.domain === "Civilian");
-
-                        if (canStack) {
-                            // Move to the same hex to stack with the friendly unit
-                            handleAction({
-                                type: "MoveUnit",
-                                playerId,
-                                unitId: unit.id,
-                                to: coord
-                            });
-                            setSelectedCoord(coord);
-                            setSelectedUnitId(unit.id);
-                            return;
-                        } else {
-                            // Both military or both civilian - attempt to swap positions
-                            handleAction({
-                                type: "SwapUnits",
-                                playerId,
-                                unitId: unit.id,
-                                targetUnitId: friendlyUnitOnTile.id
-                            });
-                            // Keep the originally selected unit selected after swap (it will now be at the clicked position)
-                            setSelectedCoord(coord);
-                            setSelectedUnitId(unit.id);
-                            return;
-                        }
-                    }
-                    // If not adjacent, fall through to selection logic
-                    setSelectedCoord(coord);
-                    setSelectedUnitId(friendlyUnitOnTile.id);
-                    return;
-                }
-
-                // If clicking self -> Deselect
-                if (hexEquals(unit.coord, coord)) {
-                    setSelectedUnitId(null);
-                    setSelectedCoord(null);
-                    return;
-                }
-
-
-                const coordKey = hexToString(coord);
-                const plannedInfo = reachablePaths[coordKey];
-                const plannedPath = plannedInfo?.path;
-                if (plannedPath && plannedPath.length > 0) {
-                    runActions(plannedPath.map((step: HexCoord) => ({
-                        type: "MoveUnit",
-                        playerId,
-                        unitId: unit.id,
-                        to: step,
-                    })));
-
-                    // Auto-deselect if unit will have 0 moves left
-                    // Check if the plannedInfo indicates moves remaining
-                    if (plannedInfo.movesLeft === 0) {
-                        setSelectedCoord(null);
-                        setSelectedUnitId(null);
-                    } else {
-                        setSelectedCoord(coord);
-                        setSelectedUnitId(unit.id);
-                    }
-                    return;
-                }
-
-                // Fallback: If neighbor and not in reachablePaths (maybe cache issue), try direct move
-                // But only if the unit has moves left
-                if (hexDistance(unit.coord, coord) === 1 && unit.movesLeft > 0) {
-                    handleAction({
-                        type: "MoveUnit",
-                        playerId,
-                        unitId: unit.id,
-                        to: coord
-                    });
-                    // Auto-deselect if unit had only 1 move left
-                    if (unit.movesLeft === 1) {
-                        setSelectedCoord(null);
-                        setSelectedUnitId(null);
-                    } else {
-                        setSelectedCoord(coord);
-                        setSelectedUnitId(unit.id);
-                    }
-                    return;
-                }
-
-                // If not immediately reachable (or no moves left), try to set auto-move target
-                const autoPath = findPath(unit.coord, coord, unit, gameState);
-                if (autoPath.length > 0) {
-                    // Batch actions together to avoid state batching issues
-                    const actions: Action[] = [{
-                        type: "SetAutoMoveTarget",
-                        playerId,
-                        unitId: unit.id,
-                        target: coord
-                    }];
-
-                    // Try to move the first step if it's a neighbor AND we have moves
-                    const firstStep = autoPath[0];
-                    if (firstStep && hexDistance(unit.coord, firstStep) === 1 && unit.movesLeft > 0) {
-                        actions.push({
-                            type: "MoveUnit",
-                            playerId,
-                            unitId: unit.id,
-                            to: firstStep
-                        });
-                    }
-
-                    runActions(actions);
-                    // Fully deselect (clear both coordinate and unit)
-                    setSelectedCoord(null);
-                    setSelectedUnitId(null);
-                    return;
-                } else {
-                    console.log("Auto-path not found");
-                    // Optional: Feedback to user
-                    // alert("Cannot reach target");
-                }
-            }
-        }
-
-        // Select tile and auto-select a friendly unit (prefer linked pairs)
-        setSelectedCoord(coord);
-
-        // Check if there's a city on this tile - if so, prioritize showing city UI over unit selection
-        const cityOnTile = gameState.cities.find(c => hexEquals(c.coord, coord));
-        if (cityOnTile) {
-            setSelectedUnitId(null);
-            return;
-        }
-
-        const friendlyUnits = gameState.units.filter(
-            u => u.ownerId === playerId && hexEquals(u.coord, coord),
-        );
-        if (friendlyUnits.length === 0) {
-            // Check for enemy units
-            const enemyUnit = gameState.units.find(u => hexEquals(u.coord, coord));
-            if (enemyUnit) {
-                setSelectedUnitId(enemyUnit.id);
-                return;
-            }
-            setSelectedUnitId(null);
-            return;
-        }
-
-        // Prefer a unit that is linked with another unit on the tile
-        const linkedUnit = friendlyUnits.find(u =>
-            u.linkedUnitId && friendlyUnits.some(partner => partner.id === u.linkedUnitId),
-        );
-        setSelectedUnitId(linkedUnit?.id ?? friendlyUnits[0].id);
-    }, [gameState, selectedUnitId, playerId, handleAction, reachablePaths, runActions, setSelectedCoord, setSelectedUnitId]);
-
-    const handleSaveGame = () => {
-        const saved = handleSave();
+    const handleSaveGame = useCallback(() => {
+        const saved = saveGame();
         alert(saved ? "Game saved." : "Failed to save game.");
-    };
+    }, [saveGame]);
 
-    const handleLoadGame = () => {
-        const success = handleLoad();
+    const handleLoadGame = useCallback(() => {
+        const success = loadGame();
         if (!success) {
             alert("No saved game found.");
             return;
@@ -373,9 +166,9 @@ function App() {
         setSelectedCoord(null);
         setSelectedUnitId(null);
         alert("Loaded saved game.");
-    };
+    }, [loadGame, setSelectedCoord, setSelectedUnitId]);
 
-    const handleRestart = () => {
+    const handleRestart = useCallback(() => {
         if (!lastGameSettings) return;
         try {
             const restarted = restartLastGame();
@@ -388,7 +181,7 @@ function App() {
             console.error("App: Error restarting game:", error);
             alert(`Failed to restart game: ${error?.message ?? error}`);
         }
-    };
+    }, [lastGameSettings, restartLastGame, setSelectedCoord, setSelectedUnitId, setShowTechTree]);
 
     // Reset cityToCenter after a brief delay to allow re-centering on same city
     useEffect(() => {
@@ -402,176 +195,185 @@ function App() {
         mapRef.current?.centerOnPoint(point);
     };
 
-    if (!gameState) {
-        if (showTitleScreen) {
-            return (
-                <TitleScreen
-                    onNewGame={() => setShowTitleScreen(false)}
-                    onLoadGame={handleLoadGame}
-                />
-            );
-        }
+    const maxCivsGlobal = Math.max(...Object.values(MAX_CIVS_BY_MAP_SIZE));
+    const titleContent = showTitleScreen ? (
+        <TitleScreen
+            onNewGame={() => setShowTitleScreen(false)}
+            onLoadGame={handleLoadGame}
+        />
+    ) : (
+        <div style={{ position: "fixed", inset: 0, background: "var(--color-bg-deep)", color: "var(--color-text-main)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
+            <div style={{ width: "min(1200px, 100%)", height: "min(700px, 85vh)", background: "var(--color-bg-panel)", borderRadius: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.5)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "row", overflow: "hidden" }}>
 
-        return (
-            <div style={{ position: "fixed", inset: 0, background: "var(--color-bg-deep)", color: "var(--color-text-main)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
-                <div style={{ width: "min(1200px, 100%)", height: "min(700px, 85vh)", background: "var(--color-bg-panel)", borderRadius: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.5)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "row", overflow: "hidden" }}>
+                {/* Left Column: Logo */}
+                <div style={{ flex: "0 0 30%", display: "flex", alignItems: "flex-start", justifyContent: "center", background: "var(--color-bg-deep)", paddingTop: 40 }}>
+                    <img src="/logo.png" alt="SimpleCiv Logo" style={{ maxWidth: "80%", maxHeight: "80%", objectFit: "contain" }} />
+                </div>
 
-                    {/* Left Column: Logo */}
-                    <div style={{ flex: "0 0 30%", display: "flex", alignItems: "flex-start", justifyContent: "center", background: "var(--color-bg-deep)", paddingTop: 40 }}>
-                        <img src="/logo.png" alt="SimpleCiv Logo" style={{ maxWidth: "80%", maxHeight: "80%", objectFit: "contain" }} />
+                {/* Right Column: Content */}
+                <div style={{ flex: 1, padding: 40, display: "flex", flexDirection: "column", gap: 24, minWidth: 0, overflow: "hidden" }}>
+
+                    {/* Header */}
+                    <div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>Choose your Civilization</div>
                     </div>
 
-                    {/* Right Column: Content */}
-                    <div style={{ flex: 1, padding: 40, display: "flex", flexDirection: "column", gap: 24, minWidth: 0, overflow: "hidden" }}>
-
-                        {/* Header */}
-                        <div>
-                            <div style={{ fontSize: 24, fontWeight: 700 }}>Choose your Civilization</div>
-                        </div>
-
-                        {/* Civ Grid */}
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 8 }}>
-                            {CIV_OPTIONS.map((option: CivOption) => {
-                                const isSelected = option.id === selectedCiv;
-                                return (
-                                    <button
-                                        key={option.id}
-                                        onClick={() => setSelectedCiv(option.id)}
-                                        style={{
-                                            textAlign: "left",
-                                            background: isSelected ? "var(--color-bg-deep)" : "transparent",
-                                            border: `2px solid ${isSelected ? "var(--color-highlight)" : "var(--color-border)"}`,
-                                            borderRadius: 12,
-                                            padding: "16px 16px 8px 16px",
-                                            color: "var(--color-text-main)",
-                                            cursor: "pointer",
-                                            display: "flex",
-                                            flexDirection: "column",
-                                            justifyContent: "flex-start",
-                                        }}
-                                    >
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                                            <span style={{ width: 12, height: 12, borderRadius: "50%", background: option.color, display: "inline-block" }} />
-                                            <span style={{ fontWeight: 700, fontSize: 16 }}>{option.title}</span>
-                                        </div>
-                                        <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 6 }}>{option.summary}</div>
-                                        <div style={{ fontSize: 13, color: "var(--color-highlight)", lineHeight: 1.4, whiteSpace: "normal" }}>{option.perk}</div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Settings & Buttons */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: "auto", flexShrink: 0 }}>
-
-                            {/* Settings Row */}
-                            <div style={{ display: "flex", gap: 32, alignItems: "flex-end" }}>
-                                {/* Map Size */}
-                                <div>
-                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Map Size</label>
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                        {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
-                                            <button
-                                                key={size}
-                                                onClick={() => setSelectedMapSize(size)}
-                                                style={{
-                                                    padding: "8px 12px",
-                                                    fontSize: 14,
-                                                    borderRadius: 8,
-                                                    border: `1px solid ${selectedMapSize === size ? "var(--color-highlight)" : "var(--color-border)"}`,
-                                                    background: selectedMapSize === size ? "rgba(170, 130, 80, 0.2)" : "transparent",
-                                                    color: selectedMapSize === size ? "var(--color-highlight)" : "var(--color-text-muted)",
-                                                    cursor: "pointer",
-                                                }}
-                                            >
-                                                {size}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Num Civs */}
-                                <div>
-                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Number of Civilizations</label>
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                        {[2, 3, 4, 5, 6].map((count) => {
-                                            const maxForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
-                                            const maxForCivs = CIV_OPTIONS.length;
-                                            const effectiveMax = Math.min(maxForMap, maxForCivs);
-                                            const isDisabled = count > effectiveMax;
-
-                                            return (
-                                                <button
-                                                    key={count}
-                                                    onClick={() => !isDisabled && setNumCivs(count)}
-                                                    disabled={isDisabled}
-                                                    style={{
-                                                        padding: "8px 16px",
-                                                        fontSize: 14,
-                                                        borderRadius: 8,
-                                                        border: `1px solid ${numCivs === count ? "var(--color-highlight)" : "var(--color-border)"}`,
-                                                        background: numCivs === count ? "rgba(170, 130, 80, 0.2)" : isDisabled ? "rgba(0,0,0,0.2)" : "transparent",
-                                                        color: numCivs === count ? "var(--color-highlight)" : isDisabled ? "rgba(255,255,255,0.2)" : "var(--color-text-muted)",
-                                                        cursor: isDisabled ? "not-allowed" : "pointer",
-                                                        opacity: isDisabled ? 0.5 : 1,
-                                                    }}
-                                                >
-                                                    {count}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Seed */}
-                                <div style={{ width: 80 }}>
-                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Seed</label>
-                                    <input
-                                        type="text"
-                                        value={seedInput}
-                                        onChange={e => setSeedInput(e.target.value)}
-                                        placeholder="Random"
-                                        style={{ width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg-deep)", color: "var(--color-text-main)" }}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Buttons Row */}
-                            <div style={{ display: "flex", gap: 16, justifyContent: "space-between", alignItems: "center" }}>
+                    {/* Civ Grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 8 }}>
+                        {CIV_OPTIONS.map((option: CivOption) => {
+                            const isSelected = option.id === selectedCiv;
+                            return (
                                 <button
-                                    onClick={handleStartNewGame}
+                                    key={option.id}
+                                    onClick={() => setSelectedCiv(option.id)}
                                     style={{
-                                        flex: 1,
-                                        padding: "16px 32px",
+                                        textAlign: "left",
+                                        background: isSelected ? "var(--color-bg-deep)" : "transparent",
+                                        border: `2px solid ${isSelected ? "var(--color-highlight)" : "var(--color-border)"}`,
                                         borderRadius: 12,
-                                        border: "none",
-                                        background: "var(--color-highlight-strong)",
-                                        color: "var(--color-bg-main)",
-                                        fontWeight: 700,
-                                        fontSize: 18,
+                                        padding: "16px 16px 8px 16px",
+                                        color: "var(--color-text-main)",
                                         cursor: "pointer",
-                                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-                                        textAlign: "center"
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        justifyContent: "flex-start",
                                     }}
                                 >
-                                    Start Game
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                                        <span style={{ width: 12, height: 12, borderRadius: "50%", background: option.color, display: "inline-block" }} />
+                                        <span style={{ fontWeight: 700, fontSize: 16 }}>{option.title}</span>
+                                    </div>
+                                    <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 6 }}>{option.summary}</div>
+                                    <div style={{ fontSize: 13, color: "var(--color-highlight)", lineHeight: 1.4, whiteSpace: "normal" }}>{option.perk}</div>
                                 </button>
-                                <button
-                                    onClick={handleLoadGame}
-                                    style={{ padding: "16px 24px", borderRadius: 12, border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-main)", cursor: "pointer", fontWeight: 600, fontSize: 16 }}
-                                >
-                                    Load Save
-                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Settings & Buttons */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: "auto", flexShrink: 0 }}>
+
+                        {/* Settings Row */}
+                        <div style={{ display: "flex", gap: 32, alignItems: "flex-end" }}>
+                            {/* Map Size */}
+                            <div>
+                                <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Map Size</label>
+                                <div style={{ display: "flex", gap: 8 }}>
+                                    {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
+                                        <button
+                                            key={size}
+                                            onClick={() => setSelectedMapSize(size)}
+                                            style={{
+                                                padding: "8px 12px",
+                                                fontSize: 14,
+                                                borderRadius: 8,
+                                                border: size === selectedMapSize ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
+                                                background: size === selectedMapSize ? "var(--color-bg-deep)" : "transparent",
+                                                color: "var(--color-text-main)",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            {size}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
+                            {/* Number of Civs */}
+                            <div>
+                                <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Civilizations</label>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))", gap: 3, maxWidth: 240 }}>
+                                    {Array.from({ length: maxCivsGlobal - 1 }, (_, i) => i + 2).map(count => {
+                                        const allowedForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
+                                        const allowed = count <= allowedForMap && count <= CIV_OPTIONS.length;
+                                        return (
+                                            <button
+                                                key={count}
+                                                onClick={() => {
+                                                    if (!allowed) return;
+                                                    setNumCivs(count);
+                                                }}
+                                                disabled={!allowed}
+                                                style={{
+                                                    width: 40,
+                                                    height: 40,
+                                                    borderRadius: 8,
+                                                    border: count === numCivs ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
+                                                    background: count === numCivs ? "var(--color-bg-deep)" : "transparent",
+                                                    color: "var(--color-text-main)",
+                                                    fontWeight: 600,
+                                                    cursor: allowed ? "pointer" : "not-allowed",
+                                                    opacity: allowed ? 1 : 0.5
+                                                }}
+                                            >
+                                                {count}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Seed Input */}
+                            <div style={{ marginLeft: "auto", minWidth: 40, maxWidth: 60, marginRight: 32 }}>
+                                <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Seed</label>
+                                <input
+                                    type="text"
+                                    value={seedInput}
+                                    onChange={(e) => setSeedInput(e.target.value)}
+                                    placeholder="Random"
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg-deep)", color: "var(--color-text-main)" }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Buttons */}
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <button
+                                onClick={handleStartNewGame}
+                                    style={{
+                                        flex: 1,
+                                        padding: "12px",
+                                        borderRadius: 10,
+                                        border: "none",
+                                        background: "var(--color-highlight-strong, #cd8a36)",
+                                        color: "white",
+                                        fontWeight: 700,
+                                        fontSize: 16,
+                                    cursor: "pointer",
+                                    boxShadow: "0 10px 30px rgba(0,0,0,0.25)"
+                                }}
+                            >
+                                Start Game
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowTitleScreen(true);
+                                    setSelectedCoord(null);
+                                    setSelectedUnitId(null);
+                                    setHoveredCoord(null);
+                                    setShowTechTree(false);
+                                    setCityToCenter(null);
+                                    setMapView(null);
+                                }}
+                                style={{
+                                    padding: "12px 16px",
+                                    borderRadius: 10,
+                                    border: "1px solid var(--color-border)",
+                                    background: "transparent",
+                                    color: "var(--color-text-main)",
+                                    cursor: "pointer",
+                                    marginRight: 8
+                                }}
+                            >
+                                Back
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        );
-    }
-
-    return (
+        </div>
+    );
+    const gameContent = gameState ? (
         <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
             <GameMap
                 ref={mapRef}
@@ -628,7 +430,7 @@ function App() {
                     onClose={() => setShowTechTree(false)}
                 />
             )}
-            {gameState?.winnerId && (
+            {gameState.winnerId && (
                 <VictoryLossScreen
                     winnerId={gameState.winnerId}
                     playerId={playerId}
@@ -646,7 +448,7 @@ function App() {
                     }}
                 />
             )}
-            {pendingWarAttack && gameState && (() => {
+            {pendingWarAttack && (() => {
                 const targetPlayer = gameState.players.find(p => p.id === pendingWarAttack.targetPlayerId);
                 return targetPlayer ? (
                     <WarDeclarationModal
@@ -704,6 +506,14 @@ function App() {
                 </div>
             )}
         </div>
+    ) : null;
+
+    return (
+        <AppShell
+            showTitleScreen={!gameState}
+            titleContent={titleContent}
+            gameContent={gameContent}
+        />
     );
 }
 

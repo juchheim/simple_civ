@@ -19,7 +19,6 @@ import {
     DAMAGE_MIN,
     TERRAIN,
     BUILDINGS,
-    PROJECTS,
     UNITS,
     FORGE_CLANS_MILITARY_DISCOUNT,
 } from "../../core/constants.js";
@@ -29,6 +28,51 @@ import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName 
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { canBuild, getMinimumCityDistance, getProjectCost } from "../rules.js";
 import { getUnitCost } from "../units.js";
+
+export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
+    const city = state.cities.find(c => c.id === action.cityId);
+    if (!city) throw new Error("City not found");
+    if (city.ownerId !== action.playerId) throw new Error("Not your city");
+    if (city.hasFiredThisTurn) throw new Error("City already attacked this turn");
+
+    const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === action.playerId);
+    if (!garrison) throw new Error("No garrison present");
+
+    const target = state.units.find(u => u.id === action.targetUnitId);
+    if (!target) throw new Error("Target not found");
+    if (target.ownerId === action.playerId) throw new Error("Cannot target own unit");
+
+    const dist = hexDistance(city.coord, target.coord);
+    if (dist > 2) throw new Error("Target out of range");
+    if (!hasClearLineOfSight(state, city.coord, target.coord)) throw new Error("Line of sight blocked");
+
+    const targetKey = hexToString(target.coord);
+    if (state.visibility[action.playerId] && !state.visibility[action.playerId].includes(targetKey)) {
+        throw new Error("Target not visible");
+    }
+
+    const randIdx = Math.floor(state.seed % 3);
+    state.seed = (state.seed * 9301 + 49297) % 233280;
+    const randomMod = ATTACK_RANDOM_BAND[randIdx];
+
+    const attackPower = CITY_ATTACK_BASE + (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) + randomMod;
+    let defensePower = getEffectiveUnitStats(target, state).def;
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, target.coord));
+    if (tile) defensePower += TERRAIN[tile.terrain].defenseMod;
+    if (target.state === UnitState.Fortified) defensePower += 1;
+
+    const delta = attackPower - defensePower;
+    const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
+    const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
+
+    target.hp -= damage;
+    if (target.hp <= 0) {
+        state.units = state.units.filter(u => u.id !== target.id);
+    }
+
+    city.hasFiredThisTurn = true;
+    return state;
+}
 
 // export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
 //     const city = state.cities.find(c => c.id === action.cityId);
@@ -113,6 +157,10 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
 
     // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
     const startingFood = player?.civName === "JadeCovenant" ? 5 : 0;
+
+    if (player) {
+        player.hasFoundedFirstCity = true;
+    }
 
     const newCity: City = {
         id: cityId,
