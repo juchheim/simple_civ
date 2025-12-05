@@ -157,12 +157,12 @@ export function getCityYields(city: City, state: GameState): Yields {
         // v0.98 BUFF: Added +1 Science in river cities (in addition to Food and Production)
         // River cities now give triple bonus: +1F, +1P, +1S
         const isRiverCity = isTileAdjacentToRiver(state.map, city.coord);
+        // v1.3 BUFF: +1 Food per river tile (restored from nerf)
         total.F += riverAdjacencyCount(state.map, city.workedTiles);
         if (isRiverCity) {
             total.P += 1;  // River Commerce bonus
-            total.S += 1;  // v0.98: River Knowledge bonus
         }
-        // v0.99 BUFF: +1 Production per 2 river tiles (nerf from 1 per 1)
+        // v1.3 BUFF: +1 Production per 2 river tiles (restored from nerf)
         total.P += Math.floor(riverAdjacencyCount(state.map, city.workedTiles) / 2);
     } else if (trait === "StarborneSeekers") {
         // v1.2: NERFED - Removed Sacred Site science bonus entirely.

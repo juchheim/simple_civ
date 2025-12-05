@@ -158,6 +158,10 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
 
 
 
+import { isTileAdjacentToRiver } from "../../map/rivers.js";
+
+// ... existing imports ...
+
 export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     const base = UNITS[unit.type];
     const player = state.players.find(p => p.id === unit.ownerId);
@@ -196,6 +200,14 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     // v0.99 BUFF: "Ancestral Protection" - Settlers get +2 Defense
     if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
         boosted.def += 2;
+    }
+
+    // v1.3: River League "River Guardians" - +1 Atk/Def near rivers
+    if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
+        if (isTileAdjacentToRiver(state.map, unit.coord)) {
+            boosted.atk += 1;
+            boosted.def += 2;
+        }
     }
 
     // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - +1 Defense near Capital

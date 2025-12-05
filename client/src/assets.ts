@@ -62,6 +62,9 @@ import City4Img from "../public/cities/city_4.png";
 import City5Img from "../public/cities/city_5.png";
 import City6Img from "../public/cities/city_6.png";
 import City7Img from "../public/cities/city_7.png";
+import City8Img from "../public/cities/city_8.png";
+import City9Img from "../public/cities/city_9.png";
+import City10Img from "../public/cities/city_10.png";
 
 export const cityImages: Record<number, string> = {
     1: City1Img,
@@ -71,5 +74,8 @@ export const cityImages: Record<number, string> = {
     5: City5Img,
     6: City6Img,
     7: City7Img,
+    8: City8Img,
+    9: City9Img,
+    10: City10Img,
 };
 

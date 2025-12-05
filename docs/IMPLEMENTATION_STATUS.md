@@ -21,7 +21,7 @@ Last Updated: 2025-11-30
 - **Victory/Loss UI**: Full-screen Victory/Defeat overlays with "Restart Game" (same seed/settings) and "Main Menu" options.
 - **Balance Adjustments (v1.0)**:
     - **Starborne Seekers**: Nerfed Spirit Observatory (Cost 300). Removed Sacred Site Science Bonus. Restored starting SpearGuard.
-    - **River League**: Adjusted river bonus to +1 Production per 2 river tiles (balanced from +1/tile). Auto-assigner prioritizes river tiles.
+    - **River League**: Buffed river bonus to +1 Production per 2 river tiles (was 1/3). Buffed River Guardians to +2 Defense near rivers. Auto-assigner prioritizes river tiles.
     - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 30, +1 Pop/Food, Spawns Free Settler). Added "Nature's Wrath" (1 HP Attrition to enemies in territory). AI aggressively expands (2-tile density) and pivots to victory earlier. Stops settling in late-game wars.
     - **Aetherian Vanguard**: Titans ignore terrain movement costs. **Battle Hardened** perk buffed to +2 HP/era (max +6). **Scavenger Doctrine**: Science on Kill.
     - **AI Logic**: Improved victory condition pursuit. Aggression scales on Standard+ maps to encourage conquest.

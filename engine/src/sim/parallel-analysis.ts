@@ -615,8 +615,8 @@ if (isMainThread) {
 
     // Determine worker count (use all cores)
     const numCPUs = os.cpus().length;
-    // Use 50% of cores to prevent system stalling, leaving enough room for other tasks
-    const workerCount = Math.max(1, Math.floor(numCPUs * 0.5));
+    // Use all cores minus one to keep the system responsive
+    const workerCount = Math.max(1, numCPUs - 1);
     console.log(`Starting parallel simulation with ${workerCount} workers (Total CPUs: ${numCPUs}) for ${totalTasks} tasks...`);
 
     let activeWorkers = 0;

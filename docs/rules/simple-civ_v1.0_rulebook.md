@@ -248,7 +248,7 @@
 ## 14. Civilizations & Traits
 - **ForgeClans**: +1 Production from each worked Hill (Capital Only). **Master Craftsmen**: Projects 20% faster. **Forged Arms**: Military units 20% cheaper; units from cities with 2+ Hills get +1 Attack. **Industrial Warfare**: +1 Attack per Engine tech.
 - **Scholar Kingdoms**: **Great Library**: Capital gets +1 Science. **Scholarly Retreat**: Units near cities get +2 Defense.
-- **River League**: +1 Food per river tile. **River Commerce**: River cities get +1 Production, +1 Science. **River Industry**: +1 Production per 2 river tiles worked.
+- **River League**: +1 Food per river tile. **River Commerce**: River cities get +1 Production. **River Guardians**: Units near rivers get +1 Attack, +2 Defense. **River Industry**: +1 Production per 2 river tiles worked.
 - **AetherianVanguard**: Unique Unit: Titan (Super-Unit). **Battle Hardened**: Military units gain +2 HP per era researched (max +6). **Scavenger Doctrine**: Units gain Science on kill. **Vanguard Logistics**: Cities with a garrison gain +1 Production.
 - **StarborneSeekers**: Unique Building: Spirit Observatory (Science). **Celestial Guidance**: Units near capital +1 Defense. Starts with Scout + SpearGuard.
 - **JadeCovenant**: Unique Building: Jade Granary (Hearth Era, 30 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler. **Bountiful Harvest**: Cities start with +5 stored Food. **Verdant Growth**: 10% cheaper growth globally. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 8 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.

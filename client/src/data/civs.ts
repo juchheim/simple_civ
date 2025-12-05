@@ -26,8 +26,8 @@ export const CIV_OPTIONS: CivOption[] = [
     {
         id: "RiverLeague",
         title: "River League",
-        summary: "Thrives along waterways with triple yield bonuses.",
-        perk: "+1 Food per river tile • River cities: +1 Prod, +1 Sci • +1 Prod per 2 river tiles",
+        summary: "Masters of river-based agriculture and industry.",
+        perk: "+1 Food per river tile • River cities: +1 Prod • Units near rivers get +1 Atk/+2 Def • +1 Prod per 2 river tiles",
         color: "#A0522D",
     },
     {

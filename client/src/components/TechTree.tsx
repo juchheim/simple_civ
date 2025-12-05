@@ -1,5 +1,6 @@
 import React from "react";
 import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType } from "@simple-civ/engine";
+import { CIV_OPTIONS } from "../data/civs";
 
 interface TechTreeProps {
     gameState: GameState;
@@ -10,6 +11,7 @@ interface TechTreeProps {
 
 export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChooseTech, onClose }) => {
     const player = gameState.players.find(p => p.id === playerId);
+    const civData = player ? CIV_OPTIONS.find(c => c.id === player.civName) : null;
 
     const [lines, setLines] = React.useState<{ x1: number, y1: number, x2: number, y2: number }[]>([]);
     const techRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -307,7 +309,14 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                 </svg>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", position: "relative", zIndex: 2 }}>
-                    <h2>Tech Tree</h2>
+                    <div>
+                        <h2 style={{ margin: 0 }}>Tech Tree</h2>
+                        {civData && (
+                            <div style={{ fontSize: "14px", color: "var(--color-highlight)", marginTop: "5px" }}>
+                                {civData.title}: {civData.perk}
+                            </div>
+                        )}
+                    </div>
                     <button onClick={onClose} style={{
                         padding: "10px 20px",
                         fontSize: "16px",

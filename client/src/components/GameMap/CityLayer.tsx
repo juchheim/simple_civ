@@ -35,7 +35,7 @@ export const CityImageLayer: React.FC<CityLayerProps> = React.memo(({ overlays, 
     return (
         <g style={{ pointerEvents: "none" }}>
             {overlays.map(overlay => {
-                const cityLevel = Math.min(overlay.city.pop, 7);
+                const cityLevel = Math.min(overlay.city.pop, 10);
                 const cityImg = cityImages[cityLevel];
 
                 return (
