@@ -1,11 +1,12 @@
 
-import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType } from "../core/types.js";
+import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType, EraId } from "../core/types.js";
 import {
     BASE_CITY_HP,
     CITY_HEAL_PER_TURN,
     HEAL_FRIENDLY_CITY,
     HEAL_FRIENDLY_TILE,
     UNITS,
+    TECHS,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
@@ -73,8 +74,41 @@ function processResearch(state: GameState, player: Player) {
     if (player.currentTech) {
         player.currentTech.progress += totalScience;
         if (player.currentTech.progress >= player.currentTech.cost) {
-            player.techs.push(player.currentTech.id);
+            const techId = player.currentTech.id;
+            player.techs.push(techId);
             player.currentTech = null;
+
+            // Check for Era Advancement
+            const techData = TECHS[techId];
+            if (techData && techData.era !== player.currentEra) {
+                // Simple check: if the new tech is from a different era, we enter it.
+                // Since eras are sequential, this works for moving forward.
+                // We assume players won't research backwards into an old era they haven't "entered"
+                // (which isn't possible given the tech tree structure).
+                // But to be safe, we could define an order. For now, just inequality is enough
+                // as players start in Hearth and can only go up.
+                if (techData.era !== EraId.Hearth && player.currentEra === EraId.Hearth) {
+                    player.currentEra = techData.era;
+                } else if (techData.era === EraId.Engine && player.currentEra === EraId.Banner) {
+                    player.currentEra = techData.era;
+                }
+                // General case: just take the new era if it's different?
+                // Let's stick to the specific transitions to avoid weirdness if they research a low-tier tech later?
+                // Actually, tech tree enforces prereqs, so you can't skip.
+                // But you could research a Tier 1 tech late?
+                // No, Tier 1 techs are Hearth. If you are in Banner, researching a Hearth tech shouldn't revert you.
+                // So we should only update if the new era is "greater".
+
+                const eraOrder: Record<EraId, number> = {
+                    [EraId.Primitive]: 0,
+                    [EraId.Hearth]: 1,
+                    [EraId.Banner]: 2,
+                    [EraId.Engine]: 3,
+                };
+                if (eraOrder[techData.era] > eraOrder[player.currentEra]) {
+                    player.currentEra = techData.era;
+                }
+            }
         }
     }
 }

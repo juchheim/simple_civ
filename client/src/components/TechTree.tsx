@@ -1,6 +1,7 @@
 import React from "react";
 import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType } from "@simple-civ/engine";
 import { CIV_OPTIONS } from "../data/civs";
+import { formatName } from "../utils/strings";
 
 interface TechTreeProps {
     gameState: GameState;
@@ -111,9 +112,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         getTech(TechId.StarCharts),
     ];
 
-    const formatName = (name: string): string => {
-        return name.replace(/([A-Z])/g, ' $1').trim();
-    };
+
 
     const renderBuildingStats = (buildingId: BuildingType) => {
         const building = BUILDINGS[buildingId];

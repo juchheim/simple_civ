@@ -87,6 +87,7 @@ export enum TechId {
 }
 
 export enum EraId {
+    Primitive = "Primitive",
     Hearth = "Hearth",
     Banner = "Banner",
     Engine = "Engine",
@@ -176,6 +177,7 @@ export type Player = {
     warPreparation?: WarPreparationState;
     researchHistory?: Record<string, number>; // TechId -> progress
     hasFoundedFirstCity?: boolean;
+    currentEra: EraId;
 };
 
 export type ProjectDefinition = {

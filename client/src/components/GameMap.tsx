@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { GameState, HexCoord } from "@simple-civ/engine";
+import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { GameState, HexCoord, EraId } from "@simple-civ/engine";
+import { EraModal } from "./EraModal";
 import { getHexPoints, hexToPixel as projectHexToPixel } from "./GameMap/geometry";
 import { useMapController, MapViewport } from "../hooks/useMapController";
 import { useMapVisibility } from "../hooks/useMapVisibility";
@@ -49,6 +50,47 @@ interface GameMapProps {
 const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameState, onTileClick, selectedCoord, playerId, showShroud, selectedUnitId, reachableCoords, showTileYields, cityToCenter, onViewChange }, ref) => {
     const { map, units, cities } = gameState;
     const [hoveredCoord, setHoveredCoord] = useState<HexCoord | null>(null);
+
+    // Era Modal Logic
+    const [showEraModal, setShowEraModal] = useState(false);
+    const [modalEra, setModalEra] = useState<EraId>(EraId.Primitive);
+    const lastSeenEra = useRef<EraId>(EraId.Primitive);
+
+    useEffect(() => {
+        const player = gameState.players.find(p => p.id === playerId);
+        if (player) {
+            // Initialize ref on first load if needed (though default is Hearth)
+            // If we load a game in a later era, we don't want to pop the modal immediately unless we want to remind them?
+            // Usually "entering" implies a transition.
+            // If lastSeenEra is Hearth and player is Engine, we might want to show?
+            // But for now let's assume we only show on transition during session.
+            // To handle "load game" case correctly:
+            // If we just loaded, we might want to sync the ref without showing modal.
+            // But how do we know if we just loaded vs just researched?
+            // The ref persists across renders but not unmounts.
+            // If we assume the user starts in Hearth (new game), it works.
+            // If they load a save, lastSeenEra initializes to Hearth. If save is in Engine, it would trigger.
+            // Maybe that's okay? "Welcome back to the Age of Engine".
+            // Or we can initialize the ref to the current player era on mount.
+
+            if (lastSeenEra.current === null) {
+                lastSeenEra.current = player.currentEra;
+            } else if (player.currentEra !== lastSeenEra.current) {
+                setModalEra(player.currentEra);
+                setShowEraModal(true);
+                lastSeenEra.current = player.currentEra;
+            }
+        }
+    }, [gameState.players, playerId]);
+
+    // Initialize ref on mount to avoid popping modal on load
+    useEffect(() => {
+        const player = gameState.players.find(p => p.id === playerId);
+        if (player) {
+            lastSeenEra.current = player.currentEra;
+        }
+    }, []); // Empty dependency array = run once on mount
+
 
     const {
         tileVisibility,
@@ -224,6 +266,11 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
                 hoveredCoord={hoveredCoord}
                 showTileYields={showTileYields}
                 showShroud={showShroud}
+            />
+            <EraModal
+                era={modalEra}
+                isOpen={showEraModal}
+                onClose={() => setShowEraModal(false)}
             />
         </div>
     );

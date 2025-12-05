@@ -1,5 +1,6 @@
 import React from "react";
 import { Player } from "@simple-civ/engine";
+import { formatName } from "../../../utils/strings";
 
 type TechButtonProps = {
     player: Player | undefined;
@@ -19,7 +20,7 @@ export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }
                         {tech ? "Currently studying" : "Pick your next technology"}
                     </div>
                     <p className="hud-title" style={{ marginTop: 2 }}>
-                        {tech ? tech.id : "No active research"}
+                        {tech ? formatName(tech.id) : "No active research"}
                     </p>
                 </div>
                 <button

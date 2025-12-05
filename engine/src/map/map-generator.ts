@@ -12,6 +12,7 @@ import {
     UnitState,
     UnitType,
     OverlayType,
+    EraId,
 } from "../core/types.js";
 import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS } from "../core/constants.js";
 import { hexEquals, hexToString, hexSpiral, getNeighbors } from "../core/hex.js";
@@ -125,6 +126,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         currentTech: null,
         completedProjects: [],
         isEliminated: false,
+        currentEra: EraId.Primitive,
     }));
 
     const units: Unit[] = [];

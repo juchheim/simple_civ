@@ -193,6 +193,17 @@ export function useInteractionController({
         const isFogged = !isVisible && isRevealed;
 
         if (isFogged) {
+            // If a unit is selected, try to move to the fogged tile
+            if (selectedUnitId) {
+                const unit = gameState.units.find(u => u.id === selectedUnitId);
+                if (unit && unit.ownerId === playerId) {
+                    // We allow movement into fog, but not direct interaction with entities (which shouldn't be visible anyway)
+                    if (tryPlannedPath(unit, coord)) return;
+                    if (tryAdjacentMove(unit, coord)) return;
+                    if (tryAutoMove(unit, coord)) return;
+                }
+            }
+
             // Allow selecting the tile to see terrain info, but do NOT allow selecting units or interacting
             setSelectedCoord(coord);
             setSelectedUnitId(null);
