@@ -1,6 +1,7 @@
-import { DiplomacyState, GameState } from "../../core/types.js";
+import { DiplomacyState, GameState, HistoryEventType } from "../../core/types.js";
 import { assertCanShareVision, assertContact, disableSharedVision, enableSharedVision } from "../helpers/diplomacy.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
+import { logEvent } from "../history.js";
 
 export function handleSetDiplomacy(state: GameState, action: { type: "SetDiplomacy"; playerId: string; targetPlayerId: string; state: DiplomacyState }) {
     const a = action.playerId;
@@ -23,8 +24,10 @@ export function handleSetDiplomacy(state: GameState, action: { type: "SetDiploma
         state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b) && !(o.from === b && o.to === a));
         expelUnitsFromTerritory(state, a, b);
         expelUnitsFromTerritory(state, b, a);
+        logEvent(state, HistoryEventType.PeaceMade, a, { targetId: b });
     } else {
         disableSharedVision(state, a, b);
+        logEvent(state, HistoryEventType.WarDeclared, a, { targetId: b });
     }
     return state;
 }
@@ -85,6 +88,8 @@ export function handleAcceptPeace(state: GameState, action: { type: "AcceptPeace
 
     expelUnitsFromTerritory(state, a, b);
     expelUnitsFromTerritory(state, b, a);
+
+    logEvent(state, HistoryEventType.PeaceMade, a, { targetId: b });
 
     return state;
 }

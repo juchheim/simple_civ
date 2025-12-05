@@ -1,4 +1,5 @@
-import { GameState, UnitState, UnitType, BuildingType } from "../../core/types.js";
+import { GameState, UnitState, UnitType, BuildingType, HistoryEventType } from "../../core/types.js";
+import { logEvent } from "../history.js";
 import {
     ATTACK_RANDOM_BAND,
     CITY_DEFENSE_BASE,
@@ -235,6 +236,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 }
 
                 captureCity(state, city, action.playerId);
+                logEvent(state, HistoryEventType.CityCaptured, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord });
 
                 attacker.coord = cityCoord;
                 attacker.movesLeft = 0;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType, UnitState } from "@simple-civ/engine";
+import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType, UnitState, EraId } from "@simple-civ/engine";
 import React from "react";
 import { applyAction } from "@simple-civ/engine";
 import { CityPanel } from "./CityPanel";
@@ -32,6 +32,8 @@ const baseCity = (): City => ({
     milestones: [],
 });
 
+
+
 const baseGameState = (city: City, units: Unit[] = []): GameState => ({
     id: "game-1",
     turn: 1,
@@ -44,6 +46,7 @@ const baseGameState = (city: City, units: Unit[] = []): GameState => ({
             currentTech: { id: TechId.Fieldcraft, progress: 0, cost: 10 },
             completedProjects: [],
             isEliminated: false,
+            currentEra: EraId.Primitive,
         },
         {
             id: "p2",
@@ -53,6 +56,7 @@ const baseGameState = (city: City, units: Unit[] = []): GameState => ({
             currentTech: null,
             completedProjects: [],
             isEliminated: false,
+            currentEra: EraId.Primitive,
         },
     ],
     currentPlayerId: "p1",

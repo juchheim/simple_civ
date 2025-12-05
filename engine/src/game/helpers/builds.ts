@@ -1,10 +1,11 @@
-import { BuildingType, City, GameState, Player, ProjectId, UnitState, UnitType } from "../../core/types.js";
+import { BuildingType, City, GameState, Player, ProjectId, UnitState, UnitType, HistoryEventType } from "../../core/types.js";
 import { CITY_WORK_RADIUS_RINGS, PROJECTS, SETTLER_POP_LOSS_ON_BUILD, UNITS } from "../../core/constants.js";
 import { hexDistance, hexEquals, hexSpiral } from "../../core/hex.js";
 import { ensureWorkedTiles } from "./cities.js";
 import { getAetherianHpBonus, getUnitMaxMoves } from "./combat.js";
 import { getGrowthCost } from "../rules.js";
 import { generateUnitId, findSpawnCoord } from "./spawn.js";
+import { logEvent } from "../history.js";
 
 export function completeBuild(state: GameState, city: City) {
     if (!city.currentBuild) return;
@@ -58,6 +59,8 @@ export function completeBuild(state: GameState, city: City) {
         }
 
         if (build.id === BuildingType.TitansCore) {
+            logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
+
             const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
             const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
 
@@ -73,11 +76,15 @@ export function completeBuild(state: GameState, city: City) {
                 hasAttacked: false,
             });
         } else if (build.id === BuildingType.SpiritObservatory) {
+            logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
+
             if (player) {
                 player.completedProjects.push(ProjectId.Observatory);
                 city.milestones.push(ProjectId.Observatory);
             }
         } else if (build.id === BuildingType.JadeGranary) {
+            logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
+
             if (player) {
                 player.completedProjects.push(ProjectId.JadeGranaryComplete);
                 city.milestones.push(ProjectId.JadeGranaryComplete);

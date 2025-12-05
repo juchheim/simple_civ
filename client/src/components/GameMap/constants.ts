@@ -1,6 +1,6 @@
 export const HEX_SIZE = 75;
 export const MIN_ZOOM = 0.5;
-export const MAX_ZOOM = 3.0;
+export const MAX_ZOOM = 2.25;
 export const ZOOM_WHEEL_SENSITIVITY = 0.0015; // zoom factor per wheel delta unit
 export const ZOOM_SMOOTHING = 0.22; // fraction of remaining zoom delta applied each frame (60fps)
 export const PAN_INERTIA_DECAY = 0.92; // per-frame decay (60fps) for inertia velocity

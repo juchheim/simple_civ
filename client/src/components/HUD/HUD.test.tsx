@@ -9,6 +9,7 @@ import {
     UnitState,
     TerrainType,
     PlayerPhase,
+    EraId,
     DiplomacyState,
     TechId,
 } from "@simple-civ/engine";
@@ -34,6 +35,7 @@ const createGameState = (overrides: Partial<GameState> = {}): GameState => ({
             currentTech: { id: TechId.Fieldcraft, progress: 4, cost: 20 },
             completedProjects: [],
             isEliminated: false,
+            currentEra: EraId.Primitive,
         },
         {
             id: "p2",
@@ -43,6 +45,7 @@ const createGameState = (overrides: Partial<GameState> = {}): GameState => ({
             currentTech: null,
             completedProjects: [],
             isEliminated: false,
+            currentEra: EraId.Primitive,
         },
     ],
     currentPlayerId: "p1",

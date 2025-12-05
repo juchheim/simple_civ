@@ -3,6 +3,7 @@ import { UNITS } from "../core/constants.js";
 import { hexDistance, hexToString } from "../core/hex.js";
 import { buildTileLookup, hasClearLineOfSight } from "./helpers/combat.js";
 import { disableSharedVision, setContact } from "./helpers/diplomacy.js";
+import { recordFogDelta } from "./history.js";
 
 export function computeVisibility(state: GameState, playerId: string): string[] {
     const visible = new Set<string>();
@@ -56,6 +57,18 @@ export function refreshPlayerVision(state: GameState, playerId: string) {
     const nowVisible = computeVisibility(state, playerId);
     state.visibility[playerId] = nowVisible;
     const prev = new Set(state.revealed[playerId] ?? []);
+
+    // Calculate Delta for History
+    const deltaKeys = nowVisible.filter(k => !prev.has(k));
+    if (deltaKeys.length > 0) {
+        // convert string keys back to HexCoords
+        const deltaCoords = deltaKeys.map(k => {
+            const [q, r] = k.split(",").map(Number);
+            return { q, r };
+        });
+        recordFogDelta(state, playerId, deltaCoords);
+    }
+
     nowVisible.forEach(v => prev.add(v));
     state.revealed[playerId] = Array.from(prev);
     handleContactDiscovery(state, playerId, new Set(nowVisible));

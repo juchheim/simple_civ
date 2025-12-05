@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { UnitPanel } from "./UnitPanel";
-import { GameState, PlayerPhase, Unit, UnitState, UnitType } from "@simple-civ/engine";
+import { GameState, PlayerPhase, Unit, UnitState, UnitType, EraId } from "@simple-civ/engine";
 
 const createUnit = (overrides: Partial<Unit> = {}): Unit => ({
     id: "unit-1",
@@ -19,7 +19,7 @@ const createUnit = (overrides: Partial<Unit> = {}): Unit => ({
 const mockGameState: GameState = {
     id: "g1",
     turn: 1,
-    players: [{ id: "p1", civName: "Civ", color: "red", techs: [], currentTech: null, completedProjects: [], isEliminated: false }],
+    players: [{ id: "p1", civName: "Civ", color: "red", techs: [], currentTech: null, completedProjects: [], isEliminated: false, currentEra: EraId.Primitive }],
     currentPlayerId: "p1",
     phase: PlayerPhase.Action,
     map: { width: 10, height: 10, tiles: [] },

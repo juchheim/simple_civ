@@ -32,6 +32,12 @@ import { enforceLinkedUnitIntegrity } from "./helpers/movement.js";
 export function applyAction(state: GameState, action: Action): GameState {
     const nextState = JSON.parse(JSON.stringify(state)) as GameState;
 
+    // If game already ended, preserve endTurn and ignore further actions
+    if (nextState.winnerId) {
+        if (!nextState.endTurn) nextState.endTurn = nextState.turn;
+        return nextState;
+    }
+
     if (action.playerId !== nextState.currentPlayerId) {
         throw new Error("Not your turn");
     }

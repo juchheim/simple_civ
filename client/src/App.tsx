@@ -4,7 +4,7 @@ import { AppShell } from "./components/AppShell";
 import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
-import { VictoryLossScreen } from "./components/VictoryLossScreen";
+import { EndGameExperience } from "./components/EndGame/EndGameExperience";
 import { WarDeclarationModal } from "./components/HUD/sections";
 import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
@@ -430,10 +430,9 @@ function App() {
                 />
             )}
             {gameState.winnerId && (
-                <VictoryLossScreen
-                    winnerId={gameState.winnerId}
+                <EndGameExperience
+                    gameState={gameState}
                     playerId={playerId}
-                    winnerCivName={gameState.players.find((p) => p.id === gameState.winnerId)?.civName ?? "Unknown"}
                     onRestart={handleRestart}
                     onQuit={() => {
                         clearSession();

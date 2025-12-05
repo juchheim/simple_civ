@@ -1,5 +1,5 @@
 
-import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType, EraId } from "../core/types.js";
+import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType, EraId, HistoryEventType } from "../core/types.js";
 import {
     BASE_CITY_HP,
     CITY_HEAL_PER_TURN,
@@ -15,6 +15,7 @@ import { refreshPlayerVision } from "./vision.js";
 import { processCityBuild } from "./helpers/builds.js";
 import { ensureTechSelected } from "./helpers/turn.js";
 import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from "./helpers/turn-movement.js";
+import { logEvent, recordTurnStats } from "./history.js";
 
 /**
  * Handles the end of a player's turn.
@@ -24,6 +25,8 @@ import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from ".
  * @returns The updated game state.
  */
 export function handleEndTurn(state: GameState, action: Extract<Action, { type: "EndTurn" }>): GameState {
+    if (state.winnerId) return state;
+
     for (const unit of state.units.filter(u => u.ownerId === action.playerId)) {
         const stats = UNITS[unit.type];
         const stayed = !unit.hasAttacked && unit.movesLeft === stats.move;
@@ -38,13 +41,17 @@ export function handleEndTurn(state: GameState, action: Extract<Action, { type: 
     const nextPIdx = (pIdx + 1) % state.players.length;
     const nextPlayer = state.players[nextPIdx];
 
-    state.currentPlayerId = nextPlayer.id;
-
     if (nextPIdx === 0) {
-        state.turn += 1;
         runEndOfRound(state);
+        if (state.winnerId) {
+            return state;
+        }
+        state.turn += 1;
     }
 
+    if (state.winnerId) return state;
+
+    state.currentPlayerId = nextPlayer.id;
     return advancePlayerTurn(state, nextPlayer.id);
 }
 
@@ -78,6 +85,8 @@ function processResearch(state: GameState, player: Player) {
             player.techs.push(techId);
             player.currentTech = null;
 
+            logEvent(state, HistoryEventType.TechResearched, player.id, { techId });
+
             // Check for Era Advancement
             const techData = TECHS[techId];
             if (techData && techData.era !== player.currentEra) {
@@ -89,8 +98,10 @@ function processResearch(state: GameState, player: Player) {
                 // as players start in Hearth and can only go up.
                 if (techData.era !== EraId.Hearth && player.currentEra === EraId.Hearth) {
                     player.currentEra = techData.era;
+                    logEvent(state, HistoryEventType.EraEntered, player.id, { era: techData.era });
                 } else if (techData.era === EraId.Engine && player.currentEra === EraId.Banner) {
                     player.currentEra = techData.era;
+                    logEvent(state, HistoryEventType.EraEntered, player.id, { era: techData.era });
                 }
                 // General case: just take the new era if it's different?
                 // Let's stick to the specific transitions to avoid weirdness if they research a low-tier tech later?
@@ -107,6 +118,7 @@ function processResearch(state: GameState, player: Player) {
                 };
                 if (eraOrder[techData.era] > eraOrder[player.currentEra]) {
                     player.currentEra = techData.era;
+                    logEvent(state, HistoryEventType.EraEntered, player.id, { era: techData.era });
                 }
             }
         }
@@ -120,6 +132,8 @@ function processResearch(state: GameState, player: Player) {
  * @param player - The player whose turn is starting.
  */
 export function startPlayerTurn(state: GameState, player: Player): void {
+    if (state.winnerId) return;
+
     state.phase = PlayerPhase.StartOfTurn;
 
     ensureTechSelected(state, player);
@@ -134,6 +148,12 @@ export function startPlayerTurn(state: GameState, player: Player): void {
     resetCityFireFlags(state, player.id);
 
     refreshPlayerVision(state, player.id);
+
+    // History: Stats and Fog Delta
+    // Note: recordFogDelta is handled inside refreshPlayerVision ideally, but we need to track delta.
+    // Actually, simple way: check revealed count before/after, or just let refreshPlayerVision return delta.
+    // For now, let's just record stats here. Fog delta requires finding difference.
+    recordTurnStats(state, player.id);
 
     runPlayerAutoBehaviors(state, player.id);
 }
@@ -264,14 +284,24 @@ function processEndOfRound(state: GameState) {
     if (state.winnerId) return;
     const progressWinner = checkProgressVictory(state);
     if (progressWinner) {
-        state.winnerId = progressWinner;
+        finalizeVictory(state, progressWinner, "Progress");
         return;
     }
     const conquestWinner = checkConquestVictory(state);
     if (conquestWinner) {
-        state.winnerId = conquestWinner;
+        finalizeVictory(state, conquestWinner, "Conquest");
+        return;
     }
     eliminationSweep(state);
+}
+
+function finalizeVictory(state: GameState, playerId: string, victoryType: "Progress" | "Conquest") {
+    state.winnerId = playerId;
+    state.endTurn = state.endTurn ?? state.turn;
+    logEvent(state, HistoryEventType.VictoryAchieved, playerId, { victoryType });
+
+    // Record final stats snapshot at victory so UI reflects the end state
+    state.players.forEach(p => recordTurnStats(state, p.id));
 }
 
 function healUnitsAtStart(state: GameState, playerId: string) {

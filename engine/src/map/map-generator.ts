@@ -1,6 +1,7 @@
 import {
     DiplomacyState,
     GameState,
+    GameHistory,
     HexCoord,
     MapSize,
     Player,
@@ -252,7 +253,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         // Their 80% win rate with growth bonuses + pop combat bonus was too strong
     }
 
-    const initialState = {
+    const initialState: GameState = {
         id: crypto.randomUUID(),
         turn: 1,
         players,
@@ -275,6 +276,18 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         diplomacy: initDiplomacy(players),
         diplomacyOffers: [],
     };
+
+    // Seed history and initial fog baseline so replay starts with visible starts
+    const history: GameHistory = { events: [], playerStats: {}, playerFog: {} };
+    for (const p of players) {
+        const revealedKeys = initialState.revealed[p.id] ?? [];
+        const startingCoords = revealedKeys.map(key => {
+            const [q, r] = key.split(",").map(Number);
+            return { q, r };
+        });
+        history.playerFog[p.id] = { [initialState.turn]: startingCoords };
+    }
+    initialState.history = history;
 
     // Seed contacts if any civs can already see each other at start
     for (const p of players) {

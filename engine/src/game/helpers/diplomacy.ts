@@ -1,4 +1,5 @@
-import { DiplomacyState, GameState } from "../../core/types.js";
+import { DiplomacyState, GameState, HistoryEventType } from "../../core/types.js";
+import { logEvent } from "../history.js";
 
 function ensureContactMaps(state: GameState, a: string, b: string) {
     if (!state.contacts[a]) state.contacts[a] = {} as any;
@@ -9,6 +10,7 @@ function ensureContactMaps(state: GameState, a: string, b: string) {
 
 export function setContact(state: GameState, a: string, b: string) {
     ensureContactMaps(state, a, b);
+    const wasKnown = !!state.contacts[a]?.[b];
     const now = state.turn ?? 0;
     state.contacts[a][b] = true;
     state.contacts[b][a] = true;
@@ -16,6 +18,11 @@ export function setContact(state: GameState, a: string, b: string) {
     (state.contacts[b] as any)[`metTurn_${a}`] = (state.contacts[b] as any)[`metTurn_${a}`] ?? now;
     if (!state.diplomacy[a][b]) state.diplomacy[a][b] = DiplomacyState.Peace;
     if (!state.diplomacy[b][a]) state.diplomacy[b][a] = DiplomacyState.Peace;
+
+    if (!wasKnown) {
+        logEvent(state, HistoryEventType.CivContact, a, { targetId: b });
+        logEvent(state, HistoryEventType.CivContact, b, { targetId: a });
+    }
 }
 
 export function assertContact(state: GameState, a: string, b: string) {

@@ -149,6 +149,9 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
             }
 
             const restored = chosenSave.gameState;
+            if (restored.winnerId && !restored.endTurn) {
+                (restored as any).endTurn = restored.turn;
+            }
             setGameState(restored);
             setPlayerId(pickActivePlayerId(restored));
             return true;
@@ -184,6 +187,9 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
         if (sessionData) {
             try {
                 const parsedState = JSON.parse(sessionData);
+                if (parsedState?.winnerId && !parsedState.endTurn) {
+                    parsedState.endTurn = parsedState.turn;
+                }
                 setGameState(parsedState);
                 setPlayerId(pickActivePlayerId(parsedState));
                 onSessionRestore?.();
@@ -205,7 +211,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
 
     // Autoskip AI turns
     useEffect(() => {
-        if (!gameState) return;
+        if (!gameState || gameState.winnerId) return;
         let next = gameState;
         const current = () => next.players.find(p => p.id === next.currentPlayerId);
         let safety = 0;

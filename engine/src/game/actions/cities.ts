@@ -8,7 +8,9 @@ import {
     UnitState,
     UnitType,
     DiplomacyState,
+    HistoryEventType,
 } from "../../core/types.js";
+import { logEvent } from "../history.js";
 import {
     ATTACK_RANDOM_BAND,
     CITY_ATTACK_BASE,
@@ -203,6 +205,8 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         }
     }
 
+    logEvent(state, HistoryEventType.CityFounded, action.playerId, { cityId: newCity.id, cityName: newCity.name, coord: newCity.coord });
+
     return state;
 }
 
@@ -273,6 +277,9 @@ export function handleRazeCity(state: GameState, action: { type: "RazeCity"; pla
 
     clearCityTerritory(city, state);
     state.cities = state.cities.filter(c => c.id !== city.id);
+
+    logEvent(state, HistoryEventType.CityRazed, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord });
+
     return state;
 }
 

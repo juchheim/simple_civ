@@ -259,8 +259,51 @@ export type GameState = {
     contacts: ContactState;
     diplomacyOffers: DiplomacyOffer[];
     winnerId?: string;
+    endTurn?: number;
     usedCityNames?: string[]; // Track all city names ever used in this game
+    history?: GameHistory;
 };
+
+export enum HistoryEventType {
+    CityFounded = "CityFounded",
+    CityCaptured = "CityCaptured",
+    CityRazed = "CityRazed",
+    WonderBuilt = "WonderBuilt",
+    EraEntered = "EraEntered",
+    TechResearched = "TechResearched",
+    WarDeclared = "WarDeclared",
+    PeaceMade = "PeaceMade",
+    CivContact = "CivContact",
+    UnitPromoted = "UnitPromoted",
+    VictoryAchieved = "VictoryAchieved",
+}
+
+export interface HistoryEvent {
+    turn: number;
+    type: HistoryEventType;
+    playerId: string;
+    data: any;
+}
+
+export interface TurnStats {
+    turn: number;
+    playerId: string;
+    stats: {
+        science: number;
+        production: number;
+        military: number;
+        gold?: number;
+        territory: number;
+        score: number;
+    };
+}
+
+export interface GameHistory {
+    events: HistoryEvent[];
+    playerStats: Record<string, TurnStats[]>;
+    // Optimization: Store deltas (lists of newly revealed coords) rather than full sets
+    playerFog: Record<string, Record<number, HexCoord[]>>;
+}
 
 export type MapSize = "Tiny" | "Small" | "Standard" | "Large" | "Huge";
 

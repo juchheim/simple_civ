@@ -11,6 +11,11 @@ interface EraModalProps {
 }
 
 const ERA_CONFIG: Record<EraId, { title: string; description: string; image: string }> = {
+    [EraId.Primitive]: {
+        title: "The Primitive Age",
+        description: "In the beginning, there was only survival.",
+        image: hearthBg, // Placeholder, reusing hearth or use a default
+    },
     [EraId.Hearth]: {
         title: "The Age of Hearth",
         description: "From the first spark of fire, we forge our destiny.",
