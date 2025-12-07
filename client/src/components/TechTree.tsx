@@ -146,11 +146,26 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
             ? getBuildingExtras(tech.unlock.id as BuildingType)
             : {};
 
+        // Calculate progress percentage for current tech
+        const progressPercent = isCurrent && player.currentTech
+            ? Math.min(100, (player.currentTech.progress / player.currentTech.cost) * 100)
+            : 0;
+
+        // Progress background style for current tech
+        const progressStyle: React.CSSProperties = isCurrent ? {
+            background: `linear-gradient(90deg, 
+                rgba(255, 255, 255, 0.15) 0%, 
+                rgba(255, 255, 255, 0.15) ${progressPercent}%, 
+                transparent ${progressPercent}%, 
+                transparent 100%)`
+        } : {};
+
         return (
             <div
                 key={techId}
                 className={`tech-card tech-card--${state}${needsAttention ? ' tech-card--needs-attention' : ''}`}
                 onClick={handleClick}
+                style={progressStyle}
             >
                 <div className="tech-card-header">
                     <span className="tech-card-name">{formatName(techId)}</span>
@@ -188,15 +203,6 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                 {player.civName === "StarborneSeekers" && techId === TechId.StarCharts && (
                     <div className="tech-card-unique">
                         Unique: Spirit Observatory • {renderBuildingStats(BuildingType.SpiritObservatory)}
-                    </div>
-                )}
-
-                {isCurrent && (
-                    <div className="tech-card-progress">
-                        <div
-                            className="tech-card-progress-fill"
-                            style={{ width: `${Math.min(100, (player.currentTech!.progress / player.currentTech!.cost) * 100)}%` }}
-                        />
                     </div>
                 )}
             </div>
