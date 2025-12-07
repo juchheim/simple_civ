@@ -49,6 +49,7 @@ describe("UnitPanel", () => {
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={vi.fn()}
+                onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
         );
@@ -77,6 +78,7 @@ describe("UnitPanel", () => {
                 onFoundCity={onFoundCity}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={onFortify}
+                onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
         );
@@ -106,6 +108,7 @@ describe("UnitPanel", () => {
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={onFortify}
+                onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
         );
@@ -131,6 +134,7 @@ describe("UnitPanel", () => {
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={vi.fn()}
+                onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
         );

@@ -10,12 +10,13 @@ interface ReplayMapProps {
 }
 
 const HEX_SIZE = 10; // Internal coordinate system size
-const X_OFFSET = HEX_SIZE * 2;
-const Y_OFFSET = HEX_SIZE * 2;
+const X_OFFSET = HEX_SIZE * 1;
+const Y_OFFSET = HEX_SIZE * 1;
 
 export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => {
     const [replayTurn, setReplayTurn] = useState(0);
     const [isPlaying, setIsPlaying] = useState(true);
+    const [speedMultiplier, setSpeedMultiplier] = useState(1);
 
     // Limits
     const maxTurn = gameState.endTurn ?? gameState.turn;
@@ -49,37 +50,113 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
     }, [gameState.history, gameState.revealed, playerId, maxTurn]);
 
     // Active Events at current turn
+    // Active Events at current turn
     const activeEvents = useMemo(() => {
         if (!gameState.history?.events) return [];
-        return gameState.history.events.filter(e => e.turn === replayTurn);
-    }, [gameState.history, replayTurn]);
+        return gameState.history.events.filter(e => {
+            if (e.turn !== replayTurn) return false;
+
+            // Filter: Only show events relevant to the viewing player
+            const isMyEvent = e.playerId === playerId;
+            const isInvolvingMe = (e.data as any)?.targetId === playerId || (e.data as any)?.otherPlayerId === playerId;
+
+            return isMyEvent || isInvolvingMe;
+        });
+    }, [gameState.history, replayTurn, playerId]);
 
     // Dimensions for ViewBox
-    const width = gameState.map.width;
-    const height = gameState.map.height;
+    // Calculate exact bounding box of the hex grid
+    const maxQ = gameState.map.width - 1;
+    const maxR = gameState.map.height - 1;
 
-    // Calculate total internal dimensions
-    // Width approx: width * (sqrt(3) * size)
-    // Height approx: height * (1.5 * size)
-    // We add some buffer
-    const viewBoxWidth = (width * HEX_SIZE * 2) + X_OFFSET * 2;
-    const viewBoxHeight = (height * HEX_SIZE * 1.75) + Y_OFFSET * 2;
+    // We check the 4 corners of the logic grid (0,0), (max, 0), (0, max), (max, max)
+    // Actually, hex grid allows varying geometry but assuming rectangular storage:
+    // We'll iterate the corners of the theoretical rectangle grid to find pixel bounds.
 
+    // Better: Helper to check limits.
+    // The extreme x/y points in a hex grid are usually at the corners.
+    // But due to staggered rows, we should check all 4 corners of the q/r bounds.
+
+    const corners = [
+        { q: 0, r: 0 },
+        { q: maxQ, r: 0 },
+        { q: 0, r: maxR },
+        { q: maxQ, r: maxR }
+    ];
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    corners.forEach(c => {
+        const center = hexToPixel(c, HEX_SIZE);
+        // Add/Sub radius (size) to account for the hex shape itself
+        // A hex extends size * 1 in X and size * sqrt(3)/2 ??
+        // Actually geometry.ts says: 
+        // x = size * (sqrt(3)*q + sqrt(3)/2 * r)
+        // y = size * (3/2 * r)
+
+        // We know each hex extends roughly `size` in all directions from center.
+        // Let's be generous and say center +/- size * 1.5?
+        // Actually specific points are (size, 0), (size/2, size*sqrt3/2) etc.
+        // The max extent from center is `size`.
+
+        minX = Math.min(minX, center.x - HEX_SIZE);
+        maxX = Math.max(maxX, center.x + HEX_SIZE);
+        minY = Math.min(minY, center.y - HEX_SIZE);
+        maxY = Math.max(maxY, center.y + HEX_SIZE);
+    });
+
+    // Width/Height logic of hexToPixel(q,r) depends on both.
+    // X grows with Q and R. Y grows with R.
+    // Top-Left (0,0) is min. Bottom-Right (Q, R) is max.
+    // But check for "negative" shifts if we had them or specialized layouts. 
+    // Here we assume standard Q,R positive.
+
+    const viewBoxX = minX - HEX_SIZE; // Adding small buffer
+    const viewBoxY = minY - HEX_SIZE;
+    const viewBoxW = (maxX - minX) + HEX_SIZE * 2;
+    const viewBoxH = (maxY - minY) + HEX_SIZE * 2;
+
+    // Constants for rendering offset - we want to shift everything so (viewBoxX, viewBoxY) becomes (0,0) visually?
+    // Actually SVG viewBox handles the shifting.
+    // So we don't need X_OFFSET/Y_OFFSET to shift positive, we can just set viewBox to start at minX/minY.
+    // BUT the drawing code uses X_OFFSET and Y_OFFSET. Let's make them 0 and rely on viewBox?
+    // Wait, the drawing code adds X_OFFSET. If we change that, we break drawing unless we update viewBox logic accordingly.
+    // Let's keep existing X_OFFSET/Y_OFFSET as 0 in this scope or remove them from drawing?
+    // The previous code had const X_OFFSET outside. I should update them or compensate.
+
+    // Simpler: Set offsets to 0 here (conceptually) by adjusting viewBox.
+    // The drawing usage implies `x + OFFSET`. 
+    // If we define local renders offsets as 0, then we just need the viewBox to cover the [minX, minY, width, height].
+
+
+    // SMART REPLAY LOGIC
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isPlaying) {
-            interval = setInterval(() => {
-                setReplayTurn(prev => {
-                    if (prev >= maxTurn) {
-                        setIsPlaying(false);
-                        return prev;
-                    }
-                    return prev + 1;
-                });
-            }, 300); // 3-4 turns per second for fluidity
+        if (!isPlaying) return;
+
+        // Calculate delay for the CURRENT turn
+        // If there are events to show, we want to linger on this turn.
+        const hasEvents = activeEvents.length > 0;
+
+        let delay = 300 / speedMultiplier;
+        if (hasEvents) {
+            // "Smart Slowdown": force at least 2000ms if there are events
+            // but respect if user makes it super slow manually? 
+            // The requirement is to make it readable. 2s is good.
+            delay = Math.max(delay, 2000);
         }
-        return () => clearInterval(interval);
-    }, [isPlaying, maxTurn]);
+
+        const timeout = setTimeout(() => {
+            setReplayTurn(prev => {
+                if (prev >= maxTurn) {
+                    setIsPlaying(false);
+                    return prev;
+                }
+                return prev + 1;
+            });
+        }, delay);
+
+        return () => clearTimeout(timeout);
+    }, [isPlaying, replayTurn, maxTurn, activeEvents.length, speedMultiplier]);
 
     // River Segments
     // Pre-calculate all river segments in internal coordinates
@@ -143,14 +220,17 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
 
     const currentRevealed = fogHistory[replayTurn] || new Set();
 
+    // Helper to format CamelCase IDs
+    const formatId = (id: string) => id.replace(/([A-Z])/g, ' $1').trim();
+
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", alignItems: "center", justifyContent: "center", color: "white" }}>
-            <div style={{ marginBottom: "1rem", fontSize: "2rem", fontWeight: "bold", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", alignItems: "center", justifyContent: "flex-start", paddingTop: "1rem", color: "white" }}>
+            <div style={{ marginBottom: "0.5rem", fontSize: "1.5rem", fontWeight: "bold", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
                 Turn: {replayTurn} / {maxTurn}
             </div>
 
-            <div style={{ flex: 1, width: "90%", minHeight: 0, border: "2px solid rgba(255,255,255,0.2)", borderRadius: "12px", padding: "20px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="100%" height="100%" viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight} `} preserveAspectRatio="xMidYMid meet" style={{ maxWidth: "100%", maxHeight: "100%" }}>
+            <div style={{ flex: 1, width: "90%", minHeight: 0, maxHeight: "40vh", border: "2px solid rgba(255,255,255,0.2)", borderRadius: "12px", padding: "10px", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="100%" height="100%" viewBox={`${viewBoxX + X_OFFSET} ${viewBoxY + Y_OFFSET} ${viewBoxW} ${viewBoxH}`} preserveAspectRatio="xMidYMid meet" style={{ maxWidth: "100%", maxHeight: "100%" }}>
 
                     {/* Tiles */}
                     {gameState.map.tiles.map(tile => {
@@ -206,33 +286,89 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
             </div>
 
             {/* Event Log Overlay - Make it absolute or floating? */}
-            <div style={{ height: "60px", marginTop: "1rem", textAlign: "center", minHeight: "60px" }}>
-                {activeEvents.map((e, i) => (
-                    <span key={i} style={{
-                        background: "rgba(0, 0, 0, 0.6)",
-                        border: "1px solid #ffd700",
-                        color: "#ffd700",
-                        padding: "6px 12px",
-                        borderRadius: "20px",
-                        display: "inline-block",
-                        margin: "0 5px",
-                        fontSize: "0.9rem",
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.3)"
-                    }}>
-                        {e.type === "CityFounded" && `City Founded: ${e.data.cityName} `}
-                        {e.type === "TechResearched" && `Tech Researched`}
-                        {e.type === "EraEntered" && `Entered Era: ${e.data.era || "?"} `}
-                        {e.type === "WarDeclared" && `War Declared!`}
-                        {e.type === "CityCaptured" && `City Captured!`}
-                        {e.type === "PeaceMade" && `Peace Treaty Signed`}
-                        {e.type === "VictoryAchieved" && `Victory (${e.data.victoryType})`}
-                    </span>
-                ))}
+            <div data-testid="event-overlay" style={{ height: "60px", marginTop: "1rem", textAlign: "center", minHeight: "60px" }}>
+                {activeEvents.map((e, i) => {
+                    let text = "";
+                    switch (e.type) {
+                        case "CityFounded":
+                            text = `City Founded: ${e.data.cityName}`;
+                            break;
+                        case "TechResearched":
+                            // data should have techId
+                            text = `Researched: ${formatId(e.data.techId)}`;
+                            break;
+                        case "EraEntered":
+                            text = `Entered Era: ${e.data.era || "?"}`;
+                            break;
+                        case "WarDeclared": {
+                            const targetId = (e.data as any).targetId;
+                            if (e.playerId === playerId) {
+                                const targetName = gameState.players.find(p => p.id === targetId)?.civName || "Unknown";
+                                text = `Declared War on ${formatId(targetName)}`;
+                            } else {
+                                const attackerName = gameState.players.find(p => p.id === e.playerId)?.civName || "Unknown";
+                                text = `${formatId(attackerName)} Declared War!`;
+                            }
+                            break;
+                        }
+                        case "CityCaptured":
+                            text = `City Captured: ${e.data.cityName}`;
+                            break;
+                        case "PeaceMade":
+                            text = `Peace Treaty Signed`;
+                            break;
+                        case "VictoryAchieved":
+                            text = `Victory (${e.data.victoryType})`;
+                            break;
+                        case "CivContact":
+                            // Only show if WE met them, not if they met us
+                            if (e.playerId !== playerId) break;
+
+                            // data: { targetId: string }
+                            // Ideally we want the Civ Name. We have gameState.players.
+                            const otherId = e.data.targetId;
+                            const otherCiv = gameState.players.find(p => p.id === otherId)?.civName || "Unknown";
+                            text = `Met Civilization: ${formatId(otherCiv)}`;
+                            break;
+                        case "WonderBuilt":
+                            // data: { wonderId: string } ??
+                            text = `Wonder Completed: ${formatId(e.data.wonderId || "Unknown")}`;
+                            break;
+                        default: text = "";
+                    }
+
+                    if (!text) return null;
+
+                    return (
+                        <span key={i} style={{
+                            background: "rgba(0, 0, 0, 0.6)",
+                            border: "1px solid #ffd700",
+                            color: "#ffd700",
+                            padding: "6px 12px",
+                            borderRadius: "20px",
+                            display: "inline-block",
+                            margin: "0 5px",
+                            fontSize: "0.9rem",
+                            boxShadow: "0 2px 5px rgba(0,0,0,0.3)"
+                        }}>
+                            {text}
+                        </span>
+                    );
+                })}
             </div>
 
             {/* Controls */}
-            <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", marginBottom: "2rem", alignItems: "center", width: "60%", background: "rgba(0,0,0,0.4)", padding: "1rem", borderRadius: "30px" }}>
-                <button onClick={() => setIsPlaying(!isPlaying)} style={{
+            <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", marginBottom: "2rem", alignItems: "center", width: "80%", background: "rgba(0,0,0,0.4)", padding: "1rem", borderRadius: "30px" }}>
+
+                {/* Play/Pause */}
+                <button onClick={() => {
+                    if (!isPlaying && replayTurn >= maxTurn) {
+                        setReplayTurn(0);
+                        setIsPlaying(true);
+                    } else {
+                        setIsPlaying(!isPlaying);
+                    }
+                }} style={{
                     padding: "0",
                     width: "40px",
                     height: "40px",
@@ -249,6 +385,30 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
                 }}>
                     {isPlaying ? "||" : "▶"}
                 </button>
+
+                {/* Speed Controls */}
+                <div style={{ display: "flex", gap: "5px", background: "rgba(0,0,0,0.3)", padding: "5px", borderRadius: "20px" }}>
+                    {[0.5, 1, 2, 4].map(s => (
+                        <button
+                            key={s}
+                            onClick={() => setSpeedMultiplier(s)}
+                            style={{
+                                background: speedMultiplier === s ? "#ffd700" : "transparent",
+                                color: speedMultiplier === s ? "black" : "white",
+                                border: "none",
+                                borderRadius: "15px",
+                                padding: "4px 10px",
+                                cursor: "pointer",
+                                fontWeight: "bold",
+                                fontSize: "0.8rem"
+                            }}
+                        >
+                            {s}x
+                        </button>
+                    ))}
+                </div>
+
+                {/* Scrubber */}
                 <input
                     type="range"
                     min={0}

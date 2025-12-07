@@ -12,6 +12,7 @@ type UnitPanelProps = {
     onFoundCity: () => void;
     onToggleAutoExplore: () => void;
     onFortifyUnit: () => void;
+    onCancelMovement: () => void;
     gameState: GameState;
 };
 
@@ -26,6 +27,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
     onFoundCity,
     onToggleAutoExplore,
     onFortifyUnit,
+    onCancelMovement,
     gameState,
 }) => {
     const stats = React.useMemo(() => getUnitCombatStats(unit, gameState), [unit, gameState]);
@@ -67,6 +69,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
                 {linkedPartner && <span className="hud-chip success">Linked with {linkedPartner.type}</span>}
                 {unit.isAutoExploring && <span className="hud-chip success">Auto Exploring</span>}
                 {unit.state === UnitState.Fortified && <span className="hud-chip success">Fortified</span>}
+                {unit.autoMoveTarget && <span className="hud-chip">Moving...</span>}
                 {unit.statusEffects?.includes("NaturesWrath") && (
                     <span className="hud-chip danger" style={{ borderColor: "#10b981", color: "#10b981" }}>
                         Nature's Wrath: -1 HP/turn
@@ -97,8 +100,14 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
                             {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
                         </button>
                     )}
+                    {unit.autoMoveTarget && isMyTurn && (
+                        <button className="hud-button small ghost" style={{ marginTop: 8 }} onClick={onCancelMovement}>
+                            Cancel Movement
+                        </button>
+                    )}
                 </>
             )}
         </div>
     );
 };
+

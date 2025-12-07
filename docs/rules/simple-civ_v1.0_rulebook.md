@@ -286,9 +286,13 @@
 - **Tie resolution**: if multiple victories same round, Progress outranks Conquest; if still tied, earlier turn order prevails.
 - **Elimination**: civ with zero cities is eliminated; remaining units are removed.
 - **Game Over**:
-  - Upon victory or defeat, a full-screen overlay displays the result.
+  - Upon victory or defeat, a full-screen End Game Experience overlay displays the result.
+  - **Overview Screen**: Shows victory/defeat status, final turn count, final score, and action buttons.
+  - **History Replay**: Interactive map visualization showing turn-by-turn expansion, fog reveals, and key events (city founding, battles, tech research, era transitions, diplomacy changes). Includes playback controls (play/pause, speed adjustment, timeline scrubber) and event notifications.
+  - **Statistics Screen**: Detailed line charts tracking Score, Science, Production, Military, and Territory over the course of the game for all civilizations.
   - **Restart Game**: Allows players to instantly restart the match with the exact same seed, map size, and civilization settings.
   - **Main Menu**: Returns to the title screen to configure a new game.
+  - The game turn counter freezes at the victory moment (`endTurn`) to ensure accurate statistics and replay data.
 
 ## 18. State Indicators & UI Standards
 - **Per-unit flags**: hasAttacked (attack availability), movesLeft (movement), linkedUnitId (army pairing), capturedOnTurn (healing gate).
@@ -300,6 +304,13 @@
   - Show Fortify action for eligible units.
   - Bottom city panel focused on city data; turn panel bottom-right; top tabs for Research, Diplomacy, Codex.
   - Vision states: visible, fogged (seen), shroud (unseen) legend exposed.
+- **Tech Tree UI**:
+  - Full-screen modal overlay with horizontal scrollable layout organized by era (Hearth → Banner → Engine).
+  - Tech cards display: name, cost, prerequisites, unlock type (Unit/Building/Project/Passive), and detailed stats.
+  - Visual states: **Available** (clickable, highlighted border), **Current** (active research with progress bar), **Researched** (checkmark, dimmed), **Locked** (grayed out, requires prerequisites/era gates).
+  - Building unlocks show: yields, bonuses, conditional effects, and projects they unlock.
+  - Civ-specific unique buildings (Jade Granary, Titan's Core, Spirit Observatory) displayed on relevant tech cards.
+  - Era progression gates clearly indicated (e.g., "Requires 2 Hearth techs" for Banner era).
 - **Status colors**: use existing HUD styles (chips/pills) to denote peace/war, garrison, fired, fortified, etc.
 
 ## 19. Rules Priority & Engine Hooks

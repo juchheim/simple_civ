@@ -69,9 +69,9 @@ export const TurnTasks: React.FC<TurnTasksProps> = ({
                         </div>
                     </div>
                     {task.kind === "research" ? (
-                        <button className="hud-button small" onClick={onOpenTechTree}>Open</button>
+                        <button className="hud-button small pulse" onClick={onOpenTechTree}>Open</button>
                     ) : task.coord ? (
-                        <button className="hud-button small" onClick={() => onFocusCity(task.coord!)}>Focus</button>
+                        <button className="hud-button small pulse" onClick={() => onFocusCity(task.coord!)}>Focus</button>
                     ) : null}
                 </div>
             ))}

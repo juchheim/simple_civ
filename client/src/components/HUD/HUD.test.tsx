@@ -138,6 +138,7 @@ describe("HUD", () => {
                 onSave={vi.fn()}
                 onLoad={vi.fn()}
                 onRestart={vi.fn()}
+                onResign={vi.fn()}
                 onQuit={vi.fn()}
                 showShroud={true}
                 onToggleShroud={vi.fn()}
@@ -177,6 +178,7 @@ describe("HUD", () => {
                 onSave={vi.fn()}
                 onLoad={vi.fn()}
                 onRestart={vi.fn()}
+                onResign={vi.fn()}
                 onQuit={vi.fn()}
                 showShroud={true}
                 onToggleShroud={vi.fn()}
@@ -227,6 +229,7 @@ describe("HUD", () => {
                 onSave={vi.fn()}
                 onLoad={vi.fn()}
                 onRestart={vi.fn()}
+                onResign={vi.fn()}
                 onQuit={vi.fn()}
                 showShroud={true}
                 onToggleShroud={vi.fn()}
@@ -251,5 +254,64 @@ describe("HUD", () => {
             playerId: "p1",
             targetPlayerId: "p2",
         });
+    });
+
+    it("does not block turn when tech tree is completed", () => {
+        // Mock a player with NO available techs (tech tree complete)
+        // We'll mock pickBestAvailableTech to return null
+        vi.spyOn(Engine, "pickBestAvailableTech").mockReturnValue(null);
+
+        const gameState = createGameState({
+            players: [
+                {
+                    id: "p1",
+                    civName: "Alpha",
+                    color: "#fff",
+                    techs: [], // Doesn't matter if we mock the helper
+                    currentTech: null, // No current tech selected
+                    completedProjects: [],
+                    isEliminated: false,
+                    currentEra: EraId.Primitive,
+                },
+            ],
+            currentPlayerId: "p1",
+        });
+
+        const onAction = vi.fn();
+
+        render(
+            <HUD
+                gameState={gameState}
+                selectedCoord={null}
+                selectedUnitId={null}
+                onAction={onAction}
+                onSelectUnit={vi.fn()}
+                onShowTechTree={vi.fn()}
+                playerId="p1"
+                onSave={vi.fn()}
+                onLoad={vi.fn()}
+                onRestart={vi.fn()}
+                onResign={vi.fn()}
+                onQuit={vi.fn()}
+                showShroud={true}
+                onToggleShroud={vi.fn()}
+                showYields={false}
+                onToggleYields={vi.fn()}
+                onSelectCoord={vi.fn()}
+                onCenterCity={vi.fn()}
+                mapView={mockMapView}
+                onNavigateMap={vi.fn()}
+                showGameMenu={false}
+                onToggleGameMenu={vi.fn()}
+            />,
+        );
+
+        // Should NOT show blocking tasks
+        const pill = screen.getByText(/Blocking: 0/i);
+        expect(pill).toBeInTheDocument();
+
+        // Should allow updating turn
+        // Note: The "End Turn" button is inside TurnSummary, which we can't easily click here without more setup,
+        // but checking blocking count is sufficient for this logic unit test.
     });
 });

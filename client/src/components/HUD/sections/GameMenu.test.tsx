@@ -7,6 +7,7 @@ describe("GameMenu", () => {
         onSave: vi.fn(),
         onLoad: vi.fn(),
         onRestart: vi.fn(),
+        onResign: vi.fn(),
         onQuit: vi.fn(),
         showShroud: true,
         onToggleShroud: vi.fn(),

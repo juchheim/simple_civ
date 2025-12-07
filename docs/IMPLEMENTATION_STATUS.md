@@ -18,7 +18,11 @@ Last Updated: 2025-11-30
     - **War Escalation**: AI aggression scales with time; "Bloodthirsty" mode in late game (Turn 50+) refuses peace.
     - **Tactical Combat**: AI uses "Smart Buildup" for war prep, coordinates attacks, and uses "Clear the Way" tactics for city capture.
     - **Diplomacy**: AI respects peace durations but can bypass them if overwhelming (Domination Bypass).
-- **Victory/Loss UI**: Full-screen Victory/Defeat overlays with "Restart Game" (same seed/settings) and "Main Menu" options.
+- **End Game Experience**:
+    - **History Replay**: Interactive map scrubbing showing turn-by-turn expansion, fog reveals, and key events (Cities founded, Battles, etc.) with responsive SVG rendering.
+    - **Statistics**: Detailed line charts tracking Score, Science, Production, Military, and Territory over the course of the game.
+    - **Visuals**: Polished Victory/Defeat screens with dynamic backgrounds based on the winning Era/Civilization.
+    - **Engine History**: Efficient delta-compressed history tracking for minimal memory footprint.
 - **Balance Adjustments (v1.0)**:
     - **Starborne Seekers**: Nerfed Spirit Observatory (Cost 300). Removed Sacred Site Science Bonus. Restored starting SpearGuard.
     - **River League**: Buffed river bonus to +1 Production per 2 river tiles (was 1/3). Buffed River Guardians to +2 Defense near rivers. Auto-assigner prioritizes river tiles.

@@ -26,6 +26,26 @@ export const unitImages: Record<string, string> = {
     Titan: TitanImg,
 };
 
+/** Maps internal unit type IDs to user-friendly display names */
+export const unitDisplayNames: Record<string, string> = {
+    Settler: "Settler",
+    Scout: "Scout",
+    SpearGuard: "Spear Guard",
+    BowGuard: "Bow Guard",
+    Riders: "Riders",
+    RiverBoat: "Coastal Skiff",
+    ArmyScout: "Scout Army",
+    ArmySpearGuard: "Spear Guard Army",
+    ArmyBowGuard: "Bow Guard Army",
+    ArmyRiders: "Riders Army",
+    Titan: "Titan",
+};
+
+/** Get the display name for a unit type, with fallback to the raw type */
+export function getUnitDisplayName(unitType: string): string {
+    return unitDisplayNames[unitType] || unitType;
+}
+
 // Terrain asset imports
 import PlainsImg from "../public/terrain/Plains.png";
 import HillsImg from "../public/terrain/Hills.png";

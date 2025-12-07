@@ -220,7 +220,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.Titan]: { atk: 30, def: 20, rng: 1, move: 2, hp: 60, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
+    [UnitType.Titan]: { atk: 30, def: 8, rng: 1, move: 2, hp: 30, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
 };
 
 export type BuildingData = {

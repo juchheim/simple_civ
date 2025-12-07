@@ -26,7 +26,7 @@ import {
     handleRevokeVisionShare,
     handleSetDiplomacy,
 } from "./actions/diplomacy.js";
-import { handleEndTurn } from "./turn-lifecycle.js";
+import { handleEndTurn, finalizeVictory } from "./turn-lifecycle.js";
 import { enforceLinkedUnitIntegrity } from "./helpers/movement.js";
 
 export function applyAction(state: GameState, action: Action): GameState {
@@ -111,6 +111,9 @@ export function applyAction(state: GameState, action: Action): GameState {
         case "EndTurn":
             updatedState = handleEndTurn(nextState, action);
             break;
+        case "Resign":
+            updatedState = handleResign(nextState, action);
+            break;
         default:
             updatedState = nextState;
             break;
@@ -157,6 +160,22 @@ function handleChooseTech(state: GameState, action: { type: "ChooseTech"; player
         progress: savedProgress,
         cost: tech.cost,
     };
+
+    return state;
+}
+
+function handleResign(state: GameState, action: { type: "Resign"; playerId: string }): GameState {
+    const player = state.players.find(p => p.id === action.playerId);
+    if (!player) return state;
+
+    player.isEliminated = true;
+    state.units = state.units.filter(u => u.ownerId !== action.playerId);
+
+    // Find opponent to award victory to
+    const opponent = state.players.find(p => p.id !== action.playerId && !p.isEliminated);
+    if (opponent) {
+        finalizeVictory(state, opponent.id, "Resignation");
+    }
 
     return state;
 }

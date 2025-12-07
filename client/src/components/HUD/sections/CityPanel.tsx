@@ -1,5 +1,5 @@
 import React from "react";
-import { City, GameState, HexCoord, Unit, getCityYields, getTileYields, getCityCenterYields, isTileAdjacentToRiver } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Unit, getCityYields, getTileYields, getCityCenterYields, isTileAdjacentToRiver, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType, ProjectId, getProjectCost, getUnitCost } from "@simple-civ/engine";
 import { hexDistance } from "../../../utils/hex";
 import { getTerrainColor, hexToPixel } from "../../GameMap/geometry";
 import { CityBuildOptions } from "../hooks";
@@ -65,6 +65,65 @@ export const CityPanel: React.FC<CityPanelProps> = ({
             .replace(/_/g, " ")
             .replace(/([A-Z])/g, " $1")
             .trim();
+    };
+
+    const getUnitTooltip = (unitId: UnitType): string => {
+        const stats = UNITS[unitId];
+        if (!stats) return "";
+        const actualCost = getUnitCost(unitId, gameState.turn);
+        const lines: string[] = [];
+        if (actualCost !== stats.cost) {
+            lines.push(`Cost: ${actualCost} Production (base: ${stats.cost})`);
+        } else {
+            lines.push(`Cost: ${stats.cost} Production`);
+        }
+        lines.push(`Attack: ${stats.atk} | Defense: ${stats.def} | HP: ${stats.hp}`);
+        lines.push(`Move: ${stats.move} | Range: ${stats.rng} | Vision: ${stats.vision}`);
+        if (stats.canCaptureCity) lines.push("Can capture cities");
+        return lines.join("\n");
+    };
+
+    const getBuildingTooltip = (buildingId: BuildingType): string => {
+        const data = BUILDINGS[buildingId];
+        if (!data) return "";
+        const lines = [`Cost: ${data.cost} Production`];
+        const yields = [];
+        if (data.yieldFlat?.F) yields.push(`+${data.yieldFlat.F} Food`);
+        if (data.yieldFlat?.P) yields.push(`+${data.yieldFlat.P} Production`);
+        if (data.yieldFlat?.S) yields.push(`+${data.yieldFlat.S} Science`);
+        if (yields.length > 0) lines.push(yields.join(", "));
+        if (data.defenseBonus) lines.push(`+${data.defenseBonus} City Defense`);
+        if (data.cityAttackBonus) lines.push(`+${data.cityAttackBonus} City Attack`);
+        if (data.growthMult) lines.push(`${Math.round((1 - data.growthMult) * 100)}% faster growth`);
+        if (data.conditional) lines.push(data.conditional);
+        return lines.join("\n");
+    };
+
+    const getProjectTooltip = (projectId: ProjectId): string => {
+        const data = PROJECTS[projectId];
+        if (!data) return "";
+        const actualCost = getProjectCost(projectId, gameState.turn);
+        const lines: string[] = [];
+        if (data.scalesWithTurn && actualCost !== data.cost) {
+            lines.push(`Cost: ${actualCost} Production (base: ${data.cost})`);
+        } else {
+            lines.push(`Cost: ${data.cost} Production`);
+        }
+        const effect = data.onComplete;
+        if (effect.type === "Milestone") {
+            if (effect.payload.scienceBonusCity) lines.push(`+${effect.payload.scienceBonusCity} Science in this city`);
+            if (effect.payload.scienceBonusPerCity) lines.push(`+${effect.payload.scienceBonusPerCity} Science per city`);
+            if (effect.payload.unlock) lines.push(`Unlocks: ${formatBuildId(effect.payload.unlock)}`);
+        } else if (effect.type === "Victory") {
+            lines.push("Completes Progress Victory!");
+        } else if (effect.type === "Transform") {
+            lines.push(`Upgrades ${formatBuildId(effect.payload.baseUnit)} to ${formatBuildId(effect.payload.armyUnit)}`);
+        } else if (effect.type === "GrantYield") {
+            const grant = effect.payload;
+            if (grant.F) lines.push(`Grants +${grant.F} Food`);
+            if (grant.S) lines.push(`Grants +${grant.S} Science`);
+        }
+        return lines.join("\n");
     };
 
     const isEnemyCity = city.ownerId !== playerId;
@@ -181,30 +240,39 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                                 const key = `Unit:${unit.id}`;
                                 const saved = city.savedProduction?.[key];
                                 return (
-                                    <button key={unit.id} className="hud-button small" onClick={() => onBuild("Unit", unit.id)}>
-                                        Train {unit.name}
-                                        {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                                    </button>
+                                    <div key={unit.id} className="production-button-wrapper">
+                                        <button className="hud-button small" onClick={() => onBuild("Unit", unit.id)} style={{ width: "100%" }}>
+                                            Train {unit.name}
+                                            {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                        </button>
+                                        <div className="production-tooltip">{getUnitTooltip(unit.id as UnitType)}</div>
+                                    </div>
                                 );
                             })}
                             {buildOptions.buildings.map(building => {
                                 const key = `Building:${building.id}`;
                                 const saved = city.savedProduction?.[key];
                                 return (
-                                    <button key={building.id} className="hud-button small" onClick={() => onBuild("Building", building.id)}>
-                                        Construct {building.name}
-                                        {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                                    </button>
+                                    <div key={building.id} className="production-button-wrapper">
+                                        <button className="hud-button small" onClick={() => onBuild("Building", building.id)} style={{ width: "100%" }}>
+                                            Construct {building.name}
+                                            {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                        </button>
+                                        <div className="production-tooltip">{getBuildingTooltip(building.id as BuildingType)}</div>
+                                    </div>
                                 );
                             })}
                             {buildOptions.projects.map(project => {
                                 const key = `Project:${project.id}`;
                                 const saved = city.savedProduction?.[key];
                                 return (
-                                    <button key={project.id} className="hud-button small" onClick={() => onBuild("Project", project.id)}>
-                                        Launch {project.name}
-                                        {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                                    </button>
+                                    <div key={project.id} className="production-button-wrapper">
+                                        <button className="hud-button small" onClick={() => onBuild("Project", project.id)} style={{ width: "100%" }}>
+                                            Launch {project.name}
+                                            {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                        </button>
+                                        <div className="production-tooltip">{getProjectTooltip(project.id as ProjectId)}</div>
+                                    </div>
                                 );
                             })}
                         </div>

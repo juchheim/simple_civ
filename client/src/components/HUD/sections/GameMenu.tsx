@@ -5,6 +5,7 @@ type GameMenuProps = {
     onLoad: () => void;
     onRestart: () => void;
     onQuit: () => void;
+    onResign: () => void;
     showShroud: boolean;
     onToggleShroud: () => void;
     showYields: boolean;
@@ -16,6 +17,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     onLoad,
     onRestart,
     onQuit,
+    onResign,
     showShroud,
     onToggleShroud,
     showYields,
@@ -160,6 +162,22 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                     <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 0" }} />
                     <button className="hud-button danger" onClick={onQuit}>
                         Quit to Main Menu
+                    </button>
+                    <button
+                        className="hud-button"
+                        onClick={() => {
+                            if (window.confirm("Are you sure you want to Resign? This will end the game immediately.")) {
+                                onResign();
+                            }
+                        }}
+                        style={{
+                            marginTop: "10px",
+                            background: "rgba(220, 20, 60, 0.2)",
+                            border: "1px solid rgba(220, 20, 60, 0.5)",
+                            color: "#ff6b6b",
+                        }}
+                    >
+                        Resign Game
                     </button>
                 </div>
             </div>

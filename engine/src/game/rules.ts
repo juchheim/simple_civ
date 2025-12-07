@@ -7,6 +7,7 @@ import {
     Yields,
     TechId,
     UnitType,
+    UnitDomain,
     ProjectId,
 } from "../core/types.js";
 import {
@@ -307,6 +308,23 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // "After Army Doctrine, a city may build Form Army..."
         // Those are Projects, not Units directly.
         if (uId.startsWith("Army")) return false; // Cannot build Army units directly
+
+        // Naval units require city to be adjacent to water (Coast or DeepSea)
+        if (data.domain === UnitDomain.Naval) {
+            const neighbors = state.map.tiles.filter(t => hexDistance(t.coord, city.coord) === 1);
+
+            // Riverboat is restricted to Coast only (no DeepSea)
+            if (uId === UnitType.RiverBoat) {
+                const hasCoastAccess = neighbors.some(t => t.terrain === TerrainType.Coast);
+                if (!hasCoastAccess) return false;
+            } else {
+                const hasWaterAccess = neighbors.some(t =>
+                    t.terrain === TerrainType.Coast ||
+                    t.terrain === TerrainType.DeepSea
+                );
+                if (!hasWaterAccess) return false;
+            }
+        }
 
         return true;
     }

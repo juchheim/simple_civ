@@ -1,5 +1,5 @@
 import React from "react";
-import { GameState, HexCoord, Action, UnitState } from "@simple-civ/engine";
+import { GameState, HexCoord, Action, UnitState, pickBestAvailableTech } from "@simple-civ/engine";
 import { MapViewport } from "./GameMap";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
@@ -21,6 +21,7 @@ interface HUDProps {
     onLoad: () => void;
     onRestart: () => void;
     onQuit: () => void;
+    onResign: () => void; // New prop
     showShroud: boolean;
     onToggleShroud: () => void;
     showYields: boolean;
@@ -33,7 +34,7 @@ interface HUDProps {
     onToggleGameMenu: (show: boolean) => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap, showGameMenu, onToggleGameMenu }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, onResign, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap, showGameMenu, onToggleGameMenu }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
@@ -50,7 +51,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         onSelectUnit,
     });
 
-    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore, handleFortifyUnit } = useUnitActions({
+    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore, handleFortifyUnit, handleCancelMovement } = useUnitActions({
         isMyTurn,
         selectedUnit,
         linkCandidate,
@@ -104,7 +105,11 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         if (!isMyTurn || !player) return [];
         const required: { id: string; kind: "research" | "city"; label: string; coord?: HexCoord }[] = [];
         if (!player.currentTech) {
-            required.push({ id: "research", kind: "research", label: "Select new research" });
+            // Only require selection if there is available research
+            const nextTech = pickBestAvailableTech(player);
+            if (nextTech) {
+                required.push({ id: "research", kind: "research", label: "Select new research" });
+            }
         }
         for (const city of cities) {
             if (city.ownerId !== playerId) continue;
@@ -143,16 +148,18 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         (coord: HexCoord) => {
             onSelectCoord(coord);
             onSelectUnit(null);
+            onCenterCity(coord);
         },
-        [onSelectCoord, onSelectUnit],
+        [onSelectCoord, onSelectUnit, onCenterCity],
     );
 
     const handleFocusUnit = React.useCallback(
         (unitId: string, coord: HexCoord) => {
             onSelectCoord(coord);
             onSelectUnit(unitId);
+            onCenterCity(coord);
         },
-        [onSelectCoord, onSelectUnit],
+        [onSelectCoord, onSelectUnit, onCenterCity],
     );
 
     const canEndTurn = isMyTurn && blockingTasks.length === 0;
@@ -232,6 +239,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                             onLoad={onLoad}
                             onRestart={onRestart}
                             onQuit={onQuit}
+                            onResign={onResign}
                             showShroud={showShroud}
                             onToggleShroud={onToggleShroud}
                             showYields={showYields}
@@ -261,6 +269,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                                 onFoundCity={handleFoundCity}
                                 onToggleAutoExplore={handleToggleAutoExplore}
                                 onFortifyUnit={handleFortifyUnit}
+                                onCancelMovement={handleCancelMovement}
                                 gameState={gameState}
                             />
                         )}

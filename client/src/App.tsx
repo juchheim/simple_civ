@@ -128,10 +128,11 @@ function App() {
                 players.push({ id: `p${i + 1}`, civName: aiCiv.id, color: aiColor, ai: true });
             }
 
-            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed };
+            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined };
             const state = startNewGame(settings);
             console.info("[World] seed", state.seed);
             setShowTechTree(true);
+            setShowGameMenu(false);
             setShowTitleScreen(false);
             setSelectedCoord(null);
             setSelectedUnitId(null);
@@ -178,6 +179,7 @@ function App() {
             if (!restarted) return;
             console.info("[World] Restarted with previous settings");
             setShowTechTree(true);
+            setShowGameMenu(false);
             setSelectedCoord(null);
             setSelectedUnitId(null);
         } catch (error: any) {
@@ -185,6 +187,14 @@ function App() {
             alert(`Failed to restart game: ${error?.message ?? error}`);
         }
     }, [lastGameSettings, restartLastGame, setSelectedCoord, setSelectedUnitId, setShowTechTree]);
+
+    const handleResign = useCallback(() => {
+        handleAction({ type: "Resign", playerId });
+        setShowGameMenu(false);
+        setShowTechTree(false);
+        setSelectedCoord(null);
+        setSelectedUnitId(null);
+    }, [handleAction, playerId]);
 
     // Reset cityToCenter after a brief delay to allow re-centering on same city
     useEffect(() => {
@@ -402,11 +412,13 @@ function App() {
                 onSave={handleSaveGame}
                 onLoad={handleLoadGame}
                 onRestart={handleRestart}
+                onResign={handleResign}
                 onQuit={() => {
                     clearSession();
                     setSelectedCoord(null);
                     setSelectedUnitId(null);
                     setShowTechTree(false);
+                    setShowGameMenu(false);
                     setCityToCenter(null);
                     setMapView(null);
                     setShowTitleScreen(true);
@@ -439,6 +451,7 @@ function App() {
                         setSelectedCoord(null);
                         setSelectedUnitId(null);
                         setShowTechTree(false);
+                        setShowGameMenu(false);
                         setCityToCenter(null);
                         setMapView(null);
                         setShowTitleScreen(true);

@@ -22,7 +22,7 @@ export function createMoveContext(unit: Unit, targetTile: Tile, state?: GameStat
     if (state) {
         stats.move = getUnitMaxMoves(unit, state);
     }
-    ensureTerrainEntry(stats, targetTile);
+    ensureTerrainEntry(stats, targetTile, unit.type);
     const cost = computeMoveCost(unit, stats, targetTile);
     return {
         stats,
@@ -31,12 +31,16 @@ export function createMoveContext(unit: Unit, targetTile: Tile, state?: GameStat
     };
 }
 
-export function ensureTerrainEntry(unitStats: UnitStats, targetTile: Tile) {
+export function ensureTerrainEntry(unitStats: UnitStats, targetTile: Tile, unitType?: UnitType) {
     if (unitStats.domain === UnitDomain.Land && (targetTile.terrain === TerrainType.Coast || targetTile.terrain === TerrainType.DeepSea)) {
         throw new Error("Land units cannot enter water");
     }
     if (unitStats.domain === UnitDomain.Naval && (targetTile.terrain !== TerrainType.Coast && targetTile.terrain !== TerrainType.DeepSea)) {
         throw new Error("Naval units cannot enter land");
+    }
+    // Riverboat is restricted to Coast only (no DeepSea)
+    if (unitType === UnitType.RiverBoat && targetTile.terrain === TerrainType.DeepSea) {
+        throw new Error("Riverboat can only traverse coastal waters");
     }
     if (targetTile.terrain === TerrainType.Mountain) {
         throw new Error("Impassable terrain");

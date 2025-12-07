@@ -9,7 +9,7 @@ import {
 } from "@simple-civ/engine";
 
 type PlayerSetup = { id: string; civName: string; color: string; ai?: boolean };
-type GameSetup = { mapSize: MapSize; players: PlayerSetup[]; seed?: number };
+type GameSetup = { mapSize: MapSize; players: PlayerSetup[]; seed?: number; startWithRandomSeed?: boolean };
 type SavedGame = { timestamp: number; gameState: GameState };
 
 const SAVE_KEY = "simple-civ-save";
@@ -92,9 +92,18 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
     const restartLastGame = useCallback(() => {
         if (!lastGameSettings) return false;
         skipPersistenceRef.current = false;
-        const state = generateWorld(lastGameSettings);
+
+        const settings = { ...lastGameSettings };
+        if (settings.startWithRandomSeed) {
+            delete settings.seed;
+        }
+
+        const state = generateWorld(settings);
         setGameState(state);
         setPlayerId("p1");
+
+        // If we generated a new seed, ensure it's saved in the new settings, but keep the flag
+        setLastGameSettings({ ...settings, seed: state.seed });
         return true;
     }, [lastGameSettings]);
 

@@ -53,6 +53,11 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
         onAction({ type: "FortifyUnit", playerId, unitId: selectedUnit.id });
     }, [selectedUnit, playerId, onAction]);
 
+    const handleCancelMovement = React.useCallback(() => {
+        if (!selectedUnit) return;
+        onAction({ type: "ClearAutoMoveTarget", playerId, unitId: selectedUnit.id });
+    }, [selectedUnit, playerId, onAction]);
+
     return {
         canLinkUnits,
         canUnlinkUnits,
@@ -61,6 +66,8 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
         handleFoundCity,
         handleToggleAutoExplore,
         handleFortifyUnit,
+        handleCancelMovement,
     };
 };
+
 

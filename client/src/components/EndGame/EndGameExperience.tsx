@@ -61,7 +61,7 @@ export const EndGameExperience: React.FC<EndGameExperienceProps> = ({
         zIndex: 2000,
         overflow: "hidden",
         backgroundColor: "#000",
-        fontFamily: "'Cinzel', serif", // Assuming global font or fallback
+
         color: "white",
         opacity,
         transition: "opacity 1s ease-in-out",
@@ -80,13 +80,13 @@ export const EndGameExperience: React.FC<EndGameExperienceProps> = ({
     };
 
     const headerStyle: React.CSSProperties = {
-        padding: "2rem",
+        padding: "1rem",
         textAlign: "center",
         flexShrink: 0,
     };
 
     const titleStyle: React.CSSProperties = {
-        fontSize: "4rem",
+        fontSize: "3rem",
         fontWeight: "bold",
         textTransform: "uppercase",
         background: isVictory
@@ -124,9 +124,14 @@ export const EndGameExperience: React.FC<EndGameExperienceProps> = ({
             <div style={contentStyle}>
                 <div style={headerStyle}>
                     <h1 style={titleStyle}>{isVictory ? "VICTORY" : "DEFEAT"}</h1>
-                    <div style={{ fontSize: "1.5rem", color: "#ccc" }}>
-                        {isVictory ? `The ${player?.civName} have stood the test of time.` : "Your civilization has fallen."}
+                    <div style={{ fontSize: "1.2rem", color: "#ccc" }}>
+                        {isVictory ? `The ${player?.civName.replace(/([A-Z])/g, ' $1').trim()} have stood the test of time.` : "Your civilization has fallen."}
                     </div>
+                    {isVictory && gameState.victoryType && (
+                        <div style={{ fontSize: "1.2rem", color: "var(--color-highlight)", fontWeight: "bold", marginTop: "0.5rem" }}>
+                            {gameState.victoryType === "Progress" ? "Scientific Victory" : gameState.victoryType === "Conquest" ? "Conquest Victory" : "Victory"}
+                        </div>
+                    )}
                 </div>
 
                 <div style={navStyle}>
@@ -163,12 +168,13 @@ export const EndGameExperience: React.FC<EndGameExperienceProps> = ({
                                         style={{
                                             padding: "1rem 2rem",
                                             fontSize: "1.2rem",
-                                            background: "rgba(50, 205, 50, 0.8)",
-                                            border: "none",
+                                            background: "var(--color-highlight-strong)",
+                                            border: "2px solid var(--color-highlight)",
                                             borderRadius: "2rem",
-                                            color: "white",
+                                            color: "var(--color-bg-main)",
+                                            fontWeight: "bold",
                                             cursor: "pointer",
-                                            boxShadow: "0 0 15px rgba(50, 205, 50, 0.4)"
+                                            boxShadow: "0 0 15px rgba(205, 138, 54, 0.4)"
                                         }}
                                     >
                                         Play Again
@@ -178,12 +184,12 @@ export const EndGameExperience: React.FC<EndGameExperienceProps> = ({
                                         style={{
                                             padding: "1rem 2rem",
                                             fontSize: "1.2rem",
-                                            background: "rgba(220, 20, 60, 0.8)",
-                                            border: "none",
+                                            background: "rgba(0,0,0,0.3)",
+                                            border: "2px solid var(--color-text-muted)",
                                             borderRadius: "2rem",
-                                            color: "white",
+                                            color: "var(--color-text-muted)",
                                             cursor: "pointer",
-                                            boxShadow: "0 0 15px rgba(220, 20, 60, 0.4)"
+                                            boxShadow: "none"
                                         }}
                                     >
                                         Return to Menu

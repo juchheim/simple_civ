@@ -295,8 +295,9 @@ function processEndOfRound(state: GameState) {
     eliminationSweep(state);
 }
 
-function finalizeVictory(state: GameState, playerId: string, victoryType: "Progress" | "Conquest") {
+export function finalizeVictory(state: GameState, playerId: string, victoryType: "Progress" | "Conquest" | "Resignation") {
     state.winnerId = playerId;
+    state.victoryType = victoryType;
     state.endTurn = state.endTurn ?? state.turn;
     logEvent(state, HistoryEventType.VictoryAchieved, playerId, { victoryType });
 
@@ -308,9 +309,9 @@ function healUnitsAtStart(state: GameState, playerId: string) {
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
         const stats = UNITS[unit.type];
 
-        // Titan regeneration: always heals 2 HP
+        // Titan regeneration: always heals 1 HP
         if (unit.type === UnitType.Titan) {
-            unit.hp = Math.min(unit.maxHp, unit.hp + 2);
+            unit.hp = Math.min(unit.maxHp, unit.hp + 1);
             continue;
         }
 

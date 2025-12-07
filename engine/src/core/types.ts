@@ -259,6 +259,7 @@ export type GameState = {
     contacts: ContactState;
     diplomacyOffers: DiplomacyOffer[];
     winnerId?: string;
+    victoryType?: "Progress" | "Conquest" | "Resignation";
     endTurn?: number;
     usedCityNames?: string[]; // Track all city names ever used in this game
     history?: GameHistory;
@@ -330,4 +331,5 @@ export type Action =
     | { type: "ClearAutoExplore"; playerId: string; unitId: string }
     | { type: "FortifyUnit"; playerId: string; unitId: string }
     | { type: "SwapUnits"; playerId: string; unitId: string; targetUnitId: string }
+    | { type: "Resign"; playerId: string }
     | { type: "EndTurn"; playerId: string };

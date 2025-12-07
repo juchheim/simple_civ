@@ -24,7 +24,7 @@ export const buildDiplomacyRows = (gameState: GameState, playerId: string): Dipl
     const playerPower = estimateMilitaryPower(playerId, gameState);
 
     return gameState.players
-        .filter(p => p.id !== playerId)
+        .filter(p => p.id !== playerId && !p.isEliminated)
         .map(p => {
             const state = gameState.diplomacy[playerId]?.[p.id] ?? DiplomacyState.Peace;
             const hasContact = !!gameState.contacts?.[playerId]?.[p.id];
@@ -55,3 +55,4 @@ export const buildDiplomacyRows = (gameState: GameState, playerId: string): Dipl
         })
         .filter(row => row.hasContact);
 };
+

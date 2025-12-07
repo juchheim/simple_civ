@@ -94,7 +94,7 @@ export const StatsScreen: React.FC<StatsScreenProps> = ({ gameState, playerId })
     });
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", padding: "2rem", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", padding: "1rem", boxSizing: "border-box" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
                 <button style={tabStyle(activeTab === "score")} onClick={() => setActiveTab("score")}>Score</button>
                 <button style={tabStyle(activeTab === "science")} onClick={() => setActiveTab("science")}>Science</button>
@@ -103,7 +103,7 @@ export const StatsScreen: React.FC<StatsScreenProps> = ({ gameState, playerId })
                 <button style={tabStyle(activeTab === "territory")} onClick={() => setActiveTab("territory")}>Territory</button>
             </div>
 
-            <div style={{ flex: 1, background: "rgba(0,0,0,0.3)", borderRadius: "1rem", padding: "1rem" }}>
+            <div style={{ flex: 1, minHeight: 0, overflow: "hidden", background: "rgba(0,0,0,0.3)", borderRadius: "1rem", padding: "1rem" }}>
                 {Object.keys(statsHistory).length === 0 ? (
                     <div style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", marginTop: "20%" }}>No stats recorded for this game.</div>
                 ) : (
@@ -115,7 +115,7 @@ export const StatsScreen: React.FC<StatsScreenProps> = ({ gameState, playerId })
                 {players.map(p => (
                     <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: p.id === playerId ? "bold" : "normal" }}>
                         <div style={{ width: "12px", height: "12px", borderRadius: "50%", background: p.color, border: p.id === playerId ? "2px solid white" : "none" }}></div>
-                        <span style={{ color: p.id === playerId ? "white" : "rgba(255,255,255,0.8)" }}>{p.civName}</span>
+                        <span style={{ color: p.id === playerId ? "white" : "rgba(255,255,255,0.8)" }}>{p.civName.replace(/([A-Z])/g, ' $1').trim()}</span>
                     </div>
                 ))}
             </div>

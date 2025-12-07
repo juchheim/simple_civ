@@ -285,7 +285,7 @@
 }
 
 .hud-menu-scroll {
-    max-height: 260px;
+    max-height: 360px;
     overflow: auto;
     padding-right: 4px;
 }
@@ -713,4 +713,68 @@
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 8px;
+}
+
+@keyframes pulse-border {
+    0% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7);
+        border-color: var(--color-highlight);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(234, 179, 8, 0);
+        border-color: var(--color-highlight-strong);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+        border-color: var(--color-highlight);
+    }
+}
+
+.hud-button.pulse {
+    animation: pulse-border 2s infinite;
+}
+
+/* Production tooltip - instant display */
+.production-button-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.production-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--color-text-main);
+    white-space: pre-line;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    min-width: 180px;
+    max-width: 280px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 80ms ease, visibility 80ms ease;
+}
+
+.production-button-wrapper:hover .production-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+.production-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--color-border);
 }
