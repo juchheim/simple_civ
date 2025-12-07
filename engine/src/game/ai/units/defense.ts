@@ -14,7 +14,9 @@ import {
     tileDefenseScore,
     warGarrisonCap,
     getThreatLevel,
-    getBestSkirmishPosition
+    getBestSkirmishPosition,
+    findSafeRetreatTile,
+    shouldRetreat
 } from "./unit-helpers.js";
 
 export function defendCities(state: GameState, playerId: string): GameState {
@@ -318,10 +320,10 @@ export function retreatWounded(state: GameState, playerId: string): GameState {
     const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
     if (!friendlyCities.length) return next;
 
+    // v2.0: Use enhanced retreat logic with combat evaluation
     const units = next.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
-        u.hp <= 4 &&
         UNITS[u.type].domain !== "Civilian"
     );
 
@@ -329,10 +331,30 @@ export function retreatWounded(state: GameState, playerId: string): GameState {
         const onCity = friendlyCities.some(c => hexEquals(c.coord, unit.coord));
         if (onCity) continue;
 
+        // Use smart retreat evaluation instead of just HP check
+        const needsRetreat = shouldRetreat(unit, next, playerId);
+        if (!needsRetreat) continue;
+
         const targetCity = nearestByDistance(unit.coord, friendlyCities, c => c.coord);
         if (!targetCity) continue;
 
-        next = stepToward(next, playerId, unit.id, targetCity.coord);
+        // v2.0: Use danger-aware pathfinding to avoid retreating into enemies
+        const safeTile = findSafeRetreatTile(next, playerId, unit, targetCity.coord);
+        if (safeTile) {
+            const moved = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: unit.id,
+                to: safeTile
+            });
+            if (moved !== next) {
+                console.info(`[AI RETREAT] ${playerId} ${unit.type} retreating safely toward ${targetCity.name}`);
+                next = moved;
+            }
+        } else {
+            // No safe retreat - stay and fortify or try original stepToward as fallback
+            console.info(`[AI RETREAT] ${playerId} ${unit.type} has no safe retreat, holding position`);
+        }
     }
 
     return next;
@@ -407,6 +429,111 @@ export function repositionRanged(state: GameState, playerId: string): GameState 
             if (moved !== next) {
                 next = moved;
                 break;
+            }
+        }
+    }
+
+    return next;
+}
+
+// --- AID VULNERABLE UNITS (v2.0) ---
+
+/**
+ * Find allied units that are in danger and lacking support.
+ * Returns units that would benefit from nearby reinforcement.
+ */
+function findVulnerableAllies(
+    state: GameState,
+    playerId: string
+): Array<{ unit: any; threatCount: number; friendCount: number; priority: number }> {
+    const myUnits = state.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].domain !== "Civilian"
+    );
+
+    const vulnerableAllies: Array<{ unit: any; threatCount: number; friendCount: number; priority: number }> = [];
+
+    for (const unit of myUnits) {
+        const threatCount = enemiesWithin(state, playerId, unit.coord, 2);
+        if (threatCount === 0) continue; // No threat
+
+        const friendCount = friendlyAdjacencyCount(state, playerId, unit.coord);
+
+        // Unit is vulnerable if: outnumbered, low HP, or overwhelmed
+        const hpPercent = unit.hp / unit.maxHp;
+        const isOutnumbered = threatCount > friendCount + 1;
+        const isLowHp = hpPercent < 0.5;
+        const isOverwhelmed = threatCount >= 3 && friendCount <= 1;
+
+        if (isOutnumbered || isLowHp || isOverwhelmed) {
+            // Calculate priority: higher = more urgent
+            const priority = (threatCount * 10) + ((1 - hpPercent) * 20) + (isOverwhelmed ? 15 : 0);
+
+            vulnerableAllies.push({
+                unit,
+                threatCount,
+                friendCount,
+                priority
+            });
+        }
+    }
+
+    return vulnerableAllies.sort((a, b) => b.priority - a.priority);
+}
+
+/**
+ * Move healthy units toward vulnerable allies to provide support.
+ * Called after city defense, before attacks.
+ */
+export function aidVulnerableUnits(state: GameState, playerId: string): GameState {
+    if (!isAtWar(state, playerId)) return state;
+    let next = state;
+
+    const vulnerableAllies = findVulnerableAllies(next, playerId);
+    if (vulnerableAllies.length === 0) return next;
+
+    // Find healthy units that can help
+    const helpers = next.units.filter(u =>
+        u.ownerId === playerId &&
+        u.movesLeft > 0 &&
+        UNITS[u.type].domain !== "Civilian" &&
+        !isScoutType(u.type) &&
+        u.hp > 5 && // Must be healthy enough to help
+        (u.hp / u.maxHp) > 0.6 // At least 60% HP
+    );
+
+    const assigned = new Set<string>();
+
+    for (const { unit: victim, threatCount, friendCount } of vulnerableAllies) {
+        // How many helpers does this victim need?
+        const helpersNeeded = Math.max(1, threatCount - friendCount);
+        let helpersAssigned = 0;
+
+        // Find nearby helpers
+        for (const helper of helpers) {
+            if (assigned.has(helper.id)) continue;
+            if (helper.id === victim.id) continue;
+
+            const dist = hexDistance(helper.coord, victim.coord);
+
+            // Only consider helpers within 4 tiles
+            if (dist > 4) continue;
+
+            // If already adjacent, no need to move
+            if (dist <= 1) {
+                helpersAssigned++;
+                continue;
+            }
+
+            // Move helper toward victim
+            const moved = stepToward(next, playerId, helper.id, victim.coord);
+            if (moved !== next) {
+                console.info(`[AI AID ALLY] ${playerId} ${helper.type} moving to help ${victim.type} (${threatCount} threats, ${friendCount} friends)`);
+                next = moved;
+                assigned.add(helper.id);
+                helpersAssigned++;
+
+                if (helpersAssigned >= helpersNeeded) break;
             }
         }
     }

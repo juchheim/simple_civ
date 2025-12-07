@@ -300,21 +300,8 @@ export function getThreatLevel(state: GameState, city: any, playerId: string): "
     return "low";
 }
 
-export function shouldRetreat(unit: any, state: GameState, playerId: string): boolean {
-    const nearbyEnemies = enemiesWithin(state, playerId, unit.coord, 2);
-    if (nearbyEnemies === 0) return false;
-
-    const nearbyFriends = friendlyAdjacencyCount(state, playerId, unit.coord);
-    const unitHpPercent = unit.hp / unit.maxHp;
-
-    // Retreat if critically wounded and outnumbered
-    if (unitHpPercent < 0.3 && nearbyEnemies > nearbyFriends) return true;
-
-    // Retreat if completely overwhelmed (1v3+) even if healthy
-    if (nearbyEnemies >= 3 && nearbyFriends === 0) return true;
-
-    return false;
-}
+// Note: shouldRetreat has been moved to the "INTELLIGENT RETREAT" section below
+// with enhanced combat outcome evaluation
 
 export function getBestSkirmishPosition(
     unit: any,
@@ -368,4 +355,273 @@ export function getBestSkirmishPosition(
     });
 
     return valid.length > 0 ? valid[0].coord : null;
+}
+
+// --- INTELLIGENT RETREAT (v2.0) ---
+
+/**
+ * Calculate danger score for a tile based on nearby enemies and their attack capabilities.
+ * Higher score = more dangerous.
+ */
+export function evaluateTileDanger(
+    state: GameState,
+    playerId: string,
+    coord: { q: number; r: number }
+): number {
+    let dangerScore = 0;
+
+    // Get all enemy units
+    const enemies = state.units.filter(u => u.ownerId !== playerId);
+
+    for (const enemy of enemies) {
+        const dist = hexDistance(coord, enemy.coord);
+        const stats = UNITS[enemy.type as UnitType];
+
+        // Adjacent enemies are very dangerous (can attack immediately)
+        if (dist === 1) {
+            dangerScore += 10 + stats.atk;
+        }
+        // Within attack range is dangerous
+        else if (dist <= stats.rng) {
+            dangerScore += 5 + stats.atk * 0.5;
+        }
+        // Within 2 moves is a threat
+        else if (dist <= stats.move + 1) {
+            dangerScore += 2;
+        }
+    }
+
+    // Bonus safety for friendly city tiles
+    const cityOnTile = state.cities.find(c => hexEquals(c.coord, coord) && c.ownerId === playerId);
+    if (cityOnTile) {
+        dangerScore -= 5;
+    }
+
+    // Bonus safety for high defense terrain
+    dangerScore -= tileDefenseScore(state, coord) * 2;
+
+    return dangerScore;
+}
+
+/**
+ * Find all enemies within a certain range and return their info.
+ * Used for multi-threat awareness.
+ */
+export function getNearbyThreats(
+    state: GameState,
+    playerId: string,
+    coord: { q: number; r: number },
+    range: number
+): Array<{ unit: any; distance: number; attackPower: number }> {
+    const threats: Array<{ unit: any; distance: number; attackPower: number }> = [];
+
+    for (const unit of state.units) {
+        if (unit.ownerId === playerId) continue;
+
+        const dist = hexDistance(coord, unit.coord);
+        if (dist <= range) {
+            const stats = UNITS[unit.type as UnitType];
+            if (stats.domain !== "Civilian") {
+                threats.push({
+                    unit,
+                    distance: dist,
+                    attackPower: stats.atk
+                });
+            }
+        }
+    }
+
+    return threats.sort((a, b) => a.distance - b.distance);
+}
+
+/**
+ * Find the safest adjacent tile to step toward a target.
+ * Avoids moving into tiles with high danger (enemies in attack range).
+ * Returns null if staying put is safer than any movement option.
+ */
+export function findSafeRetreatTile(
+    state: GameState,
+    playerId: string,
+    unit: any,
+    targetCoord: { q: number; r: number }
+): { q: number; r: number } | null {
+    const currentDanger = evaluateTileDanger(state, playerId, unit.coord);
+    const neighbors = getNeighbors(unit.coord);
+
+    const candidates = neighbors
+        .map(coord => {
+            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+            if (!tile) return null;
+
+            // Check terrain passability
+            const terrain = TERRAIN[tile.terrain];
+            if (terrain.blocksLoS) return null; // Mountains, etc.
+
+            // Check for blocking unit
+            const blockingUnit = state.units.find(u => hexEquals(u.coord, coord));
+            if (blockingUnit && blockingUnit.ownerId !== playerId) return null;
+            if (blockingUnit && UNITS[blockingUnit.type].domain !== "Civilian") return null;
+
+            // Check territory restrictions (peace time)
+            if (tile.ownerId && tile.ownerId !== playerId) {
+                const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+                if (diplomacy !== DiplomacyState.War) return null;
+            }
+
+            const danger = evaluateTileDanger(state, playerId, coord);
+            const distToTarget = hexDistance(coord, targetCoord);
+            const currentDistToTarget = hexDistance(unit.coord, targetCoord);
+            const movesTowardTarget = distToTarget < currentDistToTarget;
+
+            return {
+                coord,
+                danger,
+                distToTarget,
+                movesTowardTarget,
+                defense: tileDefenseScore(state, coord)
+            };
+        })
+        .filter((c): c is NonNullable<typeof c> => c !== null);
+
+    if (candidates.length === 0) return null;
+
+    // Sort by:
+    // 1. Safety (lower danger is better)
+    // 2. Moves toward target (prefer progress toward safety)
+    // 3. Defense bonus (prefer defensible terrain)
+    candidates.sort((a, b) => {
+        // Primary: Avoid danger (strongly prefer safer tiles)
+        if (Math.abs(a.danger - b.danger) > 2) {
+            return a.danger - b.danger;
+        }
+
+        // Secondary: Progress toward target
+        if (a.movesTowardTarget !== b.movesTowardTarget) {
+            return a.movesTowardTarget ? -1 : 1;
+        }
+
+        // Tertiary: Better defense
+        if (a.defense !== b.defense) {
+            return b.defense - a.defense;
+        }
+
+        // Finally: Lower danger
+        return a.danger - b.danger;
+    });
+
+    const best = candidates[0];
+
+    // Don't move if staying is significantly safer
+    if (best.danger > currentDanger + 5) {
+        return null;
+    }
+
+    return best.coord;
+}
+
+// --- COMBAT EVALUATION (v2.0) ---
+
+/**
+ * Estimate how many rounds the unit can survive against nearby threats.
+ * Lower = more danger, 0 = would die this turn.
+ */
+export function estimateSurvivalRounds(
+    unit: any,
+    state: GameState,
+    playerId: string
+): number {
+    const threats = getNearbyThreats(state, playerId, unit.coord, 2);
+    const adjacentThreats = threats.filter(t => t.distance === 1);
+
+    if (adjacentThreats.length === 0) return 99; // Safe
+
+    // Calculate expected damage per round from adjacent enemies
+    const damagePerRound = adjacentThreats.reduce((sum, t) => {
+        return sum + expectedDamageFrom(t.unit, unit, state);
+    }, 0);
+
+    if (damagePerRound <= 0) return 99;
+
+    return Math.ceil(unit.hp / damagePerRound);
+}
+
+/**
+ * Check if unit can one-shot any nearby enemy.
+ * Returns the weakest enemy we can kill, or null if none.
+ */
+export function canKillNearbyEnemy(
+    unit: any,
+    state: GameState,
+    playerId: string
+): { unit: any; damage: number } | null {
+    const threats = getNearbyThreats(state, playerId, unit.coord, 2);
+    const adjacentThreats = threats.filter(t => t.distance === 1);
+
+    for (const threat of adjacentThreats) {
+        const ourDamage = expectedDamageToUnit(unit, threat.unit, state);
+        if (ourDamage >= threat.unit.hp) {
+            return { unit: threat.unit, damage: ourDamage };
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Enhanced retreat decision that considers combat outcomes.
+ * Returns true if the unit should retreat instead of fighting.
+ */
+export function shouldRetreat(unit: any, state: GameState, playerId: string): boolean {
+    const nearbyEnemies = enemiesWithin(state, playerId, unit.coord, 2);
+    if (nearbyEnemies === 0) return false;
+
+    const nearbyFriends = friendlyAdjacencyCount(state, playerId, unit.coord);
+    const unitHpPercent = unit.hp / unit.maxHp;
+
+    // Get immediate threats (enemies that can attack us this turn)
+    const immediateThreats = getNearbyThreats(state, playerId, unit.coord, 2);
+    const adjacentThreats = immediateThreats.filter(t => t.distance === 1);
+
+    // Estimate if we can kill any adjacent enemy before dying
+    const weCanKill = adjacentThreats.some(threat => {
+        const ourDamage = expectedDamageToUnit(unit, threat.unit, state);
+        return ourDamage >= threat.unit.hp;
+    });
+
+    // Estimate how much damage we'd take this turn
+    const expectedIncomingDamage = adjacentThreats.reduce((sum, t) => {
+        return sum + expectedDamageFrom(t.unit, unit, state);
+    }, 0);
+
+    const wouldDie = expectedIncomingDamage >= unit.hp;
+
+    // SMART RETREAT RULES:
+
+    // Rule 1: If we'd die but can get a kill, consider staying (trade)
+    if (wouldDie && weCanKill && unit.hp > 3) {
+        // Only trade if it's a valuable target or we're not critically hurt
+        return false;
+    }
+
+    // Rule 2: If we'd die without getting a kill, definitely retreat
+    if (wouldDie && !weCanKill) {
+        return true;
+    }
+
+    // Rule 3: If critically wounded (< 30% HP) and outnumbered, retreat
+    if (unitHpPercent < 0.3 && nearbyEnemies > nearbyFriends + 1) {
+        return true;
+    }
+
+    // Rule 4: If completely overwhelmed (1v3+) even if healthy, retreat
+    if (nearbyEnemies >= 3 && nearbyFriends <= 1) {
+        return true;
+    }
+
+    // Rule 5: If moderately wounded (< 50%) and no support, retreat
+    if (unitHpPercent < 0.5 && nearbyFriends === 0 && nearbyEnemies >= 2) {
+        return true;
+    }
+
+    return false;
 }

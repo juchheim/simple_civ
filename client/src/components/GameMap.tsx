@@ -110,11 +110,18 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
         const key = `${coord.q},${coord.r}`;
         const visibility = tileVisibility.get(key) ?? FALLBACK_VISIBILITY;
 
-        // If it's shroud (unexplored), ignore click
-        if (visibility.isShroud) return;
+        console.log('[DEBUG WRAPPER] Tile clicked:', key, 'Visibility:', visibility, 'SelectedUnit:', selectedUnitId);
 
+        // If it's shroud (unexplored) and no unit is selected, ignore click
+        // But allow clicks when a unit is selected so they can explore
+        if (visibility.isShroud && !selectedUnitId) {
+            console.log('[DEBUG WRAPPER] Blocking click - tile is shroud and no unit selected');
+            return;
+        }
+
+        console.log('[DEBUG WRAPPER] Passing click to onTileClick');
         onTileClick(coord);
-    }, [onTileClick, tileVisibility, FALLBACK_VISIBILITY]);
+    }, [onTileClick, tileVisibility, FALLBACK_VISIBILITY, selectedUnitId]);
 
     const {
         pan,

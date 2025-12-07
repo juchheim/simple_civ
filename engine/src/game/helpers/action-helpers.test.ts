@@ -136,6 +136,9 @@ describe("action-helpers", () => {
         const targetTile = state.map.tiles[1];
         targetTile.ownerId = "p2";
 
+        // Add visibility so peacetime restriction applies (only enforced for visible tiles)
+        state.visibility.p1 = ["1,0"];
+
         const mover = makeUnit({ id: "mover", ownerId: "p1", coord: { q: 0, r: 0 }, type: UnitType.SpearGuard });
         const participant: MoveParticipant = { unit: mover, stats: UNITS[mover.type] };
 

@@ -2,7 +2,7 @@ import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
 import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
-import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveUnitsForPreparation } from "./units.js";
+import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveUnitsForPreparation, routeCaptureUnitsToActiveSieges, aidVulnerableUnits } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
 import { manageWarPreparation } from "./war-prep.js";
 import { TraceEntry, safeClone } from "./trace.js";
@@ -35,6 +35,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = defendCities(state, playerId);
     state = rotateGarrisons(state, playerId);
 
+    // v2.0: Aid vulnerable units before they get killed
+    state = aidVulnerableUnits(state, playerId);
+
     // v0.99: War Preparation
     state = manageWarPreparation(state, playerId);
 
@@ -42,6 +45,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     state = retreatWounded(state, playerId);
     state = repositionRanged(state, playerId);
     state = routeCityCaptures(state, playerId);
+
+    // v2.0: Route capture units to sieges that need them
+    state = routeCaptureUnitsToActiveSieges(state, playerId);
 
     // Move units for war preparation (Positioning phase)
     state = moveUnitsForPreparation(state, playerId);
@@ -84,6 +90,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     state = defendCities(state, playerId);
     state = rotateGarrisons(state, playerId);
 
+    // v2.0: Aid vulnerable units before they get killed
+    state = aidVulnerableUnits(state, playerId);
+
     // v0.99: War Preparation
     state = manageWarPreparation(state, playerId);
 
@@ -93,6 +102,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     state = retreatWounded(state, playerId);
     state = repositionRanged(state, playerId);
     state = routeCityCaptures(state, playerId);
+
+    // v2.0: Route capture units to sieges that need them
+    state = routeCaptureUnitsToActiveSieges(state, playerId);
 
     // Move units for war preparation (Positioning phase)
     state = moveUnitsForPreparation(state, playerId);

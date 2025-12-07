@@ -23,12 +23,139 @@ function isAtWar(state: GameState, playerId: string): boolean {
     );
 }
 
+// --- PRODUCTION INTELLIGENCE (v2.0) ---
+
+/**
+ * Calculate desired army size based on game state.
+ * Returns the target number of military units the AI should maintain.
+ */
+function calculateDesiredArmySize(state: GameState, playerId: string): number {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return 1;
+
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const cityCount = myCities.length;
+
+    // Base: 1 unit per city minimum (for garrison)
+    let desired = cityCount;
+
+    // War preparation: 2x peacetime + siege force
+    if (player.warPreparation) {
+        const prepState = player.warPreparation.state;
+        if (prepState === "Buildup") {
+            desired = cityCount * 2 + 2; // Double + 2 for attack force
+        } else if (prepState === "Gathering" || prepState === "Positioning" || prepState === "Ready") {
+            desired = cityCount * 2 + 4; // Need full attack force
+        }
+    }
+
+    // Active war: scale based on enemy power
+    if (isAtWar(state, playerId)) {
+        // Count enemy military
+        const warEnemyIds = state.players
+            .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
+            .map(p => p.id);
+        const enemyMilitary = state.units.filter(u =>
+            warEnemyIds.includes(u.ownerId) &&
+            UNITS[u.type].domain !== "Civilian"
+        ).length;
+
+        // Want 1.3x enemy military + garrison
+        desired = Math.max(desired, Math.ceil(enemyMilitary * 1.3) + cityCount);
+    }
+
+    return Math.max(1, desired);
+}
+
+/**
+ * Get the army deficit (how many more units we need).
+ * Positive = need more units. Zero/negative = at or above target.
+ */
+function getArmyDeficit(state: GameState, playerId: string): { deficit: number; currentMilitary: number; desired: number } {
+    const myUnits = state.units.filter(u => u.ownerId === playerId);
+    const currentMilitary = myUnits.filter(u =>
+        UNITS[u.type].domain !== "Civilian" &&
+        u.type !== UnitType.Scout
+    ).length;
+
+    const desired = calculateDesiredArmySize(state, playerId);
+
+    return {
+        deficit: desired - currentMilitary,
+        currentMilitary,
+        desired
+    };
+}
+
+/**
+ * Check if any active sieges need capture-capable units.
+ * Returns true if we should prioritize building capture units.
+ */
+function siegesNeedCaptureUnits(state: GameState, playerId: string): boolean {
+    const warEnemyIds = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
+        .map(p => p.id);
+
+    const enemyCities = state.cities.filter(c => warEnemyIds.includes(c.ownerId));
+
+    for (const city of enemyCities) {
+        // Check if we have units near this city
+        const nearbyUnits = state.units.filter(u =>
+            u.ownerId === playerId &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexDistance(u.coord, city.coord) <= 4
+        );
+
+        if (nearbyUnits.length > 0) {
+            // We're engaged with this city
+            const hasCaptureUnit = nearbyUnits.some(u => UNITS[u.type].canCaptureCity);
+            if (!hasCaptureUnit) {
+                // Siege active but no capture unit nearby
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
 
 
 function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar: boolean, state: GameState, playerId: string): BuildOption[] {
     const player = state.players.find(p => p.id === playerId);
+
+    // v2.0: Army sizing intelligence
+    const armyStatus = getArmyDeficit(state, playerId);
+    const needsMoreMilitary = armyStatus.deficit > 0 && (atWar || player?.warPreparation);
+
+    // v2.0: Siege composition awareness
+    const needsCaptureUnits = siegesNeedCaptureUnits(state, playerId);
+
+    // If we urgently need military (at war with deficit), force military production
+    if (atWar && armyStatus.deficit >= 2) {
+        console.info(`[AI ARMY SIZE] ${playerId} URGENT military production! Current: ${armyStatus.currentMilitary}, Need: ${armyStatus.desired}`);
+
+        const urgentMilitary: BuildOption[] = [];
+
+        // If sieges need capture units, prioritize those
+        if (needsCaptureUnits) {
+            urgentMilitary.push({ type: "Unit" as const, id: UnitType.SpearGuard });
+            urgentMilitary.push({ type: "Unit" as const, id: UnitType.Riders });
+        }
+
+        urgentMilitary.push(
+            { type: "Unit" as const, id: UnitType.BowGuard },
+            { type: "Unit" as const, id: UnitType.SpearGuard },
+            { type: "Unit" as const, id: UnitType.Riders }
+        );
+
+        // Still allow essential buildings
+        urgentMilitary.push({ type: "Building" as const, id: BuildingType.StoneWorkshop });
+
+        return urgentMilitary;
+    }
 
     // Check if player can complete victory projects - if so, prioritize them!
     const canCompleteVictoryProjects = player && player.techs.includes(TechId.StarCharts);

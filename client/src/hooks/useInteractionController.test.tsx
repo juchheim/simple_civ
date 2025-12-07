@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useInteractionController } from "./useInteractionController";
 import { useReachablePaths } from "./useReachablePaths";
-import { DiplomacyState, GameState, HexCoord, UnitType, UnitState } from "@simple-civ/engine";
+import { DiplomacyState, GameState, HexCoord, UnitType, UnitState, TerrainType } from "@simple-civ/engine";
 
 vi.mock("./useReachablePaths", () => ({
     useReachablePaths: vi.fn(),
@@ -176,14 +176,22 @@ describe("useInteractionController", () => {
         expect(result.current.selectedCoord).toBeNull();
     });
 
-    it("selects tile but deselects unit when clicking a fogged tile", () => {
+    it("allows unit to move to adjacent fogged tile", () => {
         const dispatchAction = vi.fn();
         const runActions = vi.fn();
         const gameState = makeState({
             units: [
                 { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
             ],
-            // 0,0 is visible, 0,1 is fogged (revealed but not visible)
+            map: {
+                width: 5,
+                height: 5,
+                tiles: [
+                    { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+                    { coord: { q: 0, r: 1 }, terrain: TerrainType.Plains, overlays: [] },
+                ],
+            },
+            // 0,0 is visible, 0,1 is fogged (revealed but not visible) and adjacent
             visibility: { "p1": ["0,0"] },
             revealed: { "p1": ["0,0", "0,1"] },
         });
@@ -194,14 +202,20 @@ describe("useInteractionController", () => {
             result.current.setSelectedUnitId("u1");
         });
 
-        // Click on fogged tile 0,1
+        // Click on fogged tile 0,1 which is adjacent
         act(() => {
             result.current.handleTileClick({ q: 0, r: 1 } as HexCoord);
         });
 
-        expect(dispatchAction).not.toHaveBeenCalled();
-        expect(runActions).not.toHaveBeenCalled();
+        // Should call dispatchAction with MoveUnit for adjacent move
+        expect(dispatchAction).toHaveBeenCalledWith({
+            type: "MoveUnit",
+            playerId: "p1",
+            unitId: "u1",
+            to: { q: 0, r: 1 },
+        });
+        // Unit should be deselected after the move (movesLeft was 1)
         expect(result.current.selectedUnitId).toBeNull();
-        expect(result.current.selectedCoord).toEqual({ q: 0, r: 1 });
+        expect(result.current.selectedCoord).toBeNull();
     });
 });

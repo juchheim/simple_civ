@@ -113,11 +113,20 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
     // Peacetime movement restriction
     const tile = tilesByKey.get(hexToString(target));
     if (tile && tile.ownerId && tile.ownerId !== playerId) {
-        const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
-        // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
-        if (!isEnemyCityTile && diplomacy !== "War") {
-            console.log(`[VALIDATION FAIL] Peacetime block: ${playerId} -> ${tile.ownerId} (Diplomacy: ${diplomacy})`);
-            throw new Error("Cannot enter enemy territory during peacetime");
+        // Check if the tile is visible to the player
+        const tileKey = hexToString(target);
+        const playerVisibility = state.visibility[playerId] || [];
+        const isVisible = playerVisibility.includes(tileKey);
+
+        // Only enforce peacetime border restrictions if the tile is visible
+        // This allows optimistic movement into fog of war (consistent with pathfinding)
+        if (isVisible) {
+            const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+            // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
+            if (!isEnemyCityTile && diplomacy !== "War") {
+                console.log(`[VALIDATION FAIL] Peacetime block: ${playerId} -> ${tile.ownerId} (Diplomacy: ${diplomacy})`);
+                throw new Error("Cannot enter enemy territory during peacetime");
+            }
         }
     }
 }

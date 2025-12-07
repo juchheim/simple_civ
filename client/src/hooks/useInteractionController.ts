@@ -155,8 +155,13 @@ export function useInteractionController({
     const tryAutoMove = useCallback((unit: any, coord: HexCoord) => {
         if (!gameState) return false;
 
+        console.log('[DEBUG tryAutoMove] Called with unit:', unit.id, 'at', unit.coord, 'target:', coord);
         const autoPath = findPath(unit.coord, coord, unit, gameState);
-        if (autoPath.length === 0) return false;
+        console.log('[DEBUG tryAutoMove] findPath returned:', autoPath);
+        if (autoPath.length === 0) {
+            console.log('[DEBUG tryAutoMove] Path is empty, returning false');
+            return false;
+        }
 
         const actions: Action[] = [{
             type: "SetAutoMoveTarget",
@@ -175,6 +180,7 @@ export function useInteractionController({
             });
         }
 
+        console.log('[DEBUG tryAutoMove] Dispatching actions:', actions);
         runActions(actions);
         setSelectedCoord(null);
         setSelectedUnitId(null);
@@ -191,22 +197,55 @@ export function useInteractionController({
         const isVisible = gameState.visibility?.[playerId]?.includes(key) ?? false;
         const isRevealed = gameState.revealed?.[playerId]?.includes(key) ?? false;
         const isFogged = !isVisible && isRevealed;
+        const isShroud = !isVisible && !isRevealed;
 
+        // Handle fogged tiles (previously seen, not currently visible)
         if (isFogged) {
+            console.log('[DEBUG FOG] Clicked fogged tile:', key, 'Selected unit:', selectedUnitId);
             // If a unit is selected, try to move to the fogged tile
             if (selectedUnitId) {
                 const unit = gameState.units.find(u => u.id === selectedUnitId);
+                console.log('[DEBUG FOG] Unit found:', unit?.id, 'Owner:', unit?.ownerId, 'PlayerId:', playerId);
                 if (unit && unit.ownerId === playerId) {
                     // We allow movement into fog, but not direct interaction with entities (which shouldn't be visible anyway)
-                    if (tryPlannedPath(unit, coord)) return;
-                    if (tryAdjacentMove(unit, coord)) return;
-                    if (tryAutoMove(unit, coord)) return;
+                    console.log('[DEBUG FOG] Trying tryPlannedPath...');
+                    if (tryPlannedPath(unit, coord)) { console.log('[DEBUG FOG] tryPlannedPath succeeded'); return; }
+                    console.log('[DEBUG FOG] Trying tryAdjacentMove...');
+                    if (tryAdjacentMove(unit, coord)) { console.log('[DEBUG FOG] tryAdjacentMove succeeded'); return; }
+                    console.log('[DEBUG FOG] Trying tryAutoMove...');
+                    if (tryAutoMove(unit, coord)) { console.log('[DEBUG FOG] tryAutoMove succeeded'); return; }
+                    console.log('[DEBUG FOG] All movement attempts failed');
                 }
             }
 
             // Allow selecting the tile to see terrain info, but do NOT allow selecting units or interacting
             setSelectedCoord(coord);
             setSelectedUnitId(null);
+            console.log('[DEBUG FOG] Fell through to tile selection, unit deselected');
+            return;
+        }
+
+        // Handle shroud tiles (unexplored, never seen)
+        if (isShroud) {
+            console.log('[DEBUG SHROUD] Clicked shroud tile:', key, 'Selected unit:', selectedUnitId);
+            // If a unit is selected, try to move to the shroud tile (exploration)
+            if (selectedUnitId) {
+                const unit = gameState.units.find(u => u.id === selectedUnitId);
+                console.log('[DEBUG SHROUD] Unit found:', unit?.id, 'Owner:', unit?.ownerId, 'PlayerId:', playerId);
+                if (unit && unit.ownerId === playerId) {
+                    // We allow movement into shroud for exploration
+                    console.log('[DEBUG SHROUD] Trying tryPlannedPath...');
+                    if (tryPlannedPath(unit, coord)) { console.log('[DEBUG SHROUD] tryPlannedPath succeeded'); return; }
+                    console.log('[DEBUG SHROUD] Trying tryAdjacentMove...');
+                    if (tryAdjacentMove(unit, coord)) { console.log('[DEBUG SHROUD] tryAdjacentMove succeeded'); return; }
+                    console.log('[DEBUG SHROUD] Trying tryAutoMove...');
+                    if (tryAutoMove(unit, coord)) { console.log('[DEBUG SHROUD] tryAutoMove succeeded'); return; }
+                    console.log('[DEBUG SHROUD] All movement attempts failed');
+                }
+            }
+
+            // Don't select shroud tiles or deselect units - just ignore if no movement possible
+            console.log('[DEBUG SHROUD] No movement, ignoring click');
             return;
         }
 

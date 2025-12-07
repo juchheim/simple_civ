@@ -139,8 +139,291 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
     return next;
 }
 
+// --- SIEGE COMPOSITION AWARENESS (v2.0) ---
+
+/**
+ * Check if units near a target city form a viable siege force.
+ * A viable siege requires at least one capture-capable unit (SpearGuard, Riders, etc.)
+ */
+function hasSiegeCapability(
+    state: GameState,
+    playerId: string,
+    targetCity: any,
+    radiusToConsider: number = 4
+): { hasCaptureUnit: boolean; captureUnits: string[]; siegeUnits: string[] } {
+    const nearbyUnits = state.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].domain !== "Civilian" &&
+        hexDistance(u.coord, targetCity.coord) <= radiusToConsider
+    );
+
+    const captureUnits = nearbyUnits.filter(u => UNITS[u.type].canCaptureCity).map(u => u.id);
+    const siegeUnits = nearbyUnits.map(u => u.id);
+
+    return {
+        hasCaptureUnit: captureUnits.length > 0,
+        captureUnits,
+        siegeUnits
+    };
+}
+
+/**
+ * Find sieges that are actively being attacked but lack capture-capable units.
+ * Returns cities that need capture unit reinforcement.
+ */
+function findSiegesNeedingCapture(
+    state: GameState,
+    playerId: string
+): Array<{ city: any; priority: number }> {
+    const warTargets = getWarTargets(state, playerId);
+    const warEnemyIds = warTargets.map(w => w.id);
+
+    const enemyCities = state.cities.filter(c => warEnemyIds.includes(c.ownerId));
+    const result: Array<{ city: any; priority: number }> = [];
+
+    for (const city of enemyCities) {
+        const siegeStatus = hasSiegeCapability(state, playerId, city, 4);
+
+        // We have units sieging but no capture unit
+        if (siegeStatus.siegeUnits.length > 0 && !siegeStatus.hasCaptureUnit) {
+            // Higher priority if city HP is low (close to capturable)
+            const hpPriority = Math.max(0, 20 - city.hp);
+            // More priority if more units are already there
+            const unitPriority = siegeStatus.siegeUnits.length * 5;
+
+            result.push({
+                city,
+                priority: hpPriority + unitPriority
+            });
+
+            console.info(`[AI SIEGE COMPOSITION] ${playerId} siege at ${city.name} (HP ${city.hp}) needs capture unit! ${siegeStatus.siegeUnits.length} units sieging.`);
+        }
+    }
+
+    return result.sort((a, b) => b.priority - a.priority);
+}
+
+/**
+ * Route capture-capable units to sieges that lack capture capability.
+ * Called before general military movement.
+ */
+export function routeCaptureUnitsToActiveSieges(state: GameState, playerId: string): GameState {
+    let next = state;
+
+    const siegesNeedingCapture = findSiegesNeedingCapture(next, playerId);
+    if (siegesNeedingCapture.length === 0) return next;
+
+    // Find available capture units that aren't already at a siege
+    const captureUnits = next.units.filter(u =>
+        u.ownerId === playerId &&
+        u.movesLeft > 0 &&
+        UNITS[u.type].canCaptureCity
+    );
+
+    const assignedUnits = new Set<string>();
+
+    for (const { city } of siegesNeedingCapture) {
+        // Check if already has capture unit en route
+        const siegeStatus = hasSiegeCapability(next, playerId, city, 4);
+        if (siegeStatus.hasCaptureUnit) continue;
+
+        // Find nearest available capture unit
+        const availableUnits = captureUnits.filter(u => !assignedUnits.has(u.id));
+        if (availableUnits.length === 0) break;
+
+        const nearest = nearestByDistance(city.coord, availableUnits, u => u.coord);
+        if (!nearest) continue;
+
+        const distance = hexDistance(nearest.coord, city.coord);
+
+        // Only route if reasonably close (within 8 tiles)
+        if (distance > 8) continue;
+
+        assignedUnits.add(nearest.id);
+
+        // Move toward the siege
+        console.info(`[AI SIEGE SUPPORT] ${playerId} routing ${nearest.type} to siege at ${city.name} (dist ${distance})`);
+        next = stepToward(next, playerId, nearest.id, city.coord);
+    }
+
+    return next;
+}
+
+// --- UNIT COORDINATION (v2.0) ---
+
+/**
+ * A battle group is a cluster of friendly units that are near each other and near enemies.
+ * Used for coordinating attacks.
+ */
+interface BattleGroup {
+    units: any[];
+    centerCoord: { q: number; r: number };
+    nearbyEnemies: any[];
+    primaryTarget: any | null;
+}
+
+/**
+ * Identify clusters of friendly units that are engaged with enemies.
+ * Returns groups that can coordinate their attacks.
+ */
+function identifyBattleGroups(state: GameState, playerId: string): BattleGroup[] {
+    const militaryUnits = state.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].domain !== "Civilian" &&
+        !isScoutType(u.type) &&
+        !u.hasAttacked
+    );
+
+    if (militaryUnits.length === 0) return [];
+
+    // Find enemies at war with us
+    const warEnemyIds = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
+        .map(p => p.id);
+    const enemyUnits = state.units.filter(u => warEnemyIds.includes(u.ownerId));
+
+    // Group units that are within 3 tiles of each other
+    const groups: BattleGroup[] = [];
+    const assigned = new Set<string>();
+
+    for (const unit of militaryUnits) {
+        if (assigned.has(unit.id)) continue;
+
+        // Find nearby enemies within attack range
+        const nearbyEnemies = enemyUnits.filter(e => {
+            const dist = hexDistance(unit.coord, e.coord);
+            return dist <= 3; // Within potential engagement range
+        });
+
+        // Skip if no enemies nearby
+        if (nearbyEnemies.length === 0) continue;
+
+        // Find other friendly units in this area
+        const groupUnits = militaryUnits.filter(other => {
+            if (assigned.has(other.id)) return false;
+            const dist = hexDistance(unit.coord, other.coord);
+            return dist <= 3;
+        });
+
+        // Mark all as assigned
+        for (const u of groupUnits) {
+            assigned.add(u.id);
+        }
+
+        // Find the best target (lowest HP enemy that multiple units can hit)
+        const targetCandidates = nearbyEnemies.map(enemy => {
+            const unitsInRange = groupUnits.filter(u => {
+                const stats = UNITS[u.type];
+                const dist = hexDistance(u.coord, enemy.coord);
+                return dist <= stats.rng;
+            });
+            const totalDamage = unitsInRange.reduce((sum, u) => sum + expectedDamageToUnit(u, enemy, state), 0);
+            return { enemy, unitsInRange, totalDamage, canKill: totalDamage >= enemy.hp };
+        }).sort((a, b) => {
+            // Prioritize killable targets
+            if (a.canKill !== b.canKill) return a.canKill ? -1 : 1;
+            // Then targets more units can hit
+            if (a.unitsInRange.length !== b.unitsInRange.length) return b.unitsInRange.length - a.unitsInRange.length;
+            // Then lowest HP
+            return a.enemy.hp - b.enemy.hp;
+        });
+
+        const primaryTarget = targetCandidates[0]?.enemy || null;
+
+        // Calculate center of group
+        const avgQ = groupUnits.reduce((s, u) => s + u.coord.q, 0) / groupUnits.length;
+        const avgR = groupUnits.reduce((s, u) => s + u.coord.r, 0) / groupUnits.length;
+
+        groups.push({
+            units: groupUnits,
+            centerCoord: { q: Math.round(avgQ), r: Math.round(avgR) },
+            nearbyEnemies,
+            primaryTarget
+        });
+    }
+
+    return groups;
+}
+
+/**
+ * Coordinate attacks within a battle group.
+ * Orders: ranged units attack first (soften), then melee (finish).
+ * Focus fire: all units target the same enemy until dead.
+ */
+function coordinateGroupAttack(
+    state: GameState,
+    playerId: string,
+    group: BattleGroup
+): GameState {
+    let next = state;
+
+    if (!group.primaryTarget) return next;
+
+    // Sort units: ranged first (to soften targets), then melee
+    const sortedUnits = [...group.units].sort((a, b) => {
+        const aRng = UNITS[a.type as UnitType].rng;
+        const bRng = UNITS[b.type as UnitType].rng;
+        return bRng - aRng; // Higher range first
+    });
+
+    // Track the current primary target (may change if killed)
+    let currentTarget = group.primaryTarget;
+
+    for (const unit of sortedUnits) {
+        const liveUnit = next.units.find(u => u.id === unit.id);
+        if (!liveUnit || liveUnit.hasAttacked) continue;
+
+        // Check if current target is still alive
+        const targetStillAlive = next.units.find(u => u.id === currentTarget.id);
+
+        if (!targetStillAlive) {
+            // Target died - find new target with focus fire logic
+            const warEnemyIds = next.players
+                .filter(p => p.id !== playerId && !p.isEliminated && next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
+                .map(p => p.id);
+
+            const newTargets = next.units
+                .filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, liveUnit.coord) <= UNITS[liveUnit.type].rng)
+                .sort((a, b) => a.hp - b.hp); // Lowest HP first
+
+            if (newTargets.length === 0) continue;
+            currentTarget = newTargets[0];
+        }
+
+        const stats = UNITS[liveUnit.type];
+        const dist = hexDistance(liveUnit.coord, currentTarget.coord);
+
+        if (dist > stats.rng) continue; // Out of range
+
+        const dmg = expectedDamageToUnit(liveUnit, currentTarget, next);
+        const attacked = tryAction(next, {
+            type: "Attack",
+            playerId,
+            attackerId: liveUnit.id,
+            targetId: currentTarget.id,
+            targetType: "Unit"
+        });
+
+        if (attacked !== next) {
+            console.info(`[AI COORDINATED] ${playerId} ${liveUnit.type} attacks ${currentTarget.type} for ${dmg} dmg (focus fire)`);
+            next = attacked;
+        }
+    }
+
+    return next;
+}
+
 export function attackTargets(state: GameState, playerId: string): GameState {
     let next = state;
+
+    // v2.0: Coordinated group attacks with focus fire
+    const battleGroups = identifyBattleGroups(next, playerId);
+    for (const group of battleGroups) {
+        if (group.units.length >= 2) { // Only coordinate if 2+ units
+            next = coordinateGroupAttack(next, playerId, group);
+        }
+    }
+
     // v1.0 Fix: Exclude garrisoned units from active attacks to prevent "unprovoked" city attacks.
     // Garrisoned units will still retaliate if the city is attacked.
     // v1.3 Fix: Explicitly check for presence in city, as u.state might not be updated yet.

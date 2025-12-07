@@ -196,6 +196,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         const danger = detectNearbyDanger(liveSettler.coord, playerId, next);
         if (danger) {
             const neighbors = getNeighbors(liveSettler.coord);
+
+            // v2.0: Detect ALL nearby enemies to avoid running from one into another
+            const allNearbyEnemies = next.units
+                .filter(u => u.ownerId !== playerId && UNITS[u.type].domain !== "Civilian")
+                .map(u => ({ coord: u.coord, distance: hexDistance(liveSettler.coord, u.coord) }))
+                .filter(e => e.distance <= 4);
+
             const neighborsWithSafety = neighbors
                 .map(coord => {
                     const escortStaysClose = hasAdjacentEscort ? next.units.some(u =>
@@ -212,18 +219,38 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                         retreatScore = -distToCity; // Closer to city is better (higher score)
                     }
 
+                    // v2.0: Calculate total threat exposure for this tile
+                    // Lower is better - we want to minimize proximity to ALL enemies
+                    let totalThreatScore = 0;
+                    for (const enemy of allNearbyEnemies) {
+                        const distFromEnemy = hexDistance(coord, enemy.coord);
+                        if (distFromEnemy <= 1) {
+                            totalThreatScore += 10; // Adjacent = very dangerous
+                        } else if (distFromEnemy <= 2) {
+                            totalThreatScore += 3; // Within 2 tiles = dangerous
+                        } else if (distFromEnemy <= 3) {
+                            totalThreatScore += 1; // Within 3 tiles = some risk
+                        }
+                    }
+
                     return {
                         coord,
                         distanceFromThreat: hexDistance(coord, danger.coord),
                         escortStaysClose,
-                        retreatScore
+                        retreatScore,
+                        totalThreatScore
                     };
                 })
                 .sort((a, b) => {
+                    // v2.0: Primary sort by total threat exposure (avoid ALL enemies)
+                    if (a.totalThreatScore !== b.totalThreatScore) {
+                        return a.totalThreatScore - b.totalThreatScore;
+                    }
+                    // Secondary: Escort safety
                     if (a.escortStaysClose !== b.escortStaysClose) {
                         return a.escortStaysClose ? -1 : 1;
                     }
-                    // If threatened, prioritize distance from threat AND moving towards safety
+                    // Tertiary: Distance from primary threat + retreat score
                     const scoreA = a.distanceFromThreat * 2 + a.retreatScore;
                     const scoreB = b.distanceFromThreat * 2 + b.retreatScore;
                     return scoreB - scoreA;
