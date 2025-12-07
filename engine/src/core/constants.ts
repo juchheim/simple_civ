@@ -68,7 +68,7 @@ export const ATTACK_RANDOM_BAND = [-1, 0, 1];
 export const FORTIFY_DEF_BONUS = 1;
 export const HEAL_FRIENDLY_TILE = 3;
 export const HEAL_FRIENDLY_CITY = 5;
-export const CITY_HEAL_PER_TURN = 1;  // Was 2 - slower regen
+export const CITY_HEAL_PER_TURN = 2;  // Restored to 2 for faster city recovery
 
 // Growth
 // Growth
@@ -151,6 +151,19 @@ export const GARRISON_MELEE_RETALIATION_RANGE = 1; // Adjacent only
 export const GARRISON_RANGED_DEFENSE_BONUS = 1;  // BowGuard
 export const GARRISON_RANGED_ATTACK_BONUS = 3;
 export const GARRISON_RANGED_RETALIATION_RANGE = 2; // Can hit back at range
+
+// v2.0: Civ 6-style damage formula constants
+export const CIV6_DAMAGE_BASE = 5;
+export const CIV6_DAMAGE_DIVISOR = 25;
+export const CIV6_DAMAGE_RANDOM_MIN = 0.9;
+export const CIV6_DAMAGE_RANDOM_MAX = 1.1;
+export const CIV6_DAMAGE_MIN = 1;
+export const CIV6_DAMAGE_MAX = 15;
+
+// v2.0: Titan regeneration by location
+export const TITAN_REGEN_BASE = 1;      // Enemy/neutral territory
+export const TITAN_REGEN_TERRITORY = 3; // Friendly territory
+export const TITAN_REGEN_CITY = 5;      // Friendly city
 
 // Map Dimensions (Width x Height)
 // v0.98 Update 8: Increased all sizes by ~5% (approx 10% more tiles) to encourage expansion
@@ -329,6 +342,13 @@ export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
         oncePerCiv: true,
         oneCityAtATime: false,
         onComplete: { type: "Milestone", payload: { marker: "JadeGranary" } },
+    },
+    // Marker project for tracking Titan's Core completion (not buildable directly)
+    [ProjectId.TitansCoreComplete]: {
+        cost: 0,
+        oncePerCiv: true,
+        oneCityAtATime: false,
+        onComplete: { type: "Milestone", payload: { marker: "TitansCore" } },
     },
     [ProjectId.HarvestFestival]: {
         cost: 100,

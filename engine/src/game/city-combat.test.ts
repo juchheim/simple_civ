@@ -268,7 +268,7 @@ describe("City Combat", () => {
 
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city).toBeDefined();
-        expect(city!.hp).toBe(11); // 10 + 1
+        expect(city!.hp).toBe(12); // 10 + 2
     });
 
     it("should NOT heal a city that was damaged this turn", () => {
@@ -336,6 +336,6 @@ describe("City Combat", () => {
         nextState = applyAction(nextState, { type: "EndTurn", playerId: "p1" });
 
         city = nextState.cities.find(c => c.id === "c1");
-        expect(city!.hp).toBe(damagedHp + 1); // Healed by 1!
+        expect(city!.hp).toBe(damagedHp + 2); // Healed by 2!
     });
 });

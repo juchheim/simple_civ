@@ -1,9 +1,9 @@
-# Implementation Status - v1.0 codebase
+# Implementation Status - v2.0 codebase
 
-Last Updated: 2025-11-30
+Last Updated: 2025-12-07
 
 ## ✅ Implemented
-- Core turn loop with unit movement/combat (melee/ranged), city production/growth/healing/fortify, city capture & raze, territory claim (radius 2), and worked-tile assignment UI.
+- Core turn loop with unit movement/combat (melee/ranged with **v2.0 Civ 6-style damage formula and melee return damage**), city production/growth/healing/fortify, city capture & raze, territory claim (radius 2), and worked-tile assignment UI.
 - Tech tree flow (era gates, prereqs), research accumulation, build gating for units/buildings/projects.
 - Progress/Conquest victory checks at end of round; elimination removes a civ’s units when cityless.
 - Fog of war (per-player visibility + revealed), shroud rendering/legend toggle in UI.
@@ -29,6 +29,11 @@ Last Updated: 2025-11-30
     - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 30, +1 Pop/Food, Spawns Free Settler). Added "Nature's Wrath" (1 HP Attrition to enemies in territory). AI aggressively expands (2-tile density) and pivots to victory earlier. Stops settling in late-game wars.
     - **Aetherian Vanguard**: Titans ignore terrain movement costs. **Battle Hardened** perk buffed to +2 HP/era (max +6). **Scavenger Doctrine**: Science on Kill.
     - **AI Logic**: Improved victory condition pursuit. Aggression scales on Standard+ maps to encourage conquest.
+- **Combat Overhaul (v2.0)**:
+    - **Civ 6-style Damage Formula**: `Damage = 5 × e^(StrengthDiff / 25) × RandomMult`, clamped [1, 15]. Replaces old linear formula.
+    - **Melee Return Damage**: When a melee unit attacks and the defender survives, the defender counter-attacks using the same formula. Ranged units do NOT take return damage.
+    - **Titan Regeneration**: Location-based healing (1 HP/turn in enemy territory, 3 HP/turn in friendly territory, 5 HP/turn in friendly city). Titan stats: 30 ATK, 8 DEF, 30 HP.
+    - **City Retaliation**: Uses unified Civ 6 damage formula for garrison retaliation.
 
 ## 🔧 Partially Implemented
 - Map generation: coast-biased edges, terrain variation, mountain clusters, river overlays with edge list, and best-fit start selection (≥6 spacing, nearby food/prod), but no mapGenParams tunables, advanced smoothing, or true edge-driven river gen.

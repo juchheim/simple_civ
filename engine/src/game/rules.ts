@@ -268,10 +268,9 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (bId === BuildingType.SpiritObservatory && player.civName !== "StarborneSeekers") return false;
         if (bId === BuildingType.JadeGranary && player.civName !== "JadeCovenant") return false;
 
-        // Titans Core: once per civ (check if any city has it or is building it)
+        // Titans Core: once per civ (tracked via TitansCoreComplete marker)
         if (bId === BuildingType.TitansCore) {
-            const hasBuilding = state.cities.some(c => c.ownerId === player.id && c.buildings.includes(bId));
-            if (hasBuilding) return false;
+            if (player.completedProjects.includes(ProjectId.TitansCoreComplete)) return false;
             const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
             if (isBuilding) return false;
         }

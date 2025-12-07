@@ -1,21 +1,17 @@
 import { GameState, UnitState, UnitType, BuildingType, HistoryEventType } from "../../core/types.js";
 import { logEvent } from "../history.js";
 import {
-    ATTACK_RANDOM_BAND,
     CITY_DEFENSE_BASE,
     CITY_WARD_DEFENSE_BONUS,
     CITY_ATTACK_BASE,
     CITY_WARD_ATTACK_BONUS,
-    DAMAGE_BASE,
-    DAMAGE_MAX,
-    DAMAGE_MIN,
     TERRAIN,
     FORTIFY_DEFENSE_BONUS,
     UNITS,
 } from "../../core/constants.js";
 import { hexDistance, hexEquals, hexToString } from "../../core/hex.js";
 import { captureCity } from "../helpers/cities.js";
-import { buildTileLookup, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
+import { buildTileLookup, calculateCiv6Damage, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { ensureWar } from "../helpers/diplomacy.js";
 import { assertHasNotAttacked, assertMovesLeft, assertOwnership, getCityAt, getUnitOrThrow } from "../helpers/action-helpers.js";
 import { resolveLinkedPartner, unlinkPair } from "../helpers/movement.js";
@@ -89,27 +85,43 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             return state;
         }
 
-        const randIdx = Math.floor(state.seed % 3);
-        state.seed = (state.seed * 9301 + 49297) % 233280;
-        const randomMod = ATTACK_RANDOM_BAND[randIdx];
-
-        const attackPower = attackerStats.atk + randomMod;
-
-        let defensePower = getEffectiveUnitStats(defender, state).def;
+        // Calculate defender's effective defense with terrain and fortification
+        const defenderStats = getEffectiveUnitStats(defender, state);
+        let defensePower = defenderStats.def;
         const tile = tileLookup.get(hexToString(defender.coord));
         if (tile) {
             defensePower += TERRAIN[tile.terrain].defenseMod;
         }
         if (defender.state === UnitState.Fortified) defensePower += FORTIFY_DEFENSE_BONUS;
 
-        const delta = attackPower - defensePower;
-        const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
-        const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
+        // v2.0: Civ 6-style damage formula
+        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk, defensePower, state.seed);
+        state.seed = newSeed;
 
         defender.hp -= damage;
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;
         attacker.state = UnitState.Normal;
+
+        // v2.0: Melee return damage - defender counter-attacks if alive and attacker is melee
+        if (defender.hp > 0 && attackerStats.rng === 1) {
+            // Calculate attacker's defense with terrain (attacker is not fortified since they attacked)
+            let attackerDefense = attackerStats.def;
+            const attackerTile = tileLookup.get(hexToString(attacker.coord));
+            if (attackerTile) attackerDefense += TERRAIN[attackerTile.terrain].defenseMod;
+
+            const { damage: returnDamage, newSeed: returnSeed } = calculateCiv6Damage(
+                defenderStats.atk, attackerDefense, state.seed
+            );
+            state.seed = returnSeed;
+            attacker.hp -= returnDamage;
+
+            // If attacker dies from return damage
+            if (attacker.hp <= 0) {
+                state.units = state.units.filter(u => u.id !== attacker.id);
+                return state;
+            }
+        }
 
         if (defender.hp <= 0) {
             const defenderCoord = defender.coord;
@@ -167,12 +179,6 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         if (dist > attackerStats.rng) throw new Error("Target out of range");
         if (!hasClearLineOfSight(state, attacker.coord, city.coord)) throw new Error("Line of sight blocked");
 
-        const randIdx = Math.floor(state.seed % 3);
-        state.seed = (state.seed * 9301 + 49297) % 233280;
-        const randomMod = ATTACK_RANDOM_BAND[randIdx];
-
-        const attackPower = attackerStats.atk + randomMod;
-
         const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler);
         let garrisonDefenseBonus = 0;
         let garrisonAttackBonus = 0;
@@ -191,19 +197,21 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             }
         }
 
+        // v2.0: Civ 6-style damage formula for city attacks
         let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2) + garrisonDefenseBonus;
         if (city.buildings.includes(BuildingType.CityWard)) defensePower += CITY_WARD_DEFENSE_BONUS;
 
-        const delta = attackPower - defensePower;
-        const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
-        const damage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
+        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk, defensePower, state.seed);
+        state.seed = newSeed;
 
-        city.hp -= damage;
+        city.hp = Math.max(0, city.hp - damage);
         city.lastDamagedOnTurn = state.turn;
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;
 
+        // City retaliation via garrison
         if (garrison && dist <= garrisonRetaliationRange && !attacker.retaliatedAgainstThisTurn) {
+            // v2.0: Civ 6-style retaliation damage
             const cityAttackPower = CITY_ATTACK_BASE +
                 (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) +
                 garrisonAttackBonus;
@@ -213,9 +221,10 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             if (attackerTile) attackerDefense += TERRAIN[attackerTile.terrain].defenseMod;
             if (attacker.state === UnitState.Fortified) attackerDefense += FORTIFY_DEFENSE_BONUS;
 
-            const retaliationDelta = cityAttackPower - attackerDefense;
-            const retaliationRawDamage = DAMAGE_BASE + Math.floor(retaliationDelta / 2);
-            const retaliationDamage = Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, retaliationRawDamage));
+            const { damage: retaliationDamage, newSeed: retSeed } = calculateCiv6Damage(
+                cityAttackPower, attackerDefense, state.seed
+            );
+            state.seed = retSeed;
 
             attacker.hp -= retaliationDamage;
             attacker.retaliatedAgainstThisTurn = true;

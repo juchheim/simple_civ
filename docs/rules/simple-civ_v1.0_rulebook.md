@@ -111,7 +111,7 @@
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
   - Base city HP 15; capture resets to 8. Base defense strength 3.
-  - City heal 1 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
+  - City heal 2 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
   - **Garrison Bonuses**:
     - **Melee Unit**: +2 City Defense, +1 City Attack Strength, Retaliation Range 1.
     - **Ranged Unit**: +1 City Defense, +3 City Attack Strength, Retaliation Range 2.
@@ -150,7 +150,7 @@
   - Army Spear Guard 8/4/1/1, capture, vision 2.
   - Army Bow Guard 6/3/2/1, no capture, vision 2.
   - Army Riders 8/4/1/2, capture, vision 2.
-  - **Titan**: 30 atk / 20 def / rng 1 / move 2 / HP 60 / capture / vision 3 (summoned by Titan's Core). **Regenerates 2 HP per turn.**
+  - **Titan**: 30 atk / 8 def / rng 1 / move 2 / HP 30 / capture / vision 3 (summoned by Titan's Core). **Location-based regeneration**: 1 HP/turn in enemy territory, 3 HP/turn in friendly territory, 5 HP/turn in friendly city.
 - **States**: Normal, Fortified (+2 defense until move/attack), Garrisoned (on city), PendingSpawn (queued).
 - **Linking**: eligible units can link into armies via Form Army projects; unlink to split back to base units.
 - **Vision**: provided per unit; shared vision extends via diplomacy.
@@ -176,16 +176,20 @@
 - **Attacking**:
   - One attack per unit per turn; ranged must respect range; melee requires adjacency.
   - Cities can be attacked; only capture-capable units take cities.
-- **Damage Model**:
-  - Base damage 6, clamped by min/max (1–7 band) with random variance (ATTACK_RANDOM_BAND -1/0/+1).
-  - Modified by attacker attack vs defender defense plus terrain modifiers; minimum 1 damage on hit.
+- **Damage Model (v2.0 - Civ 6-style)**:
+  - Formula: `Damage = 5 × e^(StrengthDiff / 25) × RandomMult`
+  - StrengthDiff = Attacker ATK - Defender DEF (includes terrain/fortify bonuses)
+  - RandomMult = 0.9 to 1.1 (deterministic from game seed)
+  - Damage clamped to [1, 15]
 - **Defense & Terrain**:
   - Hills +2 defense, Forest +1, Marsh -1, Desert -1; City Ward adds city defense/attack bonuses.
   - Fortified state adds +1 defense.
 - **Line of Sight**:
   - Hills/Forest/Mountain block LoS; ranged attacks require LoS unless adjacent.
-- **Counterattacks**:
-  - Melee targets counter if alive and capable.
+- **Counterattacks (v2.0 - Melee Return Damage)**:
+  - When a melee unit (range 1) attacks and the defender survives, the defender counter-attacks using the same damage formula (Defender ATK vs Attacker DEF).
+  - Ranged units (range > 1) do NOT take return damage from units.
+  - City garrison retaliation uses the same formula.
 - **Healing**:
   - Friendly tile: +3 HP/turn; friendly city: +5 HP/turn.
   - Cities heal 2 HP/turn if not damaged that turn.
@@ -225,7 +229,7 @@
   - **Forgeworks** (80, Steam Forges): +2 Production.
   - **City Square** (80, Urban Plans): +1 Food, +1 Production.
   - **Titan's Core**: Cost 100. Summons **The Titan** (Limit 1).
-    - **Titan Stats**: Attack 30, Defense 20, HP 60, Moves 2. Ignores terrain costs.
+    - **Titan Stats**: Attack 30, Defense 8, HP 30, Moves 2. Location-based regeneration.
 - **Spirit Observatory**: Cost 300. +1 Science per city. Counts as Observatory. milestone (unique per civ).
   - **Jade Granary** (30, Fieldcraft): "The Great Harvest"—+1 Pop per city, growth 15% cheaper, +1 Food per city, Spawns Free Settler (unique per civ).
 

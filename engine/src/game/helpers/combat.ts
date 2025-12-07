@@ -12,6 +12,12 @@ import {
     SCHOLAR_KINGDOMS_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_RADIUS,
     FORTIFY_DEFENSE_BONUS,
+    CIV6_DAMAGE_BASE,
+    CIV6_DAMAGE_DIVISOR,
+    CIV6_DAMAGE_RANDOM_MIN,
+    CIV6_DAMAGE_RANDOM_MAX,
+    CIV6_DAMAGE_MIN,
+    CIV6_DAMAGE_MAX,
 } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
 import { hexLine, hexToString, hexDistance, hexEquals } from "../../core/hex.js";
@@ -36,6 +42,29 @@ const RANGED_TYPES = new Set<UnitType>([
     UnitType.BowGuard,
     UnitType.ArmyBowGuard,
 ]);
+
+/**
+ * Civ 6-style damage formula: Damage = BASE × e^(StrengthDiff / DIVISOR) × RandomMult
+ * Returns calculated damage and updated seed for RNG.
+ */
+export function calculateCiv6Damage(
+    attackerAtk: number,
+    defenderDef: number,
+    seed: number
+): { damage: number; newSeed: number } {
+    const diff = attackerAtk - defenderDef;
+    const baseDamage = CIV6_DAMAGE_BASE * Math.exp(diff / CIV6_DAMAGE_DIVISOR);
+
+    // Deterministic random from seed (range 0.9 to 1.1)
+    const randomMult = CIV6_DAMAGE_RANDOM_MIN +
+        ((seed % 100) / 100) * (CIV6_DAMAGE_RANDOM_MAX - CIV6_DAMAGE_RANDOM_MIN);
+    const newSeed = (seed * 9301 + 49297) % 233280;
+
+    const rawDamage = Math.round(baseDamage * randomMult);
+    const damage = Math.max(CIV6_DAMAGE_MIN, Math.min(CIV6_DAMAGE_MAX, rawDamage));
+
+    return { damage, newSeed };
+}
 
 /**
  * Count the number of eras the player has researched at least one tech in.

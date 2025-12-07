@@ -61,6 +61,11 @@ export function completeBuild(state: GameState, city: City) {
         if (build.id === BuildingType.TitansCore) {
             logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
 
+            // Mark as completed to prevent rebuilding (one-time production)
+            if (player) {
+                player.completedProjects.push(ProjectId.TitansCoreComplete);
+            }
+
             const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
             const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
 

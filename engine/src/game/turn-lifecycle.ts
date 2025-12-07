@@ -7,6 +7,9 @@ import {
     HEAL_FRIENDLY_TILE,
     UNITS,
     TECHS,
+    TITAN_REGEN_BASE,
+    TITAN_REGEN_TERRITORY,
+    TITAN_REGEN_CITY,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
@@ -309,9 +312,19 @@ function healUnitsAtStart(state: GameState, playerId: string) {
     for (const unit of state.units.filter(u => u.ownerId === playerId)) {
         const stats = UNITS[unit.type];
 
-        // Titan regeneration: always heals 1 HP
+        // v2.0: Titan regeneration is location-based
         if (unit.type === UnitType.Titan) {
-            unit.hp = Math.min(unit.maxHp, unit.hp + 1);
+            const tile = state.map.tiles.find(t => hexEquals(t.coord, unit.coord));
+            const inCity = state.cities.some(c =>
+                c.ownerId === playerId && hexEquals(c.coord, unit.coord)
+            );
+
+            let regen = TITAN_REGEN_BASE; // Default: enemy/neutral territory
+            if (tile?.ownerId === playerId) {
+                regen = inCity ? TITAN_REGEN_CITY : TITAN_REGEN_TERRITORY;
+            }
+
+            unit.hp = Math.min(unit.maxHp, unit.hp + regen);
             continue;
         }
 

@@ -110,7 +110,7 @@
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
   - Base city HP 20; capture resets to 8. Base defense strength 5.
-  - City heal 1 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
+  - City heal 2 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
   - Garrison enables city attack; City Ward adds +4 defense and +1 city attack.
 - **City Attack**:
   - Base city attack strength 3; range 2; one shot/turn if unfired and garrisoned.

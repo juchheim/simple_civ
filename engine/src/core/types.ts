@@ -105,6 +105,7 @@ export enum ProjectId {
     AlchemicalExperiments = "AlchemicalExperiments",
     // Markers for unique wonder completions
     JadeGranaryComplete = "JadeGranaryComplete",
+    TitansCoreComplete = "TitansCoreComplete",
 }
 
 export type Yields = {
