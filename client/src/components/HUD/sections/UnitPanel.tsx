@@ -65,7 +65,6 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
                 <span className="hud-chip">HP: {unit.hp}</span>
                 <span className="hud-chip">Atk: {stats.atk}</span>
                 <span className="hud-chip">Def: {stats.def}</span>
-                <span className="hud-chip">Rng: {stats.rng}</span>
                 {linkedPartner && <span className="hud-chip success">Linked with {linkedPartner.type}</span>}
                 {unit.isAutoExploring && <span className="hud-chip success">Auto Exploring</span>}
                 {unit.state === UnitState.Fortified && <span className="hud-chip success">Fortified</span>}

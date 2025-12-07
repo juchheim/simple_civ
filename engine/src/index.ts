@@ -15,3 +15,4 @@ export { ensureTechSelected, pickBestAvailableTech } from "./game/helpers/turn.j
 export { runAiTurn } from "./game/ai.js";
 export { estimateMilitaryPower } from "./game/ai/goals.js";
 export { getUnitCost } from "./game/units.js";
+export * from "./game/helpers/combat-preview.js";

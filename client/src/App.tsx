@@ -5,7 +5,7 @@ import { HUD } from "./components/HUD";
 import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
 import { EndGameExperience } from "./components/EndGame/EndGameExperience";
-import { WarDeclarationModal } from "./components/HUD/sections";
+import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sections";
 import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
@@ -45,6 +45,15 @@ function App() {
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
     const [mapView, setMapView] = useState<MapViewport | null>(null);
     const [showGameMenu, setShowGameMenu] = useState(false);
+    const [showCombatPreview, setShowCombatPreview] = useState(() => {
+        const stored = localStorage.getItem("showCombatPreview");
+        return stored !== null ? stored === "true" : true;
+    });
+
+    // Persist showCombatPreview to localStorage
+    useEffect(() => {
+        localStorage.setItem("showCombatPreview", String(showCombatPreview));
+    }, [showCombatPreview]);
 
     const dispatchAction = useCallback((action: Action) => {
         runActions([action]);
@@ -57,6 +66,9 @@ function App() {
         setSelectedUnitId,
         pendingWarAttack,
         setPendingWarAttack,
+        pendingCombatPreview,
+        confirmCombatPreview,
+        cancelCombatPreview,
         handleTileClick,
         reachableCoordSet,
     } = useInteractionController({
@@ -64,6 +76,7 @@ function App() {
         playerId,
         dispatchAction,
         runActions,
+        showCombatPreview,
     });
 
     // Auto-clear error after 3 seconds
@@ -427,6 +440,8 @@ function App() {
                 onToggleShroud={() => setShowShroud(prev => !prev)}
                 showYields={showTileYields}
                 onToggleYields={() => setShowTileYields(prev => !prev)}
+                showCombatPreview={showCombatPreview}
+                onToggleCombatPreview={() => setShowCombatPreview(prev => !prev)}
                 onCenterCity={setCityToCenter}
                 mapView={mapView}
                 onNavigateMap={handleNavigateMapView}
@@ -479,6 +494,14 @@ function App() {
                     />
                 ) : null;
             })()}
+            {pendingCombatPreview && (
+                <CombatPreviewModal
+                    preview={pendingCombatPreview.preview}
+                    onConfirm={confirmCombatPreview}
+                    onCancel={cancelCombatPreview}
+                    onDisablePreview={() => setShowCombatPreview(false)}
+                />
+            )}
             {error && (
                 <div style={{
                     position: "fixed",

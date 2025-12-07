@@ -323,6 +323,7 @@ export type Action =
     | { type: "SetDiplomacy"; playerId: string; targetPlayerId: string; state: DiplomacyState }
     | { type: "ProposePeace"; playerId: string; targetPlayerId: string }
     | { type: "AcceptPeace"; playerId: string; targetPlayerId: string }
+    | { type: "WithdrawPeace"; playerId: string; targetPlayerId: string }
     | { type: "ProposeVisionShare"; playerId: string; targetPlayerId: string }
     | { type: "AcceptVisionShare"; playerId: string; targetPlayerId: string }
     | { type: "RevokeVisionShare"; playerId: string; targetPlayerId: string }

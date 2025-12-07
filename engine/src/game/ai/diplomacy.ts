@@ -16,7 +16,11 @@ export function handleDiplomacy(state: GameState, playerId: string): GameState {
         if (decision === "DeclareWar") {
             next = tryAction(next, { type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
         } else if (decision === "ProposePeace") {
-            next = tryAction(next, { type: "ProposePeace", playerId, targetPlayerId: other.id });
+            // Skip if we already have an outgoing peace offer to this target
+            const alreadyOffered = next.diplomacyOffers.some(o => o.from === playerId && o.to === other.id && o.type === "Peace");
+            if (!alreadyOffered) {
+                next = tryAction(next, { type: "ProposePeace", playerId, targetPlayerId: other.id });
+            }
         } else if (decision === "AcceptPeace") {
             next = tryAction(next, { type: "AcceptPeace", playerId, targetPlayerId: other.id });
         }

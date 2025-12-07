@@ -47,19 +47,29 @@ export const DiplomacySummary: React.FC<DiplomacySummaryProps> = ({ rows, player
                             >
                                 {row.state === DiplomacyState.War ? "At War" : "Declare War"}
                             </button>
-                            <button
-                                className="hud-button small"
-                                onClick={() => onAction({ type: "ProposePeace", playerId, targetPlayerId: row.playerId })}
-                                disabled={row.atPeace || row.outgoingPeace || !row.hasContact}
-                            >
-                                {row.outgoingPeace ? "Peace Proposed" : "Propose Peace"}
-                            </button>
+                            {row.state === DiplomacyState.War && !row.incomingPeace && (
+                                <button
+                                    className="hud-button small"
+                                    onClick={() => onAction({ type: "ProposePeace", playerId, targetPlayerId: row.playerId })}
+                                    disabled={row.outgoingPeace || !row.hasContact}
+                                >
+                                    {row.outgoingPeace ? "Peace Proposed" : "Propose Peace"}
+                                </button>
+                            )}
                             {row.incomingPeace && row.state === DiplomacyState.War && (
                                 <button
                                     className="hud-button small"
                                     onClick={() => onAction({ type: "AcceptPeace", playerId, targetPlayerId: row.playerId })}
                                 >
                                     Accept Peace
+                                </button>
+                            )}
+                            {row.outgoingPeace && row.state === DiplomacyState.War && (
+                                <button
+                                    className="hud-button small ghost"
+                                    onClick={() => onAction({ type: "WithdrawPeace", playerId, targetPlayerId: row.playerId })}
+                                >
+                                    Withdraw Offer
                                 </button>
                             )}
                         </div>

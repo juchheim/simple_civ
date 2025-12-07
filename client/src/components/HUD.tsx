@@ -21,11 +21,13 @@ interface HUDProps {
     onLoad: () => void;
     onRestart: () => void;
     onQuit: () => void;
-    onResign: () => void; // New prop
+    onResign: () => void;
     showShroud: boolean;
     onToggleShroud: () => void;
     showYields: boolean;
     onToggleYields: () => void;
+    showCombatPreview: boolean;
+    onToggleCombatPreview: () => void;
     onCenterCity: (coord: HexCoord) => void;
 
     mapView: MapViewport | null;
@@ -34,7 +36,7 @@ interface HUDProps {
     onToggleGameMenu: (show: boolean) => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, onResign, showShroud, onToggleShroud, showYields, onToggleYields, onCenterCity, mapView, onNavigateMap, showGameMenu, onToggleGameMenu }) => {
+export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, onResign, showShroud, onToggleShroud, showYields, onToggleYields, showCombatPreview, onToggleCombatPreview, onCenterCity, mapView, onNavigateMap, showGameMenu, onToggleGameMenu }) => {
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
@@ -244,6 +246,8 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                             onToggleShroud={onToggleShroud}
                             showYields={showYields}
                             onToggleYields={onToggleYields}
+                            showCombatPreview={showCombatPreview}
+                            onToggleCombatPreview={onToggleCombatPreview}
                         />
                     </div>
                 ) : (

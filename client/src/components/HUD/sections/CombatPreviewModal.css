@@ -1,0 +1,242 @@
+.combat-preview__overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    pointer-events: auto;
+}
+
+.combat-preview__modal {
+    width: min(480px, 90vw);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--color-highlight);
+}
+
+.combat-preview__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.combat-preview__icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.combat-preview__panels {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.combat-preview__panel {
+    flex: 1;
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.combat-preview__panel.defender {
+    border-color: #ef444480;
+    background: linear-gradient(135deg, var(--color-bg-deep), rgba(127, 29, 29, 0.15));
+}
+
+.combat-preview__panel-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.combat-preview__unit-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.combat-preview__stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.combat-preview__stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.combat-preview__stat.atk {
+    color: #f87171;
+}
+
+.combat-preview__stat.def {
+    color: #60a5fa;
+}
+
+.combat-preview__stat.hp {
+    color: #4ade80;
+}
+
+.combat-preview__modifiers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.combat-preview__modifier {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.combat-preview__modifier.positive {
+    color: #4ade80;
+}
+
+.combat-preview__modifier.negative {
+    color: #f87171;
+}
+
+.combat-preview__vs {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--color-text-muted);
+    padding: 0 4px;
+}
+
+.combat-preview__damage-section {
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.combat-preview__section-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+}
+
+.combat-preview__health-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.combat-preview__health-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    width: 70px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.combat-preview__health-bar-container {
+    flex: 1;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--color-border);
+}
+
+.combat-preview__health-bar {
+    height: 100%;
+    position: absolute;
+    top: 0;
+    transition: width 200ms ease;
+}
+
+.combat-preview__health-bar.remaining {
+    left: 0;
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+    border-radius: 5px 0 0 5px;
+}
+
+.combat-preview__health-bar.damage {
+    background: linear-gradient(90deg, #991b1b, #dc2626);
+    border-radius: 0 5px 5px 0;
+}
+
+.combat-preview__health-values {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    flex-shrink: 0;
+    min-width: 80px;
+}
+
+.combat-preview__hp-after {
+    font-size: 14px;
+    font-weight: 700;
+    color: #4ade80;
+}
+
+.combat-preview__hp-max {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.combat-preview__damage-text {
+    font-size: 11px;
+    color: #f87171;
+    margin-left: 4px;
+}
+
+.combat-preview__no-return {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 4px 0;
+}
+
+.combat-preview__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.combat-preview__checkbox-label input {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.combat-preview__actions {
+    display: flex;
+    gap: 10px;
+}
+
+.combat-preview__actions .hud-button {
+    flex: 1;
+}

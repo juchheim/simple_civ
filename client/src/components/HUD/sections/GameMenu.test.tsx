@@ -13,6 +13,8 @@ describe("GameMenu", () => {
         onToggleShroud: vi.fn(),
         showYields: false,
         onToggleYields: vi.fn(),
+        showCombatPreview: true,
+        onToggleCombatPreview: vi.fn(),
     };
 
     it("renders all menu options", () => {

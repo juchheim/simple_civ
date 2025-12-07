@@ -14,8 +14,18 @@ export function useDiplomacyAlerts(gameState: GameState, playerId: string) {
     // Track previous state to detect changes
     const prevDiplomacyRef = useRef<Record<string, Record<string, DiplomacyState>>>(gameState.diplomacy);
     const prevOffersRef = useRef<DiplomacyOffer[]>(gameState.diplomacyOffers);
+    // Skip first run to avoid alerting on offers that existed before we started tracking
+    const isFirstRunRef = useRef(true);
 
     useEffect(() => {
+        // Skip the first run - we don't want to alert on pre-existing offers
+        if (isFirstRunRef.current) {
+            isFirstRunRef.current = false;
+            prevDiplomacyRef.current = gameState.diplomacy;
+            prevOffersRef.current = gameState.diplomacyOffers;
+            return;
+        }
+
         const newAlerts: DiplomacyAlert[] = [];
         const currentDiplomacy = gameState.diplomacy;
         const prevDiplomacy = prevDiplomacyRef.current;

@@ -1,14 +1,20 @@
 import { useCallback, useState } from "react";
-import { Action, DiplomacyState, GameState, HexCoord, UNITS, findPath, hexDistance, hexEquals, hexToString, Unit } from "@simple-civ/engine";
+import { Action, DiplomacyState, GameState, HexCoord, UNITS, findPath, hexDistance, hexEquals, hexToString, Unit, getCombatPreviewUnitVsUnit, getCombatPreviewUnitVsCity, CombatPreview } from "@simple-civ/engine";
 import { useReachablePaths } from "./useReachablePaths";
 
 type PendingWar = { action: Action; targetPlayerId: string } | null;
+
+type PendingCombatPreview = {
+    preview: CombatPreview;
+    action: Action;
+} | null;
 
 type InteractionControllerParams = {
     gameState: GameState | null;
     playerId: string;
     dispatchAction: (action: Action) => void;
     runActions: (actions: Action[]) => void;
+    showCombatPreview?: boolean;
 };
 
 export function useInteractionController({
@@ -16,18 +22,22 @@ export function useInteractionController({
     playerId,
     dispatchAction,
     runActions,
+    showCombatPreview = true,
 }: InteractionControllerParams) {
     const [selectedCoord, setSelectedCoord] = useState<HexCoord | null>(null);
     const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
     const [pendingWarAttack, setPendingWarAttack] = useState<PendingWar>(null);
+    const [pendingCombatPreview, setPendingCombatPreview] = useState<PendingCombatPreview>(null);
 
     const { reachablePaths, reachableCoordSet } = useReachablePaths(gameState, playerId, selectedUnitId);
     const diplomacy = gameState?.diplomacy;
 
     const tryAttackUnit = useCallback((
-        unit: { id: string; ownerId: string },
-        targetUnit: { id: string; ownerId: string },
+        unit: Unit,
+        targetUnit: Unit,
     ) => {
+        if (!gameState) return false;
+
         const attackAction: Action = {
             type: "Attack",
             playerId,
@@ -39,18 +49,23 @@ export function useInteractionController({
         const diplomacyState = diplomacy?.[playerId]?.[targetUnit.ownerId] || DiplomacyState.Peace;
         if (diplomacyState === DiplomacyState.Peace) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetUnit.ownerId });
+        } else if (showCombatPreview) {
+            const preview = getCombatPreviewUnitVsUnit(gameState, unit, targetUnit);
+            setPendingCombatPreview({ preview, action: attackAction });
         } else {
             dispatchAction(attackAction);
             setSelectedCoord(null);
             setSelectedUnitId(null);
         }
         return true;
-    }, [diplomacy, dispatchAction, playerId, setPendingWarAttack, setSelectedCoord, setSelectedUnitId]);
+    }, [diplomacy, dispatchAction, gameState, playerId, showCombatPreview, setPendingWarAttack, setSelectedCoord, setSelectedUnitId]);
 
     const tryAttackCity = useCallback((
-        unit: any,
+        unit: Unit,
         targetCity: any,
     ) => {
+        if (!gameState) return false;
+
         const unitStats = UNITS[unit.type as keyof typeof UNITS];
         const dist = hexDistance(unit.coord, targetCity.coord);
         if (dist > unitStats.rng || targetCity.hp <= 0) return false;
@@ -66,13 +81,16 @@ export function useInteractionController({
         const diplomacyState = diplomacy?.[playerId]?.[targetCity.ownerId] || DiplomacyState.Peace;
         if (diplomacyState === DiplomacyState.Peace) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetCity.ownerId });
+        } else if (showCombatPreview) {
+            const preview = getCombatPreviewUnitVsCity(gameState, unit, targetCity);
+            setPendingCombatPreview({ preview, action: attackAction });
         } else {
             dispatchAction(attackAction);
             setSelectedCoord(null);
             setSelectedUnitId(null);
         }
         return true;
-    }, [diplomacy, dispatchAction, playerId, setPendingWarAttack, setSelectedCoord, setSelectedUnitId]);
+    }, [diplomacy, dispatchAction, gameState, playerId, showCombatPreview, setPendingWarAttack, setSelectedCoord, setSelectedUnitId]);
 
     const trySwapOrStack = useCallback((unit: Unit, friendlyUnitOnTile: Unit, coord: HexCoord) => {
         const distance = hexDistance(unit.coord, friendlyUnitOnTile.coord);
@@ -252,15 +270,16 @@ export function useInteractionController({
         if (selectedUnitId) {
             const unit = gameState.units.find(u => u.id === selectedUnitId);
             if (unit && unit.ownerId === playerId) {
-                const targetUnit = gameState.units.find(u => hexEquals(u.coord, coord));
-
-                if (targetUnit && targetUnit.ownerId !== playerId) {
-                    if (tryAttackUnit(unit, targetUnit)) return;
-                }
-
+                // Check for city first - garrisoned units are protected by the city
                 const targetCity = gameState.cities.find(c => hexEquals(c.coord, coord));
                 if (targetCity && targetCity.ownerId !== playerId) {
                     if (tryAttackCity(unit, targetCity)) return;
+                }
+
+                // Only try to attack a unit if there's no city on the tile
+                const targetUnit = gameState.units.find(u => hexEquals(u.coord, coord));
+                if (targetUnit && targetUnit.ownerId !== playerId && !targetCity) {
+                    if (tryAttackUnit(unit, targetUnit)) return;
                 }
 
                 const friendlyUnitOnTile = gameState.units.find(u => hexEquals(u.coord, coord) && u.ownerId === playerId);
@@ -307,6 +326,19 @@ export function useInteractionController({
         setSelectedUnitId(linkedUnit?.id ?? friendlyUnits[0].id);
     }, [gameState, selectedUnitId, playerId, tryAttackUnit, tryAttackCity, trySwapOrStack, tryPlannedPath, tryAdjacentMove, tryAutoMove]);
 
+    const confirmCombatPreview = useCallback(() => {
+        if (pendingCombatPreview) {
+            dispatchAction(pendingCombatPreview.action);
+            setPendingCombatPreview(null);
+            setSelectedCoord(null);
+            setSelectedUnitId(null);
+        }
+    }, [pendingCombatPreview, dispatchAction, setSelectedCoord, setSelectedUnitId]);
+
+    const cancelCombatPreview = useCallback(() => {
+        setPendingCombatPreview(null);
+    }, []);
+
     return {
         selectedCoord,
         setSelectedCoord,
@@ -314,6 +346,9 @@ export function useInteractionController({
         setSelectedUnitId,
         pendingWarAttack,
         setPendingWarAttack,
+        pendingCombatPreview,
+        confirmCombatPreview,
+        cancelCombatPreview,
         handleTileClick,
         reachableCoordSet,
     };

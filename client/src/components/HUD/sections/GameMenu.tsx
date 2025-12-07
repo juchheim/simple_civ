@@ -10,6 +10,8 @@ type GameMenuProps = {
     onToggleShroud: () => void;
     showYields: boolean;
     onToggleYields: () => void;
+    showCombatPreview: boolean;
+    onToggleCombatPreview: () => void;
 };
 
 export const GameMenu: React.FC<GameMenuProps> = ({
@@ -22,6 +24,8 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     onToggleShroud,
     showYields,
     onToggleYields,
+    showCombatPreview,
+    onToggleCombatPreview,
 }) => {
     const [showPreferences, setShowPreferences] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -134,6 +138,15 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                                 style={{ width: 16, height: 16, cursor: "pointer" }}
                             />
                             Show terrain yields
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
+                            <input
+                                type="checkbox"
+                                checked={showCombatPreview}
+                                onChange={onToggleCombatPreview}
+                                style={{ width: 16, height: 16, cursor: "pointer" }}
+                            />
+                            Show combat preview
                         </label>
                     </div>
                 </div>

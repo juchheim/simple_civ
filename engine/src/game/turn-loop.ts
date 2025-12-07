@@ -25,6 +25,7 @@ import {
     handleProposeVisionShare,
     handleRevokeVisionShare,
     handleSetDiplomacy,
+    handleWithdrawPeace,
 } from "./actions/diplomacy.js";
 import { handleEndTurn, finalizeVictory } from "./turn-lifecycle.js";
 import { enforceLinkedUnitIntegrity } from "./helpers/movement.js";
@@ -74,6 +75,9 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "AcceptPeace":
             updatedState = handleAcceptPeace(nextState, action);
+            break;
+        case "WithdrawPeace":
+            updatedState = handleWithdrawPeace(nextState, action);
             break;
         case "ProposeVisionShare":
             updatedState = handleProposeVisionShare(nextState, action);

@@ -94,6 +94,15 @@ export function handleAcceptPeace(state: GameState, action: { type: "AcceptPeace
     return state;
 }
 
+export function handleWithdrawPeace(state: GameState, action: { type: "WithdrawPeace"; playerId: string; targetPlayerId: string }) {
+    const a = action.playerId;
+    const b = action.targetPlayerId;
+    const existing = state.diplomacyOffers.find(o => o.from === a && o.to === b && o.type === "Peace");
+    if (!existing) throw new Error("No peace offer to withdraw");
+    state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b && o.type === "Peace"));
+    return state;
+}
+
 export function handleProposeVisionShare(state: GameState, action: { type: "ProposeVisionShare"; playerId: string; targetPlayerId: string }) {
     const a = action.playerId;
     const b = action.targetPlayerId;
