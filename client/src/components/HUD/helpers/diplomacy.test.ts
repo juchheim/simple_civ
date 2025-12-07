@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildDiplomacyRows } from "./diplomacy";
-import { GameState, DiplomacyState, Player } from "@simple-civ/engine";
+import { GameState, DiplomacyState, Player, EraId } from "@simple-civ/engine";
 
 // Mock estimateMilitaryPower since it's used in buildDiplomacyRows
 vi.mock("@simple-civ/engine", async () => {
@@ -22,7 +22,7 @@ describe("buildDiplomacyRows", () => {
             currentTech: null,
             completedProjects: [],
             isAI: false,
-            currentEra: "Hearth",
+            currentEra: EraId.Hearth,
         };
         const player2: Player = {
             id: "p2",
@@ -33,7 +33,7 @@ describe("buildDiplomacyRows", () => {
             currentTech: null,
             completedProjects: [],
             isAI: true,
-            currentEra: "Hearth",
+            currentEra: EraId.Hearth,
         };
 
         const state: Partial<GameState> = {
@@ -65,7 +65,7 @@ describe("buildDiplomacyRows", () => {
             currentTech: null,
             completedProjects: [],
             isAI: false,
-            currentEra: "Hearth",
+            currentEra: EraId.Hearth,
         };
         const player2: Player = {
             id: "p2",
@@ -76,7 +76,7 @@ describe("buildDiplomacyRows", () => {
             currentTech: null,
             completedProjects: [],
             isAI: true,
-            currentEra: "Hearth",
+            currentEra: EraId.Hearth,
         };
 
         const state: Partial<GameState> = {
