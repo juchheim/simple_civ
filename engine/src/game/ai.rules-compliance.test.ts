@@ -81,10 +81,10 @@ describe("ai rules compliance", () => {
             // p1 land/naval + garrison candidate adjacent to city
             { id: "p1m1", ownerId: "p1", type: UnitType.SpearGuard, coord: hex(-1, 0), hp: 10, maxHp: 10, movesLeft: 2, hasAttacked: false, state: undefined },
             { id: "p1r1", ownerId: "p1", type: UnitType.BowGuard, coord: hex(-1, -1), hp: 10, maxHp: 10, movesLeft: 2, hasAttacked: false, state: undefined },
-            { id: "p1boat", ownerId: "p1", type: UnitType.RiverBoat, coord: hex(-2, 1), hp: 10, maxHp: 10, movesLeft: 3, hasAttacked: false, state: undefined },
+            { id: "p1boat", ownerId: "p1", type: UnitType.Skiff, coord: hex(-2, 1), hp: 10, maxHp: 10, movesLeft: 3, hasAttacked: false, state: undefined },
             { id: "p1garrison", ownerId: "p1", type: UnitType.SpearGuard, coord: hex(-2, -1), hp: 6, maxHp: 10, movesLeft: 2, hasAttacked: false, state: undefined },
             // p2 land/naval
-            { id: "p2boat", ownerId: "p2", type: UnitType.RiverBoat, coord: hex(4, -1), hp: 10, maxHp: 10, movesLeft: 3, hasAttacked: false, state: undefined },
+            { id: "p2boat", ownerId: "p2", type: UnitType.Skiff, coord: hex(4, -1), hp: 10, maxHp: 10, movesLeft: 3, hasAttacked: false, state: undefined },
             { id: "p2m1", ownerId: "p2", type: UnitType.SpearGuard, coord: hex(3, 0), hp: 10, maxHp: 10, movesLeft: 2, hasAttacked: false, state: undefined },
             { id: "p2r1", ownerId: "p2", type: UnitType.BowGuard, coord: hex(3, 1), hp: 10, maxHp: 10, movesLeft: 2, hasAttacked: false, state: undefined },
         ] as any;

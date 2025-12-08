@@ -172,8 +172,9 @@ export function handleSwapUnits(state: GameState, action: SwapUnitsAction): Game
     unit.coord = targetUnit.coord;
     targetUnit.coord = tempCoord;
 
-    // Swapping is powerful. Cost 1 move for initiator.
+    // Swapping is powerful. Cost 1 move for both units.
     unit.movesLeft -= 1;
+    targetUnit.movesLeft = Math.max(0, targetUnit.movesLeft - 1);
 
     // Update vision
     refreshPlayerVision(state, action.playerId);

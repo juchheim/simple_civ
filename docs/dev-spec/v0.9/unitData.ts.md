@@ -21,7 +21,7 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
     atk:2, def:2, range:1, move:2, maxHP:10, costP:40,
     class:UnitClass.Cavalry, canCaptureCity:true, domain:"Land"
   },
-  RiverBoat: {
+  Skiff: {
     atk:2, def:2, range:1, move:3, maxHP:10, costP:35,
     class:UnitClass.Naval, canCaptureCity:false, domain:"Naval"
   },

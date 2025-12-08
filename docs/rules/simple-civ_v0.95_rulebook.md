@@ -138,7 +138,7 @@
   - Spear Guard: 2/2/1/1/10/30, Land, can capture, vision 2.
   - Bow Guard: 2/1/2/1/10/30, Land, no capture, vision 2.
   - Riders: 2/2/1/2/10/40, Land, can capture, vision 2.
-  - River Boat: 2/2/1/3/10/35, Naval, no capture, vision 2.
+  - Skiff: 2/2/1/3/10/35, Naval, no capture, vision 2.
 - **Army Units** (formed via projects; HP 15):
   - Army Scout 3/3/1/2, no capture, vision 3.
   - Army Spear Guard 4/4/1/1, capture, vision 2.
@@ -186,7 +186,7 @@
   - Stonework Halls → Stone Workshop.
   - Script Lore → Scriptorium.
   - Formation Training → +1 Defense to melee units.
-  - Trail Maps → River Boat.
+  - Trail Maps → Skiff.
   - Wellworks → Reservoir.
   - Timber Mills → Lumber Mill.
   - Scholar Courts → Academy.

@@ -109,7 +109,7 @@ enum OverlayType {
 
 2.2 Units
 enum UnitType {
-  Settler, Scout, SpearGuard, BowGuard, Riders, RiverBoat,
+  Settler, Scout, SpearGuard, BowGuard, Riders, Skiff,
   ArmyScout, ArmySpearGuard, ArmyBowGuard, ArmyRiders
 }
 
@@ -205,7 +205,7 @@ const UNITS: Record<UnitType, UnitStats> = {
   SpearGuard:  {atk:2, def:2, rng:1, move:1, hp:10, cost:30, domain:"Land", canCaptureCity:true,  vision:2},
   BowGuard:    {atk:2, def:1, rng:2, move:1, hp:10, cost:30, domain:"Land", canCaptureCity:false, vision:2},
   Riders:      {atk:2, def:2, rng:1, move:2, hp:10, cost:40, domain:"Land", canCaptureCity:true,  vision:2},
-  RiverBoat:   {atk:2, def:2, rng:1, move:3, hp:10, cost:35, domain:"Naval",canCaptureCity:false, vision:2},
+  Skiff:   {atk:2, def:2, rng:1, move:3, hp:10, cost:35, domain:"Naval",canCaptureCity:false, vision:2},
 
   // Armies inherit move/range/vision of base type, but stats+hp overwritten on transform.
   ArmyScout:      {atk:3, def:3, rng:1, move:2, hp:15, cost:0, domain:"Land", canCaptureCity:false, vision:3},
@@ -271,7 +271,7 @@ const TECHS: Record<TechId, TechData> = {
   StoneworkHalls:   {era:Hearth, cost:20, prereqTechs:[], unlock:{type:"Building",id:StoneWorkshop}},
   ScriptLore:       {era:Hearth, cost:20, prereqTechs:[], unlock:{type:"Building",id:Scriptorium}},
   FormationTraining:{era:Hearth, cost:20, prereqTechs:[], unlock:{type:"Passive", key:"+1 Def to Melee"}},
-  TrailMaps:        {era:Hearth, cost:20, prereqTechs:[], unlock:{type:"Unit", id:RiverBoat}},
+  TrailMaps:        {era:Hearth, cost:20, prereqTechs:[], unlock:{type:"Unit", id:Skiff}},
 
   // Banner (cost 50; era gate ≥2 Hearth)
   Wellworks:        {era:Banner, cost:50, prereqTechs:[Fieldcraft], unlock:{type:"Building",id:Reservoir}},

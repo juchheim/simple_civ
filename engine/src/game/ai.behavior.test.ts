@@ -106,7 +106,7 @@ describe("ai unit behaviors", () => {
         ] as any;
         state.units = [
             { id: "bow", ownerId: "p", type: UnitType.BowGuard, coord: hex(0, 0), hp: 10, maxHp: 10, movesLeft: 1 },
-            { id: "boat", ownerId: "p", type: UnitType.RiverBoat, coord: hex(0, 2), hp: 10, maxHp: 10, movesLeft: 3 },
+            { id: "boat", ownerId: "p", type: UnitType.Skiff, coord: hex(0, 2), hp: 10, maxHp: 10, movesLeft: 3 },
             { id: "enemy", ownerId: "e", type: UnitType.SpearGuard, coord: hex(1, 0), hp: 10, maxHp: 10, movesLeft: 1 },
         ] as any;
 

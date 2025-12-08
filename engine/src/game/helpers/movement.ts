@@ -38,9 +38,9 @@ export function ensureTerrainEntry(unitStats: UnitStats, targetTile: Tile, unitT
     if (unitStats.domain === UnitDomain.Naval && (targetTile.terrain !== TerrainType.Coast && targetTile.terrain !== TerrainType.DeepSea)) {
         throw new Error("Naval units cannot enter land");
     }
-    // Riverboat is restricted to Coast only (no DeepSea)
-    if (unitType === UnitType.RiverBoat && targetTile.terrain === TerrainType.DeepSea) {
-        throw new Error("Riverboat can only traverse coastal waters");
+    // Skiff is restricted to Coast only (no DeepSea)
+    if (unitType === UnitType.Skiff && targetTile.terrain === TerrainType.DeepSea) {
+        throw new Error("Skiff can only traverse coastal waters");
     }
     if (targetTile.terrain === TerrainType.Mountain) {
         throw new Error("Impassable terrain");

@@ -751,7 +751,7 @@ Scout	1	1	1	2	10	25	Explore
 Spear Guard (Melee)	2	2	1	1	10	30	Capture cities
 Bow Guard (Ranged)	2	1	2	1	10	30	Ranged damage
 Riders (Cavalry)	2	2	1	2	10	40	Fast capture
-River Boat (Naval)	2	2	1	3	10	35	Water only
+Skiff (Naval)	2	2	1	3	10	35	Water only
 3.2.3 Armies (Elite)
 
 After Army Doctrine, a city may build Form Army (Unit Type):
@@ -786,7 +786,7 @@ Script Lore → Scriptorium
 
 Formation Training → Passive: +1 Def to Melee
 
-Trail Maps → River Boat
+Trail Maps → Skiff
 
 3.4.2 Banner Age (cost 50 each; requires 2 Hearth)
 

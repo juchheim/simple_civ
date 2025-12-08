@@ -172,7 +172,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     // Check if we are safe enough to pursue victory
     // Safe if: Not at war OR we have a decent military (at least 3 units)
     const myUnits = state.units.filter(u => u.ownerId === playerId);
-    const militaryCount = myUnits.filter(u => u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.RiverBoat).length;
+    const militaryCount = myUnits.filter(u => u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.Skiff).length;
     const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
 
     let safetyThreshold = 3;
@@ -461,7 +461,7 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
     let prioritized = goal === "Progress" ? progress : goal === "Conquest" ? conquest : balanced;
 
     if (personality.unitBias.navalWeight) {
-        prioritized = [{ type: "Unit" as const, id: UnitType.RiverBoat }, ...prioritized];
+        prioritized = [{ type: "Unit" as const, id: UnitType.Skiff }, ...prioritized];
     }
 
     // Ensure at least one military pick near the top to avoid pure builder loops.
@@ -495,7 +495,7 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
     const militaryUnits = myUnits.filter(u =>
         u.type !== UnitType.Settler &&
         u.type !== UnitType.Scout &&
-        u.type !== UnitType.RiverBoat
+        u.type !== UnitType.Skiff
     );
 
     // Early game: 1-2 cities, need 1 military per city as minimum deterrence

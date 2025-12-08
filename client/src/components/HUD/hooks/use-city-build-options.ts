@@ -17,7 +17,7 @@ const UNIT_OPTIONS: BuildOption<UnitType>[] = [
     { id: UnitType.SpearGuard, name: "Spear Guard" },
     { id: UnitType.BowGuard, name: "Bow Guard" },
     { id: UnitType.Riders, name: "Riders" },
-    { id: UnitType.RiverBoat, name: "River Boat" },
+    { id: UnitType.Skiff, name: "Skiff" },
     { id: UnitType.Settler, name: "Settler" },
 ];
 

@@ -22,7 +22,9 @@ import {
     shouldRetreatAfterAttacking,
     isMeleeAttackExposed,
     hasMilitaryAdvantage,
-    findSafeRetreatTile
+    findSafeRetreatTile,
+    evaluateTileDanger,
+    getNearbyThreats
 } from "./unit-helpers.js";
 
 
@@ -959,27 +961,105 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                                 const friendlyMilitary = unitsOnTarget.some(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
 
                                 if (!friendlyMilitary) {
-                                    const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
-                                    if (attempt !== next) {
-                                        next = attempt;
-                                        moved = true;
+                                    // --- RANGED THREAT AWARENESS (v4.0) ---
+                                    // Before stepping, check if this puts us in enemy ranged attack range
+                                    // If so, try to find a safer alternative path
+                                    const stepDanger = evaluateTileDanger(next, playerId, step);
+                                    const currentDanger = evaluateTileDanger(next, playerId, current.coord);
+
+                                    // Check specifically for ranged threats at the step location
+                                    const rangedThreatsAtStep = getNearbyThreats(next, playerId, step, 3)
+                                        .filter(t => {
+                                            const tRng = UNITS[t.unit.type as UnitType].rng;
+                                            return tRng > 1 && t.distance <= tRng;
+                                        });
+
+                                    // Count friendlies nearby for support check
+                                    const friendliesNear = armyUnits.filter(u =>
+                                        u.id !== current.id && hexDistance(u.coord, step) <= 2
+                                    ).length;
+
+                                    // If stepping into ranged danger and we're alone, look for safer path
+                                    let shouldTakeSaferPath = false;
+                                    if (rangedThreatsAtStep.length > 0 && friendliesNear < 2 && stepDanger > currentDanger + 3) {
+                                        // Find alternative neighbors that avoid ranged fire but still make progress
+                                        const saferNeighbors = getNeighbors(current.coord)
+                                            .filter(n => {
+                                                const nDist = hexDistance(n, nearest.coord);
+                                                if (nDist >= currentDist) return false; // Must make progress
+
+                                                const nDanger = evaluateTileDanger(next, playerId, n);
+                                                if (nDanger >= stepDanger - 2) return false; // Must be meaningfully safer
+
+                                                // Check passability
+                                                const nTile = next.map.tiles.find(t => hexEquals(t.coord, n));
+                                                if (!nTile) return false;
+                                                if (nTile.ownerId && nTile.ownerId !== playerId) {
+                                                    const diplomacy = next.diplomacy[playerId]?.[nTile.ownerId];
+                                                    const isCity = next.cities.some(c => hexEquals(c.coord, n));
+                                                    if (!isCity && diplomacy !== DiplomacyState.War) return false;
+                                                }
+
+                                                // Check stacking
+                                                const nUnits = next.units.filter(u => hexEquals(u.coord, n));
+                                                const nFriendlyMil = nUnits.some(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian");
+                                                if (nFriendlyMil) return false;
+
+                                                return true;
+                                            })
+                                            .sort((a, b) => {
+                                                // Prefer: 1) lower danger, 2) closer to target
+                                                const aDanger = evaluateTileDanger(next, playerId, a);
+                                                const bDanger = evaluateTileDanger(next, playerId, b);
+                                                if (aDanger !== bDanger) return aDanger - bDanger;
+                                                return hexDistance(a, nearest.coord) - hexDistance(b, nearest.coord);
+                                            });
+
+                                        if (saferNeighbors.length > 0) {
+                                            // Use the safer path instead
+                                            const saferStep = saferNeighbors[0];
+                                            const saferAttempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: saferStep });
+                                            if (saferAttempt !== next) {
+                                                console.info(`[AI RANGED AVOIDANCE] ${playerId} ${current.type} avoiding ranged fire, taking safer path`);
+                                                next = saferAttempt;
+                                                moved = true;
+                                                shouldTakeSaferPath = true;
+                                            }
+                                        }
+                                    }
+
+                                    if (!shouldTakeSaferPath) {
+                                        const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
+                                        if (attempt !== next) {
+                                            next = attempt;
+                                            moved = true;
+                                        }
                                     }
                                 }
                             }
 
                             if (!moved) {
-                                // Try neighbors
+                                // Try neighbors - also with ranged threat awareness
                                 const neighbors = getNeighbors(current.coord);
-                                const ordered = sortByDistance(nearest.coord, neighbors, (c: { q: number, r: number }) => c);
-                                for (const n of ordered) {
-                                    // Don't move backwards or stay same distance if possible?
-                                    // Actually, just try any neighbor that is closer or same distance?
-                                    // Or just any neighbor that works?
-                                    // If we are blocked, stepping sideways (same dist) is good.
-                                    // Stepping backwards (dist + 1) is bad.
-                                    const nDist = hexDistance(n, nearest.coord);
-                                    if (nDist > currentDist) continue;
 
+                                // --- RANGED THREAT AWARE SORTING ---
+                                // Sort by danger first, then distance to target
+                                const orderedByDangerAndDist = neighbors
+                                    .map(n => ({
+                                        coord: n,
+                                        dist: hexDistance(n, nearest.coord),
+                                        danger: evaluateTileDanger(next, playerId, n)
+                                    }))
+                                    .filter(n => n.dist <= currentDist) // Only candidates that make progress or hold
+                                    .sort((a, b) => {
+                                        // Prefer lower danger tiles that still make progress
+                                        const dangerDiff = a.danger - b.danger;
+                                        if (Math.abs(dangerDiff) > 3) return dangerDiff; // Big danger diff takes priority
+                                        return a.dist - b.dist; // Otherwise prefer closer to target
+                                    });
+
+                                for (const candidate of orderedByDangerAndDist) {
+                                    const n = candidate.coord;
                                     // Check for peacetime movement restrictions
                                     const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
                                     if (tile && tile.ownerId && tile.ownerId !== playerId) {

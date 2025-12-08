@@ -5,7 +5,7 @@ import SettlerImg from "../public/units/Settler.png";
 import SpearGuardImg from "../public/units/SpearGuard.png";
 import BowGuardImg from "../public/units/BowGuard.png";
 import RidersImg from "../public/units/Riders.png";
-import RiverBoatImg from "../public/units/RiverBoat.png";
+import SkiffImg from "../public/units/Skiff.png";
 import ArmyScoutImg from "../public/units/ArmyScout.png";
 import ArmySpearGuardImg from "../public/units/ArmySpearGuard.png";
 import ArmyBowGuardImg from "../public/units/ArmyBowGuard.png";
@@ -18,7 +18,7 @@ export const unitImages: Record<string, string> = {
     SpearGuard: SpearGuardImg,
     BowGuard: BowGuardImg,
     Riders: RidersImg,
-    RiverBoat: RiverBoatImg,
+    Skiff: SkiffImg,
     ArmyScout: ArmyScoutImg,
     ArmySpearGuard: ArmySpearGuardImg,
     ArmyBowGuard: ArmyBowGuardImg,
@@ -33,7 +33,7 @@ export const unitDisplayNames: Record<string, string> = {
     SpearGuard: "Spear Guard",
     BowGuard: "Bow Guard",
     Riders: "Riders",
-    RiverBoat: "Coastal Skiff",
+    Skiff: "Skiff",
     ArmyScout: "Scout Army",
     ArmySpearGuard: "Spear Guard Army",
     ArmyBowGuard: "Bow Guard Army",

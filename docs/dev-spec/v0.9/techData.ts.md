@@ -6,7 +6,7 @@ export const TECHS: Tech[] = [
   {id:"StoneworkHalls", era:"Hearth", costS:20, prereqs:[], unlock:{kind:"Building", id:"StoneWorkshop"}, tags:["production"]},
   {id:"ScriptLore", era:"Hearth", costS:20, prereqs:[], unlock:{kind:"Building", id:"Scriptorium"}, tags:["science"]},
   {id:"FormationTraining", era:"Hearth", costS:20, prereqs:[], unlock:{kind:"Passive", id:"MeleeDefPlus1"}, tags:["military"]},
-  {id:"TrailMaps", era:"Hearth", costS:20, prereqs:[], unlock:{kind:"Unit", id:"RiverBoat"}, tags:["science","military"]},
+  {id:"TrailMaps", era:"Hearth", costS:20, prereqs:[], unlock:{kind:"Unit", id:"Skiff"}, tags:["science","military"]},
 
   // Banner (50)
   {id:"Wellworks", era:"Banner", costS:50, prereqs:["Fieldcraft"], unlock:{kind:"Building", id:"Reservoir"}, tags:["growth"]},

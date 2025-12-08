@@ -8,6 +8,10 @@ import { handleMoveUnit } from "./unit-movement.js";
 import { UNITS } from "../../core/constants.js";
 import { buildTileLookup } from "../helpers/combat.js";
 
+// Loop detection constants
+const LOOP_HISTORY_SIZE = 8;  // Track last N positions
+const LOOP_THRESHOLD = 3;     // Position must repeat 3+ times = loop
+
 function getReachableTiles(unit: Unit, state: GameState, tilesByKey: Map<string, Tile>): Set<string> {
     const reachable = new Set<string>();
     const queue: HexCoord[] = [unit.coord];
@@ -34,6 +38,66 @@ function getReachableTiles(unit: Unit, state: GameState, tilesByKey: Map<string,
     }
 
     return reachable;
+}
+
+/**
+ * Detects if a unit is stuck in an exploration loop by checking if any position
+ * appears 3+ times in the recent movement history.
+ */
+function detectExploreLoop(unit: Unit): boolean {
+    const history = unit.autoExploreHistory ?? [];
+    if (history.length < LOOP_HISTORY_SIZE) return false;
+
+    const counts = new Map<string, number>();
+    for (const key of history) {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return [...counts.values()].some(c => c >= LOOP_THRESHOLD);
+}
+
+/**
+ * Finds the best escape path when a unit is stuck in a loop.
+ * Prioritizes tiles at the frontier that are adjacent to unexplored territory.
+ */
+function findEscapePath(unit: Unit, state: GameState): HexCoord | undefined {
+    const reachable = findReachableTiles(unit.coord, unit, state, 20);
+    const history = new Set(unit.autoExploreHistory ?? []);
+    const revealedSet = new Set(state.revealed[unit.ownerId] ?? []);
+
+    let bestTile: HexCoord | undefined;
+    let bestScore = -Infinity;
+
+    for (const [key, coord] of reachable) {
+        if (hexEquals(coord, unit.coord)) continue;
+        if (history.has(key)) continue; // Skip recently visited
+
+        // Score: adjacency to unexplored + distance from current location
+        const adjacentUnrevealed = getNeighbors(coord)
+            .filter(n => !revealedSet.has(hexToString(n))).length;
+        const distFromCurrent = hexDistance(unit.coord, coord);
+
+        // Prioritize tiles adjacent to unexplored AND far from current loop
+        const score = adjacentUnrevealed * 10 + distFromCurrent;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestTile = coord;
+        }
+    }
+    return bestTile;
+}
+
+/**
+ * Records a position in the unit's exploration history for loop detection.
+ * Keeps only the most recent LOOP_HISTORY_SIZE positions.
+ */
+function recordExplorePosition(unit: Unit): void {
+    if (!unit.autoExploreHistory) unit.autoExploreHistory = [];
+    unit.autoExploreHistory.push(hexToString(unit.coord));
+    // Keep only the most recent positions
+    if (unit.autoExploreHistory.length > LOOP_HISTORY_SIZE) {
+        unit.autoExploreHistory = unit.autoExploreHistory.slice(-LOOP_HISTORY_SIZE);
+    }
 }
 
 export function handleSetAutoMoveTarget(state: GameState, action: SetAutoMoveTargetAction): GameState {
@@ -63,6 +127,7 @@ export function handleSetAutoExplore(state: GameState, action: SetAutoExploreAct
 
     unit.isAutoExploring = true;
     unit.autoMoveTarget = undefined;
+    unit.autoExploreHistory = []; // Clear history when starting fresh
 
     if (unit.movesLeft > 0) {
         refreshPlayerVision(state, action.playerId);
@@ -79,6 +144,7 @@ export function handleClearAutoExplore(state: GameState, action: ClearAutoExplor
 
     unit.isAutoExploring = false;
     unit.autoMoveTarget = undefined;
+    unit.autoExploreHistory = undefined; // Clear history
     return state;
 }
 
@@ -200,11 +266,15 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
         explorers.forEach(u => {
             u.isAutoExploring = false;
             u.autoMoveTarget = undefined;
+            u.autoExploreHistory = undefined;
         });
         return;
     }
 
     for (const unit of explorers) {
+        // Record current position for loop detection
+        recordExplorePosition(unit);
+
         if (unit.autoMoveTarget) {
             const targetKey = hexToString(unit.autoMoveTarget);
 
@@ -235,9 +305,27 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
 
         if (bestTarget) {
             unit.autoMoveTarget = bestTarget;
+            unit.autoExploreHistory = []; // Clear history when we find a good target
             continue;
         }
 
+        // No directly reachable unexplored tile found - check for loop
+        if (detectExploreLoop(unit)) {
+            // We're stuck in a loop - try to find an escape path
+            const escapeTile = findEscapePath(unit, state);
+            if (escapeTile) {
+                unit.autoMoveTarget = escapeTile;
+                unit.autoExploreHistory = []; // Clear history when escaping
+                continue;
+            }
+            // No escape path found - give up
+            unit.autoMoveTarget = undefined;
+            unit.isAutoExploring = false;
+            unit.autoExploreHistory = undefined;
+            continue;
+        }
+
+        // Not in a loop yet - try the fallback: find reachable tile closest to unexplored
         const reachable = findReachableTiles(unit.coord, unit, state, 15);
         let bestTile: HexCoord | undefined;
         let minScore = Infinity;
@@ -268,6 +356,7 @@ export function processAutoExplore(state: GameState, playerId: string, specificU
         } else {
             unit.autoMoveTarget = undefined;
             unit.isAutoExploring = false;
+            unit.autoExploreHistory = undefined;
         }
     }
 }

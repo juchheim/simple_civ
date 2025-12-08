@@ -27,7 +27,7 @@ export enum UnitType {
     SpearGuard = "SpearGuard",
     BowGuard = "BowGuard",
     Riders = "Riders",
-    RiverBoat = "RiverBoat",
+    Skiff = "Skiff",
     ArmyScout = "ArmyScout",
     ArmySpearGuard = "ArmySpearGuard",
     ArmyBowGuard = "ArmyBowGuard",
@@ -138,7 +138,8 @@ export type Unit = {
     autoMoveTarget?: HexCoord;
     isAutoExploring?: boolean;
     retaliatedAgainstThisTurn?: boolean; // v1.0: Track if unit was hit by city retaliation this turn
-    failedAutoMoveTargets?: HexCoord[]; // Track targets that were unreachable to prevent loops
+    failedAutoMoveTargets?: HexCoord[];
+    autoExploreHistory?: string[]; // Recent coordinates (hex keys) for loop detection
     statusEffects?: string[]; // Active status effects (e.g. "NaturesWrath")
 };
 

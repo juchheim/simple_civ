@@ -63,7 +63,7 @@
 - StoneworkHalls → StoneWorkshop building
 - ScriptLore → Scriptorium building
 - FormationTraining → +1 Def passive
-- TrailMaps → RiverBoat unit
+- TrailMaps → Skiff unit
 
 ### Banner Era (Cost: 50)
 - Requires 2 Hearth era techs

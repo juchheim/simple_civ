@@ -355,7 +355,7 @@ function initVisibility(players: Player[], tiles: Tile[], units: Unit[], cities:
     const visionRange = (unit: Unit) => {
         // basic vision by type
         if (unit.type === UnitType.Scout) return 3;
-        const stats = { [UnitType.Settler]: 2, [UnitType.SpearGuard]: 2, [UnitType.BowGuard]: 2, [UnitType.Riders]: 2, [UnitType.RiverBoat]: 2 } as any;
+        const stats = { [UnitType.Settler]: 2, [UnitType.SpearGuard]: 2, [UnitType.BowGuard]: 2, [UnitType.Riders]: 2, [UnitType.Skiff]: 2 } as any;
         return stats[unit.type] ?? 2;
     };
 

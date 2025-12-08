@@ -78,7 +78,7 @@
 - **ArmySpearGuard:** 1196 deaths (1976 produced, 39.5% survival)
 - **Settler:** 1045 deaths (8024 produced, 87.0% survival)
 - **ArmyRiders:** 430 deaths (642 produced, 33.0% survival)
-- **RiverBoat:** 278 deaths (1313 produced, 78.8% survival)
+- **Skiff:** 278 deaths (1313 produced, 78.8% survival)
 - **Titan:** 29 deaths (938 produced, 96.9% survival)
 
 ### Unit Production by Type
@@ -89,7 +89,7 @@
 - **Riders:** 3777 produced
 - **Scout:** 3249 produced
 - **ArmySpearGuard:** 1976 produced
-- **RiverBoat:** 1313 produced
+- **Skiff:** 1313 produced
 - **Titan:** 938 produced
 - **ArmyRiders:** 642 produced
 

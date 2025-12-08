@@ -89,7 +89,7 @@ describe("spawn helpers", () => {
         const landSpawn = findSpawnCoord(state, city, UnitType.SpearGuard, 1);
         expect(landSpawn).toEqual({ q: 0, r: 0 }); // falls back to city because nearest land is occupied
 
-        const navalSpawn = findSpawnCoord(state, city, UnitType.RiverBoat, 1);
+        const navalSpawn = findSpawnCoord(state, city, UnitType.Skiff, 1);
         expect(navalSpawn).toEqual({ q: 1, r: 0 }); // picks coast tile for naval unit
     });
 

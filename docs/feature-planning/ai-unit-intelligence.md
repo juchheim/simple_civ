@@ -24,7 +24,7 @@
    - Solution: pair escorts to settlers with a shared path to the target site; move the escort first along the path, then move the settler into the escort's screened tile. Re-evaluate safety each turn and reassign if the escort dies.
 8) Capture opportunities missed: units only attempt capture on adjacent 0-HP cities and otherwise march past critical targets.  
    - Solution: add a capture pass that routes the nearest capture-capable unit to any 0-HP enemy city in vision, even if slightly off the primary path; prioritize cities with garrisons destroyed over fresh targets.
-9) Domain misuse for naval: River Boats currently follow the same land-centric logic, so they may stop at coastlines or ignore naval choke points.  
+9) Domain misuse for naval: Skiffs currently follow the same land-centric logic, so they may stop at coastlines or ignore naval choke points.  
    - Solution: split naval targeting into a coastal-city list and naval patrol routes; ensure naval units only path through Coast/Sea tiles and prefer shoreline cities or exposed land units adjacent to water.
 10) Stacking and blocking: greedy movement can clog narrow tiles and leave ranged units on front lines.  
    - Solution: add lightweight formation rules: let melee move first, reserve safe tiles for ranged (keep at max range when possible), and allow unit swapping (move + move back) to unjam chokepoints when paths are blocked.

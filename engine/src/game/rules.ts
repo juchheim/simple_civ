@@ -301,7 +301,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // Unit requirements?
         // Some units need techs?
         // "Trail Maps -> River Boat"
-        if (uId === UnitType.RiverBoat && !player.techs.includes(TechId.TrailMaps)) return false;
+        if (uId === UnitType.Skiff && !player.techs.includes(TechId.TrailMaps)) return false;
 
         // Armies?
         // "After Army Doctrine, a city may build Form Army..."
@@ -312,8 +312,8 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (data.domain === UnitDomain.Naval) {
             const neighbors = state.map.tiles.filter(t => hexDistance(t.coord, city.coord) === 1);
 
-            // Riverboat is restricted to Coast only (no DeepSea)
-            if (uId === UnitType.RiverBoat) {
+            // Skiff is restricted to Coast only (no DeepSea)
+            if (uId === UnitType.Skiff) {
                 const hasCoastAccess = neighbors.some(t => t.terrain === TerrainType.Coast);
                 if (!hasCoastAccess) return false;
             } else {

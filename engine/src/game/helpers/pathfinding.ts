@@ -74,8 +74,8 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
         return TERRAIN[tile.terrain].moveCostLand ?? Infinity;
     } else if (stats.domain === UnitDomain.Naval) {
         if (tile.terrain !== TerrainType.Coast && tile.terrain !== TerrainType.DeepSea) return Infinity;
-        // Riverboat is restricted to Coast only (no DeepSea)
-        if (unit.type === UnitType.RiverBoat && tile.terrain === TerrainType.DeepSea) return Infinity;
+        // Skiff is restricted to Coast only (no DeepSea)
+        if (unit.type === UnitType.Skiff && tile.terrain === TerrainType.DeepSea) return Infinity;
 
         // Check for peacetime movement restrictions (Naval units also respect borders?)
         // The validation logic applies to all units.

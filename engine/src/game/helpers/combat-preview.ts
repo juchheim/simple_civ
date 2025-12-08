@@ -67,7 +67,7 @@ function getUnitDisplayName(type: UnitType): string {
         ArmyBowGuard: "Bow Guard Army",
         ArmyRiders: "Riders Army",
         ArmyScout: "Scout Army",
-        RiverBoat: "Coastal Skiff",
+        Skiff: "Skiff",
     };
     return names[type] || type;
 }

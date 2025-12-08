@@ -13,7 +13,7 @@ export enum UnitType {
   SpearGuard="SpearGuard",
   BowGuard="BowGuard",
   Riders="Riders",
-  RiverBoat="RiverBoat",
+  Skiff="Skiff",
   // Armies are upgrade-state on base types:
 }
 
