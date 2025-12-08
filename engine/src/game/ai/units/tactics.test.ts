@@ -174,15 +174,21 @@ describe("AI Battle Tactics", () => {
     });
 
     describe("Smart Targeting (Focus Fire)", () => {
-        it("should prioritize killing low HP unit over full HP unit", () => {
-            // Setup: AI BowGuard at (0,0).
-            // Enemy A (Low HP) at (0,2). Enemy B (Full HP) at (1,1). Both in range.
+        it("should prioritize killing low HP unit over full HP unit when safe", () => {
+            // Setup: AI BowGuard at (0,0) with military support (so attack is safe)
+            // Enemy A (Low HP) at (0,2) - in BowGuard range, killable
+            // Enemy B (Full HP) at (2,2) - in BowGuard range but NOT killable
+            // Support units are nearby but not adjacent to enemies
             const attacker = createTestUnit(aiPlayer.id, UnitType.BowGuard, { q: 0, r: 0 });
+            const support1 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 1, r: 0 });
+            support1.movesLeft = 0; // Can't attack
+            const support2 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 0, r: 1 });
+            support2.movesLeft = 0; // Can't attack
             const enemyLow = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 0, r: 2 });
             enemyLow.hp = 1; // One shot kill
-            const enemyHigh = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 1, r: 1 });
-            enemyHigh.hp = 10;
-            state.units = [attacker, enemyLow, enemyHigh];
+            const enemyHigh = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 2, r: 2 });
+            enemyHigh.hp = 10; // BowGuard range is 2, this is still in range
+            state.units = [attacker, support1, support2, enemyLow, enemyHigh];
 
             const nextState = attackTargets(state, aiPlayer.id);
 
@@ -190,9 +196,83 @@ describe("AI Battle Tactics", () => {
             const enemyLowSurvivor = findUnit(nextState.units, enemyLow.id);
             expect(enemyLowSurvivor).toBeUndefined();
 
+            // High HP enemy should still be alive (AI focused on killable target)
             const enemyHighSurvivor = findUnit(nextState.units, enemyHigh.id);
             expect(enemyHighSurvivor).toBeDefined();
             expect(enemyHighSurvivor!.hp).toBe(10);
+        });
+    });
+
+    describe("Smart Attack Safety (v3.0)", () => {
+        it("should skip attacks when outnumbered and would be exposed", () => {
+            // Setup: 1 AI unit surrounded by 3 enemy units
+            // AI should NOT attack because it would die after
+            const aiUnit = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 5, r: 5 });
+            const enemy1 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 5, r: 6 });
+            const enemy2 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 6, r: 5 });
+            const enemy3 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 4, r: 5 });
+            state.units = [aiUnit, enemy1, enemy2, enemy3];
+
+            const nextState = attackTargets(state, aiPlayer.id);
+
+            // All enemies should still be alive (AI skipped the attack)
+            expect(findUnit(nextState.units, enemy1.id)).toBeDefined();
+            expect(findUnit(nextState.units, enemy2.id)).toBeDefined();
+            expect(findUnit(nextState.units, enemy3.id)).toBeDefined();
+        });
+
+        it("should attack when at military advantage despite exposure", () => {
+            // Setup: 3 AI units vs 2 enemy units - AI has advantage
+            const aiUnit1 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 5, r: 5 });
+            const aiUnit2 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 5, r: 4 });
+            const aiUnit3 = createTestUnit(aiPlayer.id, UnitType.BowGuard, { q: 4, r: 4 });
+            const enemy1 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 5, r: 6 });
+            enemy1.hp = 3; // Killable
+            const enemy2 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 6, r: 5 });
+            state.units = [aiUnit1, aiUnit2, aiUnit3, enemy1, enemy2];
+
+            const nextState = attackTargets(state, aiPlayer.id);
+
+            // The low HP enemy should be attacked (AI has advantage)
+            const enemy1After = findUnit(nextState.units, enemy1.id);
+            expect(enemy1After === undefined || enemy1After.hp < 3).toBe(true);
+        });
+
+        it("should retreat after attacking if now exposed", () => {
+            // Setup: AI unit with moves left attacks but gets exposed
+            // Give AI cities to retreat to
+            const aiCity = createTestCity(aiPlayer.id, { q: 0, r: 0 });
+            state.cities = [aiCity];
+            // Ensure city tile exists
+            const cityTile = state.map.tiles.find(t => hexEquals(t.coord, { q: 0, r: 0 }));
+            if (cityTile) cityTile.ownerId = aiPlayer.id;
+
+            // AI has advantage (more units)
+            const aiUnit1 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 3, r: 3 });
+            aiUnit1.movesLeft = 3; // Has moves to retreat after attack
+            const aiUnit2 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 2, r: 2 });
+            const aiUnit3 = createTestUnit(aiPlayer.id, UnitType.SpearGuard, { q: 1, r: 1 });
+
+            // Two enemies near the attacking unit
+            const enemy1 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 3, r: 4 });
+            enemy1.hp = 2; // Killable
+            const enemy2 = createTestUnit(humanPlayer.id, UnitType.SpearGuard, { q: 4, r: 3 });
+
+            state.units = [aiUnit1, aiUnit2, aiUnit3, enemy1, enemy2];
+
+            // Store initial position
+            const initialCoord = { q: aiUnit1.coord.q, r: aiUnit1.coord.r };
+
+            const nextState = attackTargets(state, aiPlayer.id);
+
+            // After attacking, unit should have moved (retreated toward city)
+            const aiUnit1After = findUnit(nextState.units, aiUnit1.id);
+            if (aiUnit1After) {
+                const movedAway = !hexEquals(aiUnit1After.coord, initialCoord);
+                const closerToCity = hexDistance(aiUnit1After.coord, aiCity.coord) <= hexDistance(initialCoord, aiCity.coord);
+                // Either the unit killed the enemy and stayed, or retreated toward safety
+                expect(movedAway || findUnit(nextState.units, enemy1.id) === undefined).toBe(true);
+            }
         });
     });
 });

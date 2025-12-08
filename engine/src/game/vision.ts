@@ -1,6 +1,6 @@
 import { DiplomacyState, GameState } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
-import { hexDistance, hexToString } from "../core/hex.js";
+import { hexDistance, hexToString, hexSpiral } from "../core/hex.js";
 import { buildTileLookup, hasClearLineOfSight } from "./helpers/combat.js";
 import { disableSharedVision, setContact } from "./helpers/diplomacy.js";
 import { recordFogDelta } from "./history.js";
@@ -12,18 +12,37 @@ export function computeVisibility(state: GameState, playerId: string): string[] 
     const addVisionFrom = (ownerId: string) => {
         const units = state.units.filter(u => u.ownerId === ownerId);
         const cities = state.cities.filter(c => c.ownerId === ownerId);
+
         for (const unit of units) {
             const range = UNITS[unit.type].vision ?? 2;
-            for (const tile of state.map.tiles) {
-                if (hexDistance(unit.coord, tile.coord) <= range && hasClearLineOfSight(state, unit.coord, tile.coord, tileByKey)) {
-                    visible.add(hexToString(tile.coord));
+            const potentialTiles = hexSpiral(unit.coord, range);
+
+            for (const coord of potentialTiles) {
+                const key = hexToString(coord);
+                if (!tileByKey.has(key)) continue;
+
+                const dist = hexDistance(unit.coord, coord);
+                // Always see adjacent (dist <= 1) regardless of LoS
+                if (dist <= 1) {
+                    visible.add(key);
+                } else if (hasClearLineOfSight(state, unit.coord, coord, tileByKey)) {
+                    visible.add(key);
                 }
             }
         }
+
         for (const city of cities) {
-            for (const tile of state.map.tiles) {
-                if (hexDistance(city.coord, tile.coord) <= 2 && hasClearLineOfSight(state, city.coord, tile.coord, tileByKey)) {
-                    visible.add(hexToString(tile.coord));
+            const potentialTiles = hexSpiral(city.coord, 2);
+            for (const coord of potentialTiles) {
+                const key = hexToString(coord);
+                if (!tileByKey.has(key)) continue;
+
+                const dist = hexDistance(city.coord, coord);
+                // Always see adjacent (dist <= 1) - City center + Ring 1
+                if (dist <= 1) {
+                    visible.add(key);
+                } else if (hasClearLineOfSight(state, city.coord, coord, tileByKey)) {
+                    visible.add(key);
                 }
             }
         }
@@ -49,8 +68,10 @@ export function computeVisibility(state: GameState, playerId: string): string[] 
         }
     }
 
-    const tileSet = new Set(state.map.tiles.map(t => hexToString(t.coord)));
-    return Array.from(visible).filter(v => tileSet.has(v));
+    // Filter to ensure we only return valid map tiles (though hexSpiral checks likely kept us close, tileByKey check ensures validity)
+    // The previous implementation iterated all map tiles to filter. We can just check existence.
+    // However, logic above already checks `tileByKey.has(key)`.
+    return Array.from(visible);
 }
 
 export function refreshPlayerVision(state: GameState, playerId: string) {

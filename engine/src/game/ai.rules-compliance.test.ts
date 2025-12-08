@@ -96,8 +96,20 @@ describe("ai rules compliance", () => {
         for (let round = 0; round < 20; round++) {
             state.currentPlayerId = "p1";
             state = runAiTurnSequenceWithTrace(state as any, "p1", trace, { skipDiplomacy: true });
+
+            // Debug: Check after P1's turn
+            const afterP1 = state.units.some((u: any) => u.ownerId === "p1" && hexEquals(u.coord, { q: -2, r: 0 }));
+
             state.currentPlayerId = "p2";
             state = runAiTurnSequenceWithTrace(state as any, "p2", trace, { skipDiplomacy: true });
+
+            // Debug: Check after P2's turn  
+            const afterP2 = state.units.some((u: any) => u.ownerId === "p1" && hexEquals(u.coord, { q: -2, r: 0 }));
+
+            if (round < 3) {
+                console.log(`Turn ${round + 1}: afterP1=${afterP1}, afterP2=${afterP2}`);
+            }
+
             state.turn += 1;
             // Keep war active and clear peace spam for continued observation
             state.diplomacy = {
@@ -105,6 +117,13 @@ describe("ai rules compliance", () => {
                 p2: { p1: DiplomacyState.War },
             } as any;
             state.diplomacyOffers = [];
+
+            // Reset unit moves for new turn (simulate proper turn lifecycle)
+            state.units = state.units.map((u: any) => ({
+                ...u,
+                movesLeft: UNITS[u.type].move,
+                hasAttacked: false
+            }));
         }
 
         // No friendly stacking and log trace is present

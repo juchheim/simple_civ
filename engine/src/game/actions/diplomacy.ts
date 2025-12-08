@@ -58,6 +58,8 @@ export function handleProposePeace(state: GameState, action: { type: "ProposePea
         expelUnitsFromTerritory(state, a, b);
         expelUnitsFromTerritory(state, b, a);
 
+        logEvent(state, HistoryEventType.PeaceMade, a, { targetId: b });
+
         return state;
     }
 

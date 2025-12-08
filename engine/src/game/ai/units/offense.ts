@@ -17,8 +17,14 @@ import {
     selectHeldGarrisons,
     selectPrimarySiegeCity,
     stepToward,
-    warGarrisonCap
+    warGarrisonCap,
+    isAttackSafe,
+    shouldRetreatAfterAttacking,
+    isMeleeAttackExposed,
+    hasMilitaryAdvantage,
+    findSafeRetreatTile
 } from "./unit-helpers.js";
+
 
 function captureIfPossible(state: GameState, playerId: string, unitId: string): GameState {
     const unit = state.units.find(u => u.id === unitId);
@@ -510,11 +516,18 @@ export function attackTargets(state: GameState, playerId: string): GameState {
         const target = enemyUnits[0];
         const adjEnemies = enemiesWithin(next, playerId, unit.coord, 1);
         const rangedAndUnsafe = UNITS[unit.type].rng > 1 && adjEnemies > 0 && target && target.dmg < target.u.hp;
-        if (target && (
+
+        // v3.0: Check attack safety based on military advantage
+        const attackSafety = target ? isAttackSafe(unit, target.u, target.u.coord, next, playerId) : { safe: false, riskLevel: "suicidal" as const, reason: "No target" };
+
+        // Only attack if: can kill, trades favorably, OR has HP buffer - AND attack is safe
+        const tradeWorthIt = target && (
             target.dmg >= target.u.hp ||
             (target.dmg >= 2 && target.dmg >= target.counter) ||
             (unit.hp > target.counter + 2 && target.dmg >= 2)
-        ) && !rangedAndUnsafe) {
+        );
+
+        if (target && tradeWorthIt && attackSafety.safe && !rangedAndUnsafe) {
             if (target.isSettler && target.d > 1 && unit.movesLeft > 0) {
                 const neighbors = getNeighbors(target.u.coord);
                 const bestNeighbor = neighbors
@@ -568,6 +581,50 @@ export function attackTargets(state: GameState, playerId: string): GameState {
                     const adjAfter = enemiesWithin(next, playerId, updatedUnitAfterAttack.coord, 1);
                     if (UNITS[updatedUnitAfterAttack.type].rng > 1 && adjAfter > 0) {
                         next = repositionRanged(next, playerId);
+                    }
+
+                    // v3.0: Post-attack retreat evaluation
+                    // Check if unit is now dangerously exposed and should retreat
+                    const liveUnit = next.units.find(u => u.id === unit.id);
+                    if (liveUnit && liveUnit.movesLeft > 0 && shouldRetreatAfterAttacking(liveUnit, next, playerId)) {
+                        const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
+                        const nearestCity = friendlyCities.length > 0
+                            ? friendlyCities.sort((a, b) => hexDistance(a.coord, liveUnit.coord) - hexDistance(b.coord, liveUnit.coord))[0]
+                            : null;
+                        if (nearestCity) {
+                            const safeTile = findSafeRetreatTile(next, playerId, liveUnit, nearestCity.coord);
+                            if (safeTile) {
+                                const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: liveUnit.id, to: safeTile });
+                                if (retreated !== next) {
+                                    console.info(`[AI POST-ATTACK RETREAT] ${playerId} ${liveUnit.type} retreating after attack (exposed to multiple threats)`);
+                                    next = retreated;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (target && tradeWorthIt && !attackSafety.safe) {
+            // v3.0: Attack not safe - consider retreating instead of hanging around
+            console.info(`[AI SKIP UNSAFE ATTACK] ${playerId} ${unit.type} skipping attack: ${attackSafety.reason}`);
+
+            // Don't retreat if already in a friendly city - that's the safest place!
+            const inFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, unit.coord));
+
+            // If unit is in danger and NOT in a city, retreat proactively
+            if (!inFriendlyCity && (attackSafety.riskLevel === "high" || attackSafety.riskLevel === "suicidal")) {
+                const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
+                const nearestCity = friendlyCities.length > 0
+                    ? friendlyCities.sort((a, b) => hexDistance(a.coord, unit.coord) - hexDistance(b.coord, unit.coord))[0]
+                    : null;
+                if (nearestCity && unit.movesLeft > 0) {
+                    const safeTile = findSafeRetreatTile(next, playerId, unit, nearestCity.coord);
+                    if (safeTile) {
+                        const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: safeTile });
+                        if (retreated !== next) {
+                            console.info(`[AI PROACTIVE RETREAT] ${playerId} ${unit.type} retreating from dangerous position`);
+                            next = retreated;
+                        }
                     }
                 }
             }
@@ -748,7 +805,19 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
 
             const friendlyCity = next.cities.find(c => c.ownerId === playerId && hexEquals(c.coord, current.coord));
             if (friendlyCity) {
+                // Always keep units in cities if:
+                // 1. Unit is in heldGarrisons set (prioritized for defense)
+                // 2. City is the capital (must always have a defender if possible)
+                // 3. No other garrison exists for this city (don't leave cities empty)
                 if (heldGarrisons.has(current.id)) break;
+                if (friendlyCity.isCapital) break;
+                const otherGarrison = next.units.find(u =>
+                    u.id !== current.id &&
+                    u.ownerId === playerId &&
+                    hexEquals(u.coord, friendlyCity.coord) &&
+                    UNITS[u.type].domain !== "Civilian"
+                );
+                if (!otherGarrison) break;  // Don't leave city ungarrisoned
             }
 
             const unitTargets = UNITS[current.type].domain === "Naval"

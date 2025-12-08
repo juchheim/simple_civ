@@ -625,3 +625,179 @@ export function shouldRetreat(unit: any, state: GameState, playerId: string): bo
 
     return false;
 }
+
+// --- SMART ATTACK EVALUATION (v3.0) ---
+
+/**
+ * Check if we have military advantage over our war enemies.
+ * Returns ratio > 1 means advantage, < 1 means disadvantage.
+ */
+export function hasMilitaryAdvantage(state: GameState, playerId: string): { advantage: boolean; ratio: number } {
+    const warTargets = getWarTargets(state, playerId);
+    if (warTargets.length === 0) return { advantage: true, ratio: Infinity };
+
+    const { ratio } = warPowerRatio(state, playerId, warTargets);
+    return { advantage: ratio >= 1.0, ratio };
+}
+
+/**
+ * Count how many enemies can attack a specific tile on their next turn.
+ * Considers enemy unit range and movement.
+ */
+export function countThreatsToTile(
+    state: GameState,
+    playerId: string,
+    coord: { q: number; r: number },
+    excludeUnitId?: string
+): { count: number; totalDamage: number } {
+    let count = 0;
+    let totalDamage = 0;
+
+    for (const enemy of state.units) {
+        if (enemy.ownerId === playerId) continue;
+        if (excludeUnitId && enemy.id === excludeUnitId) continue;
+
+        const stats = UNITS[enemy.type as UnitType];
+        if (stats.domain === "Civilian") continue;
+
+        const dist = hexDistance(enemy.coord, coord);
+
+        // Can this enemy reach and attack the tile?
+        // Adjacent enemies can definitely attack
+        // Ranged enemies at their range can attack
+        // Enemies within move+range can potentially attack
+        const canReach = dist <= stats.rng || (dist <= stats.move + stats.rng);
+
+        if (canReach) {
+            count++;
+            // Estimate damage they could deal
+            totalDamage += Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, DAMAGE_BASE + Math.floor((stats.atk - 3) / 2)));
+        }
+    }
+
+    return { count, totalDamage };
+}
+
+/**
+ * Evaluate if attacking a target is safe considering post-attack exposure.
+ * Takes into account power advantage - if we're winning, we can take more risks.
+ */
+export function isAttackSafe(
+    attacker: any,
+    target: any,
+    targetCoord: { q: number; r: number },
+    state: GameState,
+    playerId: string
+): { safe: boolean; reason: string; riskLevel: "low" | "medium" | "high" | "suicidal" } {
+    const stats = UNITS[attacker.type as UnitType];
+    const { advantage, ratio } = hasMilitaryAdvantage(state, playerId);
+
+    // For ranged units, check threats at current position (they don't move to attack)
+    const attackPosition = stats.rng > 1 ? attacker.coord : targetCoord;
+
+    // Exclude target from threat count (we're attacking them)
+    const threats = countThreatsToTile(state, playerId, attackPosition, target?.id);
+
+    // Calculate expected damage from the attack itself
+    const returnDamage = target ? expectedDamageFrom(target, attacker, state) : 0;
+    const totalExpectedDamage = returnDamage + threats.totalDamage;
+
+    // Determine risk level
+    let riskLevel: "low" | "medium" | "high" | "suicidal";
+    let reason = "";
+
+    if (totalExpectedDamage >= attacker.hp) {
+        riskLevel = "suicidal";
+        reason = `Would take ${totalExpectedDamage} damage (HP: ${attacker.hp}) from ${threats.count + 1} enemies`;
+    } else if (threats.count >= 3 || totalExpectedDamage >= attacker.hp * 0.8) {
+        riskLevel = "high";
+        reason = `${threats.count} additional enemies can attack after (${totalExpectedDamage} total damage expected)`;
+    } else if (threats.count >= 2 || totalExpectedDamage >= attacker.hp * 0.5) {
+        riskLevel = "medium";
+        reason = `${threats.count} additional enemies nearby`;
+    } else {
+        riskLevel = "low";
+        reason = "Attack position is relatively safe";
+    }
+
+    // Determine if attack is safe based on power advantage and risk
+    let safe = false;
+
+    if (advantage && ratio >= 1.5) {
+        // Strong advantage: accept all but suicidal attacks
+        safe = riskLevel !== "suicidal";
+    } else if (advantage) {
+        // Slight advantage: accept low and medium risk
+        safe = riskLevel === "low" || riskLevel === "medium";
+    } else {
+        // Disadvantage: only accept low risk attacks
+        safe = riskLevel === "low";
+    }
+
+    return { safe, reason, riskLevel };
+}
+
+/**
+ * After attacking, should the unit immediately retreat?
+ * Called after an attack to determine if unit should pull back.
+ */
+export function shouldRetreatAfterAttacking(
+    unit: any,
+    state: GameState,
+    playerId: string
+): boolean {
+    // Don't retreat if already in a friendly city - that's the safest place!
+    const inFriendlyCity = state.cities.some(c =>
+        c.ownerId === playerId && hexEquals(c.coord, unit.coord)
+    );
+    if (inFriendlyCity) return false;
+
+    const { advantage } = hasMilitaryAdvantage(state, playerId);
+
+    // Count enemies that can still attack us
+    const threats = countThreatsToTile(state, playerId, unit.coord);
+
+    // If multiple enemies can attack us, retreat unless we're winning
+    if (threats.count >= 2) {
+        // At disadvantage: always retreat if exposed to 2+ enemies
+        if (!advantage) return true;
+
+        // At advantage: retreat if we'd take significant damage
+        if (threats.totalDamage >= unit.hp * 0.6) return true;
+
+    }
+
+    // If we're low HP and any enemy can reach us, retreat
+    const hpPercent = unit.hp / (unit.maxHp || 10);
+    if (hpPercent < 0.4 && threats.count >= 1) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Check if melee unit would be left exposed after moving to attack position.
+ */
+export function isMeleeAttackExposed(
+    attacker: any,
+    targetCoord: { q: number; r: number },
+    state: GameState,
+    playerId: string,
+    targetId?: string
+): boolean {
+    const threats = countThreatsToTile(state, playerId, targetCoord, targetId);
+    const { advantage } = hasMilitaryAdvantage(state, playerId);
+
+    // If disadvantaged, being exposed to 2+ additional enemies is too risky
+    if (!advantage && threats.count >= 2) {
+        return true;
+    }
+
+    // Even with advantage, 3+ additional enemies is too risky
+    if (threats.count >= 3) {
+        return true;
+    }
+
+    return false;
+}

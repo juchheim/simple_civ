@@ -314,9 +314,20 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
                         case "CityCaptured":
                             text = `City Captured: ${e.data.cityName}`;
                             break;
-                        case "PeaceMade":
-                            text = `Peace Treaty Signed`;
+                        case "PeaceMade": {
+                            const targetId = (e.data as any).targetId;
+                            let otherName = "Unknown";
+
+                            if (e.playerId === playerId) {
+                                // We initiated/accepted, target is the other
+                                otherName = gameState.players.find(p => p.id === targetId)?.civName || "Unknown";
+                            } else {
+                                // Someone else initiated/accepted with us (or someone else entirely, but filtered)
+                                otherName = gameState.players.find(p => p.id === e.playerId)?.civName || "Unknown";
+                            }
+                            text = `Peace Treaty Signed with ${formatId(otherName)}`;
                             break;
+                        }
                         case "VictoryAchieved":
                             text = `Victory (${e.data.victoryType})`;
                             break;
@@ -331,8 +342,7 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
                             text = `Met Civilization: ${formatId(otherCiv)}`;
                             break;
                         case "WonderBuilt":
-                            // data: { wonderId: string } ??
-                            text = `Wonder Completed: ${formatId(e.data.wonderId || "Unknown")}`;
+                            text = `Wonder Completed: ${formatId(e.data.buildId || e.data.wonderId || "Unknown")}`;
                             break;
                         default: text = "";
                     }
