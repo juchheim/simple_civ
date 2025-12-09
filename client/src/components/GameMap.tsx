@@ -133,6 +133,9 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
         handleMouseMove,
         handleMouseUp,
         handleMouseLeave,
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
         centerOnCoord,
         centerOnPoint,
     } = useMapController({
@@ -230,10 +233,13 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
     return (
         <div
             ref={containerRef}
-            style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative" }}
+            style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative", touchAction: "none" }}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             <GameMapLayers
                 pan={pan}

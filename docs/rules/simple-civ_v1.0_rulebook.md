@@ -134,6 +134,11 @@
   - Deep Sea: 1/0/0 | naval 1 | 0 | clear | yes (naval domain).
 - **Overlays**:
   - River Edge (adjacency marker), Rich Soil (+1F), Ore Vein (+1P), Sacred Site (+1S).
+  - **Goodie Hut**: Special one-time discovery reward. ~3% spawn rate on valid land tiles (not Mountain, Coast, Deep Sea, or tiles with other overlays). When a unit enters a Goodie Hut tile, the hut is collected and removed, granting one of four random rewards (25% chance each):
+    - **Food**: +10 Food to nearest city if Pop < 3, otherwise +5 Food.
+    - **Production**: +10 Production to nearest city if no active build, otherwise +5 Production.
+    - **Research**: +20% progress toward current tech if < 50% complete, otherwise +10%. No reward if no tech is being researched.
+    - **Free Scout**: Spawns a Scout unit at or adjacent to the hut (0 moves remaining).
 - **City Center rule**: apply terrain + overlay, then enforce minimums, then civ perks.
 
 ## 9. Units
@@ -261,7 +266,7 @@
 ## 15. Map & Generation
 - **Sizes**: Tiny 15×11, Small 19×15, Standard 23×17, Large 25×19, Huge 34×25.
 - **Civ caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
-- **Terrain generation**: mix of Plains/Hills/Forest/Marsh/Desert/Mountain/Coast/Deep Sea with overlays (River edges, Rich Soil, Ore Vein, Sacred Site).
+- **Terrain generation**: mix of Plains/Hills/Forest/Marsh/Desert/Mountain/Coast/Deep Sea with overlays (River edges, Rich Soil, Ore Vein, Sacred Site, Goodie Huts).
 - **Start fairness**: each civ placed in balanced start zones with access to workable tiles; capitals get civ-specific first name.
 - **Territory**: exclusive ownership; auto-claim rules in section 7.
 - **Vision**: see section 2 for states; shared vision via diplomacy applies after acceptance.

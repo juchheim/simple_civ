@@ -9,6 +9,7 @@ import {
     ZOOM_WHEEL_SENSITIVITY,
 } from "../components/GameMap/constants";
 import { EDGE_PAN_THRESHOLD, PanState, usePanZoomInertia } from "./usePanZoomInertia";
+import { useTouchController } from "./useTouchController";
 import { PAN_INERTIA_MIN_VELOCITY } from "../components/GameMap/constants";
 
 export type MapViewport = {
@@ -105,6 +106,26 @@ export const useMapController = ({
 
         return closestHex;
     }, [tiles, hexToPixel, screenToWorld]);
+
+    // --- Touch Controller ---
+    const {
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
+    } = useTouchController({
+        svgRef,
+        findHexAtScreen,
+        onTileClick,
+        panRef,
+        zoomRef,
+        targetZoomRef,
+        zoomAnchorRef,
+        inertiaVelocityRef,
+        isInertiaActiveRef,
+        scheduleAnimation,
+        setPan,
+        setIsPanning,
+    });
 
     // --- Initialization ---
     useEffect(() => {
@@ -407,6 +428,9 @@ export const useMapController = ({
         handleMouseMove,
         handleMouseUp,
         handleMouseLeave,
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
         centerOnCoord,
         centerOnPoint,
         viewport,
