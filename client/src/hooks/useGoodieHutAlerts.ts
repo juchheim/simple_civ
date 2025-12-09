@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { GameState, OverlayType, GoodieHutRewardInfo, hexEquals } from "@simple-civ/engine";
+import { GameState, GoodieHutRewardInfo } from "@simple-civ/engine";
 import { Toast } from "../components/Toast";
 
 /**
