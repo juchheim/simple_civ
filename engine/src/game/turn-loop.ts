@@ -151,7 +151,7 @@ function handleChooseTech(state: GameState, action: { type: "ChooseTech"; player
 
     if (tech.era === "Banner") {
         const hearthCount = player.techs.filter(t => TECHS[t].era === "Hearth").length;
-        if (hearthCount < 2) throw new Error("Need 2 Hearth techs");
+        if (hearthCount < 3) throw new Error("Need 3 Hearth techs");
     }
     if (tech.era === "Engine") {
         const bannerCount = player.techs.filter(t => TECHS[t].era === "Banner").length;

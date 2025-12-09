@@ -28,7 +28,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
 
         if (tech.era === EraId.Banner) {
             const hearthCount = player.techs.filter(t => TECHS[t].era === EraId.Hearth).length;
-            if (hearthCount < 2) return false;
+            if (hearthCount < 3) return false;
         }
         if (tech.era === EraId.Engine) {
             const bannerCount = player.techs.filter(t => TECHS[t].era === EraId.Banner).length;
@@ -277,7 +277,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                         <div className="tech-tree-era tech-tree-era--banner">
                             <div className="tech-tree-era-header">
                                 <h3 className="tech-tree-era-title">Banner Era</h3>
-                                <div className="tech-tree-era-req">Requires 2 Hearth techs</div>
+                                <div className="tech-tree-era-req">Requires 3 Hearth techs</div>
                             </div>
                             <div className="tech-tree-cards">
                                 {bannerTechs.map(renderTechCard)}

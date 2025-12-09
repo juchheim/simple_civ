@@ -7,10 +7,11 @@ import {
     generateWorld,
     runAiTurn,
 } from "@simple-civ/engine";
+import { CIV_OPTIONS } from "../data/civs";
 
 type PlayerSetup = { id: string; civName: string; color: string; ai?: boolean };
 type GameSetup = { mapSize: MapSize; players: PlayerSetup[]; seed?: number; startWithRandomSeed?: boolean };
-type SavedGame = { timestamp: number; gameState: GameState };
+type SavedGame = { timestamp: number; gameState: GameState; turn: number; civName: string };
 
 const SAVE_KEY = "simple-civ-save";
 const AUTOSAVE_KEY = "simple-civ-autosave";
@@ -28,7 +29,8 @@ type SessionCommands = {
     startNewGame: (settings: GameSetup) => GameState;
     restartLastGame: () => boolean;
     saveGame: () => boolean;
-    loadGame: () => boolean;
+    loadGame: (slot?: "manual" | "auto") => boolean;
+    listSaves: () => { manual: SavedGame | null; auto: SavedGame | null };
     clearSession: () => void;
     runActions: (actions: Action[]) => void;
 };
@@ -40,6 +42,51 @@ type SessionState = {
     error: string | null;
     setError: (msg: string | null) => void;
 };
+
+// Helper to parse and normalize save data
+function parseSave(raw: string): SavedGame | null {
+    try {
+        const parsed = JSON.parse(raw);
+
+        // Handle very old legacy format (raw GameState, no timestamp wrapper)
+        if (!parsed.timestamp && parsed.turn) {
+            const rawCivName = parsed.players?.find((p: any) => p.id === parsed.currentPlayerId)?.civName;
+            const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
+            return {
+                timestamp: 0,
+                gameState: parsed,
+                turn: parsed.turn,
+                civName: title
+            };
+        }
+
+        // Handle standard format (wrapper with timestamp)
+        // Check if metadata is missing (previous format) and backfill it
+        if (parsed.gameState && (parsed.turn === undefined || parsed.civName === undefined)) {
+            const state = parsed.gameState;
+            const rawCivName = parsed.civName ?? (state.players?.find((p: any) => p.id === state.currentPlayerId)?.civName);
+            const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
+            return {
+                timestamp: parsed.timestamp,
+                gameState: state,
+                turn: parsed.turn ?? state.turn ?? 0,
+                civName: title
+            };
+        }
+
+        // Assume it's the new correct format, but maybe double check if civName looks like an ID and fix it?
+        // Let's just fix it on load to be safe
+        if (parsed.civName && !parsed.civName.includes(" ")) {
+            const title = CIV_OPTIONS.find(c => c.id === parsed.civName)?.title;
+            if (title) parsed.civName = title;
+        }
+
+        // Assume it's the new correct format
+        return parsed;
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Hook to manage the game session state (start, save, load, restart).
@@ -113,6 +160,11 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
             const saveData: SavedGame = {
                 timestamp: Date.now(),
                 gameState: gameState,
+                turn: gameState.turn,
+                civName: (() => {
+                    const raw = gameState.players.find(p => p.id === gameState.currentPlayerId)?.civName;
+                    return CIV_OPTIONS.find(c => c.id === raw)?.title || raw || "Unknown";
+                })(),
             };
             localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
             return true;
@@ -121,38 +173,21 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
         }
     }, [gameState]);
 
-    const loadGame = useCallback(() => {
+    const loadGame = useCallback((slot?: "manual" | "auto") => {
         skipPersistenceRef.current = false;
         try {
             const rawManual = localStorage.getItem(SAVE_KEY);
             const rawAuto = localStorage.getItem(AUTOSAVE_KEY);
 
-            if (!rawManual && !rawAuto) {
-                return false;
-            }
+            const manualSave = rawManual ? parseSave(rawManual) : null;
+            const autoSave = rawAuto ? parseSave(rawAuto) : null;
 
-            let manualSave: SavedGame | null = null;
-            let autoSave: SavedGame | null = null;
+            let chosenSave: SavedGame | null = null;
 
-            if (rawManual) {
-                try {
-                    const parsed = JSON.parse(rawManual);
-                    manualSave = !parsed.timestamp ? { timestamp: 0, gameState: parsed } : parsed;
-                } catch {
-                    // Ignore bad manual save
-                }
-            }
+            if (slot === "manual") chosenSave = manualSave;
+            else if (slot === "auto") chosenSave = autoSave;
+            else chosenSave = manualSave ?? autoSave; // Default behavior
 
-            if (rawAuto) {
-                try {
-                    const parsed = JSON.parse(rawAuto);
-                    autoSave = !parsed.timestamp ? { timestamp: 0, gameState: parsed } : parsed;
-                } catch {
-                    // Ignore bad autosave
-                }
-            }
-
-            const chosenSave = manualSave ?? autoSave;
             if (!chosenSave) {
                 return false;
             }
@@ -167,6 +202,18 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
         } catch {
             return false;
         }
+    }, []);
+
+    const listSaves = useCallback(() => {
+        const getSave = (key: string): SavedGame | null => {
+            const raw = localStorage.getItem(key);
+            return raw ? parseSave(raw) : null;
+        };
+
+        return {
+            manual: getSave(SAVE_KEY),
+            auto: getSave(AUTOSAVE_KEY)
+        };
     }, []);
 
     const clearSession = useCallback(() => {
@@ -241,9 +288,14 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
     useEffect(() => {
         if (!gameState) return;
         if (gameState.turn > 0 && gameState.turn % 5 === 0 && gameState.currentPlayerId === playerId) {
+            const rawCivName = gameState.players.find(p => p.id === gameState.currentPlayerId)?.civName;
+            const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
+
             const saveData: SavedGame = {
                 timestamp: Date.now(),
                 gameState: gameState,
+                turn: gameState.turn,
+                civName: title,
             };
             try {
                 localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
@@ -264,6 +316,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
         restartLastGame,
         saveGame,
         loadGame,
+        listSaves,
         clearSession,
         runActions,
     };

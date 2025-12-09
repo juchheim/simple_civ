@@ -7,6 +7,8 @@ import { TitleScreen } from "./components/TitleScreen";
 import { EndGameExperience } from "./components/EndGame/EndGameExperience";
 import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sections";
 import { ToastContainer } from "./components/Toast";
+import { SaveGameModal } from "./components/SaveGameModal";
+import { LoadGameModal } from "./components/LoadGameModal";
 import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
@@ -27,16 +29,19 @@ function App() {
         gameState,
         playerId,
         runActions,
-        startNewGame,
-        restartLastGame,
         saveGame,
         loadGame,
+        listSaves,
         lastGameSettings,
         clearSession,
         error,
         setError,
+        startNewGame,
+        restartLastGame,
     } = useGameSession({ onSessionRestore: handleSessionRestore });
     const mapRef = useRef<GameMapHandle | null>(null);
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [showLoadModal, setShowLoadModal] = useState(false);
     const [showTechTree, setShowTechTree] = useState(false);
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
@@ -128,7 +133,7 @@ function App() {
 
     // Game event toasts (era transitions, capitals captured, unique buildings, etc.)
     const { toasts: gameEventToasts, dismissToast: dismissGameEventToast } = useGameEventToasts(
-        gameState ?? { map: { tiles: [] }, units: [], players: [], history: { events: [], playerStats: {}, playerFog: {} } } as any,
+        gameState,
         playerId
     );
 
@@ -191,20 +196,29 @@ function App() {
     }, [handleAction, playerId]);
 
     const handleSaveGame = useCallback(() => {
-        const saved = saveGame();
-        alert(saved ? "Game saved." : "Failed to save game.");
+        setShowSaveModal(true);
+    }, []);
+
+    const confirmSaveGame = useCallback(() => {
+        saveGame();
+        // Toast is handled by modal for now or we can add one here
+        // But modal has built-in feedback as per implementation
     }, [saveGame]);
 
     const handleLoadGame = useCallback(() => {
-        const success = loadGame();
-        if (!success) {
-            alert("No saved game found.");
-            return;
+        setShowLoadModal(true);
+    }, []);
+
+    const confirmLoadGame = useCallback((slot: "manual" | "auto") => {
+        const success = loadGame(slot);
+        if (success) {
+            setShowTitleScreen(false);
+            setSelectedCoord(null);
+            setSelectedUnitId(null);
+            setShowGameMenu(false); // Close menu if open
+        } else {
+            alert("Failed to load game.");
         }
-        setShowTitleScreen(false);
-        setSelectedCoord(null);
-        setSelectedUnitId(null);
-        alert("Loaded saved game.");
     }, [loadGame, setSelectedCoord, setSelectedUnitId]);
 
     const handleRestart = useCallback(() => {
@@ -525,6 +539,17 @@ function App() {
                     onDisablePreview={() => setShowCombatPreview(false)}
                 />
             )}
+            <SaveGameModal
+                isOpen={showSaveModal}
+                onClose={() => setShowSaveModal(false)}
+                onConfirmSave={confirmSaveGame}
+            />
+            <LoadGameModal
+                isOpen={showLoadModal}
+                onClose={() => setShowLoadModal(false)}
+                saves={listSaves()}
+                onLoad={confirmLoadGame}
+            />
             {error && (
                 <div style={{
                     position: "fixed",
@@ -565,11 +590,26 @@ function App() {
     ) : null;
 
     return (
-        <AppShell
-            showTitleScreen={!gameState}
-            titleContent={titleContent}
-            gameContent={gameContent}
-        />
+        <>
+            <AppShell
+                showTitleScreen={!gameState}
+                titleContent={titleContent}
+                gameContent={gameContent}
+            />
+            {/* Render LoadModal outside of AppShell/GameContent so it can appear on TitleScreen too if needed, 
+                but TitleScreen is inside AppShell structure. The Modals use portals or fixed positioning so it's fine. 
+                Wait, TitleScreen is passed as prop. Let's just put it at root if we want it global. 
+                Actually, the easiest is to just have them available. 
+                Since they are specific to Game/Title, let's just add the LoadModal to the TitleScreen part too 
+                or just put it at the end of the fragments. */}
+            {/* Global Modals that can appear on top of everything */}
+            <LoadGameModal
+                isOpen={showLoadModal}
+                onClose={() => setShowLoadModal(false)}
+                saves={listSaves()}
+                onLoad={confirmLoadGame}
+            />
+        </>
     );
 }
 

@@ -15,7 +15,7 @@ import { Toast } from "../../Toast";
  * All players are notified of these events regardless of their own progress.
  * These are informational toasts that don't require user interaction.
  */
-export function useGameEventToasts(gameState: GameState, playerId: string) {
+export function useGameEventToasts(gameState: GameState | null, playerId: string) {
     const [toasts, setToasts] = useState<Toast[]>([]);
     const prevHistoryEventsRef = useRef<Set<string>>(new Set());
     const prevBuildingStatesRef = useRef<Record<string, {
@@ -35,33 +35,37 @@ export function useGameEventToasts(gameState: GameState, playerId: string) {
         // Initialize tracking
         if (isFirstRunRef.current) {
             isFirstRunRef.current = false;
-            gameState.players.forEach(p => {
-                prevErasRef.current[p.id] = p.currentEra;
-                prevBuildingStatesRef.current[p.id] = {
-                    buildingTitansCore: false,
-                    buildingSpiritObservatory: false,
-                    buildingJadeGranary: false,
-                    completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
-                    completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
-                    completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
-                };
-                // Count initial capitals owned by each civ
-                capitalCountsRef.current[p.id] = gameState.cities.filter(c =>
-                    c.ownerId === p.id && c.isCapital
-                ).length;
-                // Track elimination status
-                prevEliminatedRef.current[p.id] = p.isEliminated;
-            });
-            // Track initial history events
-            if (gameState.history?.events) {
-                gameState.history.events.forEach(e => {
-                    prevHistoryEventsRef.current.add(`${e.turn}-${e.type}-${e.playerId}-${JSON.stringify(e.data)}`);
+            if (gameState) {
+                gameState.players.forEach(p => {
+                    prevErasRef.current[p.id] = p.currentEra;
+                    prevBuildingStatesRef.current[p.id] = {
+                        buildingTitansCore: false,
+                        buildingSpiritObservatory: false,
+                        buildingJadeGranary: false,
+                        completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
+                        completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
+                        completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
+                    };
+                    // Count initial capitals owned by each civ
+                    capitalCountsRef.current[p.id] = gameState.cities.filter(c =>
+                        c.ownerId === p.id && c.isCapital
+                    ).length;
+                    // Track elimination status
+                    prevEliminatedRef.current[p.id] = p.isEliminated;
                 });
+                // Track initial history events
+                if (gameState.history?.events) {
+                    gameState.history.events.forEach(e => {
+                        prevHistoryEventsRef.current.add(`${e.turn}-${e.type}-${e.playerId}-${JSON.stringify(e.data)}`);
+                    });
+                }
             }
             return;
         }
 
         const newToasts: Toast[] = [];
+
+        if (!gameState) return;
 
         // 1. Check history events for new occurrences
         if (gameState.history?.events) {
