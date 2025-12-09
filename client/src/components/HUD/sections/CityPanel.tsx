@@ -203,7 +203,9 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                 </div>
                 <div className="hud-chip-row" style={{ justifyContent: "flex-end" }}>
                     <span className="hud-chip">Stored Food: {city.storedFood}</span>
-                    <span className="hud-chip">Stored Prod: {city.storedProduction}</span>
+                    {city.storedProduction >= 1 && (
+                        <span className="hud-chip">Stored Prod: {city.storedProduction}</span>
+                    )}
                 </div>
             </div>
 

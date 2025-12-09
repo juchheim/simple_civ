@@ -148,7 +148,7 @@ const personalities: Record<CivName, AiPersonality> = {
         techWeights: { [TechId.ScriptLore]: 1.2, [TechId.ScholarCourts]: 1.2, [TechId.StarCharts]: 1.5 },
         projectRush: { type: "Building", id: BuildingType.SpiritObservatory },
         unitBias: { rangedSafety: 1 },
-        declareAfterContactTurns: 5,  // Wait longer before declaring war
+        declareAfterContactTurns: 0,  // v1.9: Never force-declare war - purely defensive
     },
     JadeCovenant: {
         aggression: {

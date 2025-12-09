@@ -155,11 +155,7 @@ function getProgressCityPriorities(player: { techs: TechId[]; completedProjects:
         priorities.push({ type: "Building" as const, id: BuildingType.CityWard });
     }
 
-    // v1.9: StarborneSeekers gets Academy as TOP priority (for +1 Science per Academy bonus)
-    // "Celestial Studies" - science focus synergy
-    if (player?.civName === "StarborneSeekers") {
-        priorities.push({ type: "Building" as const, id: BuildingType.Academy });
-    }
+    // v1.9: StarborneSeekers Academy priority removed - they now get +1 Science in Capital instead
 
     // Victory projects at TOP priority
     const nextProgress = getNextProgressProject(player);
@@ -383,7 +379,10 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     // Not at war, but if we have Army Doctrine and units to form, consider it
     let normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
 
-    // v1.9: REMOVED ForgeClans early military deterrence - no longer special-cased
+    // v1.9: RESTORED ForgeClans early military deterrence
+    if (player?.civName === "ForgeClans") {
+        normalPriorities = getForgeClansEarlyMilitaryPriorities(state, playerId, normalPriorities);
+    }
 
     // v1.9: ScholarKingdoms early military - they have high elimination rate (42.7%)
     // Give them one early spearguard to help survive

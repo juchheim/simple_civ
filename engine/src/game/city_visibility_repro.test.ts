@@ -45,7 +45,7 @@ describe('City Attack Visibility', () => {
         ];
     });
 
-    it('should NOT allow city to attack unit behind mountain', () => {
+    it('should NOT allow city to attack unit behind mountain (but should still see it)', () => {
         // Setup City at (0,0)
         state.cities.push({
             id: 'c1',
@@ -92,12 +92,12 @@ describe('City Attack Visibility', () => {
             hasAttacked: false
         });
 
-        // Verify visibility first
+        // Verify visibility - cities now see all tiles within Ring 2 without terrain blocking
         const visible = computeVisibility(state, 'p1');
-        // (2,0) should NOT be visible
-        expect(visible).not.toContain('2,0');
+        // (2,0) IS now visible (cities see all Ring 2 tiles)
+        expect(visible).toContain('2,0');
 
-        // Attempt attack
+        // But attack should still be blocked by LoS
         expect(() => {
             handleCityAttack(state, {
                 type: 'CityAttack',
@@ -108,7 +108,7 @@ describe('City Attack Visibility', () => {
         }).toThrow('Line of sight blocked');
     });
 
-    it('should BLOCK diagonal attack if line passes through mountain', () => {
+    it('should BLOCK diagonal attack if line passes through mountain (but tile is visible)', () => {
         // (0,0) -> (1,1) passes through (1,0)
         // Setup:
         // (0,0) City
@@ -147,9 +147,11 @@ describe('City Attack Visibility', () => {
             hp: 10, maxHp: 10, movesLeft: 0, state: UnitState.Normal, hasAttacked: false
         });
 
+        // Tile IS visible (cities see all Ring 2 tiles without terrain blocking)
         const visible = computeVisibility(state, 'p1');
-        expect(visible).not.toContain('1,1');
+        expect(visible).toContain('1,1');
 
+        // But attack is still blocked by mountain LoS
         expect(() => {
             handleCityAttack(state, {
                 type: 'CityAttack',

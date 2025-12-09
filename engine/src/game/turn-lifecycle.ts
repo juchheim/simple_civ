@@ -75,6 +75,10 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
 
     processResearch(state, player);
 
+    // Refresh vision AFTER city processing so newly expanded territory is visible immediately
+    refreshPlayerVision(state, player.id);
+    recordTurnStats(state, player.id);
+
     state.phase = PlayerPhase.Planning;
     return state;
 }
@@ -150,13 +154,8 @@ export function startPlayerTurn(state: GameState, player: Player): void {
     resetUnitsForTurn(state, player);
     resetCityFireFlags(state, player.id);
 
-    refreshPlayerVision(state, player.id);
-
-    // History: Stats and Fog Delta
-    // Note: recordFogDelta is handled inside refreshPlayerVision ideally, but we need to track delta.
-    // Actually, simple way: check revealed count before/after, or just let refreshPlayerVision return delta.
-    // For now, let's just record stats here. Fog delta requires finding difference.
-    recordTurnStats(state, player.id);
+    // Note: Vision refresh moved to advancePlayerTurn to happen AFTER processPlayerCities
+    // This ensures newly expanded territory from city growth is immediately visible
 
     runPlayerAutoBehaviors(state, player.id);
 }

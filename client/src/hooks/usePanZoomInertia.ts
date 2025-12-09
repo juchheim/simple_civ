@@ -7,6 +7,7 @@ import {
 
 export const EDGE_PAN_THRESHOLD = 100; // pixels
 export const EDGE_PAN_SPEED = 0.8; // pixels per ms
+export const EDGE_PAN_DELAY = 250; // ms before edge pan starts
 
 export type PanState = { x: number; y: number };
 export type Velocity = { vx: number; vy: number };
@@ -39,6 +40,7 @@ export function usePanZoomInertia({
     const inertiaVelocityRef = useRef<Velocity>({ vx: 0, vy: 0 });
     const isInertiaActiveRef = useRef(false);
     const mousePositionRef = useRef<{ x: number; y: number } | null>(null);
+    const edgeEntryTimeRef = useRef<number | null>(null); // When mouse entered edge zone
     const rafRef = useRef<number | null>(null);
     const lastFrameTimeRef = useRef<number | null>(null);
 
@@ -79,34 +81,63 @@ export function usePanZoomInertia({
             }
         }
 
-        // Edge panning
+        // Edge panning with delay
         if (mousePositionRef.current && !isPanningRef.current && containerRef.current) {
             const { x, y } = mousePositionRef.current;
             const { clientWidth, clientHeight } = containerRef.current;
-            let vx = 0;
-            let vy = 0;
 
-            if (x < EDGE_PAN_THRESHOLD) {
-                vx = EDGE_PAN_SPEED * (1 - x / EDGE_PAN_THRESHOLD);
-            } else if (x > clientWidth - EDGE_PAN_THRESHOLD) {
-                vx = -EDGE_PAN_SPEED * (1 - (clientWidth - x) / EDGE_PAN_THRESHOLD);
-            }
+            // Check if mouse is in edge zone
+            const isInEdgeZone =
+                x < EDGE_PAN_THRESHOLD ||
+                x > clientWidth - EDGE_PAN_THRESHOLD ||
+                y < EDGE_PAN_THRESHOLD ||
+                y > clientHeight - EDGE_PAN_THRESHOLD;
 
-            if (y < EDGE_PAN_THRESHOLD) {
-                vy = EDGE_PAN_SPEED * (1 - y / EDGE_PAN_THRESHOLD);
-            } else if (y > clientHeight - EDGE_PAN_THRESHOLD) {
-                vy = -EDGE_PAN_SPEED * (1 - (clientHeight - y) / EDGE_PAN_THRESHOLD);
-            }
+            if (isInEdgeZone) {
+                // Track when we entered the edge zone
+                if (edgeEntryTimeRef.current === null) {
+                    edgeEntryTimeRef.current = timestamp;
+                }
 
-            if (vx !== 0 || vy !== 0) {
-                const nextPan = {
-                    x: panRef.current.x + vx * deltaMs,
-                    y: panRef.current.y + vy * deltaMs,
-                };
-                panRef.current = nextPan;
-                setPan(nextPan);
-                shouldContinue = true;
+                const timeInEdge = timestamp - edgeEntryTimeRef.current;
+
+                // Only pan after the delay has elapsed
+                if (timeInEdge >= EDGE_PAN_DELAY) {
+                    let vx = 0;
+                    let vy = 0;
+
+                    if (x < EDGE_PAN_THRESHOLD) {
+                        vx = EDGE_PAN_SPEED * (1 - x / EDGE_PAN_THRESHOLD);
+                    } else if (x > clientWidth - EDGE_PAN_THRESHOLD) {
+                        vx = -EDGE_PAN_SPEED * (1 - (clientWidth - x) / EDGE_PAN_THRESHOLD);
+                    }
+
+                    if (y < EDGE_PAN_THRESHOLD) {
+                        vy = EDGE_PAN_SPEED * (1 - y / EDGE_PAN_THRESHOLD);
+                    } else if (y > clientHeight - EDGE_PAN_THRESHOLD) {
+                        vy = -EDGE_PAN_SPEED * (1 - (clientHeight - y) / EDGE_PAN_THRESHOLD);
+                    }
+
+                    if (vx !== 0 || vy !== 0) {
+                        const nextPan = {
+                            x: panRef.current.x + vx * deltaMs,
+                            y: panRef.current.y + vy * deltaMs,
+                        };
+                        panRef.current = nextPan;
+                        setPan(nextPan);
+                        shouldContinue = true;
+                    }
+                } else {
+                    // Still waiting for delay, keep animation going
+                    shouldContinue = true;
+                }
+            } else {
+                // Mouse left edge zone, reset the timer
+                edgeEntryTimeRef.current = null;
             }
+        } else {
+            // Mouse not tracked or panning, reset the timer
+            edgeEntryTimeRef.current = null;
         }
 
         const zoomDifference = targetZoomRef.current - zoomRef.current;

@@ -193,6 +193,11 @@ export function applyCityProduction(state: GameState, city: City, player: Player
     if (city.currentBuild?.type === "Project" && player.civName === "ForgeClans") {
         effectiveProd = Math.ceil(baseProduction * 1.25);
     }
+
+    // Add storedProduction (from goodie huts, etc.) to build progress
+    effectiveProd += city.storedProduction;
+    city.storedProduction = 0; // Consume it
+
     city.buildProgress += effectiveProd;
     if (city.currentBuild && city.buildProgress >= city.currentBuild.cost) {
         completeBuild(state, city);

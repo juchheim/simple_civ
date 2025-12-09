@@ -121,7 +121,7 @@ export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (
 
 // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
 export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 3; // Tiles from capital
-export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // +1 Defense
+export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // v1.9: Nerfed from +2 to +1
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
@@ -288,7 +288,7 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.SignalRelay]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+1 Science per city" } },
     [TechId.UrbanPlans]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
     [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } },
-    [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Project", id: ProjectId.Observatory } },
+    [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } },
 };
 
 

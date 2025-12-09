@@ -116,7 +116,11 @@ describe("useMapController", () => {
         expect(result.current.pan.x).toBeGreaterThan(0); // Should have moved
     });
 
-    it("pans when mouse is near edge", () => {
+    it("pans when mouse is near edge after delay", async () => {
+        // Track current fake time for performance.now mock
+        let fakeTime = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => fakeTime);
+
         const { result } = renderHook(() =>
             useMapController({
                 tiles: mockTiles,
@@ -142,7 +146,7 @@ describe("useMapController", () => {
         // Capture initial pan
         const initialPanX = result.current.pan.x;
 
-        // Move mouse to left edge (x=10, threshold=50)
+        // Move mouse to left edge (x=10, within threshold of 100)
         act(() => {
             result.current.handleMouseMove({
                 clientX: 10,
@@ -150,10 +154,14 @@ describe("useMapController", () => {
             } as any);
         });
 
-        // Advance timers to trigger animation frame
-        act(() => {
-            vi.advanceTimersByTime(100);
-        });
+        // Advance timers past EDGE_PAN_DELAY (250ms) + some extra for pan to apply
+        // Run multiple animation frames
+        for (let i = 0; i < 30; i++) {
+            fakeTime += 20; // 20ms per frame
+            await act(async () => {
+                vi.advanceTimersByTime(20);
+            });
+        }
 
         // Should have panned right (pan.x increases to move view left)
         expect(result.current.pan.x).toBeGreaterThan(initialPanX);

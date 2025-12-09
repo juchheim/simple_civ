@@ -1,6 +1,7 @@
 import {
     BuildingType,
     City,
+    DiplomacyState,
     GameState,
     TerrainType,
     Tile,
@@ -152,8 +153,8 @@ export function getCityYields(city: City, state: GameState): Yields {
             }
         }
     } else if (trait === "ScholarKingdoms") {
-        // v1.9: "Citadel Protocol" - Tall play science bonuses
-        // 1. +1 Science in Capital (always)
+        // v1.9: "Citadel Protocol"
+        // 1. +1 Science in Capital
         if (city.isCapital) {
             total.S += 1;
         }
@@ -163,16 +164,21 @@ export function getCityYields(city: City, state: GameState): Yields {
         ).length;
         total.S += cityWardCount;
     } else if (trait === "RiverLeague") {
-        // v1.9: Balanced - +1 Prod per 3 river tiles (was per 2 - too strong)
+        // v1.9: BUFF - +1 Prod per 2 river tiles (was per 3)
         total.F += riverAdjacencyCount(state.map, workedTiles);
-        total.P += Math.floor(riverAdjacencyCount(state.map, workedTiles) / 3);
+        total.P += Math.floor(riverAdjacencyCount(state.map, workedTiles) / 2);
     } else if (trait === "StarborneSeekers") {
-        // v1.9: BUFF - "Celestial Studies" - +1 Science per Academy building
-        // Synergizes with Spirit Observatory for science-focused gameplay
-        const academyCount = state.cities.filter(c =>
-            c.ownerId === city.ownerId && c.buildings.includes(BuildingType.Academy)
-        ).length;
-        total.S += academyCount;
+        // v1.9: "Peaceful Meditation" - +1 Science when not at war
+        // Fits their defensive identity - they avoid wars to pursue Progress
+        const player = state.players.find(p => p.id === city.ownerId);
+        const atWar = state.players.some(other =>
+            other.id !== city.ownerId &&
+            !other.isEliminated &&
+            state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
+        );
+        if (!atWar) {
+            total.S += 1;
+        }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)
         if (city.isCapital) {

@@ -25,7 +25,8 @@ function availableTechs(playerTechs: TechId[]): TechId[] {
 
 function goalTechPath(goal: AiVictoryGoal): TechId[] {
     if (goal === "Progress") {
-        return [TechId.ScriptLore, TechId.ScholarCourts, TechId.StarCharts];
+        // v1.9: Added SignalRelay as prereq for StarCharts
+        return [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts];
     }
     if (goal === "Conquest") {
         return [TechId.FormationTraining, TechId.DrilledRanks, TechId.ArmyDoctrine];
@@ -93,13 +94,15 @@ export function aiChooseTech(playerId: string, state: GameState, goal: AiVictory
             const pathScore = pathIdx >= 0 ? 200 - pathIdx * 10 : 0;
             const weight = personality.techWeights[t] ? personality.techWeights[t]! * 50 : 0;
             const rushScore = rushTargets.includes(t) ? 150 : 0;
-            // v1.3: Boost Progress path techs (ScriptLore, ScholarCourts, StarCharts) for progress-oriented civs in Balanced mode
+            // v1.3: Boost Progress path techs for progress-oriented civs in Balanced mode
+            // v1.9: Added SignalRelay (new prereq for StarCharts)
             const progressBoost = (prefersProgress && progressPathBoost > 0 &&
-                (t === TechId.ScriptLore || t === TechId.ScholarCourts || t === TechId.StarCharts))
+                (t === TechId.ScriptLore || t === TechId.ScholarCourts || t === TechId.SignalRelay || t === TechId.StarCharts))
                 ? progressPathBoost : 0;
             // v1.8: Universal StarCharts boost for all civs after turn 100 or 8+ techs
+            // v1.9: Added SignalRelay to the boost chain
             const universalStarChartsBoost = (starChartsUniversalBoost > 0 &&
-                (t === TechId.StarCharts || t === TechId.ScholarCourts || t === TechId.ScriptLore))
+                (t === TechId.StarCharts || t === TechId.SignalRelay || t === TechId.ScholarCourts || t === TechId.ScriptLore))
                 ? starChartsUniversalBoost : 0;
             const costTiebreaker = -TECHS[t].cost;
             return { t, score: pathScore + weight + rushScore + progressBoost + universalStarChartsBoost + costTiebreaker };

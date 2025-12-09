@@ -1,5 +1,5 @@
 import React from "react";
-import { GameState, HexCoord, Action, UnitState, pickBestAvailableTech } from "@simple-civ/engine";
+import { GameState, HexCoord, Action, UnitState, pickBestAvailableTech, getCityYields } from "@simple-civ/engine";
 import { MapViewport } from "./GameMap";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
@@ -42,6 +42,16 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
     const { units, cities, currentPlayerId, turn } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
+    const empireYields = React.useMemo(() => {
+        const playerCities = cities.filter(c => c.ownerId === playerId);
+        return playerCities.reduce(
+            (acc, city) => {
+                const yields = getCityYields(city, gameState);
+                return { F: acc.F + yields.F, P: acc.P + yields.P, S: acc.S + yields.S };
+            },
+            { F: 0, P: 0, S: 0 }
+        );
+    }, [cities, playerId, gameState]);
     const [showResearch, setShowResearch] = React.useState(false);
     const [showDiplomacy, setShowDiplomacy] = React.useState(false);
     const [showCodex, setShowCodex] = React.useState(false);
@@ -67,14 +77,14 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
     const { activeAlert: diplomacyAlert, dismissAlert: dismissDiplomacyAlert } = useDiplomacyAlerts(gameState, playerId);
     const { activeAlert: progressRaceAlert, dismissAlert: dismissProgressRaceAlert } = useProgressRaceAlerts(gameState, playerId);
     const { activeAlert: gameEventAlert, dismissAlert: dismissGameEventAlert } = useGameEventAlerts(gameState, playerId);
-    
+
     // Prioritize alerts: Progress race > Diplomacy > Game events
     const activeAlert = progressRaceAlert || diplomacyAlert || gameEventAlert;
-    const dismissAlert = progressRaceAlert 
-        ? dismissProgressRaceAlert 
-        : diplomacyAlert 
-        ? dismissDiplomacyAlert 
-        : dismissGameEventAlert;
+    const dismissAlert = progressRaceAlert
+        ? dismissProgressRaceAlert
+        : diplomacyAlert
+            ? dismissDiplomacyAlert
+            : dismissGameEventAlert;
 
     const selectedCity = selectedCoord
         ? cities.find(c => c.coord.q === selectedCoord.q && c.coord.r === selectedCoord.r) ?? null
@@ -267,6 +277,11 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
                         Game
                     </button>
                 )}
+                <div className="hud-empire-yields">
+                    <span className="hud-yield hud-yield--food" title="Food per turn"><img src="/ui/Food.png" alt="Food" className="hud-yield-icon" /> {empireYields.F}</span>
+                    <span className="hud-yield hud-yield--prod" title="Production per turn"><img src="/ui/Production.png" alt="Production" className="hud-yield-icon" /> {empireYields.P}</span>
+                    <span className="hud-yield hud-yield--science" title="Science per turn"><img src="/ui/Science.png" alt="Science" className="hud-yield-icon" /> {empireYields.S}</span>
+                </div>
             </div>
 
             <div className="hud-left-stack">

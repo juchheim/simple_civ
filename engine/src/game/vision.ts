@@ -32,18 +32,12 @@ export function computeVisibility(state: GameState, playerId: string): string[] 
         }
 
         for (const city of cities) {
+            // Cities see all tiles within their work radius (Ring 2) without terrain blocking
             const potentialTiles = hexSpiral(city.coord, 2);
             for (const coord of potentialTiles) {
                 const key = hexToString(coord);
                 if (!tileByKey.has(key)) continue;
-
-                const dist = hexDistance(city.coord, coord);
-                // Always see adjacent (dist <= 1) - City center + Ring 1
-                if (dist <= 1) {
-                    visible.add(key);
-                } else if (hasClearLineOfSight(state, city.coord, coord, tileByKey)) {
-                    visible.add(key);
-                }
+                visible.add(key);
             }
         }
 

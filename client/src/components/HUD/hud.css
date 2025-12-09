@@ -44,6 +44,45 @@
     pointer-events: none;
 }
 
+.hud-empire-yields {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 6.5px 12px;
+    pointer-events: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    line-height: 1.4;
+}
+
+.hud-yield {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.hud-yield-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+.hud-yield--food {
+    color: #a7f3d0;
+}
+
+.hud-yield--prod {
+    color: #fde68a;
+}
+
+.hud-yield--science {
+    color: #bfdbfe;
+}
+
 .hud-menu-card {
     min-width: 260px;
     pointer-events: auto;

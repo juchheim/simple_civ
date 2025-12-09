@@ -230,20 +230,19 @@ export function generateWorld(settings: WorldGenSettings): GameState {
             }
         }
 
-        // v0.98 Update 4: StarborneSeekers starts with a SpearGuard (was extra Scout)
-        // v1.8: Restored starting SpearGuard (win rate dropped to 11.8% without it)
+        // v1.9: StarborneSeekers starts with an extra Scout (exploration theme)
         if (p.civName === "StarborneSeekers") {
-            const spearStats = UNITS[UnitType.SpearGuard];
-            const spearCoord = findSpawnCoord(usedCoords);
-            usedCoords.push(spearCoord);
+            const scoutStats = UNITS[UnitType.Scout];
+            const extraScoutCoord = findSpawnCoord(usedCoords);
+            usedCoords.push(extraScoutCoord);
             units.push({
-                id: `u_${p.id}_spear`,
-                type: UnitType.SpearGuard,
+                id: `u_${p.id}_scout2`,
+                type: UnitType.Scout,
                 ownerId: p.id,
-                coord: spearCoord,
-                hp: spearStats.hp,
-                maxHp: spearStats.hp,
-                movesLeft: spearStats.move,
+                coord: extraScoutCoord,
+                hp: scoutStats.hp,
+                maxHp: scoutStats.hp,
+                movesLeft: scoutStats.move,
                 state: UnitState.Normal,
                 hasAttacked: false,
             });
