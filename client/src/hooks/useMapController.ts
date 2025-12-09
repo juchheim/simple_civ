@@ -119,11 +119,11 @@ export const useMapController = ({
         panRef,
         zoomRef,
         targetZoomRef,
-        zoomAnchorRef,
         inertiaVelocityRef,
         isInertiaActiveRef,
         scheduleAnimation,
         setPan,
+        setZoom,
         setIsPanning,
     });
 

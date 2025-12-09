@@ -20,11 +20,11 @@ type TouchControllerParams = {
     panRef: MutableRefObject<PanState>;
     zoomRef: MutableRefObject<number>;
     targetZoomRef: MutableRefObject<number>;
-    zoomAnchorRef: MutableRefObject<{ x: number; y: number } | null>;
     inertiaVelocityRef: MutableRefObject<Velocity>;
     isInertiaActiveRef: MutableRefObject<boolean>;
     scheduleAnimation: () => void;
     setPan: (pan: PanState) => void;
+    setZoom: (zoom: number) => void;
     setIsPanning: (isPanning: boolean) => void;
 };
 
@@ -56,11 +56,11 @@ export function useTouchController({
     panRef,
     zoomRef,
     targetZoomRef,
-    zoomAnchorRef,
     inertiaVelocityRef,
     isInertiaActiveRef,
     scheduleAnimation,
     setPan,
+    setZoom,
     setIsPanning,
 }: TouchControllerParams) {
     // Track active touches for gesture detection
@@ -226,30 +226,39 @@ export function useTouchController({
             const scale = (distance / pinch.initialDistance) * PINCH_ZOOM_SENSITIVITY;
             const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinch.initialZoom * scale));
 
-            // Set zoom anchor for smooth animation
-            zoomAnchorRef.current = { x: center.x, y: center.y };
+            // Calculate zoom-adjusted pan to keep pinch center fixed
+            // When zooming, we need to adjust pan so the point under the pinch center stays fixed
+            const previousZoom = zoomRef.current;
+            const ratio = newZoom / previousZoom;
+
+            // First, handle the pan delta from two-finger drag
+            const panDeltaX = center.x - pinch.centerX;
+            const panDeltaY = center.y - pinch.centerY;
+
+            // Then apply zoom adjustment around the current center
+            const currentPan = panRef.current;
+            const zoomAdjustedPan = {
+                x: center.x - (center.x - currentPan.x - panDeltaX) * ratio,
+                y: center.y - (center.y - currentPan.y - panDeltaY) * ratio,
+            };
+
+            // Apply pan immediately
+            panRef.current = zoomAdjustedPan;
+            setPan(zoomAdjustedPan);
+
+            // Apply zoom immediately (bypass animation for direct touch control)
+            zoomRef.current = newZoom;
             targetZoomRef.current = newZoom;
-
-            // Also handle pan during pinch (two-finger drag)
-            if (panStartRef.current) {
-                const panDeltaX = center.x - pinch.centerX;
-                const panDeltaY = center.y - pinch.centerY;
-
-                const nextPan = {
-                    x: panStartRef.current.x + panDeltaX,
-                    y: panStartRef.current.y + panDeltaY,
-                };
-                panRef.current = nextPan;
-                setPan(nextPan);
-            }
+            setZoom(newZoom);
 
             // Update pinch center for next frame
             pinchStateRef.current.centerX = center.x;
             pinchStateRef.current.centerY = center.y;
 
+            // Schedule animation to update React state
             scheduleAnimation();
         }
-    }, [getTouchPosition, panRef, setPan, inertiaVelocityRef, targetZoomRef, zoomAnchorRef, scheduleAnimation, setIsPanning]);
+    }, [getTouchPosition, panRef, setPan, setZoom, inertiaVelocityRef, zoomRef, targetZoomRef, scheduleAnimation, setIsPanning]);
 
     const handleTouchEnd = useCallback((e: ReactTouchEvent) => {
         e.preventDefault();
