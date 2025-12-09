@@ -274,6 +274,7 @@ export type GoodieHutRewardInfo = {
     amount: number;
     cityName?: string;
     percent?: number;
+    playerId: string;
 };
 
 export enum HistoryEventType {

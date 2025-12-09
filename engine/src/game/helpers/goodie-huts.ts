@@ -63,6 +63,7 @@ export function collectGoodieHut(
         amount: reward.type === "scout" ? 1 : reward.amount,
         cityName: city?.name,
         percent: reward.type === "research" ? reward.percent : undefined,
+        playerId,
     };
 
     return reward;

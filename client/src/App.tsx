@@ -13,6 +13,7 @@ import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { useGoodieHutAlerts } from "./hooks/useGoodieHutAlerts";
+import { useGameEventToasts } from "./components/HUD/hooks/use-game-event-toasts";
 
 /**
  * The main application component.
@@ -124,6 +125,19 @@ function App() {
         gameState ?? { map: { tiles: [] }, units: [], players: [] } as any,
         playerId
     );
+
+    // Game event toasts (era transitions, capitals captured, unique buildings, etc.)
+    const { toasts: gameEventToasts, dismissToast: dismissGameEventToast } = useGameEventToasts(
+        gameState ?? { map: { tiles: [] }, units: [], players: [], history: { events: [], playerStats: {}, playerFog: {} } } as any,
+        playerId
+    );
+
+    // Combine all toasts
+    const allToasts = [...goodieHutToasts, ...gameEventToasts];
+    const dismissToast = (id: string) => {
+        dismissGoodieHutToast(id);
+        dismissGameEventToast(id);
+    };
 
     const handleStartNewGame = () => {
         try {
@@ -421,7 +435,7 @@ function App() {
                 cityToCenter={cityToCenter}
                 onViewChange={setMapView}
             />
-            <ToastContainer toasts={goodieHutToasts} onDismiss={dismissGoodieHutToast} />
+            <ToastContainer toasts={allToasts} onDismiss={dismissToast} />
             <HUD
                 gameState={gameState}
                 selectedCoord={selectedCoord}

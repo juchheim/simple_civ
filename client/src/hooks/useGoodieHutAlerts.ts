@@ -21,6 +21,11 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
                 currentReward.amount !== lastRewardRef.current.amount ||
                 currentReward.cityName !== lastRewardRef.current.cityName) {
 
+                if (currentReward.playerId !== playerId) {
+                    lastRewardRef.current = currentReward;
+                    return;
+                }
+
                 const { message, icon } = formatRewardMessage(currentReward);
                 setToasts(prev => [...prev, {
                     id: `goodie-${Date.now()}`,
