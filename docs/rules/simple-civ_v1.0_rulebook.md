@@ -250,12 +250,12 @@
 - **Wonders**: not otherwise defined in v0.94 beyond unique buildings/projects above.
 
 ## 14. Civilizations & Traits
-- **ForgeClans**: +1 Production from each worked Hill (Capital Only). **Master Craftsmen**: Projects 20% faster. **Forged Arms**: Military units 20% cheaper; units from cities with 2+ Hills get +1 Attack. **Industrial Warfare**: +1 Attack per Engine tech.
-- **Scholar Kingdoms**: **Great Library**: Capital gets +1 Science. **Scholarly Retreat**: Units near cities get +2 Defense.
-- **River League**: +1 Food per river tile. **River Commerce**: River cities get +1 Production. **River Guardians**: Units near rivers get +1 Attack, +2 Defense. **River Industry**: +1 Production per 2 river tiles worked.
+- **ForgeClans**: +1 Production from each worked Hill (Capital Only). **Forged Arms**: Military units 10% cheaper; units from cities with 2+ Hills get +1 Attack. **Industrial Warfare**: +1 Attack per Engine tech (max +5).
+- **Scholar Kingdoms**: **Citadel Protocol**: +1 Science in Capital. +1 Science per city with a City Ward. Units near cities get scaling Defense bonus: +6/cityCount (1 city = +6 DEF, 2 = +3 each, 3 = +2 each, 4+ = +1 each). Rewards "tall" play with fewer, fortified cities.
+- **River League**: +1 Food per river tile. +1 Production per 4 river tiles worked. **River Guardians**: Units near rivers get +1 Attack, +1 Defense.
 - **AetherianVanguard**: Unique Unit: Titan (Super-Unit). **Battle Hardened**: Military units gain +2 HP per era researched (max +6). **Scavenger Doctrine**: Units gain Science on kill. **Vanguard Logistics**: Cities with a garrison gain +1 Production.
-- **StarborneSeekers**: Unique Building: Spirit Observatory (Science). **Celestial Guidance**: Units near capital +1 Defense. Starts with Scout + SpearGuard.
-- **JadeCovenant**: Unique Building: Jade Granary (Hearth Era, 30 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler. **Bountiful Harvest**: Cities start with +5 stored Food. **Verdant Growth**: 10% cheaper growth globally. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 8 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
+- **StarborneSeekers**: Unique Building: Spirit Observatory (220 Prod, +1 Science per city, counts as Observatory). **Celestial Guidance**: Units near capital +1 Defense. Starts with Scout + SpearGuard.
+- **JadeCovenant**: Unique Building: Jade Granary (30 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler, Growth 15% cheaper. **Bountiful Harvest**: Cities start with +5 stored Food. **Verdant Growth**: 10% cheaper growth globally. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 8 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation
@@ -314,7 +314,7 @@
   - Visual states: **Available** (clickable, highlighted border), **Current** (active research with progress bar), **Researched** (checkmark, dimmed), **Locked** (grayed out, requires prerequisites/era gates).
   - Building unlocks show: yields, bonuses, conditional effects, and projects they unlock.
   - Civ-specific unique buildings (Jade Granary, Titan's Core, Spirit Observatory) displayed on relevant tech cards.
-  - Era progression gates clearly indicated (e.g., "Requires 2 Hearth techs" for Banner era).
+  - Era progression gates clearly indicated (e.g., \"Requires 3 Hearth techs\" for Banner era, \"Requires 2 Banner techs\" for Engine era).
 - **Status colors**: use existing HUD styles (chips/pills) to denote peace/war, garrison, fired, fortified, etc.
 
 ## 19. Rules Priority & Engine Hooks

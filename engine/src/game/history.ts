@@ -40,6 +40,7 @@ export function recordTurnStats(state: GameState, playerId: string) {
     let totalProduction = 0;
 
     cities.forEach(c => {
+        if (!c.coord) return;
         const yields = getCityYields(c, state);
         totalScience += yields.S;
         totalProduction += yields.P;

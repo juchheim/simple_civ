@@ -3,9 +3,15 @@ import { GameState, DiplomacyState, DiplomacyOffer } from "@simple-civ/engine";
 
 export type DiplomacyAlert = {
     id: string; // Unique ID for the alert
-    type: "WarDeclared" | "PeaceOffered";
+    type: "WarDeclared" | "PeaceOffered" | "ProgressRace" | "CapitalCaptured" | "UniqueBuilding" | "EraTransition" | "CityRazed" | "CivDefeated";
     otherPlayerId: string;
     civName: string;
+    progressMilestone?: "Observatory" | "GrandAcademy" | "GrandExperiment";
+    buildingType?: "TitansCore" | "SpiritObservatory" | "JadeGranary";
+    buildingStatus?: "Started" | "Completed";
+    capitalCount?: number; // Total capitals captured by this civ
+    cityName?: string; // Name of captured/razed city
+    era?: string; // Era entered
 };
 
 export function useDiplomacyAlerts(gameState: GameState, playerId: string) {

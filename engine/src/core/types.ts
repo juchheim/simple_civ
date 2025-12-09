@@ -19,6 +19,7 @@ export enum OverlayType {
     RichSoil = "RichSoil",
     OreVein = "OreVein",
     SacredSite = "SacredSite",
+    GoodieHut = "GoodieHut",
 }
 
 export enum UnitType {
@@ -265,6 +266,14 @@ export type GameState = {
     endTurn?: number;
     usedCityNames?: string[]; // Track all city names ever used in this game
     history?: GameHistory;
+    lastGoodieHutReward?: GoodieHutRewardInfo; // Most recent reward for client notification
+};
+
+export type GoodieHutRewardInfo = {
+    type: "food" | "production" | "research" | "scout";
+    amount: number;
+    cityName?: string;
+    percent?: number;
 };
 
 export enum HistoryEventType {

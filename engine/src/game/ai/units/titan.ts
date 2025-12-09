@@ -1,3 +1,4 @@
+import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
@@ -43,7 +44,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
         // No targets? Explore!
         // Use existing auto-explore logic or move towards center?
         // For now, let's just move towards the nearest unknown tile or enemy unit
-        console.info(`[AI Titan] ${playerId} Titan has no known targets - hunting...`);
+        aiInfo(`[AI Titan] ${playerId} Titan has no known targets - hunting...`);
         // Fallback to simple unit hunting if no cities
         const nearestEnemy = next.units.find(u =>
             warEnemies.some(e => e.id === u.ownerId) &&
@@ -76,7 +77,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                     to: targetCity.coord
                 });
                 if (moveResult !== next) {
-                    console.info(`[AI Titan] ${playerId} Titan capturing ${targetCity.name}!`);
+                    aiInfo(`[AI Titan] ${playerId} Titan capturing ${targetCity.name}!`);
                     next = moveResult;
                     liveTitan = next.units.find(u => u.id === titan.id);
                     break;
@@ -147,7 +148,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                         targetType
                     });
                     if (attackResult !== next) {
-                        console.info(`[AI Titan] ${playerId} Titan attacking ${targetType} ${attackTargetId}`);
+                        aiInfo(`[AI Titan] ${playerId} Titan attacking ${targetType} ${attackTargetId}`);
                         next = attackResult;
                         liveTitan = next.units.find(u => u.id === titan.id);
 

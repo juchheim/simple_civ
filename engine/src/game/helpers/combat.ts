@@ -147,38 +147,35 @@ export function getForgeClansEngineBonus(player: Player): number {
 }
 
 /**
- * v0.98 Update 5: Get StarborneSeekers "Celestial Guidance" defense bonus.
- * Units within 3 tiles of their capital gain +1 Defense.
+ * v1.9: StarborneSeekers "Starborne Resilience" - +1 Defense EVERYWHERE.
+ * (Previously "Celestial Guidance" which only applied near capital)
  */
 export function getStarborneCelestialBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "StarborneSeekers") return 0;
-
-    // Find player's capital
-    const capital = state.cities.find(c => c.ownerId === player.id && c.isCapital);
-    if (!capital) return 0;
-
-    // Check if unit is within radius of capital
-    const dist = hexDistance(unit.coord, capital.coord);
-    return dist <= STARBORNE_CAPITAL_DEFENSE_RADIUS ? STARBORNE_CAPITAL_DEFENSE_BONUS : 0;
+    // v1.9: Global defense bonus - applies everywhere, not just near capital
+    return STARBORNE_CAPITAL_DEFENSE_BONUS; // Repurposed constant, now global
 }
 
 /**
- * v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city.
- * Units within 1 tile of any city gain +2 Defense.
+ * v1.9: ScholarKingdoms "Citadel Protocol" - scaling city defense.
+ * Total bonus pool: +6 Defense distributed across all cities.
+ * 1 city = +6, 2 = +3, 3 = +2, 4+ = ~1.5 each
+ * Rewards "tall" play (few highly developed cities).
  */
 export function getScholarKingdomsDefenseBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "ScholarKingdoms") return 0;
 
-    // Find any of player's cities
     const cities = state.cities.filter(c => c.ownerId === player.id);
-
     if (cities.length === 0) return 0;
 
     // Check if unit is within radius of any city
     for (const city of cities) {
         const dist = hexDistance(unit.coord, city.coord);
         if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
-            return SCHOLAR_KINGDOMS_DEFENSE_BONUS;
+            // v1.9: Scaling bonus - 6 total distributed across cities
+            // Math.floor(6 / cityCount): 1 city = +6, 2 = +3, 3 = +2, 4 = +1, 5 = +1, 6 = +1
+            // Using Math.max to ensure minimum of +1
+            return Math.max(1, Math.floor(6 / cities.length));
         }
     }
 
@@ -232,10 +229,11 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     }
 
     // v1.3: River League "River Guardians" - +1 Atk/Def near rivers
+    // v1.7: NERFED - Reduced from +1/+2 to +1/+1 to reduce Conquest dominance
     if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
         if (isTileAdjacentToRiver(state.map, unit.coord)) {
             boosted.atk += 1;
-            boosted.def += 2;
+            boosted.def += 1;
         }
     }
 

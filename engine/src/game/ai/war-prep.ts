@@ -1,3 +1,4 @@
+import { aiLog, aiInfo } from "./debug-logging.js";
 import { GameState, Player, DiplomacyState } from "../../core/types.js";
 import { aiWarPeaceDecision } from "../ai-decisions.js";
 import { hexDistance } from "../../core/hex.js";
@@ -23,7 +24,7 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
 
     // Cancel if target is dead or we are already at war (e.g. they declared on us)
     if (!target || target.isEliminated || state.diplomacy?.[player.id]?.[target.id] === DiplomacyState.War) {
-        console.info(`[AI WAR PREP] ${player.id} cancelling preparation against ${prep.targetId} (target invalid or already at war)`);
+        aiInfo(`[AI WAR PREP] ${player.id} cancelling preparation against ${prep.targetId} (target invalid or already at war)`);
         return {
             ...state,
             players: state.players.map(p =>
@@ -35,7 +36,7 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
     // Check if we still want war (using raw decision)
     const decision = aiWarPeaceDecision(player.id, target.id, state, { ignorePrep: true });
     if (decision !== "DeclareWar") {
-        console.info(`[AI WAR PREP] ${player.id} cancelling preparation against ${prep.targetId} (no longer wants war)`);
+        aiInfo(`[AI WAR PREP] ${player.id} cancelling preparation against ${prep.targetId} (no longer wants war)`);
         return {
             ...state,
             players: state.players.map(p =>
@@ -52,7 +53,7 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
     // v0.99 Update: Timeout - if we take too long, just go!
     // This prevents getting stuck in "Positioning" forever if units can't reach the border
     if (turnsSinceStart > 10 && prep.state !== "Buildup") {
-        console.info(`[AI WAR PREP] ${player.id} preparation TIMEOUT against ${target.id} (took >10 turns) - Forcing Ready!`);
+        aiInfo(`[AI WAR PREP] ${player.id} preparation TIMEOUT against ${target.id} (took >10 turns) - Forcing Ready!`);
         return {
             ...state,
             players: state.players.map(p =>
@@ -70,11 +71,11 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
         const decision = aiWarPeaceDecision(player.id, target.id, state, { ignorePrep: true });
 
         if (decision === "DeclareWar") {
-            console.info(`[AI WAR PREP] ${player.id} finished Buildup against ${target.id} (power sufficient), moving to Gathering`);
+            aiInfo(`[AI WAR PREP] ${player.id} finished Buildup against ${target.id} (power sufficient), moving to Gathering`);
             newPrepState = { ...prep, state: "Gathering", startedTurn: state.turn }; // Reset timer for Gathering
         } else if (turnsSinceStart > 20) {
             // If we can't build up in 20 turns, give up
-            console.info(`[AI WAR PREP] ${player.id} giving up Buildup against ${target.id} (took too long)`);
+            aiInfo(`[AI WAR PREP] ${player.id} giving up Buildup against ${target.id} (took too long)`);
             return {
                 ...state,
                 players: state.players.map(p =>
@@ -83,28 +84,28 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
             };
         } else {
             if (state.turn % 5 === 0) {
-                console.info(`[AI WAR PREP] ${player.id} still Building Up against ${target.id} (turn ${turnsSinceStart}/20)`);
+                aiInfo(`[AI WAR PREP] ${player.id} still Building Up against ${target.id} (turn ${turnsSinceStart}/20)`);
             }
         }
     } else if (prep.state === "Gathering") {
         if (turnsSinceStart >= MIN_GATHERING_TURNS) {
-            console.info(`[AI WAR PREP] ${player.id} finished Gathering against ${target.id} (after ${turnsSinceStart} turns), moving to Positioning`);
+            aiInfo(`[AI WAR PREP] ${player.id} finished Gathering against ${target.id} (after ${turnsSinceStart} turns), moving to Positioning`);
             newPrepState = { ...prep, state: "Positioning" };
         } else {
-            console.info(`[AI WAR PREP] ${player.id} still Gathering against ${target.id} (${turnsSinceStart}/${MIN_GATHERING_TURNS} turns)`);
+            aiInfo(`[AI WAR PREP] ${player.id} still Gathering against ${target.id} (${turnsSinceStart}/${MIN_GATHERING_TURNS} turns)`);
         }
     } else if (prep.state === "Positioning") {
         if (turnsSinceStart >= MIN_GATHERING_TURNS + MIN_POSITIONING_TURNS) {
             // Check if units are in position
             if (areUnitsPositioned(state, player.id, target.id)) {
-                console.info(`[AI WAR PREP] ${player.id} finished Positioning against ${target.id}, Ready to declare!`);
+                aiInfo(`[AI WAR PREP] ${player.id} finished Positioning against ${target.id}, Ready to declare!`);
                 newPrepState = { ...prep, state: "Ready" };
             } else {
-                console.info(`[AI WAR PREP] ${player.id} not yet positioned against ${target.id} - need more units at border`);
+                aiInfo(`[AI WAR PREP] ${player.id} not yet positioned against ${target.id} - need more units at border`);
             }
         } else {
             const turnsInPositioning = turnsSinceStart - MIN_GATHERING_TURNS;
-            console.info(`[AI WAR PREP] ${player.id} still Positioning against ${target.id} (${turnsInPositioning}/${MIN_POSITIONING_TURNS} turns)`);
+            aiInfo(`[AI WAR PREP] ${player.id} still Positioning against ${target.id} (${turnsInPositioning}/${MIN_POSITIONING_TURNS} turns)`);
         }
     }
 
@@ -130,7 +131,7 @@ function checkForNewWarTargets(state: GameState, player: Player): GameState {
         const decision = aiWarPeaceDecision(player.id, other.id, state, { ignorePrep: true });
 
         if (decision === "DeclareWar") {
-            console.info(`[AI WAR PREP] ${player.id} starting war preparation against ${other.id}`);
+            aiInfo(`[AI WAR PREP] ${player.id} starting war preparation against ${other.id}`);
             return {
                 ...state,
                 players: state.players.map(p =>
@@ -145,7 +146,7 @@ function checkForNewWarTargets(state: GameState, player: Player): GameState {
                 )
             };
         } else if (decision === "PrepareForWar") {
-            console.info(`[AI WAR PREP] ${player.id} starting military buildup against ${other.id}`);
+            aiInfo(`[AI WAR PREP] ${player.id} starting military buildup against ${other.id}`);
             return {
                 ...state,
                 players: state.players.map(p =>
@@ -186,7 +187,7 @@ function areUnitsPositioned(state: GameState, playerId: string, targetId: string
     const isReady = positionedCount >= 2 && positionedRatio >= 0.4; // 40% positioned is enough to start
 
     if (!isReady && state.turn % 5 === 0) {
-        console.info(`[AI WAR PREP] ${playerId} positioning update: ${positionedCount}/${myUnits.length} units near ${targetId} (${(positionedRatio * 100).toFixed(1)}%)`);
+        aiInfo(`[AI WAR PREP] ${playerId} positioning update: ${positionedCount}/${myUnits.length} units near ${targetId} (${(positionedRatio * 100).toFixed(1)}%)`);
     }
 
     return isReady;

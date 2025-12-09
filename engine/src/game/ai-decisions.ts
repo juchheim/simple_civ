@@ -1,3 +1,4 @@
+import { aiLog, aiInfo } from "./ai/debug-logging.js";
 import { hexDistance, hexToString } from "../core/hex.js";
 import { estimateMilitaryPower, aiVictoryBias } from "./ai/goals.js";
 import {
@@ -263,7 +264,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
             return aggression.warPowerThresholdLate ?? aggression.warPowerThreshold;
         }
         if (aggression.aggressionSpikeTrigger === "ProgressLead" && hasProgressLead(playerId, state)) {
-            console.info(`[AI AGGRESSION] ${playerId} has population lead - becoming more aggressive!`);
+            aiInfo(`[AI AGGRESSION] ${playerId} has population lead - becoming more aggressive!`);
             return aggression.warPowerThresholdLate ?? aggression.warPowerThreshold;
         }
         return aggression.warPowerThreshold;
@@ -359,10 +360,10 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
 
         if (turnsSinceChange < MIN_WAR_DURATION) {
             // War must last at least minimum turns before proposing peace
-            // console.log(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - continuing`);
+            // aiLog(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - continuing`);
             return "None";
         } else {
-            console.log(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - eligible for peace`);
+            aiLog(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - eligible for peace`);
         }
 
         // v0.99 Fix: NEVER sign peace if we have a capturable city (HP <= 0)
@@ -371,7 +372,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         const hasCapturableCity = enemyCities.some(c => c.hp <= 0);
 
         if (hasCapturableCity) {
-            console.info(`[AI WAR CONTINUE] ${playerId} refusing peace with ${targetId} - city is CAPTURABLE (HP <= 0)!`);
+            aiInfo(`[AI WAR CONTINUE] ${playerId} refusing peace with ${targetId} - city is CAPTURABLE (HP <= 0)!`);
             return "None";
         }
 
@@ -384,7 +385,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         const lateGameDeathWar = escalationFactor < 0.8;
 
         if (exhausted && !finishable && !overwhelming && !dominating && !lateGameDeathWar) {
-            console.info(`[AI WAR EXHAUSTED] ${playerId} war-weary after ${turnsSinceChange} turns against ${targetId}`);
+            aiInfo(`[AI WAR EXHAUSTED] ${playerId} war-weary after ${turnsSinceChange} turns against ${targetId}`);
             const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
             if (incomingPeace) return "AcceptPeace";
             return "ProposePeace";
@@ -392,7 +393,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
 
         // v0.98 Update 8: Stalemate detection - propose peace if war is going nowhere
         if (stalemate && !lateGameDeathWar) {
-            console.info(`[AI WAR STALEMATE] ${playerId} recognizes stalemate with ${targetId} after ${turnsSinceChange} turns`);
+            aiInfo(`[AI WAR STALEMATE] ${playerId} recognizes stalemate with ${targetId} after ${turnsSinceChange} turns`);
             const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
             if (incomingPeace) return "AcceptPeace";
             return "ProposePeace";
@@ -400,7 +401,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
 
         // v0.98 Update 6: Continue fighting if we have significant advantage (but not forever - see above)
         if (overwhelming || finishable || cityAdvantage || winning) {
-            console.info(`[AI WAR CONTINUE] ${playerId} continuing war with ${targetId} (overwhelming=${overwhelming}, finishable=${finishable}, cityAdv=${cityAdvantage}, winning=${winning})`);
+            aiInfo(`[AI WAR CONTINUE] ${playerId} continuing war with ${targetId} (overwhelming=${overwhelming}, finishable=${finishable}, cityAdv=${cityAdvantage}, winning=${winning})`);
             return "None";
         }
 
@@ -436,12 +437,12 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         // If we have 5x power, we don't need to wait for full preparation.
         // We are strong enough to crush them immediately.
         if (!options?.ignorePrep && !isReady) {
-            console.info(`[AI DOMINATION] ${playerId} has DOMINATING power (5x) - Bypassing War Prep!`);
+            aiInfo(`[AI DOMINATION] ${playerId} has DOMINATING power (5x) - Bypassing War Prep!`);
         } else {
             // Standard log if we were ready anyway
             // (No-op, just fall through to declare)
         }
-        console.info(`[AI DOMINATION] ${playerId} entering DOMINATION mode against ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)} = ${(aiPower / Math.max(1, enemyPower)).toFixed(1)}x)`);
+        aiInfo(`[AI DOMINATION] ${playerId} entering DOMINATION mode against ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)} = ${(aiPower / Math.max(1, enemyPower)).toFixed(1)}x)`);
         return "DeclareWar";
     }
 
@@ -464,16 +465,16 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     // v0.98 Update 5: Always declare war if we have overwhelming power or target is finishable
     if (dist !== null && (overwhelming || finishable)) {
         if (!options?.ignorePrep && !isReady) return "None";
-        console.info(`[AI WAR FINISH] ${playerId} declaring war on ${targetId} (${overwhelming ? "OVERWHELMING" : "FINISHABLE"}: power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
+        aiInfo(`[AI WAR FINISH] ${playerId} declaring war on ${targetId} (${overwhelming ? "OVERWHELMING" : "FINISHABLE"}: power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
     }
 
     if (dist !== null && dist <= warDistanceMax && aiPower >= enemyPower * finalWarPowerThreshold) {
         if (!options?.ignorePrep && !isReady) return "None";
         if (escalationFactor < 1.0) {
-            console.info(`[AI WAR ESCALATION] ${playerId} declaring war on ${targetId} (Escalation: ${(escalationFactor * 100).toFixed(0)}%, CapBonus: ${(capitalBonus * 100).toFixed(0)}%, Threshold: ${finalWarPowerThreshold.toFixed(2)})`);
+            aiInfo(`[AI WAR ESCALATION] ${playerId} declaring war on ${targetId} (Escalation: ${(escalationFactor * 100).toFixed(0)}%, CapBonus: ${(capitalBonus * 100).toFixed(0)}%, Threshold: ${finalWarPowerThreshold.toFixed(2)})`);
         }
-        console.info(`[AI WAR] ${playerId} declaring war on ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
+        aiInfo(`[AI WAR] ${playerId} declaring war on ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
     } else if (dist !== null && dist <= warDistanceMax) {
         // v0.99: If we are close enough to fight but too weak, we should build up!
@@ -484,16 +485,21 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         }
     }
 
+    // v1.9 FIX: declareAfterContactTurns should still respect warPowerThreshold!
+    // Previously this would declare war at 0.5x power which made defensive civs (StarborneSeekers) aggressive
     if (declareAfterContact > 0 && contactTurns >= declareAfterContact && dist !== null) {
-        if (aiPower >= enemyPower * 0.5) {
+        // Use a minimum of 0.8 OR the civ's actual warPowerThreshold
+        const forcedWarThreshold = Math.max(0.8, warPowerThreshold);
+        if (aiPower >= enemyPower * forcedWarThreshold) {
             if (!options?.ignorePrep && !isReady) return "None";
+            aiInfo(`[AI WAR CONTACT] ${playerId} declaring war on ${targetId} after ${contactTurns} turns of contact`);
             return "DeclareWar";
         } else {
             // Also prepare if we want to force war but are weak
             if (aiPower >= enemyPower * 0.25) {
                 return "PrepareForWar";
             }
-            logVeto(`Force-war veto: ${playerId}->${targetId} power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}`);
+            logVeto(`Force-war veto: ${playerId}->${targetId} power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)} (threshold ${forcedWarThreshold.toFixed(2)})`);
         }
     }
 

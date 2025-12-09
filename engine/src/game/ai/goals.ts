@@ -1,7 +1,9 @@
+import { aiLog, aiInfo } from "./debug-logging.js";
 import { hexDistance } from "../../core/hex.js";
-import { AiVictoryGoal, BuildingType, City, GameState, ProjectId, UnitType } from "../../core/types.js";
+import { AiVictoryGoal, BuildingType, City, GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
 import { getPersonalityForPlayer } from "./personality.js";
 import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../../core/constants.js";
+import { getProgressChainStatus, hasEnemyProgressThreat } from "./progress-helpers.js";
 
 export function setAiGoal(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
     return {
@@ -103,14 +105,14 @@ function getJadeCovenantGoal(playerId: string, state: GameState): AiVictoryGoal 
 
     // If we are stronger than average enemy (1.2x), go CRUSH them
     if (myPower > avgEnemyPower * 1.2) {
-        console.info(`[AI Goal] JadeCovenant "Awakened Giant" - High Power (${myPower.toFixed(0)} vs avg ${avgEnemyPower.toFixed(0)}) -> CONQUEST`);
+        aiInfo(`[AI Goal] JadeCovenant "Awakened Giant" - High Power (${myPower.toFixed(0)} vs avg ${avgEnemyPower.toFixed(0)}) -> CONQUEST`);
         return "Conquest";
     }
 
     // If we are safe (not weak), go PROGRESS to use our economy
     // Safe = at least 80% of average enemy power
     if (myPower > avgEnemyPower * 0.8) {
-        console.info(`[AI Goal] JadeCovenant "Awakened Giant" - Safe Economy -> PROGRESS`);
+        aiInfo(`[AI Goal] JadeCovenant "Awakened Giant" - Safe Economy -> PROGRESS`);
         return "Progress";
     }
 
@@ -121,68 +123,133 @@ function getJadeCovenantGoal(playerId: string, state: GameState): AiVictoryGoal 
 export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return "Balanced";
+
     const personality = getPersonalityForPlayer(state, playerId);
+    const progress = getProgressChainStatus(state, playerId);
+    const capitals = state.cities.filter(c => c.ownerId === playerId && c.isCapital);
 
-    // v0.97: AetherianVanguard with a Titan ALWAYS goes Conquest mode
-    // The Titan is too powerful to not use aggressively
-    if (player.civName === "AetherianVanguard" && hasTitan(playerId, state)) {
-        console.info(`[AI Goal] ${playerId} (AetherianVanguard) switching to Conquest - Titan unleashed!`);
-        return "Conquest";
-    }
-
+    // Determine fallback based on personality
     const prefersProgress = personality.projectRush?.type === "Building"
         ? personality.projectRush.id === BuildingType.SpiritObservatory
         : personality.projectRush?.id === ProjectId.Observatory;
     const aggressionForward = personality.aggression.warPowerThreshold < 1;
     const fallback = player.aiGoal ?? (prefersProgress ? "Progress" : aggressionForward ? "Conquest" : "Balanced");
-    const capitals = state.cities.filter(c => c.ownerId === playerId && c.isCapital);
-    const capitalsSafe = capitals.every(c => c.hp >= (c.maxHp ?? 15) * 0.6 && !anyEnemyNearCity(c, state, playerId, 2));
 
-    // Observatory + safe capital = commit to Progress path (takes priority over aggressive options)
-    if (player.completedProjects.includes(ProjectId.Observatory) && capitalsSafe) {
+    // ===========================================
+    // PRIORITY 1: Titan Rampage (AetherianVanguard)
+    // ===========================================
+    if (player.civName === "AetherianVanguard" && hasTitan(playerId, state)) {
+        aiInfo(`[AI Goal] ${playerId} Titan unleashed - CONQUEST`);
+        return "Conquest";
+    }
+
+    // ===========================================
+    // PRIORITY 2: Near Progress Victory - PROTECT IT
+    // ===========================================
+    if (progress.isNearVictory) {
+        aiInfo(`[AI Goal] ${playerId} near Progress victory - staying committed`);
         return "Progress";
     }
 
-    // v0.98 Update 4: Overwhelming power (2x all enemies) → aggressive Conquest
-    // This addresses stalled games where dominant civs fail to finish off weak opponents
-    if (hasOverwhelmingPower(playerId, state)) {
-        console.info(`[AI Goal] ${playerId} has overwhelming power (2x all enemies) - switching to Conquest!`);
-        return "Conquest";
-    }
-
-    // v0.98 Update 4: "Finish him" - if any enemy has 1-2 cities and we're stronger, go Conquest
-    const finishableEnemies = findFinishableEnemies(playerId, state);
-    if (finishableEnemies.length > 0) {
-        console.info(`[AI Goal] ${playerId} has finishable enemies (${finishableEnemies.length} with 1-2 cities) - switching to Conquest!`);
-        return "Conquest";
-    }
-
-    const hasArmies = state.units.some(u => u.ownerId === playerId && u.type.startsWith("Army"));
-    const enemyCapitalInStrikeRange = state.cities.some(c => {
-        if (c.ownerId === playerId || !c.isCapital) return false;
-        return state.units.some(u => u.ownerId === playerId && hexDistance(u.coord, c.coord) <= 4);
+    // ===========================================
+    // PRIORITY 3: Capital Safety Check for Progress
+    // ===========================================
+    const capitalsReasonablySafe = capitals.every(c => {
+        const maxHp = c.maxHp ?? 15;
+        const hpOk = c.hp >= maxHp * 0.4;
+        const nearbyEnemies = state.units.filter(u =>
+            u.ownerId !== playerId && hexDistance(u.coord, c.coord) <= 2
+        );
+        const hasStrongThreat = nearbyEnemies.some(u => {
+            const stats = UNITS[u.type];
+            return stats.atk >= 3 || stats.hp >= 10;
+        });
+        return hpOk && !hasStrongThreat;
     });
-    if (hasArmies && enemyCapitalInStrikeRange) {
+
+    // Early Progress commitment for progress-oriented civs
+    if (progress.hasStarCharts && prefersProgress && capitalsReasonablySafe) {
+        aiInfo(`[AI Goal] ${playerId} early Progress commitment`);
+        return "Progress";
+    }
+
+    // Observatory commitment - reasonably safe
+    if (progress.hasObservatory && capitalsReasonablySafe) {
+        aiInfo(`[AI Goal] ${playerId} Observatory complete - Progress commitment`);
+        return "Progress";
+    }
+
+    // ===========================================
+    // PRIORITY 4: Conquest Opportunities
+    // ===========================================
+
+    // Overwhelming power -> finish them
+    if (hasOverwhelmingPower(playerId, state)) {
+        aiInfo(`[AI Goal] ${playerId} overwhelming power - CONQUEST`);
         return "Conquest";
     }
 
-    // v1.2: Late Game Aggression Shift (Fight to the Death)
-    // At turn 200, specific civs shift to Conquest unless they are close to a Progress victory
-    if (state.turn >= 200) {
-        const aggressiveCivs = ["AetherianVanguard", "ForgeClans", "JadeCovenant", "RiverLeague"];
-        if (player.civName && aggressiveCivs.includes(player.civName)) {
-            // Check if nearing Progress Victory (GrandAcademy completed or GrandExperiment unlocked/completed)
-            const nearingProgress = player.completedProjects.includes(ProjectId.GrandAcademy) ||
-                player.completedProjects.includes(ProjectId.GrandExperiment);
+    // Progress race detection - if enemy is close, compete
+    if (hasEnemyProgressThreat(state, playerId) && progress.hasObservatory) {
+        aiInfo(`[AI Goal] ${playerId} Progress race detected - competing`);
+        return "Progress";
+    }
 
-            if (!nearingProgress) {
-                console.info(`[AI Goal] ${playerId} (${player.civName}) Late Game Aggression - Switching to CONQUEST (Fight to the Death)`);
+    // Finishable weak enemies
+    const finishableEnemies = findFinishableEnemies(playerId, state);
+    if (finishableEnemies.length > 0 && !progress.isNearVictory) {
+        aiInfo(`[AI Goal] ${playerId} finishable enemies - CONQUEST`);
+        return "Conquest";
+    }
+
+    // Enemy capital in strike range with armies
+    const hasArmies = state.units.some(u => u.ownerId === playerId && u.type.startsWith("Army"));
+    const enemyCapitalInRange = state.cities.some(c =>
+        c.ownerId !== playerId && c.isCapital &&
+        state.units.some(u => u.ownerId === playerId && hexDistance(u.coord, c.coord) <= 4)
+    );
+    if (hasArmies && enemyCapitalInRange && !progress.isNearVictory) {
+        return "Conquest";
+    }
+
+    // ===========================================
+    // PRIORITY 5: Late Game / Stall Prevention (CONSOLIDATED)
+    // ===========================================
+    if (state.turn >= 200) {
+        // Tech-complete civs: must commit to one victory path
+        if (player.techs.length >= 15) {
+            if (progress.hasObservatory || progress.isBuildingProgressProject) {
+                aiInfo(`[AI Goal] ${playerId} Tech-complete with Progress chain`);
+                return "Progress";
+            } else {
+                aiInfo(`[AI Goal] ${playerId} Tech-complete - forcing Conquest`);
                 return "Conquest";
             }
         }
+
+        // Has StarCharts but no Progress chain started -> force Progress
+        if (progress.hasStarCharts && !progress.hasObservatory && !progress.isBuildingProgressProject) {
+            aiInfo(`[AI Goal] ${playerId} Late game: forcing Progress chain start`);
+            return "Progress";
+        }
+
+        // Aggressive civs without Progress chain -> Conquest
+        const aggressiveCivs = ["AetherianVanguard", "ForgeClans", "JadeCovenant", "RiverLeague"];
+        if (player.civName && aggressiveCivs.includes(player.civName) && !progress.isNearVictory) {
+            aiInfo(`[AI Goal] ${playerId} Late game aggression - CONQUEST`);
+            return "Conquest";
+        }
     }
 
-    // v0.99 Update: Jade Covenant specific logic
+    // Turn 225+: No Progress chain -> force Conquest to end game
+    if (state.turn >= 225 && !progress.hasObservatory && !progress.isBuildingProgressProject) {
+        aiInfo(`[AI Goal] ${playerId} Turn 225+ with no Progress - forcing Conquest`);
+        return "Conquest";
+    }
+
+    // ===========================================
+    // CIV-SPECIFIC: Jade Covenant
+    // ===========================================
     if (player.civName === "JadeCovenant") {
         const jadeGoal = getJadeCovenantGoal(playerId, state);
         if (jadeGoal) return jadeGoal;

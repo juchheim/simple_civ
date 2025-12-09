@@ -131,8 +131,10 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 const player = state.players.find(p => p.id === attacker.ownerId);
                 if (player && player.civName === "AetherianVanguard" && player.currentTech) {
                     const victimStats = UNITS[defender.type as UnitType];
-                    // v1.2: Buffed Scavenger Doctrine - Gain 50% of victim's COST as Science
-                    const scienceGain = Math.floor(victimStats.cost * 0.5);
+                    // v1.9: Reworked - Base on combat power (ATK + DEF + HP/2), not cost
+                    // This makes Army units and Titans more valuable targets
+                    const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
+                    const scienceGain = Math.floor(combatPower * 0.75);
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                     }
@@ -245,7 +247,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 }
 
                 captureCity(state, city, action.playerId);
-                logEvent(state, HistoryEventType.CityCaptured, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord });
+                logEvent(state, HistoryEventType.CityCaptured, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord, isCapital: city.isCapital });
 
                 attacker.coord = cityCoord;
                 attacker.movesLeft = 0;

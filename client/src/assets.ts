@@ -58,6 +58,7 @@ import DeepSeaImg from "../public/terrain/DeepSea.png";
 import FogImg from "../public/terrain/Fog.png";
 import RiverEdgeImg from "../public/terrain/RiverEdge.png";
 import RiverMouthImg from "../public/terrain/RiverMouth.png";
+import GoodieHutImg from "../public/terrain/GoodieHut.png";
 
 export const terrainImages: Record<string, string> = {
     Plains: PlainsImg,
@@ -71,6 +72,7 @@ export const terrainImages: Record<string, string> = {
     Fog: FogImg,
     RiverEdge: RiverEdgeImg,
     RiverMouth: RiverMouthImg,
+    GoodieHut: GoodieHutImg,
 };
 
 // City asset imports

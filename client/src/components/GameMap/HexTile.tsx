@@ -87,6 +87,23 @@ export const HexTile: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, he
             {resourceOverlays.length > 0 && (isVisible || isFogged) && (
                 <g style={{ pointerEvents: "none" }}>
                     {resourceOverlays.map((overlay, idx) => {
+                        // GoodieHut renders as a full-hex centered image
+                        if (overlay === OverlayType.GoodieHut) {
+                            const hutSize = hexSize * 1.6;
+                            return (
+                                <image
+                                    key={`${overlay}-${idx}`}
+                                    href={terrainImages.GoodieHut}
+                                    x={-hutSize / 2}
+                                    y={-hutSize / 2}
+                                    width={hutSize}
+                                    height={hutSize}
+                                    opacity={overlayOpacity}
+                                    style={{ pointerEvents: "none" }}
+                                />
+                            );
+                        }
+                        // Other overlays render as small icons
                         const iconX = -hexSize * 0.45 + idx * 18;
                         const iconY = -hexSize * 0.35;
                         if (overlay === OverlayType.RichSoil) {

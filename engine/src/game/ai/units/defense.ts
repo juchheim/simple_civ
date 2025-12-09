@@ -1,3 +1,4 @@
+import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
@@ -348,12 +349,12 @@ export function retreatWounded(state: GameState, playerId: string): GameState {
                 to: safeTile
             });
             if (moved !== next) {
-                console.info(`[AI RETREAT] ${playerId} ${unit.type} retreating safely toward ${targetCity.name}`);
+                aiInfo(`[AI RETREAT] ${playerId} ${unit.type} retreating safely toward ${targetCity.name}`);
                 next = moved;
             }
         } else {
             // No safe retreat - stay and fortify or try original stepToward as fallback
-            console.info(`[AI RETREAT] ${playerId} ${unit.type} has no safe retreat, holding position`);
+            aiInfo(`[AI RETREAT] ${playerId} ${unit.type} has no safe retreat, holding position`);
         }
     }
 
@@ -528,7 +529,7 @@ export function aidVulnerableUnits(state: GameState, playerId: string): GameStat
             // Move helper toward victim
             const moved = stepToward(next, playerId, helper.id, victim.coord);
             if (moved !== next) {
-                console.info(`[AI AID ALLY] ${playerId} ${helper.type} moving to help ${victim.type} (${threatCount} threats, ${friendCount} friends)`);
+                aiInfo(`[AI AID ALLY] ${playerId} ${helper.type} moving to help ${victim.type} (${threatCount} threats, ${friendCount} friends)`);
                 next = moved;
                 assigned.add(helper.id);
                 helpersAssigned++;

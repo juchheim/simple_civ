@@ -1,7 +1,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GameState, UnitType, UnitState, TerrainType } from '../core/types.js';
-import { handleSetAutoExplore, handleSetAutoMoveTarget } from './actions/units.js';
+import { handleSetAutoExplore, handleSetAutoMoveTarget, processAutoMovement } from './actions/units.js';
 import { generateWorld } from '../map/map-generator.js';
 
 describe('Pathing Fixes', () => {

@@ -1,3 +1,4 @@
+import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, hexSpiral, getNeighbors, hexToString } from "../../../core/hex.js";
 import {
     DiplomacyState,
@@ -183,13 +184,13 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
             } else {
                 // No visible danger, but we are "unsafe" (e.g. outside borders).
                 // Wait for escort.
-                console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
+                aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
                 continue;
             }
         }
 
         if (safety.threatLevel === "high" && !hasLinkedEscort) {
-            console.info(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for linked escort (high threat)`);
+            aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for linked escort (high threat)`);
             continue;
         }
 
@@ -274,7 +275,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
                 if (moveResult !== next) {
                     next = moveResult;
                     escaped = true;
-                    console.info(`[AI Settler] ${playerId} retreated to ${hexToString(neighbor.coord)} (threat dist: ${neighbor.distanceFromThreat})`);
+                    aiInfo(`[AI Settler] ${playerId} retreated to ${hexToString(neighbor.coord)} (threat dist: ${neighbor.distanceFromThreat})`);
                     break;
                 }
             }
@@ -292,7 +293,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
             const afterFound = tryAction(next, { type: "FoundCity", playerId, unitId: liveSettler.id, name });
             if (afterFound !== next) {
-                console.info(`[AI Found] ${playerId} founded ${name} at ${hexToString(liveSettler.coord)}`);
+                aiInfo(`[AI Found] ${playerId} founded ${name} at ${hexToString(liveSettler.coord)}`);
                 next = afterFound;
                 continue;
             }
@@ -389,10 +390,10 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
 
             const after = tryAction(next, { type: "FoundCity", playerId, unitId: updatedSettler.id, name });
             if (after !== next) {
-                console.info(`[AI Found] ${playerId} founded ${name} at ${hexToString(updatedSettler.coord)}`);
+                aiInfo(`[AI Found] ${playerId} founded ${name} at ${hexToString(updatedSettler.coord)}`);
                 next = after;
             } else {
-                console.info(`[AI Found Fail] ${playerId} could not found at ${hexToString(updatedSettler.coord)}`);
+                aiInfo(`[AI Found Fail] ${playerId} could not found at ${hexToString(updatedSettler.coord)}`);
             }
         }
     }
@@ -462,7 +463,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                 });
                 if (linkResult !== next) {
                     next = linkResult;
-                    console.info(`[AI Escort] ${playerId} linked ${adjacentEscort.type} to settler at ${hexToString(settler.coord)}`);
+                    aiInfo(`[AI Escort] ${playerId} linked ${adjacentEscort.type} to settler at ${hexToString(settler.coord)}`);
                     continue;
                 }
             }
@@ -502,7 +503,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                             });
                             if (linkResult !== next) {
                                 next = linkResult;
-                                console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                                aiInfo(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
                             }
                         }
                     }
@@ -552,7 +553,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                         });
                         if (linkResult !== next) {
                             next = linkResult;
-                            console.info(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
+                            aiInfo(`[AI Escort] ${playerId} linked ${escort.type} to settler at ${hexToString(settler.coord)}`);
                         }
                     }
                 }
@@ -594,7 +595,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
                                 });
                                 if (linkResult !== next) {
                                     next = linkResult;
-                                    console.info(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
+                                    aiInfo(`[AI Escort] ${playerId} linked ${liveEscort.type} to settler at ${hexToString(liveSettler.coord)}`);
                                 }
                             }
                         }

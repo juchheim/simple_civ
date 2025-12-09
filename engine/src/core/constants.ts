@@ -106,15 +106,14 @@ export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // v1.5: Reverted to 8 (was
 
 
 
-// v0.98 Update 4: ForgeClans "Master Craftsmen" - 25% faster project completion
-export const FORGE_CLANS_PROJECT_SPEED_MULT = 0.80; // Projects cost 20% less effective production
+// v1.9: REMOVED - Projects 20% faster perk (was never actually implemented in game logic)
 
 // v0.98 Update 5: ForgeClans "Forged Arms" - combat bonus for hill production
 export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonus
 export const FORGE_CLANS_HILL_COMBAT_BONUS = 1; // +1 Attack for units from hill cities
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // 20% cheaper military units
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.95; // v1.9: NERFED - 5% cheaper (was 10%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
@@ -207,6 +206,7 @@ export const OVERLAY: Record<OverlayType, OverlayData> = {
     [OverlayType.RichSoil]: { yieldBonus: { F: 1 } },
     [OverlayType.OreVein]: { yieldBonus: { P: 1 } },
     [OverlayType.SacredSite]: { yieldBonus: { S: 1 } },
+    [OverlayType.GoodieHut]: {}, // No permanent bonus - one-time discovery reward
 };
 
 export type UnitStats = {
@@ -257,8 +257,8 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 4, cityAttackBonus: 1 },
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
-    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 100, conditional: "Summons The Titan upon completion" }, // v1.7: Buffed to 100 (was 120)
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 300, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v1.5: Increased to 300 (was 250)
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, conditional: "Summons The Titan upon completion" }, // v1.9: Buffed to 80 (was 100)
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 220, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v1.6: Reduced from 300 to match Observatory cost
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 30, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v0.99 BUFF: Cost 30, Free Settler
 };
 

@@ -59,25 +59,23 @@ const defaultPersonality: AiPersonality = {
 const personalities: Record<CivName, AiPersonality> = {
     ForgeClans: {
         aggression: {
-            // v0.99: Increased threshold to ensure winning advantage (was 0.75)
-            // We want them to build up to 1.1x power before attacking
-            warPowerThreshold: 1.1,
-            warDistanceMax: 12,
-            peacePowerThreshold: 0.8,
+            // v1.9: Made MORE aggressive - ForgeClans should win Conquest, not Progress
+            warPowerThreshold: 0.9,   // Attacks even when slightly weaker
+            warDistanceMax: 14,       // Increased range
+            peacePowerThreshold: 0.75, // Stays in war longer
         },
         settleBias: { hills: 0.75 },
         expansionDesire: 1.15,
         desiredCities: 4,
         techWeights: {
-            [TechId.DrilledRanks]: 1.3,
-            [TechId.ArmyDoctrine]: 1.4,
-            [TechId.SteamForges]: 1.5,
-            [TechId.CityWards]: 1.3,
-            [TechId.UrbanPlans]: 1.2,
-            [TechId.SignalRelay]: 1.2,
+            // v1.9: Removed Progress-adjacent techs (SignalRelay, UrbanPlans)
+            [TechId.DrilledRanks]: 1.5,   // Army focus
+            [TechId.ArmyDoctrine]: 1.6,   // Army focus++
+            [TechId.SteamForges]: 1.5,    // Production for more units
+            [TechId.CityWards]: 1.3,      // Defense
         },
         unitBias: { hillHold: true },
-        declareAfterContactTurns: 4,
+        declareAfterContactTurns: 3,  // Faster war declaration
     },
     ScholarKingdoms: {
         aggression: {
@@ -86,9 +84,16 @@ const personalities: Record<CivName, AiPersonality> = {
             peacePowerThreshold: 1.0,
         },
         settleBias: {},
-        expansionDesire: 1.25,
-        desiredCities: 4,
-        techWeights: { [TechId.ScriptLore]: 1.2, [TechId.ScholarCourts]: 1.2, [TechId.StarCharts]: 1.1 },
+        expansionDesire: 1.1,  // v1.9: Reduced - focus on 3 cities
+        desiredCities: 3,      // v1.9: Reduced from 4 for tall play
+        // v1.9: Added StoneworkHalls/CityWards for \"Fortified Knowledge\" bonus
+        techWeights: {
+            [TechId.ScriptLore]: 1.2,
+            [TechId.ScholarCourts]: 1.2,
+            [TechId.StarCharts]: 1.1,
+            [TechId.StoneworkHalls]: 1.5,  // Unlocks CityWards tech
+            [TechId.CityWards]: 1.8,       // Unlocks CityWard building
+        },
         projectRush: { type: "Project", id: ProjectId.Observatory },
         unitBias: { rangedSafety: 1 },
         declareAfterContactTurns: 2,
@@ -108,20 +113,23 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     AetherianVanguard: {
         aggression: {
-            warPowerThreshold: 1.1,  // Aggressive but smart
-            warPowerThresholdLate: 0.9,  // With Titan, can be riskier
-            warDistanceMax: 16,
-            peacePowerThreshold: 0.85,
+            // v1.9: Very aggressive - Titan rarely dies, so attack more
+            warPowerThreshold: 0.75,  // Will attack when weaker - Titan is worth it
+            warPowerThresholdLate: 0.6,  // With Titan built, hyper-aggressive
+            warDistanceMax: 18,  // Titan can travel far
+            peacePowerThreshold: 0.7,  // Only accept peace when losing badly
             aggressionSpikeTrigger: "TitanBuilt",
         },
         settleBias: {},
         expansionDesire: 1.4,
         desiredCities: 5,
         techWeights: {
-            [TechId.SteamForges]: 2.0, // v0.99: Hard focus on Titan
-            [TechId.StoneworkHalls]: 1.2,
-            [TechId.DrilledRanks]: 1.4, // Prioritize armies
-            [TechId.ArmyDoctrine]: 1.4, // Prioritize armies
+            // v1.9: Complete Titan rush path - priortize ALL prereqs
+            [TechId.StoneworkHalls]: 2.0, // Step 1: Unlocks TimberMills
+            [TechId.TimberMills]: 2.5,    // Step 2: CRITICAL - unlocks SteamForges
+            [TechId.SteamForges]: 3.0,    // Step 3: Unlocks Titan's Core (highest priority)
+            [TechId.DrilledRanks]: 1.2,   // Lower priority - armies are backup
+            [TechId.ArmyDoctrine]: 1.2,
         },
         projectRush: { type: "Building", id: BuildingType.TitansCore },
         unitBias: {},
@@ -129,17 +137,18 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     StarborneSeekers: {
         aggression: {
-            warPowerThreshold: 1.25,  // Defensive
+            // v1.9: Even more defensive - only attack when significantly stronger
+            warPowerThreshold: 1.5,  // Very defensive - needs big advantage
             warDistanceMax: 12,
-            peacePowerThreshold: 1.0,
+            peacePowerThreshold: 1.2,  // Very willing to accept peace
         },
         settleBias: {},
-        expansionDesire: 1.3,
-        desiredCities: 4,
+        expansionDesire: 1.2,  // Slightly less expansion focus
+        desiredCities: 3,      // Focus on fewer, high-quality cities
         techWeights: { [TechId.ScriptLore]: 1.2, [TechId.ScholarCourts]: 1.2, [TechId.StarCharts]: 1.5 },
         projectRush: { type: "Building", id: BuildingType.SpiritObservatory },
         unitBias: { rangedSafety: 1 },
-        declareAfterContactTurns: 3,
+        declareAfterContactTurns: 5,  // Wait longer before declaring war
     },
     JadeCovenant: {
         aggression: {
@@ -177,39 +186,22 @@ export function getPersonalityForPlayer(state: GameState, playerId: string): AiP
     const civ = player?.civName;
     const basePersonality = getPersonality(civ);
 
-    // v1.2: Late Game Aggression Override (Fight to the Death)
+    // v1.9: Late Game Aggression Override
+    // When goal is Conquest at turn 200+, aggressive civs get ultra-aggressive settings
     if (state.turn >= 200 && player?.aiGoal === "Conquest") {
         const aggressiveCivs = ["AetherianVanguard", "ForgeClans", "JadeCovenant", "RiverLeague"];
-        if (civ && aggressiveCivs.includes(civ)) {
-            // Check if we are NOT nearing progress victory (double check to be safe, though goal should reflect it)
-            // Actually, if goal is Conquest at turn 200+, we assume the goal logic did its job.
-            // But let's be safe and ensure we don't suicide if we are actually winning science.
-            const nearingProgress = player.completedProjects.includes(ProjectId.GrandAcademy) ||
-                player.completedProjects.includes(ProjectId.GrandExperiment);
+        const nearingProgress = player.completedProjects.includes(ProjectId.GrandAcademy) ||
+            player.completedProjects.includes(ProjectId.GrandExperiment);
 
-            if (!nearingProgress) {
-                return {
-                    ...basePersonality,
-                    aggression: {
-                        warPowerThreshold: 0.1, // Attack anyone, even if much stronger
-                        warDistanceMax: 999,    // Attack anywhere
-                        // peacePowerThreshold usage in diplomacy.ts:
-                        // if (myPower < theirPower * personality.aggression.peacePowerThreshold) -> Consider Peace
-                        // So to NEVER accept peace, we want this to be very low?
-                        // If peacePowerThreshold is 0.1, we only accept peace if we are super weak (myPower < 0.1 * theirPower).
-                        // If we want to "fight to the death", we should only accept peace if we are absolutely crushed.
-                        // OR, if the user meant "never accept peace", we might need to look at diplomacy.ts.
-                        // But usually "fight to the death" means you don't care about odds.
-                        // Let's set it to 0.1 (only surrender if 10x weaker).
-                        // Wait, if I want to be aggressive, I shouldn't accept peace when I'm winning.
-                        // The logic usually is: "I'm losing, I want peace."
-                        // If I want to fight to the death, I should NOT want peace even if losing.
-                        // So peacePowerThreshold should be extremely low (e.g. 0.01).
-                        // Let's verify usage in diplomacy.ts first.
-                        peacePowerThreshold: 0.05,
-                    }
-                };
-            }
+        if (civ && aggressiveCivs.includes(civ) && !nearingProgress) {
+            return {
+                ...basePersonality,
+                aggression: {
+                    warPowerThreshold: 0.1,      // Attack even if weaker
+                    warDistanceMax: 999,          // No distance limit
+                    peacePowerThreshold: 0.05,    // Only surrender if crushed
+                }
+            };
         }
     }
 

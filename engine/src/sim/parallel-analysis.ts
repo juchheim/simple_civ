@@ -7,6 +7,10 @@ import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { writeFileSync, statSync } from "fs";
 import * as os from "os";
 import { fileURLToPath } from 'url';
+import { setAiDebug } from "../game/ai/debug-logging.js";
+
+// Disable AI debug logging for simulation performance
+setAiDebug(false);
 
 // ==========================================
 // SHARED LOGIC (Copied from comprehensive-analysis.ts)

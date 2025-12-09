@@ -83,4 +83,13 @@ export function applyTerrainNoise(context: TerrainContext) {
             else if (n < 0.12) t.overlays.push(OverlayType.SacredSite);
         }
     });
+
+    // Place goodie huts on land tiles without other overlays (~3% chance)
+    tiles.forEach(t => {
+        if (t.terrain !== TerrainType.Mountain && t.terrain !== TerrainType.DeepSea && t.terrain !== TerrainType.Coast) {
+            if (t.overlays.length === 0 && rng.next() < 0.03) {
+                t.overlays.push(OverlayType.GoodieHut);
+            }
+        }
+    });
 }

@@ -4,27 +4,63 @@ import {
     GameState,
     Player,
     TerrainType,
-    UnitType,
-    UnitState,
-    BuildingType
+    UnitType
 } from "../../../core/types.js";
-import {
-    CITY_DEFENSE_BASE,
-    CITY_WARD_DEFENSE_BONUS,
-    DAMAGE_BASE,
-    DAMAGE_MAX,
-    DAMAGE_MIN,
-    TERRAIN,
-    UNITS
-} from "../../../core/constants.js";
+import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { sortByDistance } from "../shared/metrics.js";
-import { getEffectiveUnitStats } from "../../helpers/combat.js";
-import { findFinishableEnemies, estimateMilitaryPower } from "../goals.js";
+import { tileDefenseScore, expectedDamageFrom, expectedDamageToCity, expectedDamageToUnit, friendlyAdjacencyCount, enemiesWithin } from "./combat-metrics.js";
+import {
+    getWarTargets,
+    hasMilitaryAdvantage,
+    isAtWar,
+    selectHeldGarrisons,
+    selectPrimarySiegeCity,
+    shouldUseWarProsecutionMode,
+    warGarrisonCap,
+    warPowerRatio
+} from "./war-state.js";
+import {
+    canKillNearbyEnemy,
+    countThreatsToTile,
+    evaluateTileDanger,
+    findSafeRetreatTile,
+    getBestSkirmishPosition,
+    getNearbyThreats,
+    isAttackSafe,
+    isMeleeAttackExposed,
+    shouldRetreat,
+    shouldRetreatAfterAttacking,
+    estimateSurvivalRounds
+} from "./movement-safety.js";
 
-type SiegeMemory = { cityId: string; assignedTurn: number };
-
-const primarySiegeMemory = new Map<string, SiegeMemory>();
+export {
+    tileDefenseScore,
+    expectedDamageToUnit,
+    expectedDamageToCity,
+    expectedDamageFrom,
+    friendlyAdjacencyCount,
+    enemiesWithin,
+    isAtWar,
+    getWarTargets,
+    warPowerRatio,
+    shouldUseWarProsecutionMode,
+    warGarrisonCap,
+    selectHeldGarrisons,
+    selectPrimarySiegeCity,
+    getBestSkirmishPosition,
+    evaluateTileDanger,
+    getNearbyThreats,
+    findSafeRetreatTile,
+    estimateSurvivalRounds,
+    canKillNearbyEnemy,
+    shouldRetreat,
+    hasMilitaryAdvantage,
+    countThreatsToTile,
+    isAttackSafe,
+    shouldRetreatAfterAttacking,
+    isMeleeAttackExposed
+};
 
 export function cityIsCoastal(state: GameState, city: any): boolean {
     return getNeighbors(city.coord).some(c => {
@@ -33,206 +69,18 @@ export function cityIsCoastal(state: GameState, city: any): boolean {
     });
 }
 
-export function isAtWar(state: GameState, playerId: string): boolean {
-    return state.players.some(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-}
-
 export function isScoutType(unitType: UnitType): boolean {
     return unitType === UnitType.Scout || unitType === UnitType.ArmyScout;
 }
 
-export function tileDefenseScore(state: GameState, coord: { q: number; r: number }): number {
-    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-    if (!tile) return -99;
-    return TERRAIN[tile.terrain].defenseMod ?? 0;
-}
+export function getThreatLevel(state: GameState, city: any, playerId: string): "none" | "low" | "high" | "critical" {
+    const enemies = enemiesWithin(state, playerId, city.coord, 3);
+    if (enemies === 0) return "none";
 
-export function expectedDamageToUnit(attacker: any, defender: any, state: GameState): number {
-    const attackerStats = getEffectiveUnitStats(attacker, state);
-    const defenseStats = getEffectiveUnitStats(defender, state);
-    let defensePower = defenseStats.def;
-    const tile = state.map.tiles.find(t => hexEquals(t.coord, defender.coord));
-    if (tile) {
-        defensePower += TERRAIN[tile.terrain].defenseMod;
-    }
-    if (defender.state === UnitState.Fortified) defensePower += 1;
-    const attackPower = attackerStats.atk;
-    const delta = attackPower - defensePower;
-    const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
-    return Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
-}
-
-export function expectedDamageToCity(attacker: any, city: any, state: GameState): number {
-    const attackerStats = getEffectiveUnitStats(attacker, state);
-    let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2);
-    if (city.buildings?.includes(BuildingType.CityWard)) {
-        defensePower += CITY_WARD_DEFENSE_BONUS;
-    }
-    const attackPower = attackerStats.atk;
-    const delta = attackPower - defensePower;
-    const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
-    return Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, rawDamage));
-}
-
-export function expectedDamageFrom(defender: any, attacker: any, state: GameState): number {
-    return expectedDamageToUnit(defender, attacker, state);
-}
-
-export function friendlyAdjacencyCount(state: GameState, playerId: string, coord: { q: number; r: number }): number {
-    return getNeighbors(coord).filter(n =>
-        state.units.some(u => u.ownerId === playerId && hexEquals(u.coord, n))
-    ).length;
-}
-
-export function enemiesWithin(state: GameState, playerId: string, coord: { q: number; r: number }, radius: number): number {
-    return state.units.filter(u =>
-        u.ownerId !== playerId &&
-        hexDistance(u.coord, coord) <= radius
-    ).length;
-}
-
-export function getWarTargets(state: GameState, playerId: string): Player[] {
-    return state.players.filter(
-        p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-}
-
-export function warPowerRatio(state: GameState, playerId: string, warTargets: Player[]): { myPower: number; enemyPower: number; ratio: number } {
-    if (!warTargets.length) {
-        return { myPower: 0, enemyPower: 0, ratio: 0 };
-    }
-    const myPower = estimateMilitaryPower(playerId, state);
-    const enemyPowers = warTargets.map(t => estimateMilitaryPower(t.id, state));
-    const enemyPower = Math.max(...enemyPowers, 0);
-    const ratio = enemyPower > 0 ? myPower / enemyPower : Number.POSITIVE_INFINITY;
-    return { myPower, enemyPower, ratio };
-}
-
-export function shouldUseWarProsecutionMode(state: GameState, playerId: string, warTargets: Player[]): boolean {
-    if (!warTargets.length) return false;
-    const { enemyPower, ratio } = warPowerRatio(state, playerId, warTargets);
-
-    // Check if any enemy is "finishable" (few cities)
-    const hasWeakEnemy = warTargets.some(p => {
-        const cities = state.cities.filter(c => c.ownerId === p.id);
-        return cities.length <= 2;
-    });
-
-    // v0.99: Steamroll logic - if we are 2x stronger OR enemy is weak, prosecute!
-    return enemyPower > 0 && (ratio >= 2.0 || hasWeakEnemy);
-}
-
-export function warGarrisonCap(state: GameState, playerId: string, isInWarProsecutionMode: boolean): number {
-    const playerCities = state.cities.filter(c => c.ownerId === playerId);
-    if (!playerCities.length) return 0;
-    if (isInWarProsecutionMode) return 1;
-    return Math.max(1, Math.floor(playerCities.length / 2));
-}
-
-export function selectHeldGarrisons(state: GameState, playerId: string, warTargets: Player[], maxGarrisons: number): Set<string> {
-    const held = new Set<string>();
-    if (maxGarrisons <= 0) return held;
-
-    const playerCities = state.cities.filter(c => c.ownerId === playerId);
-    if (!playerCities.length) return held;
-
-    const enemyUnits = state.units.filter(u => warTargets.some(w => w.id === u.ownerId));
-    const orderedCities = [...playerCities].sort((a, b) => {
-        if (a.isCapital !== b.isCapital) return a.isCapital ? -1 : 1;
-        const aThreat = enemyUnits.length ? Math.min(...enemyUnits.map(e => hexDistance(e.coord, a.coord))) : Number.POSITIVE_INFINITY;
-        const bThreat = enemyUnits.length ? Math.min(...enemyUnits.map(e => hexDistance(e.coord, b.coord))) : Number.POSITIVE_INFINITY;
-        if (aThreat !== bThreat) return aThreat - bThreat;
-        return a.hp - b.hp;
-    });
-
-    for (const city of orderedCities) {
-        if (held.size >= maxGarrisons) break;
-        const stationed = state.units.filter(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
-        if (!stationed.length) continue;
-        const combatants = stationed.filter(u => UNITS[u.type].domain !== "Civilian");
-        const defender = (combatants.length ? combatants : stationed).sort((a, b) => b.hp - a.hp)[0];
-        if (defender) {
-            held.add(defender.id);
-        }
-    }
-
-    return held;
-}
-
-export function selectPrimarySiegeCity(
-    state: GameState,
-    playerId: string,
-    units: any[],
-    warCities: any[],
-    options?: { forceRetarget?: boolean; preferClosest?: boolean }
-): any | null {
-    let preferClosest = !!options?.preferClosest;
-    if (options?.forceRetarget) {
-        primarySiegeMemory.delete(playerId);
-    }
-
-    const stored = primarySiegeMemory.get(playerId);
-    if (stored) {
-        const storedCity = warCities.find(c => c.id === stored.cityId);
-        if (storedCity) {
-            const turnsOnTarget = state.turn - stored.assignedTurn;
-            if (turnsOnTarget >= 15) {
-                primarySiegeMemory.delete(playerId);
-                preferClosest = true;
-            } else {
-                return storedCity;
-            }
-        } else {
-            primarySiegeMemory.delete(playerId);
-        }
-    }
-
-    if (!warCities.length) {
-        primarySiegeMemory.delete(playerId);
-        return null;
-    }
-
-    if (!units.length) {
-        primarySiegeMemory.delete(playerId);
-        return null;
-    }
-
-    const finishableEnemyIds = findFinishableEnemies(playerId, state);
-    const finishableCities = warCities.filter(c => finishableEnemyIds.includes(c.ownerId));
-
-    const citiesToConsider = finishableCities.length > 0 ? finishableCities : warCities;
-
-    const candidate = citiesToConsider
-        .map(c => ({
-            city: c,
-            hp: c.hp,
-            dist: Math.min(...units.map(u => hexDistance(u.coord, c.coord))),
-            isCapital: c.isCapital ? 0 : 1,
-            isFinishable: finishableEnemyIds.includes(c.ownerId) ? 0 : 1
-        }))
-        .sort((a, b) => {
-            if (preferClosest) {
-                if (a.dist !== b.dist) return a.dist - b.dist;
-                if (a.hp !== b.hp) return a.hp - b.hp;
-                if (a.isFinishable !== b.isFinishable) return a.isFinishable - b.isFinishable;
-                return a.isCapital - b.isCapital;
-            }
-            if (a.isFinishable !== b.isFinishable) return a.isFinishable - b.isFinishable;
-            if (a.isCapital !== b.isCapital) return a.isCapital - b.isCapital;
-            if (a.hp !== b.hp) return a.hp - b.hp;
-            return a.dist - b.dist;
-        })[0].city;
-
-    if (finishableEnemyIds.includes(candidate.ownerId)) {
-        console.info(`[AI FINISH HIM] ${playerId} targeting ${candidate.name} (${candidate.ownerId}) - weak enemy with few cities!`);
-    }
-
-    primarySiegeMemory.set(playerId, { cityId: candidate.id, assignedTurn: state.turn });
-    return candidate;
+    const cityHpPercent = city.hp / city.maxHp;
+    if (cityHpPercent <= 0.5 || enemies >= 3) return "critical";
+    if (enemies >= 1) return "high";
+    return "low";
 }
 
 export function stepToward(
@@ -245,7 +93,6 @@ export function stepToward(
     if (!unit || unit.movesLeft <= 0) return state;
 
     if (hexDistance(unit.coord, target) === 1) {
-        // Check for peacetime movement restrictions
         const tile = state.map.tiles.find(t => hexEquals(t.coord, target));
         let allowed = true;
         if (tile && tile.ownerId && tile.ownerId !== playerId) {
@@ -268,7 +115,6 @@ export function stepToward(
     const neighbors = getNeighbors(unit.coord);
     const ordered = sortByDistance(target, neighbors, coord => coord);
     for (const neighbor of ordered) {
-        // Check for peacetime movement restrictions
         const tile = state.map.tiles.find(t => hexEquals(t.coord, neighbor));
         if (tile && tile.ownerId && tile.ownerId !== playerId) {
             const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
@@ -286,518 +132,4 @@ export function stepToward(
     }
 
     return state;
-}
-
-// --- TACTICAL HELPERS (v1.0) ---
-
-export function getThreatLevel(state: GameState, city: any, playerId: string): "none" | "low" | "high" | "critical" {
-    const enemies = enemiesWithin(state, playerId, city.coord, 3);
-    if (enemies === 0) return "none";
-
-    const cityHpPercent = city.hp / city.maxHp;
-    if (cityHpPercent <= 0.5 || enemies >= 3) return "critical";
-    if (enemies >= 1) return "high";
-    return "low";
-}
-
-// Note: shouldRetreat has been moved to the "INTELLIGENT RETREAT" section below
-// with enhanced combat outcome evaluation
-
-export function getBestSkirmishPosition(
-    unit: any,
-    target: any,
-    state: GameState,
-    playerId: string
-): { q: number; r: number } | null {
-    const stats = UNITS[unit.type as UnitType];
-    if (stats.rng <= 1) return null; // Melee units don't skirmish
-
-    const currentDist = hexDistance(unit.coord, target.coord);
-    const desiredDist = stats.rng;
-
-    // If we are already at max range, stay there (unless we can move to better terrain at same range)
-    if (currentDist === desiredDist) {
-        // Check if current tile is safe-ish
-        const enemiesAdj = enemiesWithin(state, playerId, unit.coord, 1);
-        if (enemiesAdj === 0) return unit.coord;
-    }
-
-    const neighbors = getNeighbors(unit.coord);
-    const candidates = neighbors.map(n => ({
-        coord: n,
-        dist: hexDistance(n, target.coord),
-        defense: tileDefenseScore(state, n),
-        enemiesAdj: enemiesWithin(state, playerId, n, 1)
-    }));
-
-    // Filter valid moves
-    const valid = candidates.filter(c => {
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, c.coord));
-        if (!tile || (tile.ownerId && tile.ownerId !== playerId && state.diplomacy[playerId]?.[tile.ownerId] !== DiplomacyState.War)) return false; // Respect borders if not at war
-        if (state.units.some(u => hexEquals(u.coord, c.coord))) return false; // Blocked
-        return true;
-    });
-
-    // Sort by: 
-    // 1. Safety (0 adjacent enemies)
-    // 2. Range (closest to max range without exceeding it)
-    // 3. Defense bonus
-    valid.sort((a, b) => {
-        const aSafe = a.enemiesAdj === 0 ? 1 : 0;
-        const bSafe = b.enemiesAdj === 0 ? 1 : 0;
-        if (aSafe !== bSafe) return bSafe - aSafe;
-
-        const aRangeScore = Math.abs(desiredDist - a.dist);
-        const bRangeScore = Math.abs(desiredDist - b.dist);
-        if (aRangeScore !== bRangeScore) return aRangeScore - bRangeScore;
-
-        return b.defense - a.defense;
-    });
-
-    return valid.length > 0 ? valid[0].coord : null;
-}
-
-// --- INTELLIGENT RETREAT (v2.0) ---
-
-/**
- * Calculate danger score for a tile based on nearby enemies and their attack capabilities.
- * Higher score = more dangerous.
- */
-export function evaluateTileDanger(
-    state: GameState,
-    playerId: string,
-    coord: { q: number; r: number }
-): number {
-    let dangerScore = 0;
-
-    // Get all enemy units
-    const enemies = state.units.filter(u => u.ownerId !== playerId);
-
-    for (const enemy of enemies) {
-        const dist = hexDistance(coord, enemy.coord);
-        const stats = UNITS[enemy.type as UnitType];
-
-        // Adjacent enemies are very dangerous (can attack immediately)
-        if (dist === 1) {
-            dangerScore += 10 + stats.atk;
-        }
-        // Within attack range is dangerous
-        else if (dist <= stats.rng) {
-            dangerScore += 5 + stats.atk * 0.5;
-        }
-        // Within 2 moves is a threat
-        else if (dist <= stats.move + 1) {
-            dangerScore += 2;
-        }
-    }
-
-    // Bonus safety for friendly city tiles
-    const cityOnTile = state.cities.find(c => hexEquals(c.coord, coord) && c.ownerId === playerId);
-    if (cityOnTile) {
-        dangerScore -= 5;
-    }
-
-    // Bonus safety for high defense terrain
-    dangerScore -= tileDefenseScore(state, coord) * 2;
-
-    return dangerScore;
-}
-
-/**
- * Find all enemies within a certain range and return their info.
- * Used for multi-threat awareness.
- */
-export function getNearbyThreats(
-    state: GameState,
-    playerId: string,
-    coord: { q: number; r: number },
-    range: number
-): Array<{ unit: any; distance: number; attackPower: number }> {
-    const threats: Array<{ unit: any; distance: number; attackPower: number }> = [];
-
-    for (const unit of state.units) {
-        if (unit.ownerId === playerId) continue;
-
-        const dist = hexDistance(coord, unit.coord);
-        if (dist <= range) {
-            const stats = UNITS[unit.type as UnitType];
-            if (stats.domain !== "Civilian") {
-                threats.push({
-                    unit,
-                    distance: dist,
-                    attackPower: stats.atk
-                });
-            }
-        }
-    }
-
-    return threats.sort((a, b) => a.distance - b.distance);
-}
-
-/**
- * Find the safest adjacent tile to step toward a target.
- * Avoids moving into tiles with high danger (enemies in attack range).
- * Returns null if staying put is safer than any movement option.
- */
-export function findSafeRetreatTile(
-    state: GameState,
-    playerId: string,
-    unit: any,
-    targetCoord: { q: number; r: number }
-): { q: number; r: number } | null {
-    const currentDanger = evaluateTileDanger(state, playerId, unit.coord);
-    const neighbors = getNeighbors(unit.coord);
-
-    const candidates = neighbors
-        .map(coord => {
-            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-            if (!tile) return null;
-
-            // Check terrain passability
-            const terrain = TERRAIN[tile.terrain];
-            if (terrain.blocksLoS) return null; // Mountains, etc.
-
-            // Check for blocking unit
-            const blockingUnit = state.units.find(u => hexEquals(u.coord, coord));
-            if (blockingUnit && blockingUnit.ownerId !== playerId) return null;
-            if (blockingUnit && UNITS[blockingUnit.type].domain !== "Civilian") return null;
-
-            // Check territory restrictions (peace time)
-            if (tile.ownerId && tile.ownerId !== playerId) {
-                const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
-                if (diplomacy !== DiplomacyState.War) return null;
-            }
-
-            const danger = evaluateTileDanger(state, playerId, coord);
-            const distToTarget = hexDistance(coord, targetCoord);
-            const currentDistToTarget = hexDistance(unit.coord, targetCoord);
-            const movesTowardTarget = distToTarget < currentDistToTarget;
-
-            return {
-                coord,
-                danger,
-                distToTarget,
-                movesTowardTarget,
-                defense: tileDefenseScore(state, coord)
-            };
-        })
-        .filter((c): c is NonNullable<typeof c> => c !== null);
-
-    if (candidates.length === 0) return null;
-
-    // Sort by:
-    // 1. Safety (lower danger is better)
-    // 2. Moves toward target (prefer progress toward safety)
-    // 3. Defense bonus (prefer defensible terrain)
-    candidates.sort((a, b) => {
-        // Primary: Avoid danger (strongly prefer safer tiles)
-        if (Math.abs(a.danger - b.danger) > 2) {
-            return a.danger - b.danger;
-        }
-
-        // Secondary: Progress toward target
-        if (a.movesTowardTarget !== b.movesTowardTarget) {
-            return a.movesTowardTarget ? -1 : 1;
-        }
-
-        // Tertiary: Better defense
-        if (a.defense !== b.defense) {
-            return b.defense - a.defense;
-        }
-
-        // Finally: Lower danger
-        return a.danger - b.danger;
-    });
-
-    const best = candidates[0];
-
-    // Don't move if staying is significantly safer
-    if (best.danger > currentDanger + 5) {
-        return null;
-    }
-
-    return best.coord;
-}
-
-// --- COMBAT EVALUATION (v2.0) ---
-
-/**
- * Estimate how many rounds the unit can survive against nearby threats.
- * Lower = more danger, 0 = would die this turn.
- */
-export function estimateSurvivalRounds(
-    unit: any,
-    state: GameState,
-    playerId: string
-): number {
-    const threats = getNearbyThreats(state, playerId, unit.coord, 2);
-    const adjacentThreats = threats.filter(t => t.distance === 1);
-
-    if (adjacentThreats.length === 0) return 99; // Safe
-
-    // Calculate expected damage per round from adjacent enemies
-    const damagePerRound = adjacentThreats.reduce((sum, t) => {
-        return sum + expectedDamageFrom(t.unit, unit, state);
-    }, 0);
-
-    if (damagePerRound <= 0) return 99;
-
-    return Math.ceil(unit.hp / damagePerRound);
-}
-
-/**
- * Check if unit can one-shot any nearby enemy.
- * Returns the weakest enemy we can kill, or null if none.
- */
-export function canKillNearbyEnemy(
-    unit: any,
-    state: GameState,
-    playerId: string
-): { unit: any; damage: number } | null {
-    const threats = getNearbyThreats(state, playerId, unit.coord, 2);
-    const adjacentThreats = threats.filter(t => t.distance === 1);
-
-    for (const threat of adjacentThreats) {
-        const ourDamage = expectedDamageToUnit(unit, threat.unit, state);
-        if (ourDamage >= threat.unit.hp) {
-            return { unit: threat.unit, damage: ourDamage };
-        }
-    }
-
-    return null;
-}
-
-/**
- * Enhanced retreat decision that considers combat outcomes.
- * Returns true if the unit should retreat instead of fighting.
- */
-export function shouldRetreat(unit: any, state: GameState, playerId: string): boolean {
-    const nearbyEnemies = enemiesWithin(state, playerId, unit.coord, 2);
-    if (nearbyEnemies === 0) return false;
-
-    const nearbyFriends = friendlyAdjacencyCount(state, playerId, unit.coord);
-    const unitHpPercent = unit.hp / unit.maxHp;
-
-    // Get immediate threats (enemies that can attack us this turn)
-    const immediateThreats = getNearbyThreats(state, playerId, unit.coord, 2);
-    const adjacentThreats = immediateThreats.filter(t => t.distance === 1);
-
-    // Estimate if we can kill any adjacent enemy before dying
-    const weCanKill = adjacentThreats.some(threat => {
-        const ourDamage = expectedDamageToUnit(unit, threat.unit, state);
-        return ourDamage >= threat.unit.hp;
-    });
-
-    // Estimate how much damage we'd take this turn
-    const expectedIncomingDamage = adjacentThreats.reduce((sum, t) => {
-        return sum + expectedDamageFrom(t.unit, unit, state);
-    }, 0);
-
-    const wouldDie = expectedIncomingDamage >= unit.hp;
-
-    // SMART RETREAT RULES:
-
-    // Rule 1: If we'd die but can get a kill, consider staying (trade)
-    if (wouldDie && weCanKill && unit.hp > 3) {
-        // Only trade if it's a valuable target or we're not critically hurt
-        return false;
-    }
-
-    // Rule 2: If we'd die without getting a kill, definitely retreat
-    if (wouldDie && !weCanKill) {
-        return true;
-    }
-
-    // Rule 3: If critically wounded (< 30% HP) and outnumbered, retreat
-    if (unitHpPercent < 0.3 && nearbyEnemies > nearbyFriends + 1) {
-        return true;
-    }
-
-    // Rule 4: If completely overwhelmed (1v3+) even if healthy, retreat
-    if (nearbyEnemies >= 3 && nearbyFriends <= 1) {
-        return true;
-    }
-
-    // Rule 5: If moderately wounded (< 50%) and no support, retreat
-    if (unitHpPercent < 0.5 && nearbyFriends === 0 && nearbyEnemies >= 2) {
-        return true;
-    }
-
-    return false;
-}
-
-// --- SMART ATTACK EVALUATION (v3.0) ---
-
-/**
- * Check if we have military advantage over our war enemies.
- * Returns ratio > 1 means advantage, < 1 means disadvantage.
- */
-export function hasMilitaryAdvantage(state: GameState, playerId: string): { advantage: boolean; ratio: number } {
-    const warTargets = getWarTargets(state, playerId);
-    if (warTargets.length === 0) return { advantage: true, ratio: Infinity };
-
-    const { ratio } = warPowerRatio(state, playerId, warTargets);
-    return { advantage: ratio >= 1.0, ratio };
-}
-
-/**
- * Count how many enemies can attack a specific tile on their next turn.
- * Considers enemy unit range and movement.
- */
-export function countThreatsToTile(
-    state: GameState,
-    playerId: string,
-    coord: { q: number; r: number },
-    excludeUnitId?: string
-): { count: number; totalDamage: number } {
-    let count = 0;
-    let totalDamage = 0;
-
-    for (const enemy of state.units) {
-        if (enemy.ownerId === playerId) continue;
-        if (excludeUnitId && enemy.id === excludeUnitId) continue;
-
-        const stats = UNITS[enemy.type as UnitType];
-        if (stats.domain === "Civilian") continue;
-
-        const dist = hexDistance(enemy.coord, coord);
-
-        // Can this enemy reach and attack the tile?
-        // Adjacent enemies can definitely attack
-        // Ranged enemies at their range can attack
-        // Enemies within move+range can potentially attack
-        const canReach = dist <= stats.rng || (dist <= stats.move + stats.rng);
-
-        if (canReach) {
-            count++;
-            // Estimate damage they could deal
-            totalDamage += Math.max(DAMAGE_MIN, Math.min(DAMAGE_MAX, DAMAGE_BASE + Math.floor((stats.atk - 3) / 2)));
-        }
-    }
-
-    return { count, totalDamage };
-}
-
-/**
- * Evaluate if attacking a target is safe considering post-attack exposure.
- * Takes into account power advantage - if we're winning, we can take more risks.
- */
-export function isAttackSafe(
-    attacker: any,
-    target: any,
-    targetCoord: { q: number; r: number },
-    state: GameState,
-    playerId: string
-): { safe: boolean; reason: string; riskLevel: "low" | "medium" | "high" | "suicidal" } {
-    const stats = UNITS[attacker.type as UnitType];
-    const { advantage, ratio } = hasMilitaryAdvantage(state, playerId);
-
-    // For ranged units, check threats at current position (they don't move to attack)
-    const attackPosition = stats.rng > 1 ? attacker.coord : targetCoord;
-
-    // Exclude target from threat count (we're attacking them)
-    const threats = countThreatsToTile(state, playerId, attackPosition, target?.id);
-
-    // Calculate expected damage from the attack itself
-    const returnDamage = target ? expectedDamageFrom(target, attacker, state) : 0;
-    const totalExpectedDamage = returnDamage + threats.totalDamage;
-
-    // Determine risk level
-    let riskLevel: "low" | "medium" | "high" | "suicidal";
-    let reason = "";
-
-    if (totalExpectedDamage >= attacker.hp) {
-        riskLevel = "suicidal";
-        reason = `Would take ${totalExpectedDamage} damage (HP: ${attacker.hp}) from ${threats.count + 1} enemies`;
-    } else if (threats.count >= 3 || totalExpectedDamage >= attacker.hp * 0.8) {
-        riskLevel = "high";
-        reason = `${threats.count} additional enemies can attack after (${totalExpectedDamage} total damage expected)`;
-    } else if (threats.count >= 2 || totalExpectedDamage >= attacker.hp * 0.5) {
-        riskLevel = "medium";
-        reason = `${threats.count} additional enemies nearby`;
-    } else {
-        riskLevel = "low";
-        reason = "Attack position is relatively safe";
-    }
-
-    // Determine if attack is safe based on power advantage and risk
-    let safe = false;
-
-    if (advantage && ratio >= 1.5) {
-        // Strong advantage: accept all but suicidal attacks
-        safe = riskLevel !== "suicidal";
-    } else if (advantage) {
-        // Slight advantage: accept low and medium risk
-        safe = riskLevel === "low" || riskLevel === "medium";
-    } else {
-        // Disadvantage: only accept low risk attacks
-        safe = riskLevel === "low";
-    }
-
-    return { safe, reason, riskLevel };
-}
-
-/**
- * After attacking, should the unit immediately retreat?
- * Called after an attack to determine if unit should pull back.
- */
-export function shouldRetreatAfterAttacking(
-    unit: any,
-    state: GameState,
-    playerId: string
-): boolean {
-    // Don't retreat if already in a friendly city - that's the safest place!
-    const inFriendlyCity = state.cities.some(c =>
-        c.ownerId === playerId && hexEquals(c.coord, unit.coord)
-    );
-    if (inFriendlyCity) return false;
-
-    const { advantage } = hasMilitaryAdvantage(state, playerId);
-
-    // Count enemies that can still attack us
-    const threats = countThreatsToTile(state, playerId, unit.coord);
-
-    // If multiple enemies can attack us, retreat unless we're winning
-    if (threats.count >= 2) {
-        // At disadvantage: always retreat if exposed to 2+ enemies
-        if (!advantage) return true;
-
-        // At advantage: retreat if we'd take significant damage
-        if (threats.totalDamage >= unit.hp * 0.6) return true;
-
-    }
-
-    // If we're low HP and any enemy can reach us, retreat
-    const hpPercent = unit.hp / (unit.maxHp || 10);
-    if (hpPercent < 0.4 && threats.count >= 1) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Check if melee unit would be left exposed after moving to attack position.
- */
-export function isMeleeAttackExposed(
-    attacker: any,
-    targetCoord: { q: number; r: number },
-    state: GameState,
-    playerId: string,
-    targetId?: string
-): boolean {
-    const threats = countThreatsToTile(state, playerId, targetCoord, targetId);
-    const { advantage } = hasMilitaryAdvantage(state, playerId);
-
-    // If disadvantaged, being exposed to 2+ additional enemies is too risky
-    if (!advantage && threats.count >= 2) {
-        return true;
-    }
-
-    // Even with advantage, 3+ additional enemies is too risky
-    if (threats.count >= 3) {
-        return true;
-    }
-
-    return false;
 }

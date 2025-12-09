@@ -4,6 +4,8 @@ import { MapViewport } from "./GameMap";
 import { buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
 import { useDiplomacyAlerts } from "./HUD/hooks/use-diplomacy-alerts";
+import { useProgressRaceAlerts } from "./HUD/hooks/use-progress-race-alerts";
+import { useGameEventAlerts } from "./HUD/hooks/use-game-event-alerts";
 import { CityPanel, Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel, DiplomacyAlertModal, TileInfoPanel } from "./HUD/sections";
 import { MiniMap } from "./HUD/MiniMap";
 import "./HUD/hud.css";
@@ -62,7 +64,17 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         onAction,
     });
 
-    const { activeAlert, dismissAlert } = useDiplomacyAlerts(gameState, playerId);
+    const { activeAlert: diplomacyAlert, dismissAlert: dismissDiplomacyAlert } = useDiplomacyAlerts(gameState, playerId);
+    const { activeAlert: progressRaceAlert, dismissAlert: dismissProgressRaceAlert } = useProgressRaceAlerts(gameState, playerId);
+    const { activeAlert: gameEventAlert, dismissAlert: dismissGameEventAlert } = useGameEventAlerts(gameState, playerId);
+    
+    // Prioritize alerts: Progress race > Diplomacy > Game events
+    const activeAlert = progressRaceAlert || diplomacyAlert || gameEventAlert;
+    const dismissAlert = progressRaceAlert 
+        ? dismissProgressRaceAlert 
+        : diplomacyAlert 
+        ? dismissDiplomacyAlert 
+        : dismissGameEventAlert;
 
     const selectedCity = selectedCoord
         ? cities.find(c => c.coord.q === selectedCoord.q && c.coord.r === selectedCoord.r) ?? null
@@ -347,10 +359,11 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             {activeAlert && (
                 <DiplomacyAlertModal
                     alert={activeAlert}
-                    onOpenDiplomacy={() => {
+                    gameState={gameState}
+                    onOpenDiplomacy={activeAlert.type !== "ProgressRace" ? () => {
                         setShowDiplomacy(true);
                         dismissAlert(activeAlert.id);
-                    }}
+                    } : undefined}
                     onDismiss={() => dismissAlert(activeAlert.id)}
                 />
             )}

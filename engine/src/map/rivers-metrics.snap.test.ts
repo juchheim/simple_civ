@@ -47,7 +47,7 @@ describe("river metrics snapshots", () => {
         {
             mapSize: "Standard",
             seed: 98765,
-            expected: { riverCount: 8, starts: 8, paths: 7, lengths: [7, 7, 7, 6, 12, 6, 6] },
+            expected: { riverCount: 8, starts: 8, paths: 6, lengths: [7, 7, 7, 6, 6, 6] },
         },
     ];
 

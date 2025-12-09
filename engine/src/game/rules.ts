@@ -87,14 +87,16 @@ export function getCityCenterYields(city: City, tile: Tile): Yields {
  */
 export function getCityYields(city: City, state: GameState): Yields {
     const total: Yields = { F: 0, P: 0, S: 0 };
+    const cityCoord = city.coord ?? { q: 0, r: 0 };
+    const workedTiles = Array.isArray(city.workedTiles) ? city.workedTiles : [];
 
     // 1. Worked Tiles
-    for (const coord of city.workedTiles) {
+    for (const coord of workedTiles) {
         const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
         if (!tile) continue;
 
         let tileY: Yields;
-        if (hexEquals(coord, city.coord)) {
+        if (hexEquals(coord, cityCoord)) {
             tileY = getCityCenterYields(city, tile);
         } else {
             tileY = getTileYields(tile);
@@ -110,10 +112,10 @@ export function getCityYields(city: City, state: GameState): Yields {
     }
 
     // 2. Buildings
-    const isRiverCity = isTileAdjacentToRiver(state.map, city.coord);
+    const isRiverCity = isTileAdjacentToRiver(state.map, cityCoord);
 
     let worksForest = false;
-    for (const coord of city.workedTiles) {
+    for (const coord of workedTiles) {
         const t = state.map.tiles.find(tile => hexEquals(tile.coord, coord));
         if (t && t.terrain === TerrainType.Forest) worksForest = true;
     }
@@ -144,31 +146,38 @@ export function getCityYields(city: City, state: GameState): Yields {
     if (trait === "ForgeClans") {
         // ForgeClans: +1 Production per worked Hill tile (Capital Only)
         if (city.isCapital) {
-            for (const c of city.workedTiles) {
+            for (const c of workedTiles) {
                 const t = state.map.tiles.find(tt => hexEquals(tt.coord, c));
                 if (t?.terrain === TerrainType.Hills) total.P += 1;
             }
         }
     } else if (trait === "ScholarKingdoms") {
-        // v0.98 Update 8: BUFFED - Restored +1 Science in Capital (was completely removed)
+        // v1.9: "Citadel Protocol" - Tall play science bonuses
+        // 1. +1 Science in Capital (always)
         if (city.isCapital) {
-            total.S += 1; // "Great Library" - Capital generates extra science
+            total.S += 1;
         }
+        // 2. +1 Science per CityWard building (defensive science synergy)
+        const cityWardCount = state.cities.filter(c =>
+            c.ownerId === city.ownerId && c.buildings.includes(BuildingType.CityWard)
+        ).length;
+        total.S += cityWardCount;
     } else if (trait === "RiverLeague") {
-        // v0.98 BUFF: Added +1 Science in river cities (in addition to Food and Production)
-        // River cities now give triple bonus: +1F, +1P, +1S
-        const isRiverCity = isTileAdjacentToRiver(state.map, city.coord);
-        // v1.3 BUFF: +1 Food per river tile (restored from nerf)
-        total.F += riverAdjacencyCount(state.map, city.workedTiles);
-        if (isRiverCity) {
-            total.P += 1;  // River Commerce bonus
-        }
-        // v1.3 BUFF: +1 Production per 2 river tiles (restored from nerf)
-        total.P += Math.floor(riverAdjacencyCount(state.map, city.workedTiles) / 2);
+        // v1.9: Balanced - +1 Prod per 3 river tiles (was per 2 - too strong)
+        total.F += riverAdjacencyCount(state.map, workedTiles);
+        total.P += Math.floor(riverAdjacencyCount(state.map, workedTiles) / 3);
     } else if (trait === "StarborneSeekers") {
-        // v1.2: NERFED - Removed Sacred Site science bonus entirely.
-        // They only rely on Spirit Observatory (+1 Science per City) now.
+        // v1.9: BUFF - "Celestial Studies" - +1 Science per Academy building
+        // Synergizes with Spirit Observatory for science-focused gameplay
+        const academyCount = state.cities.filter(c =>
+            c.ownerId === city.ownerId && c.buildings.includes(BuildingType.Academy)
+        ).length;
+        total.S += academyCount;
     } else if (trait === "AetherianVanguard") {
+        // v1.9 BUFF: +1 Production in Capital (helps rush Titan)
+        if (city.isCapital) {
+            total.P += 1;
+        }
         // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
         // This bridges their weak early game to the Titan
         const hasGarrison = state.units.some(u =>

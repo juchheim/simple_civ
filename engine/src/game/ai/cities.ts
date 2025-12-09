@@ -1,3 +1,4 @@
+import { aiLog, aiInfo } from "./debug-logging.js";
 import { hexEquals, hexDistance } from "../../core/hex.js";
 import {
     AiVictoryGoal,
@@ -16,6 +17,7 @@ import { tileWorkingPriority, tilesByPriority } from "./city-heuristics.js";
 import { AiPersonality, getPersonalityForPlayer } from "./personality.js";
 import { hexSpiral } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
+import { getProgressChainStatus } from "./progress-helpers.js";
 
 function isAtWar(state: GameState, playerId: string): boolean {
     return state.players.some(
@@ -121,7 +123,72 @@ function siegesNeedCaptureUnits(state: GameState, playerId: string): boolean {
 
 type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
+/**
+ * v2.1: Get the next progress project to build.
+ * Progress projects should ALWAYS be available as fallback options, even during wartime.
+ * A civ dominating militarily may find progress victory easier due to accumulated science.
+ */
+function getNextProgressProject(player: { techs: TechId[]; completedProjects: ProjectId[] } | undefined): BuildOption | null {
+    if (!player?.techs.includes(TechId.StarCharts)) return null;
+    if (!player.completedProjects.includes(ProjectId.Observatory)) {
+        return { type: "Project" as const, id: ProjectId.Observatory };
+    } else if (!player.completedProjects.includes(ProjectId.GrandAcademy)) {
+        return { type: "Project" as const, id: ProjectId.GrandAcademy };
+    } else if (!player.completedProjects.includes(ProjectId.GrandExperiment)) {
+        return { type: "Project" as const, id: ProjectId.GrandExperiment };
+    }
+    return null; // Already completed progress victory
+}
 
+/**
+ * v2.2: Progress-first priorities for designated progress city.
+ * This city will always prioritize victory projects even during wartime.
+ * Other cities handle military production.
+ * v1.9: Added civName parameter for civ-specific science building priority.
+ */
+function getProgressCityPriorities(player: { techs: TechId[]; completedProjects: ProjectId[]; civName?: string } | undefined, scoutCount: number): BuildOption[] {
+    const priorities: BuildOption[] = [];
+
+    // v1.9: ScholarKingdoms gets CityWard as TOP priority (for +1 Science per CityWard bonus)
+    // "Fortified Knowledge" - defensive science synergy
+    if (player?.civName === "ScholarKingdoms") {
+        priorities.push({ type: "Building" as const, id: BuildingType.CityWard });
+    }
+
+    // v1.9: StarborneSeekers gets Academy as TOP priority (for +1 Science per Academy bonus)
+    // "Celestial Studies" - science focus synergy
+    if (player?.civName === "StarborneSeekers") {
+        priorities.push({ type: "Building" as const, id: BuildingType.Academy });
+    }
+
+    // Victory projects at TOP priority
+    const nextProgress = getNextProgressProject(player);
+    if (nextProgress) {
+        priorities.push(nextProgress);
+    }
+
+    // Scouts for exploration (cap at 2)
+    if (scoutCount < 2) {
+        priorities.push({ type: "Unit" as const, id: UnitType.Scout });
+    }
+
+    // Buildings that boost science/production
+    priorities.push(
+        { type: "Building" as const, id: BuildingType.Academy },
+        { type: "Building" as const, id: BuildingType.Scriptorium },
+        { type: "Building" as const, id: BuildingType.SpiritObservatory },
+        { type: "Building" as const, id: BuildingType.StoneWorkshop },
+        { type: "Building" as const, id: BuildingType.CityWard },  // v1.9: For ScholarKingdoms science bonus
+    );
+
+    // Fallback to military if nothing else
+    priorities.push(
+        { type: "Unit" as const, id: UnitType.BowGuard },
+        { type: "Unit" as const, id: UnitType.SpearGuard },
+    );
+
+    return priorities;
+}
 
 function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar: boolean, state: GameState, playerId: string): BuildOption[] {
     const player = state.players.find(p => p.id === playerId);
@@ -135,7 +202,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
     // If we urgently need military (at war with deficit), force military production
     if (atWar && armyStatus.deficit >= 2) {
-        console.info(`[AI ARMY SIZE] ${playerId} URGENT military production! Current: ${armyStatus.currentMilitary}, Need: ${armyStatus.desired}`);
+        aiInfo(`[AI ARMY SIZE] ${playerId} URGENT military production! Current: ${armyStatus.currentMilitary}, Need: ${armyStatus.desired}`);
 
         const urgentMilitary: BuildOption[] = [];
 
@@ -154,13 +221,15 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         // Still allow essential buildings
         urgentMilitary.push({ type: "Building" as const, id: BuildingType.StoneWorkshop });
 
+        // v2.1: Always include progress projects as fallback - never completely abandon progress victory
+        const progressFallback = getNextProgressProject(player);
+        if (progressFallback) urgentMilitary.push(progressFallback);
+
         return urgentMilitary;
     }
 
     // Check if player can complete victory projects - if so, prioritize them!
-    const canCompleteVictoryProjects = player && player.techs.includes(TechId.StarCharts);
-    const hasObservatory = player?.completedProjects.includes(ProjectId.Observatory);
-    const hasGrandAcademy = player?.completedProjects.includes(ProjectId.GrandAcademy);
+    const progress = getProgressChainStatus(state, playerId);
 
     // Identify rush item if any
     let rushItem: BuildOption | undefined;
@@ -170,43 +239,31 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     }
 
     // Check if we are safe enough to pursue victory
-    // Safe if: Not at war OR we have a decent military (at least 3 units)
     const myUnits = state.units.filter(u => u.ownerId === playerId);
     const militaryCount = myUnits.filter(u => u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.Skiff).length;
     const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
 
     let safetyThreshold = 3;
-    // v0.99: Aetherian Vanguard maintains a larger standing army
     if (player?.civName === "AetherianVanguard") {
         if (state.turn > 100) safetyThreshold += 2;
         else if (state.turn > 30) safetyThreshold += 1;
     }
 
-    // Safe if: Not at war OR we have a decent military
-    // Aetherian Vanguard ALWAYS enforces the threshold (standing army), others only when at war
     let isSafeEnough = !atWar || militaryCount >= safetyThreshold;
     if (player?.civName === "AetherianVanguard") {
         isSafeEnough = militaryCount >= safetyThreshold;
     }
 
-    // If we can work on victory, do it (unless massively losing a war)
-    if (canCompleteVictoryProjects && isSafeEnough) {
-        const victoryPath: BuildOption[] = [];
-        if (!hasObservatory) {
-            victoryPath.push({ type: "Project" as const, id: ProjectId.Observatory });
-        } else if (!hasGrandAcademy) {
-            victoryPath.push({ type: "Project" as const, id: ProjectId.GrandAcademy });
-        } else {
-            victoryPath.push({ type: "Project" as const, id: ProjectId.GrandExperiment });
-        }
-
-        // Prepend victory projects to normal priorities
+    // v1.9: Simplified Progress Priority using consolidated helper
+    // If player has StarCharts, prioritize Progress chain (hybrid approach)
+    if (progress.canStartChain && progress.nextProject) {
+        aiInfo(`[AI Build] ${playerId} has StarCharts - prioritizing ${progress.nextProject}`);
+        const victoryPath: BuildOption[] = [{ type: "Project" as const, id: progress.nextProject }];
         const normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
         return [...victoryPath, ...normalPriorities];
     }
 
     // v0.96 balance: Check for army formation opportunities even when not at war
-    // v0.99: Drilled Ranks enables armies now
     const hasFormArmyTech = player?.techs.includes(TechId.DrilledRanks) ?? false;
 
     // Count unit types to determine which armies we can form
@@ -254,6 +311,8 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
                 ...allArmyOptions.filter(a => !armyPriorities.some(p => p.id === a.id))
             ];
 
+            // v2.1: Always include progress projects as fallback
+            const progressFallback = getNextProgressProject(player);
             return [
                 ...(rushItem ? [rushItem] : []),
                 ...prioritizedArmies,
@@ -263,6 +322,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
                 { type: "Unit" as const, id: UnitType.Riders },
                 { type: "Building" as const, id: BuildingType.StoneWorkshop },
                 { type: "Building" as const, id: BuildingType.Farmstead },
+                ...(progressFallback ? [progressFallback] : []),
             ];
         } else {
             // No armies yet, build varied individual units
@@ -308,11 +368,14 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             // Remove duplicates
             unitPriority = unitPriority.filter((v, i, a) => a.findIndex(t => t.type === v.type && t.id === v.id) === i);
 
+            // v2.1: Always include progress projects as fallback
+            const progressFallback = getNextProgressProject(player);
             return [
                 ...(rushItem ? [rushItem] : []),
                 ...unitPriority,
                 { type: "Building" as const, id: BuildingType.StoneWorkshop },
                 { type: "Building" as const, id: BuildingType.Farmstead },
+                ...(progressFallback ? [progressFallback] : []),
             ];
         }
     }
@@ -320,10 +383,12 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     // Not at war, but if we have Army Doctrine and units to form, consider it
     let normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
 
-    // v0.98 Update 7: ForgeClans early military deterrence
-    // They get attacked the most - ensure they have military before expanding
-    if (player?.civName === "ForgeClans") {
-        normalPriorities = getForgeClansEarlyMilitaryPriorities(state, playerId, normalPriorities);
+    // v1.9: REMOVED ForgeClans early military deterrence - no longer special-cased
+
+    // v1.9: ScholarKingdoms early military - they have high elimination rate (42.7%)
+    // Give them one early spearguard to help survive
+    if (player?.civName === "ScholarKingdoms") {
+        normalPriorities = getScholarKingdomsEarlyMilitaryPriorities(state, playerId, normalPriorities);
     }
 
     if (armyPriorities.length > 0) {
@@ -350,7 +415,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     const buildingTitan = state.cities.some(c => c.ownerId === playerId && c.currentBuild?.id === BuildingType.TitansCore);
 
     if (isAetherian && buildingTitan) {
-        console.info(`[AI WAR PREP] ${playerId} building Titan - switching all cities to MILITARY production!`);
+        aiInfo(`[AI WAR PREP] ${playerId} building Titan - switching all cities to MILITARY production!`);
         // Prioritize Armies heavily, then strongest units
         const warPrepPriorities: BuildOption[] = [];
 
@@ -370,6 +435,10 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
         // Still allow Stone Workshop for production if we have nothing else
         warPrepPriorities.push({ type: "Building" as const, id: BuildingType.StoneWorkshop });
+
+        // v2.1: Always include progress projects as fallback
+        const progressFallback = getNextProgressProject(player);
+        if (progressFallback) warPrepPriorities.push(progressFallback);
 
         return warPrepPriorities;
     }
@@ -505,7 +574,7 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
     const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
 
     if (isEarlyGame && needsMoreMilitary) {
-        console.info(`[AI Build] ForgeClans ${playerId} prioritizing military deterrence (${militaryUnits.length} military, ${myCities.length} cities)`);
+        aiInfo(`[AI Build] ForgeClans ${playerId} prioritizing military deterrence (${militaryUnits.length} military, ${myCities.length} cities)`);
 
         // Lighter military focus - one defender then continue normally
         const militaryFirst: BuildOption[] = [
@@ -518,6 +587,37 @@ function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string
         ];
 
         return militaryFirst;
+    }
+
+    return basePriorities;
+}
+
+/**
+ * v1.9: ScholarKingdoms early military deterrence
+ * They have high elimination rate (42.7%) - give them one early spearguard
+ * Simpler than ForgeClans - just need one defender
+ */
+function getScholarKingdomsEarlyMilitaryPriorities(state: GameState, playerId: string, basePriorities: BuildOption[]): BuildOption[] {
+    // Only apply in first 12 turns
+    if (state.turn > 12) {
+        return basePriorities;
+    }
+
+    const myUnits = state.units.filter(u => u.ownerId === playerId);
+    const militaryUnits = myUnits.filter(u =>
+        u.type !== UnitType.Settler &&
+        u.type !== UnitType.Scout &&
+        u.type !== UnitType.Skiff
+    );
+
+    // If no military at all, prioritize getting one spearguard
+    if (militaryUnits.length === 0) {
+        aiInfo(`[AI Build] ScholarKingdoms ${playerId} prioritizing early defender`);
+
+        return [
+            { type: "Unit" as const, id: UnitType.SpearGuard },  // One defender first
+            ...basePriorities.filter(p => !(p.type === "Unit" && p.id === UnitType.SpearGuard)),
+        ];
     }
 
     return basePriorities;
@@ -614,10 +714,33 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
 
     const cityOrder = state.cities.filter(c => c.ownerId === playerId);
     const atWar = isAtWar(next, playerId);
-    const priorities = buildPriorities(goal, personality, atWar, next, playerId);
+
+    // v2.2: Per-city build specialization
+    // Capital (or highest-pop city if no capital) prioritizes progress projects
+    // Other cities handle military production during wartime
+    const capital = myCities.find(c => c.isCapital);
+    const highestPopCity = myCities.reduce((best, city) =>
+        city.pop > (best?.pop ?? 0) ? city : best, myCities[0]);
+    const progressCityId = capital?.id ?? highestPopCity?.id;
+
+    // Check if player can pursue progress victory (has StarCharts)
+    const canPursueProgress = player?.techs.includes(TechId.StarCharts) ?? false;
+
+    // Count scouts for priority decisions
+    const scoutCount = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Scout).length;
+
     for (const city of cityOrder) {
         if (city.currentBuild) continue;
+
+        // v2.2: Use progress-first priorities for designated progress city
+        // This ensures at least one city always works on victory projects
+        const isProgressCity = city.id === progressCityId && canPursueProgress;
+        const priorities = isProgressCity
+            ? getProgressCityPriorities(player, scoutCount)
+            : buildPriorities(goal, personality, atWar, next, playerId);
+
         for (const option of priorities) {
+
             if (option.type === "Unit" && option.id === UnitType.Settler) {
                 // Only build if:
                 // 1. We want more cities (shortfall > 0)
@@ -629,13 +752,13 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
                     (cityCountShort || freeLandNear);
 
                 if (!allowSettler) continue;
-                console.info(`[AI Build] ${playerId} queuing Settler in ${city.name} (cities=${myCities.length}/${desiredCities}, inFlight=${settlersInFlight}, sites=${availableSites}, cap=${settlerCap})`);
+                aiInfo(`[AI Build] ${playerId} queuing Settler in ${city.name} (cities=${myCities.length}/${desiredCities}, inFlight=${settlersInFlight}, sites=${availableSites}, cap=${settlerCap})`);
                 settlersInFlight++;
             }
             if (canBuild(city, option.type, option.id, next)) {
                 // Log all builds (military and buildings are silent otherwise)
                 if (option.type !== "Unit" || option.id !== UnitType.Settler) {
-                    console.info(`[AI Build] ${playerId} queuing ${option.id} in ${city.name}`);
+                    aiInfo(`[AI Build] ${playerId} queuing ${option.id} in ${city.name}`);
                 }
 
                 next = tryAction(next, {
@@ -765,7 +888,7 @@ function evaluateCityForRazing(city: City, playerId: string, state: GameState): 
     const shouldRaze = razeScore >= 3;
 
     if (shouldRaze) {
-        console.info(`[AI Raze] ${playerId} considering razing ${city.name}: isolation=${isolation}, threat=${threatLevel.toFixed(2)}, econ=${economicValue}, def=${defensibility.toFixed(2)}, score=${razeScore}`);
+        aiInfo(`[AI Raze] ${playerId} considering razing ${city.name}: isolation=${isolation}, threat=${threatLevel.toFixed(2)}, econ=${economicValue}, def=${defensibility.toFixed(2)}, score=${razeScore}`);
     }
 
     return shouldRaze;
@@ -803,7 +926,7 @@ export function considerRazing(state: GameState, playerId: string): GameState {
         const shouldRaze = evaluateCityForRazing(city, playerId, next);
 
         if (shouldRaze) {
-            console.info(`[AI Raze] ${playerId} razing ${city.name}`);
+            aiInfo(`[AI Raze] ${playerId} razing ${city.name}`);
             next = tryAction(next, {
                 type: "RazeCity",
                 playerId,

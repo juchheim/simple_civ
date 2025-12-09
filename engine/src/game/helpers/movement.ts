@@ -1,10 +1,12 @@
-import { GameState, HexCoord, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
+import { aiLog, aiInfo } from "../ai/debug-logging.js";
+import { GameState, HexCoord, OverlayType, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
 import { hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 import { captureCity } from "./cities.js";
 import { ensureWar } from "./diplomacy.js";
 import { buildTileLookup, getUnitMaxMoves } from "./combat.js";
+import { collectGoodieHut } from "./goodie-huts.js";
 
 export type MoveContext = {
     stats: UnitStats;
@@ -94,12 +96,12 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
                 if (isVulnerableCity && canCapture) {
                     // Allowed
                 } else {
-                    console.log(`[VALIDATION FAIL] Enemy military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}`);
+                    aiLog(`[VALIDATION FAIL] Enemy military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}`);
                     throw new Error("Tile occupied by military unit");
                 }
             }
             if (friendlyMilitaryOnTile > 0) {
-                console.log(`[VALIDATION FAIL] Friendly military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}. Movers: ${movers.length}`);
+                aiLog(`[VALIDATION FAIL] Friendly military on tile ${target.q},${target.r}. Units: ${unitsOnTile.map(u => u.type).join(",")}. Movers: ${movers.length}`);
                 throw new Error("Tile occupied by military unit");
             }
             friendlyMilitaryOnTile += 1;
@@ -124,7 +126,7 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
             const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
             // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
             if (!isEnemyCityTile && diplomacy !== "War") {
-                console.log(`[VALIDATION FAIL] Peacetime block: ${playerId} -> ${tile.ownerId} (Diplomacy: ${diplomacy})`);
+                aiLog(`[VALIDATION FAIL] Peacetime block: ${playerId} -> ${tile.ownerId} (Diplomacy: ${diplomacy})`);
                 throw new Error("Cannot enter enemy territory during peacetime");
             }
         }
@@ -174,6 +176,12 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
 
         ensureWar(state, playerId, cityOnTile.ownerId);
         captureCity(state, cityOnTile, playerId);
+    }
+
+    // Check for goodie hut on destination tile
+    const destTile = state.map.tiles.find(t => hexEquals(t.coord, destination));
+    if (destTile && destTile.overlays.includes(OverlayType.GoodieHut)) {
+        collectGoodieHut(state, destTile, playerId, destination);
     }
 }
 

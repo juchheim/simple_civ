@@ -242,6 +242,8 @@ function checkProgressVictory(state: GameState): string | null {
 
 function checkConquestVictory(state: GameState): string | null {
     const alivePlayers = state.players.filter(p => !p.isEliminated);
+    // Avoid premature victory in single-player or setup states.
+    if (alivePlayers.length <= 1) return null;
 
     for (const p of alivePlayers) {
         // Condition 1: Owns all capitals

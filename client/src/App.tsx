@@ -6,11 +6,13 @@ import { TechTree } from "./components/TechTree";
 import { TitleScreen } from "./components/TitleScreen";
 import { EndGameExperience } from "./components/EndGame/EndGameExperience";
 import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sections";
+import { ToastContainer } from "./components/Toast";
 import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
+import { useGoodieHutAlerts } from "./hooks/useGoodieHutAlerts";
 
 /**
  * The main application component.
@@ -116,6 +118,12 @@ function App() {
         closeGameMenu,
         openGameMenu,
     });
+
+    // Goodie hut collection alerts
+    const { toasts: goodieHutToasts, dismissToast: dismissGoodieHutToast } = useGoodieHutAlerts(
+        gameState ?? { map: { tiles: [] }, units: [], players: [] } as any,
+        playerId
+    );
 
     const handleStartNewGame = () => {
         try {
@@ -413,6 +421,7 @@ function App() {
                 cityToCenter={cityToCenter}
                 onViewChange={setMapView}
             />
+            <ToastContainer toasts={goodieHutToasts} onDismiss={dismissGoodieHutToast} />
             <HUD
                 gameState={gameState}
                 selectedCoord={selectedCoord}
