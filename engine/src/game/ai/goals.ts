@@ -255,5 +255,24 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
         if (jadeGoal) return jadeGoal;
     }
 
+    // ===========================================
+    // PRIORITY 6: Large Map Hybrid (6+ cities → concurrent Conquest + Progress)
+    // ===========================================
+    // On large/huge maps, conquest becomes harder due to travel distances and more civs.
+    // Civs with 6+ cities should pursue Progress as a CONCURRENT victory condition.
+    // We DON'T switch goal - they stay Conquest for military focus, but:
+    // 1. Tech boost in tech.ts pushes them toward StarCharts path
+    // 2. Build logic in cities.ts already includes Progress projects as fallback
+    // 3. Once they have StarCharts, cities.ts prioritizes Progress chain automatically
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const mapSize = state.map.width * state.map.height;
+    const isLargeMap = mapSize > 300; // Standard ~391, Large ~475, Huge ~850
+
+    if (myCities.length >= 6 && isLargeMap && fallback === "Conquest") {
+        // Log hybrid mode - goal stays Conquest but Progress is pursued concurrently
+        aiInfo(`[AI Goal] ${playerId} Large map hybrid mode: ${myCities.length} cities, pursuing Conquest + Progress concurrently`);
+        // Don't switch goal - stay Conquest to maintain military production focus
+    }
+
     return fallback;
 }

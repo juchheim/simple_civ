@@ -32,6 +32,16 @@ export type AiPersonality = {
     projectRush?: RushTarget;
     unitBias: UnitBias;
     declareAfterContactTurns?: number;
+    /** v2.0: Chance (0-1) that this civ will attempt an early military rush */
+    earlyRushChance?: number;
+    /** v2.0: Set by RNG at game start if this civ is rushing - triggers immediate war prep on contact */
+    isEarlyRushing?: boolean;
+    /** v2.0: Force immediate war prep on first contact (used by early rushers) */
+    forceEarlyWarPrep?: boolean;
+    /** v2.0: Faster war prep transitions (fewer turns per phase) */
+    acceleratedWarPrep?: boolean;
+    /** v2.1: Multiplier for desired army size. ForgeClans uses 1.5 for larger standing armies. Default 1.0 */
+    armySizeMultiplier?: number;
 };
 
 type CivName =
@@ -76,17 +86,20 @@ const personalities: Record<CivName, AiPersonality> = {
         },
         unitBias: { hillHold: true },
         declareAfterContactTurns: 3,  // Faster war declaration
+        earlyRushChance: 0.30,  // v2.0: 30% chance to rush from game start
+        armySizeMultiplier: 1.5,  // v2.1: 50% larger armies - leverage cheaper military production
     },
     ScholarKingdoms: {
         aggression: {
-            warPowerThreshold: 1.3,  // Defensive - only fight if clearly stronger
-            warDistanceMax: 12,
-            peacePowerThreshold: 1.0,
+            // v2.1: Much more defensive - almost never start wars
+            warPowerThreshold: 2.0,  // Only attack if 2x stronger (extremely rare)
+            warDistanceMax: 10,      // Reduced range - stay close to home
+            peacePowerThreshold: 1.2,  // More willing to accept peace
         },
         settleBias: {},
         expansionDesire: 1.1,  // v1.9: Reduced - focus on 3 cities
         desiredCities: 3,      // v1.9: Reduced from 4 for tall play
-        // v1.9: Added StoneworkHalls/CityWards for \"Fortified Knowledge\" bonus
+        // v1.9: Added StoneworkHalls/CityWards for "Fortified Knowledge" bonus
         techWeights: {
             [TechId.ScriptLore]: 1.2,
             [TechId.ScholarCourts]: 1.2,
@@ -96,7 +109,8 @@ const personalities: Record<CivName, AiPersonality> = {
         },
         projectRush: { type: "Project", id: ProjectId.Observatory },
         unitBias: { rangedSafety: 1 },
-        declareAfterContactTurns: 2,
+        declareAfterContactTurns: 0,  // v2.1: Never force-declare war
+        armySizeMultiplier: 1.25,     // v2.1: 25% more units for defense
     },
     RiverLeague: {
         aggression: {
@@ -134,13 +148,14 @@ const personalities: Record<CivName, AiPersonality> = {
         projectRush: { type: "Building", id: BuildingType.TitansCore },
         unitBias: {},
         declareAfterContactTurns: 2,
+        earlyRushChance: 0.30,  // v2.0: 30% chance to rush from game start
     },
     StarborneSeekers: {
         aggression: {
-            // v1.9: Even more defensive - only attack when significantly stronger
-            warPowerThreshold: 1.5,  // Very defensive - needs big advantage
-            warDistanceMax: 12,
-            peacePowerThreshold: 1.2,  // Very willing to accept peace
+            // v2.1: Extremely defensive - almost never start wars
+            warPowerThreshold: 2.5,  // Only attack if 2.5x stronger (almost never)
+            warDistanceMax: 8,       // Very short range - purely defensive
+            peacePowerThreshold: 1.5,  // Very eager to accept peace
         },
         settleBias: {},
         expansionDesire: 1.2,  // Slightly less expansion focus
@@ -149,6 +164,7 @@ const personalities: Record<CivName, AiPersonality> = {
         projectRush: { type: "Building", id: BuildingType.SpiritObservatory },
         unitBias: { rangedSafety: 1 },
         declareAfterContactTurns: 0,  // v1.9: Never force-declare war - purely defensive
+        armySizeMultiplier: 1.25,     // v2.1: 25% more units for defense
     },
     JadeCovenant: {
         aggression: {
@@ -186,6 +202,32 @@ export function getPersonalityForPlayer(state: GameState, playerId: string): AiP
     const civ = player?.civName;
     const basePersonality = getPersonality(civ);
 
+    // v2.0: Early Rush Check
+    // Some aggressive civs have a chance to rush from the very start of the game
+    // Uses seeded RNG based on player ID + game seed for determinism
+    if (basePersonality.earlyRushChance && state.turn <= 25) {
+        // Generate a deterministic "roll" for this player based on game state
+        const rushSeed = hashCode(`${state.seed}_${playerId}_earlyRush`);
+        const rushRoll = (rushSeed & 0x7fffffff) / 0x7fffffff; // 0-1 range
+
+        if (rushRoll < basePersonality.earlyRushChance) {
+            // This civ is rushing! Immediately start war prep on contact
+            // They use normal war prep phases but accelerated, then attack aggressively
+            return {
+                ...basePersonality,
+                isEarlyRushing: true,
+                forceEarlyWarPrep: true,       // Triggers war prep immediately on contact
+                acceleratedWarPrep: true,       // Faster prep phase transitions
+                aggression: {
+                    ...basePersonality.aggression,
+                    warPowerThreshold: 0.5,     // Attack even at half power
+                    warDistanceMax: 999,        // No distance limit
+                    peacePowerThreshold: 0.3,   // Don't accept peace easily
+                },
+            };
+        }
+    }
+
     // v1.9: Late Game Aggression Override
     // When goal is Conquest at turn 200+, aggressive civs get ultra-aggressive settings
     if (state.turn >= 200 && player?.aiGoal === "Conquest") {
@@ -206,4 +248,17 @@ export function getPersonalityForPlayer(state: GameState, playerId: string): AiP
     }
 
     return basePersonality;
+}
+
+/**
+ * Simple string hash for deterministic RNG from seed strings
+ */
+function hashCode(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash;
 }

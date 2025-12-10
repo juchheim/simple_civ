@@ -46,8 +46,10 @@ export function useInteractionController({
             targetType: "Unit"
         };
 
+        // Native units (ownerId "natives") are always attackable without war
+        const isNative = targetUnit.ownerId === "natives";
         const diplomacyState = diplomacy?.[playerId]?.[targetUnit.ownerId] || DiplomacyState.Peace;
-        if (diplomacyState === DiplomacyState.Peace) {
+        if (!isNative && diplomacyState === DiplomacyState.Peace) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetUnit.ownerId });
         } else if (showCombatPreview) {
             const preview = getCombatPreviewUnitVsUnit(gameState, unit, targetUnit);

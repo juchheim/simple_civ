@@ -20,6 +20,8 @@ export enum OverlayType {
     OreVein = "OreVein",
     SacredSite = "SacredSite",
     GoodieHut = "GoodieHut",
+    NativeCamp = "NativeCamp",
+    ClearedSettlement = "ClearedSettlement",
 }
 
 export enum UnitType {
@@ -34,6 +36,9 @@ export enum UnitType {
     ArmyBowGuard = "ArmyBowGuard",
     ArmyRiders = "ArmyRiders",
     Titan = "Titan",
+    // Native units (non-player controlled)
+    NativeChampion = "NativeChampion",
+    NativeArcher = "NativeArcher",
 }
 
 export enum UnitDomain {
@@ -142,6 +147,7 @@ export type Unit = {
     failedAutoMoveTargets?: HexCoord[];
     autoExploreHistory?: string[]; // Recent coordinates (hex keys) for loop detection
     statusEffects?: string[]; // Active status effects (e.g. "NaturesWrath")
+    campId?: string; // Links native unit to its home camp
 };
 
 export type City = {
@@ -178,6 +184,7 @@ export type Player = {
     completedProjects: ProjectId[];
     isEliminated: boolean;
     warPreparation?: WarPreparationState;
+    campClearingPrep?: CampClearingPrep;
     researchHistory?: Record<string, number>; // TechId -> progress
     hasFoundedFirstCity?: boolean;
     currentEra: EraId;
@@ -218,6 +225,12 @@ export type WarPreparationState = {
     startedTurn: number;
 };
 
+export type CampClearingPrep = {
+    targetCampId: string;
+    state: "Buildup" | "Gathering" | "Positioning" | "Ready";
+    startedTurn: number;
+};
+
 export type DiplomacyOffer = { from: string; to: string; type: "Peace" | "Vision" };
 
 export type SharedVisionState = Record<string, Record<string, boolean>>;
@@ -236,6 +249,18 @@ export type RiverSegmentDescriptor = {
 
 export type HiddenRiverTile = {
     coord: HexCoord;
+};
+
+// Native Camp System
+export type NativeCampState = "Patrol" | "Aggro" | "Retreat";
+
+export type NativeCamp = {
+    id: string;
+    coord: HexCoord;
+    unitIds: string[];  // Champion + 2 Archers
+    state: NativeCampState;
+    aggroTurnsRemaining: number;
+    aggroTargetPlayerId?: string;  // Player who triggered aggro
 };
 
 export type GameState = {
@@ -267,6 +292,7 @@ export type GameState = {
     usedCityNames?: string[]; // Track all city names ever used in this game
     history?: GameHistory;
     lastGoodieHutReward?: GoodieHutRewardInfo; // Most recent reward for client notification
+    nativeCamps: NativeCamp[]; // Native camp state tracking
 };
 
 export type GoodieHutRewardInfo = {
@@ -275,6 +301,7 @@ export type GoodieHutRewardInfo = {
     cityName?: string;
     percent?: number;
     playerId: string;
+    timestamp: number; // Unique identifier for toast deduplication
 };
 
 export enum HistoryEventType {

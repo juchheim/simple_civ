@@ -2,9 +2,10 @@ import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
 import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
-import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveUnitsForPreparation, routeCaptureUnitsToActiveSieges, aidVulnerableUnits } from "./units.js";
+import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveUnitsForPreparation, routeCaptureUnitsToActiveSieges, aidVulnerableUnits, moveUnitsForCampClearing, attackCampTargets } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
 import { manageWarPreparation } from "./war-prep.js";
+import { manageCampClearing } from "./camp-clearing.js";
 import { TraceEntry, safeClone } from "./trace.js";
 import { setTraceContext, clearTraceContext } from "./shared/actions.js";
 import { tryAction } from "./shared/actions.js";
@@ -41,6 +42,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     // v0.99: War Preparation
     state = manageWarPreparation(state, playerId);
 
+    // Native Camp Clearing
+    state = manageCampClearing(state, playerId);
+
     state = handleDiplomacy(state, playerId);
     state = retreatWounded(state, playerId);
     state = repositionRanged(state, playerId);
@@ -52,7 +56,14 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     // Move units for war preparation (Positioning phase)
     state = moveUnitsForPreparation(state, playerId);
 
+    // Move units for camp clearing
+    state = moveUnitsForCampClearing(state, playerId);
+
     state = attackTargets(state, playerId);
+
+    // Attack camp targets (separate from regular attackTargets)
+    state = attackCampTargets(state, playerId);
+
     state = moveMilitaryTowardTargets(state, playerId);
 
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
@@ -96,6 +107,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     // v0.99: War Preparation
     state = manageWarPreparation(state, playerId);
 
+    // Native Camp Clearing
+    state = manageCampClearing(state, playerId);
+
     if (!options?.skipDiplomacy) {
         state = handleDiplomacy(state, playerId);
     }
@@ -109,7 +123,14 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     // Move units for war preparation (Positioning phase)
     state = moveUnitsForPreparation(state, playerId);
 
+    // Move units for camp clearing
+    state = moveUnitsForCampClearing(state, playerId);
+
     state = attackTargets(state, playerId);
+
+    // Attack camp targets (separate from regular attackTargets)
+    state = attackCampTargets(state, playerId);
+
     state = moveMilitaryTowardTargets(state, playerId);
 
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard

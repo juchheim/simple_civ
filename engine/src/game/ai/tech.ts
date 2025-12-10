@@ -23,7 +23,21 @@ function availableTechs(playerTechs: TechId[]): TechId[] {
     return Object.values(TechId).filter(t => !playerTechs.includes(t) && canResearch(playerTechs, t));
 }
 
-function goalTechPath(goal: AiVictoryGoal): TechId[] {
+function goalTechPath(goal: AiVictoryGoal, civName?: string): TechId[] {
+    // v2.0: AetherianVanguard gets a custom path that interleaves Conquest + Titan rush
+    // Order: FormationTraining → StoneworkHalls → Fieldcraft → DrilledRanks → TimberMills → SteamForges
+    // This respects era gates (3 Hearth for Banner, 2 Banner for Engine) while prioritizing military
+    if (civName === "AetherianVanguard") {
+        return [
+            TechId.FormationTraining,  // Hearth #1 - Military first (+1/+1 combat)
+            TechId.StoneworkHalls,     // Hearth #2 - Titan prereq chain
+            TechId.Fieldcraft,         // Hearth #3 - Unlocks Banner era
+            TechId.DrilledRanks,       // Banner #1 - Enables Form Army projects
+            TechId.TimberMills,        // Banner #2 - Unlocks Engine era + Titan prereq
+            TechId.SteamForges,        // Engine - Unlocks Titan's Core!
+        ];
+    }
+
     if (goal === "Progress") {
         // v1.9: Added SignalRelay as prereq for StarCharts
         return [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts];
@@ -67,12 +81,17 @@ export function aiChooseTech(playerId: string, state: GameState, goal: AiVictory
     if (!player || player.currentTech) return null;
     const personality = getPersonalityForPlayer(state, playerId);
     const hasTech = (t: TechId) => player.techs.includes(t);
-    const path = goalTechPath(goal);
+    const path = goalTechPath(goal, player.civName);
     const rushTargets = rushTechs(personality);
 
-    for (const techId of path) {
-        if (!hasTech(techId) && canResearch(player.techs, techId)) {
-            return techId;
+    // v2.0: For civs with a custom tech path (like AetherianVanguard), follow the exact order
+    // This ensures the interleaved Conquest + Titan rush path is respected
+    if (player.civName === "AetherianVanguard") {
+        for (const techId of path) {
+            if (!hasTech(techId) && canResearch(player.techs, techId)) {
+                aiInfo(`[AI Tech] ${playerId} AetherianVanguard custom path: ${techId} (turn ${state.turn})`);
+                return techId;
+            }
         }
     }
 
@@ -88,12 +107,25 @@ export function aiChooseTech(playerId: string, state: GameState, goal: AiVictory
     const isLateEnough = state.turn >= 100 || player.techs.length >= 8;
     const starChartsUniversalBoost = isLateEnough ? 120 : 0;
 
+    // v2.1: Large map hybrid boost - 6+ cities on large maps NEED Progress as backup
+    // This fixes the issue where conquest civs like ForgeClans have tech weights that
+    // deprioritize Progress-adjacent techs (SignalRelay, etc.), blocking their fallback victory path
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const mapSize = state.map.width * state.map.height;
+    const isLargeMap = mapSize > 300; // Standard ~391, Large ~475, Huge ~850
+    const largeMapHybridBoost = (isLargeMap && myCities.length >= 6 && goal === "Conquest") ? 150 : 0;
+
+    // v2.0: Rush techs get 250 points to beat goal path score (200 max)
+    // This ensures AetherianVanguard researches Titan path before Conquest path
+    const hasRushTarget = rushTargets.length > 0;
+
     const available = availableTechs(player.techs)
         .map(t => {
             const pathIdx = path.indexOf(t);
             const pathScore = pathIdx >= 0 ? 200 - pathIdx * 10 : 0;
             const weight = personality.techWeights[t] ? personality.techWeights[t]! * 50 : 0;
-            const rushScore = rushTargets.includes(t) ? 150 : 0;
+            // v2.0: Increased from 150 to 250 to beat goal path score
+            const rushScore = rushTargets.includes(t) ? 250 : 0;
             // v1.3: Boost Progress path techs for progress-oriented civs in Balanced mode
             // v1.9: Added SignalRelay (new prereq for StarCharts)
             const progressBoost = (prefersProgress && progressPathBoost > 0 &&
@@ -101,13 +133,19 @@ export function aiChooseTech(playerId: string, state: GameState, goal: AiVictory
                 ? progressPathBoost : 0;
             // v1.8: Universal StarCharts boost for all civs after turn 100 or 8+ techs
             // v1.9: Added SignalRelay to the boost chain
-            const universalStarChartsBoost = (starChartsUniversalBoost > 0 &&
+            // v2.1: Added largeMapHybridBoost for 6+ city conquest civs on large maps
+            const universalStarChartsBoost = ((starChartsUniversalBoost > 0 || largeMapHybridBoost > 0) &&
                 (t === TechId.StarCharts || t === TechId.SignalRelay || t === TechId.ScholarCourts || t === TechId.ScriptLore))
-                ? starChartsUniversalBoost : 0;
+                ? starChartsUniversalBoost + largeMapHybridBoost : 0;
             const costTiebreaker = -TECHS[t].cost;
             return { t, score: pathScore + weight + rushScore + progressBoost + universalStarChartsBoost + costTiebreaker };
         })
         .sort((a, b) => b.score - a.score);
+
+    // v2.0: Log when rush target is prioritized
+    if (hasRushTarget && available.length > 0 && rushTargets.includes(available[0].t)) {
+        aiInfo(`[AI Tech] ${playerId} Rush tech prioritized: ${available[0].t} (turn ${state.turn})`);
+    }
 
     // v1.8: Log when StarCharts boost activates for debugging
     if (starChartsUniversalBoost > 0 && available.length > 0) {

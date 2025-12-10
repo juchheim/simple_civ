@@ -1,5 +1,6 @@
 import React from "react";
 import { Unit, UnitType, GameState, getUnitCombatStats, UnitState } from "@simple-civ/engine";
+import { getUnitDisplayName } from "../../../assets";
 
 type UnitPanelProps = {
     unit: Unit;
@@ -40,11 +41,16 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
         <div style={{ marginTop: 10 }}>
             <div className="hud-section-title">Selected Unit</div>
             <p className="hud-title-sm" style={{ margin: "2px 0 8px 0" }}>
-                Unit: {unit.type}
+                Unit: {getUnitDisplayName(unit.type)}
             </p>
             {owner && (
                 <div style={{ fontSize: 12, color: owner.color, marginBottom: 8, fontWeight: 600 }}>
                     Owner: {owner.civName}
+                </div>
+            )}
+            {!owner && unit.ownerId === "natives" && (
+                <div style={{ fontSize: 12, color: "#f97316", marginBottom: 8, fontWeight: 600 }}>
+                    Native Unit
                 </div>
             )}
             <UnitStatusChips
@@ -84,7 +90,7 @@ const UnitStatusChips: React.FC<UnitStatusChipsProps> = ({ unit, stats, linkedPa
         <span className="hud-chip">HP: {unit.hp}</span>
         <span className="hud-chip">Atk: {stats.atk}</span>
         <span className="hud-chip">Def: {stats.def}</span>
-        {linkedPartner && <span className="hud-chip success">Linked with {linkedPartner.type}</span>}
+        {linkedPartner && <span className="hud-chip success">Linked with {getUnitDisplayName(linkedPartner.type)}</span>}
         {unit.isAutoExploring && <span className="hud-chip success">Auto Exploring</span>}
         {unit.state === UnitState.Fortified && <span className="hud-chip success">Fortified</span>}
         {unit.autoMoveTarget && <span className="hud-chip">Moving...</span>}

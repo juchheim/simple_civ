@@ -1,4 +1,4 @@
-import { GameState, UnitState, UnitType, BuildingType, HistoryEventType } from "../../core/types.js";
+import { GameState, UnitState, UnitType, BuildingType, HistoryEventType, OverlayType } from "../../core/types.js";
 import { logEvent } from "../history.js";
 import {
     CITY_DEFENSE_BASE,
@@ -8,6 +8,7 @@ import {
     TERRAIN,
     FORTIFY_DEFENSE_BONUS,
     UNITS,
+    NATIVE_CAMP_CLEAR_PRODUCTION_REWARD,
 } from "../../core/constants.js";
 import { hexDistance, hexEquals, hexToString, getNeighbors } from "../../core/hex.js";
 import { captureCity } from "../helpers/cities.js";
@@ -16,6 +17,7 @@ import { ensureWar } from "../helpers/diplomacy.js";
 import { assertHasNotAttacked, assertMovesLeft, assertOwnership, getCityAt, getUnitOrThrow } from "../helpers/action-helpers.js";
 import { resolveLinkedPartner, unlinkPair } from "../helpers/movement.js";
 import { AttackAction } from "./unit-action-types.js";
+import { triggerNativeAggro, triggerNativeRetreat, isNativeUnit } from "../natives/native-behavior.js";
 
 export function handleAttack(state: GameState, action: AttackAction): GameState {
     const attacker = getUnitOrThrow(state, action.attackerId, "Attacker not found");
@@ -35,7 +37,8 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
     const targetOwner = action.targetType === "Unit"
         ? state.units.find(u => u.id === action.targetId)?.ownerId
         : state.cities.find(c => c.id === action.targetId)?.ownerId;
-    if (targetOwner && targetOwner !== action.playerId) {
+    // Skip war check for native units (owned by "natives" special ID) - always attackable
+    if (targetOwner && targetOwner !== action.playerId && targetOwner !== "natives") {
         ensureWar(state, action.playerId, targetOwner);
     }
 
@@ -117,6 +120,15 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         attacker.movesLeft = 0;
         attacker.state = UnitState.Normal;
 
+        // Native combat triggers
+        if (isNativeUnit(defender)) {
+            // Trigger aggro for the camp when a native is attacked
+            triggerNativeAggro(state, defender, action.playerId);
+
+            // Trigger retreat when native takes damage
+            triggerNativeRetreat(state, defender);
+        }
+
         // v2.0: Melee return damage - defender counter-attacks if alive and attacker is melee
         if (defender.hp > 0 && attackerStats.rng === 1) {
             // Calculate attacker's defense with terrain (attacker is not fortified since they attacked)
@@ -139,6 +151,8 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
 
         if (defender.hp <= 0) {
             const defenderCoord = defender.coord;
+            const wasNative = isNativeUnit(defender);
+            const defenderCampId = defender.campId;
 
             // v1.1: Aetherian Vanguard "Scavenger Doctrine" - Gain Science from kills
             if (attacker.ownerId === action.playerId) {
@@ -159,6 +173,12 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             unlinkPair(defender, resolveLinkedPartner(state, defender));
 
             state.units = state.units.filter(u => u.id !== defender.id);
+
+            // Handle native camp clearing
+            if (wasNative && defenderCampId) {
+                handleNativeDeath(state, defenderCampId, action.playerId);
+            }
+
 
             // Move Attacker into tile if melee
             if (attackerStats.rng === 1 && dist === 1) {
@@ -284,4 +304,51 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
     }
 
     return state;
+}
+
+/**
+ * Handle native unit death - check if camp should be cleared and grant rewards
+ */
+function handleNativeDeath(state: GameState, campId: string, killerPlayerId: string): void {
+    const camp = state.nativeCamps.find(c => c.id === campId);
+    if (!camp) return;
+
+    // Check if any camp units remain
+    const remainingUnits = state.units.filter(u => u.campId === campId);
+    if (remainingUnits.length > 0) return; // Camp still has defenders
+
+    // Camp is cleared! Transform overlay and grant reward
+    const campTile = state.map.tiles.find(t => hexEquals(t.coord, camp.coord));
+    if (campTile) {
+        // Remove NativeCamp overlay, add ClearedSettlement
+        const campIdx = campTile.overlays.indexOf(OverlayType.NativeCamp);
+        if (campIdx !== -1) {
+            campTile.overlays.splice(campIdx, 1);
+        }
+        campTile.overlays.push(OverlayType.ClearedSettlement);
+    }
+
+    // Grant production reward to nearest city
+    const playerCities = state.cities.filter(c => c.ownerId === killerPlayerId);
+    if (playerCities.length > 0) {
+        // Find nearest city
+        let nearestCity = playerCities[0];
+        let nearestDist = hexDistance(nearestCity.coord, camp.coord);
+        for (const city of playerCities) {
+            const dist = hexDistance(city.coord, camp.coord);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearestCity = city;
+            }
+        }
+
+        // Add production to stored production (will be applied next turn)
+        nearestCity.storedProduction = (nearestCity.storedProduction || 0) + NATIVE_CAMP_CLEAR_PRODUCTION_REWARD;
+    }
+
+    // Remove camp from state
+    const campIndex = state.nativeCamps.findIndex(c => c.id === campId);
+    if (campIndex !== -1) {
+        state.nativeCamps.splice(campIndex, 1);
+    }
 }

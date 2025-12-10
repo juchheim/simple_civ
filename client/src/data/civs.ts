@@ -11,7 +11,7 @@ export type CivOption = {
 export const CIV_OPTIONS: CivOption[] = [
     {
         id: "ForgeClans",
-        title: "ForgeClans",
+        title: "Forge Clans",
         summary: "Industrial powerhouse with strong production and late-game military.",
         perk: "+1 Production per Hill (Capital) • Military 10% cheaper • +1 Attack per Engine tech",
         color: "#f97316",

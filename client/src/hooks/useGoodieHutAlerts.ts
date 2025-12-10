@@ -13,27 +13,20 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
     useEffect(() => {
         const currentReward = gameState.lastGoodieHutReward;
 
-        // Detect new reward (different from last one we processed)
-        if (currentReward && currentReward !== lastRewardRef.current) {
-            // Check if this is really a new reward (not just a reload)
-            if (!lastRewardRef.current ||
-                currentReward.type !== lastRewardRef.current.type ||
-                currentReward.amount !== lastRewardRef.current.amount ||
-                currentReward.cityName !== lastRewardRef.current.cityName) {
-
-                if (currentReward.playerId !== playerId) {
-                    lastRewardRef.current = currentReward;
-                    return;
-                }
-
-                const { message, icon } = formatRewardMessage(currentReward);
-                setToasts(prev => [...prev, {
-                    id: `goodie-${Date.now()}`,
-                    message,
-                    icon,
-                    duration: 4000,
-                }]);
+        // Detect new reward (different from last one we processed via timestamp)
+        if (currentReward && currentReward.timestamp !== lastRewardRef.current?.timestamp) {
+            if (currentReward.playerId !== playerId) {
+                lastRewardRef.current = currentReward;
+                return;
             }
+
+            const { message, icon } = formatRewardMessage(currentReward);
+            setToasts(prev => [...prev, {
+                id: `goodie-${currentReward.timestamp}`,
+                message,
+                icon,
+                duration: 4000,
+            }]);
         }
 
         lastRewardRef.current = currentReward;

@@ -32,6 +32,7 @@ const mockGameState: GameState = {
     sharedVision: {},
     contacts: {},
     diplomacyOffers: [],
+    nativeCamps: [],
 };
 
 describe("UnitPanel", () => {

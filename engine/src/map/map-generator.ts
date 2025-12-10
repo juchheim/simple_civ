@@ -14,9 +14,10 @@ import {
     UnitType,
     OverlayType,
     EraId,
+    NativeCamp,
 } from "../core/types.js";
-import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS } from "../core/constants.js";
-import { hexEquals, hexToString, hexSpiral, getNeighbors } from "../core/hex.js";
+import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS, NATIVE_CAMP_COUNTS, NATIVE_CAMP_MIN_DISTANCE_FROM_START, NATIVE_CAMP_MIN_DISTANCE_BETWEEN } from "../core/constants.js";
+import { hexEquals, hexToString, hexSpiral, getNeighbors, hexDistance } from "../core/hex.js";
 import { getTileYields } from "../game/rules.js";
 import { scoreCitySite } from "../game/ai-heuristics.js";
 import { applyTerrainNoise } from "./generation/terrain.js";
@@ -209,6 +210,22 @@ export function generateWorld(settings: WorldGenSettings): GameState {
             hasAttacked: false,
         });
 
+        // v2.0: Base SpearGuard (all civs) - prevents easy early capital rushes
+        const spearStats = UNITS[UnitType.SpearGuard];
+        const spearCoord = findSpawnCoord(usedCoords);
+        usedCoords.push(spearCoord);
+        units.push({
+            id: `u_${p.id}_spear`,
+            type: UnitType.SpearGuard,
+            ownerId: p.id,
+            coord: spearCoord,
+            hp: spearStats.hp,
+            maxHp: spearStats.hp,
+            movesLeft: spearStats.move,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
         // v0.98 Update 2: AetherianVanguard starts with extra units (defined in constants)
         if (p.civName === "AetherianVanguard") {
             const extraUnits = AETHERIAN_EXTRA_STARTING_UNITS;
@@ -251,6 +268,19 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         // NOTE: JadeCovenant extra settler REMOVED in v0.98 update
         // Their 80% win rate with growth bonuses + pop combat bonus was too strong
     }
+    // Generate native camps before creating state
+    const startingPositions = Array.from(startingSpotMap.values()).map(s => s.coord);
+    const { camps: nativeCamps, nativeUnits } = generateNativeCamps({
+        tiles,
+        mapSize: settings.mapSize,
+        startingPositions,
+        rng,
+        getTile,
+        isLand,
+    });
+
+    // Add native units to the main units array
+    units.push(...nativeUnits);
 
     const initialState: GameState = {
         id: crypto.randomUUID(),
@@ -274,6 +304,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         revealed: initVisibility(players, tiles, units, cities),
         diplomacy: initDiplomacy(players),
         diplomacyOffers: [],
+        nativeCamps,
     };
 
     // Seed history and initial fog baseline so replay starts with visible starts
@@ -375,4 +406,147 @@ function initVisibility(players: Player[], tiles: Tile[], units: Unit[], cities:
         vis[p.id] = Array.from(visible).filter(v => tileSet.has(v));
     }
     return vis;
+}
+
+// Native Camp Generation
+type NativeCampGenParams = {
+    tiles: Tile[];
+    mapSize: MapSize;
+    startingPositions: HexCoord[];
+    rng: WorldRng;
+    getTile: (coord: HexCoord) => Tile | undefined;
+    isLand: (t: Tile | undefined) => boolean;
+};
+
+function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[], nativeUnits: Unit[] } {
+    const { tiles, mapSize, startingPositions, rng, getTile, isLand } = params;
+
+    const [minCamps, maxCamps] = NATIVE_CAMP_COUNTS[mapSize] ?? [2, 4];
+    const targetCamps = rng.int(minCamps, maxCamps + 1);
+
+    if (targetCamps === 0) {
+        return { camps: [], nativeUnits: [] };
+    }
+
+    // Find valid camp tiles
+    const validCampTiles = tiles.filter(t => {
+        // Must be land (not mountain, coast, deep sea)
+        if (!isLand(t)) return false;
+
+        // Cannot have existing overlays
+        if (t.overlays.length > 0) return false;
+
+        // Must be far enough from all starting positions
+        const tooCloseToStart = startingPositions.some(
+            start => hexDistance(t.coord, start) < NATIVE_CAMP_MIN_DISTANCE_FROM_START
+        );
+        if (tooCloseToStart) return false;
+
+        return true;
+    });
+
+    if (validCampTiles.length === 0) {
+        return { camps: [], nativeUnits: [] };
+    }
+
+    // Weight tiles by terrain preference (Forest > Hills > Marsh > others)
+    const weightedTiles = validCampTiles.map(t => ({
+        tile: t,
+        weight: t.terrain === TerrainType.Forest ? 3 :
+            t.terrain === TerrainType.Hills ? 2 :
+                t.terrain === TerrainType.Marsh ? 1.5 : 1
+    }));
+
+    // Select camp tiles respecting minimum distance between camps
+    const selectedCampTiles: Tile[] = [];
+    const shuffledWeighted = [...weightedTiles];
+    rng.shuffle(shuffledWeighted);
+
+    // Sort by weight (higher weight first) for better terrain selection
+    shuffledWeighted.sort((a, b) => b.weight - a.weight);
+
+    for (const { tile } of shuffledWeighted) {
+        if (selectedCampTiles.length >= targetCamps) break;
+
+        // Check distance from already selected camps
+        const tooCloseToOtherCamp = selectedCampTiles.some(
+            existing => hexDistance(tile.coord, existing.coord) < NATIVE_CAMP_MIN_DISTANCE_BETWEEN
+        );
+        if (tooCloseToOtherCamp) continue;
+
+        selectedCampTiles.push(tile);
+    }
+
+    // Create camps and units
+    const camps: NativeCamp[] = [];
+    const nativeUnits: Unit[] = [];
+
+    for (let i = 0; i < selectedCampTiles.length; i++) {
+        const campTile = selectedCampTiles[i];
+        const campId = `camp_${i}_${hexToString(campTile.coord)}`;
+
+        // Add NativeCamp overlay to the tile
+        campTile.overlays.push(OverlayType.NativeCamp);
+
+        // Create Champion unit (on camp tile)
+        const championStats = UNITS[UnitType.NativeChampion];
+        const championId = `native_champion_${campId}`;
+        nativeUnits.push({
+            id: championId,
+            type: UnitType.NativeChampion,
+            ownerId: "natives", // Special owner ID for native units
+            coord: campTile.coord,
+            hp: championStats.hp,
+            maxHp: championStats.hp,
+            movesLeft: championStats.move,
+            state: UnitState.Normal,
+            hasAttacked: false,
+            campId,
+        });
+
+        // Create 2 Archer units (on camp tile and nearby)
+        const archerStats = UNITS[UnitType.NativeArcher];
+        const archerPositions = [campTile.coord];
+
+        // Try to find a nearby valid tile for second archer
+        const neighbors = getNeighbors(campTile.coord);
+        for (const n of neighbors) {
+            const neighborTile = getTile(n);
+            if (isLand(neighborTile) && archerPositions.length < 2) {
+                archerPositions.push(n);
+                break;
+            }
+        }
+        // If no neighbor found, both archers start on camp tile
+        if (archerPositions.length < 2) {
+            archerPositions.push(campTile.coord);
+        }
+
+        for (let j = 0; j < 2; j++) {
+            const archerId = `native_archer_${campId}_${j}`;
+            nativeUnits.push({
+                id: archerId,
+                type: UnitType.NativeArcher,
+                ownerId: "natives",
+                coord: archerPositions[Math.min(j, archerPositions.length - 1)],
+                hp: archerStats.hp,
+                maxHp: archerStats.hp,
+                movesLeft: archerStats.move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId,
+            });
+        }
+
+        // Create the camp tracking object
+        camps.push({
+            id: campId,
+            coord: campTile.coord,
+            unitIds: [championId, `native_archer_${campId}_0`, `native_archer_${campId}_1`],
+            state: "Patrol",
+            aggroTurnsRemaining: 0,
+        });
+    }
+
+    return { camps, nativeUnits };
 }

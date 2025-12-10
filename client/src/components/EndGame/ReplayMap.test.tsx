@@ -31,11 +31,12 @@ const createMockGameState = (maxTurn: number, events: any[] = []): GameState => 
     sharedVision: {},
     contacts: {},
     diplomacyOffers: [],
+    nativeCamps: [],
     history: {
         events: events,
         playerFog: {},
         playerStats: {}, // Added missing required property
-    }
+    },
 });
 
 describe("ReplayMap Smart Replay", () => {

@@ -38,12 +38,13 @@ describe("World Generation", () => {
         });
 
         expect(state.players.length).toBe(2);
-        expect(state.units.length).toBe(4); // 2 units per player
+        expect(state.units.length).toBe(6); // v2.0: 3 units per player (Settler, Scout, SpearGuard)
 
         const p1Units = state.units.filter((u) => u.ownerId === "p1");
-        expect(p1Units).toHaveLength(2);
+        expect(p1Units).toHaveLength(3);
         expect(p1Units.some((u) => u.type === UnitType.Settler)).toBe(true);
         expect(p1Units.some((u) => u.type === UnitType.Scout)).toBe(true);
+        expect(p1Units.some((u) => u.type === UnitType.SpearGuard)).toBe(true);
     });
 
     it("should ensure starting positions are on valid terrain", () => {

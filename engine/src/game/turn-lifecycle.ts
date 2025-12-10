@@ -19,6 +19,7 @@ import { processCityBuild } from "./helpers/builds.js";
 import { ensureTechSelected } from "./helpers/turn.js";
 import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from "./helpers/turn-movement.js";
 import { logEvent, recordTurnStats } from "./history.js";
+import { processNativeTurn } from "./natives/native-behavior.js";
 
 const GAME_LOG_ENABLED = typeof process !== "undefined" && process.env.DEBUG_GAME_LOGS === "true";
 const gameLog = (...args: unknown[]): void => {
@@ -232,6 +233,9 @@ function processPlayerCities(state: GameState, player: Player) {
  * @param state - The current game state.
  */
 export function runEndOfRound(state: GameState) {
+    // Process native camp behavior before victory checks
+    processNativeTurn(state);
+
     processEndOfRound(state);
 }
 
@@ -387,7 +391,7 @@ function applyAttrition(state: GameState, playerId: string) {
             }
 
             if (unit.hp <= 0) {
-                console.log(`[Attrition] Unit ${unit.id} (${unit.type}) died to Nature's Wrath in Jade territory.`);
+                gameLog(`[Attrition] Unit ${unit.id} (${unit.type}) died to Nature's Wrath in Jade territory.`);
                 // We can't splice `state.units` while iterating easily if we are iterating a filtered list.
                 // But `state.units` is the source of truth.
                 // We should mark for deletion or filter after.

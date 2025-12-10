@@ -452,11 +452,11 @@ if (isMainThread) {
     const allResults: any[] = [];
     const startTime = Date.now();
 
-    // Determine worker count (use all cores)
+    // Determine worker count (use 90% of cores for better utilization with some headroom)
     const numCPUs = os.cpus().length;
-    // Use all cores minus one to keep the system responsive
-    const workerCount = Math.max(1, numCPUs - 1);
-    console.log(`Starting parallel simulation with ${workerCount} workers (Total CPUs: ${numCPUs}) for ${totalTasks} tasks...`);
+    // v2.0: Changed from numCPUs - 1 (~70%) to 90% of cores for faster simulation
+    const workerCount = Math.max(1, Math.floor(numCPUs * 0.9));
+    console.log(`Starting parallel simulation with ${workerCount} workers (90% of ${numCPUs} CPUs) for ${totalTasks} tasks...`);
 
     let activeWorkers = 0;
 

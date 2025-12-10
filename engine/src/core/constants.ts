@@ -164,6 +164,26 @@ export const TITAN_REGEN_BASE = 1;      // Enemy/neutral territory
 export const TITAN_REGEN_TERRITORY = 3; // Friendly territory
 export const TITAN_REGEN_CITY = 5;      // Friendly city
 
+// Native Camp System Constants
+export const NATIVE_CAMP_TERRITORY_RADIUS = 3;   // Tiles around camp considered territory
+export const NATIVE_CAMP_AGGRO_DURATION = 3;     // Turns natives stay aggro'd
+export const NATIVE_CAMP_CHASE_DISTANCE = 3;     // How far outside territory natives will chase
+export const NATIVE_CHAMPION_CAMP_BONUS_ATK = 2; // +ATK when near camp
+export const NATIVE_CHAMPION_CAMP_BONUS_DEF = 2; // +DEF when near camp
+export const NATIVE_CHAMPION_CAMP_BONUS_RADIUS = 2; // Tiles from camp for bonus to apply
+export const NATIVE_HEAL_TERRITORY = 3;          // HP/turn in camp territory
+export const NATIVE_HEAL_CAMP_TILE = 5;          // HP/turn on camp tile itself
+export const NATIVE_CAMP_MIN_DISTANCE_FROM_START = 8; // Min tiles from starting positions
+export const NATIVE_CAMP_MIN_DISTANCE_BETWEEN = 6;    // Min tiles between camps
+export const NATIVE_CAMP_CLEAR_PRODUCTION_REWARD = 20; // Production granted to nearest city on clear
+export const NATIVE_CAMP_COUNTS: Record<string, [number, number]> = {
+    Tiny: [1, 2],
+    Small: [2, 3],
+    Standard: [3, 4],
+    Large: [5, 6],
+    Huge: [8, 10],
+};
+
 // Map Dimensions (Width x Height)
 // v0.98 Update 8: Increased all sizes by ~5% (approx 10% more tiles) to encourage expansion
 export const MAP_DIMS = {
@@ -207,6 +227,8 @@ export const OVERLAY: Record<OverlayType, OverlayData> = {
     [OverlayType.OreVein]: { yieldBonus: { P: 1 } },
     [OverlayType.SacredSite]: { yieldBonus: { S: 1 } },
     [OverlayType.GoodieHut]: {}, // No permanent bonus - one-time discovery reward
+    [OverlayType.NativeCamp]: {}, // No yield bonus - presence of natives
+    [OverlayType.ClearedSettlement]: { yieldBonus: { F: 1 } }, // +1 Food bonus when camp cleared
 };
 
 export type UnitStats = {
@@ -233,7 +255,10 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.Titan]: { atk: 30, def: 8, rng: 1, move: 2, hp: 30, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
+    [UnitType.Titan]: { atk: 30, def: 8, rng: 1, move: 2, hp: 24, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
+    // Native units (non-player controlled)
+    [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 3, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
 };
 
 export type BuildingData = {

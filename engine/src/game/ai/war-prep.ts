@@ -4,6 +4,7 @@ import { aiWarPeaceDecision } from "../ai-decisions.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { isScoutType } from "./units/unit-helpers.js";
+import { getPersonalityForPlayer } from "./personality.js";
 
 export function manageWarPreparation(state: GameState, playerId: string): GameState {
     const player = state.players.find(p => p.id === playerId);
@@ -47,8 +48,11 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
 
     // v0.99 Update: Minimum turn requirements to prevent rushing
     const turnsSinceStart = state.turn - prep.startedTurn;
-    const MIN_GATHERING_TURNS = 2; // Must gather for at least 2 turns
-    const MIN_POSITIONING_TURNS = 2; // Must position for at least 2 turns
+
+    // v2.0: Accelerated war prep for early rushers (1 turn per phase instead of 2)
+    const personality = getPersonalityForPlayer(state, player.id);
+    const MIN_GATHERING_TURNS = personality.acceleratedWarPrep ? 1 : 2;
+    const MIN_POSITIONING_TURNS = personality.acceleratedWarPrep ? 1 : 2;
 
     // v0.99 Update: Timeout - if we take too long, just go!
     // This prevents getting stuck in "Positioning" forever if units can't reach the border
@@ -122,11 +126,35 @@ function updateWarPreparation(state: GameState, player: Player): GameState {
 }
 
 function checkForNewWarTargets(state: GameState, player: Player): GameState {
+    const personality = getPersonalityForPlayer(state, player.id);
+
     for (const other of state.players) {
         if (other.id === player.id || other.isEliminated) continue;
 
         // Skip if already at war
         if (state.diplomacy?.[player.id]?.[other.id] === DiplomacyState.War) continue;
+
+        // v2.0: Early rush check - if forceEarlyWarPrep is true and we have contact,
+        // immediately start war preparation on first contact (in early game)
+        if (personality.forceEarlyWarPrep && state.turn <= 25) {
+            const hasContact = state.contacts?.[player.id]?.[other.id];
+            if (hasContact) {
+                aiInfo(`[AI EARLY RUSH] ${player.id} starting RUSH war preparation against ${other.id} on contact!`);
+                return {
+                    ...state,
+                    players: state.players.map(p =>
+                        p.id === player.id ? {
+                            ...p,
+                            warPreparation: {
+                                targetId: other.id,
+                                state: "Gathering",  // Skip buildup since we start with military now
+                                startedTurn: state.turn
+                            }
+                        } : p
+                    )
+                };
+            }
+        }
 
         const decision = aiWarPeaceDecision(player.id, other.id, state, { ignorePrep: true });
 

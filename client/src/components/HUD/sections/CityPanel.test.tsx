@@ -81,6 +81,7 @@ const baseGameState = (city: City, units: Unit[] = []): GameState => ({
     sharedVision: {},
     contacts: { p1: { p2: true }, p2: { p1: true } },
     diplomacyOffers: [],
+    nativeCamps: [],
 });
 
 const defaultBuildOptions: CityBuildOptions = {

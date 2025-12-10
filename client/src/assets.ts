@@ -12,6 +12,9 @@ export const unitImages: Record<string, string> = {
     ArmyBowGuard: "/units/ArmyBowGuard.png",
     ArmyRiders: "/units/ArmyRiders.png",
     Titan: "/units/Titan.png",
+    // Native units
+    NativeChampion: "/units/NativeChampion.png",
+    NativeArcher: "/units/NativeArcher.png",
 };
 
 /** Maps internal unit type IDs to user-friendly display names */
@@ -27,6 +30,9 @@ export const unitDisplayNames: Record<string, string> = {
     ArmyBowGuard: "Bow Guard Army",
     ArmyRiders: "Riders Army",
     Titan: "Titan",
+    // Native units
+    NativeChampion: "Native Champion",
+    NativeArcher: "Native Archer",
 };
 
 /** Get the display name for a unit type, with fallback to the raw type */
@@ -47,6 +53,9 @@ export const terrainImages: Record<string, string> = {
     RiverEdge: "/terrain/RiverEdge.png",
     RiverMouth: "/terrain/RiverMouth.png",
     GoodieHut: "/terrain/GoodieHut.png",
+    // Native camp overlays
+    NativeCamp: "/terrain/NativeCamp.png",
+    ClearedSettlement: "/terrain/ClearedSettlement.png",
 };
 
 export const cityImages: Record<number, string> = {

@@ -18,6 +18,9 @@ import {
     CIV6_DAMAGE_RANDOM_MAX,
     CIV6_DAMAGE_MIN,
     CIV6_DAMAGE_MAX,
+    NATIVE_CHAMPION_CAMP_BONUS_ATK,
+    NATIVE_CHAMPION_CAMP_BONUS_DEF,
+    NATIVE_CHAMPION_CAMP_BONUS_RADIUS,
 } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
 import { hexLine, hexToString, hexDistance, hexEquals } from "../../core/hex.js";
@@ -190,9 +193,20 @@ import { isTileAdjacentToRiver } from "../../map/rivers.js";
 
 export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     const base = UNITS[unit.type];
-    const player = state.players.find(p => p.id === unit.ownerId);
-    if (!player) return base;
     const boosted = { ...base };
+
+    // Native Champion Camp Bonus: +2 ATK/DEF when near home camp
+    if (unit.type === UnitType.NativeChampion && unit.campId) {
+        const camp = state.nativeCamps.find(c => c.id === unit.campId);
+        if (camp && hexDistance(unit.coord, camp.coord) <= NATIVE_CHAMPION_CAMP_BONUS_RADIUS) {
+            boosted.atk += NATIVE_CHAMPION_CAMP_BONUS_ATK;
+            boosted.def += NATIVE_CHAMPION_CAMP_BONUS_DEF;
+        }
+    }
+
+    // Player-specific bonuses (natives don't have a player)
+    const player = state.players.find(p => p.id === unit.ownerId);
+    if (!player) return boosted;
 
     if (player.techs.includes(TechId.FormationTraining) && (MELEE_TYPES.has(unit.type) || RANGED_TYPES.has(unit.type))) {
         boosted.atk += 1;

@@ -209,7 +209,7 @@ export const useRenderData = ({
                     isSelected: selectedUnitId === unit.id,
                     isLinkedPartner: linkedPartnerId === unit.id,
                     showLinkIcon: !!unit.linkedUnitId,
-                    color: playerColorMap.get(unit.ownerId) ?? "#22d3ee",
+                    color: unit.ownerId === "natives" ? "#f97316" : (playerColorMap.get(unit.ownerId) ?? "#22d3ee"),
                     isOnCityHex,
                 };
             });

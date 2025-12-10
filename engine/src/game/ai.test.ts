@@ -825,6 +825,8 @@ describe("ai personality behaviors", () => {
     });
 
     it("rushes Steam Forges for Aetherian Vanguard", () => {
+        // v2.0: With custom path, AetherianVanguard picks FormationTraining if missing
+        // even if other titan prereqs are already researched
         const state = baseState();
         state.players = [
             {
@@ -836,7 +838,37 @@ describe("ai personality behaviors", () => {
             },
         ] as any;
         const pick = aiChooseTech("p", state as any, "Balanced");
-        expect(pick).toBe(TechId.ScriptLore);
+        // FormationTraining is first in custom path and still needed
+        expect(pick).toBe(TechId.FormationTraining);
+    });
+
+    it("AetherianVanguard prioritizes Titan rush path over Conquest path", () => {
+        // v2.0: Verifies AetherianVanguard follows custom interleaved path:
+        // FormationTraining → StoneworkHalls → Fieldcraft → DrilledRanks → TimberMills → SteamForges
+        const state = baseState();
+        state.players = [
+            {
+                id: "p",
+                civName: "AetherianVanguard",
+                techs: [],  // Fresh start - no techs
+                currentTech: null,
+                completedProjects: [],
+            },
+        ] as any;
+
+        // Military-first: FormationTraining is first in the custom path
+        const pick = aiChooseTech("p", state as any, "Conquest");
+        expect(pick).toBe(TechId.FormationTraining);
+
+        // After 3 Hearth techs, should pick DrilledRanks (Banner)
+        state.players[0].techs = [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft];
+        const pick2 = aiChooseTech("p", state as any, "Conquest");
+        expect(pick2).toBe(TechId.DrilledRanks);
+
+        // After DrilledRanks, should pick TimberMills (Titan prereq)
+        state.players[0].techs = [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.DrilledRanks];
+        const pick3 = aiChooseTech("p", state as any, "Conquest");
+        expect(pick3).toBe(TechId.TimberMills);
     });
 });
 

@@ -25,8 +25,6 @@ function isAtWar(state: GameState, playerId: string): boolean {
     );
 }
 
-// --- PRODUCTION INTELLIGENCE (v2.0) ---
-
 /**
  * Calculate desired army size based on game state.
  * Returns the target number of military units the AI should maintain.
@@ -35,6 +33,7 @@ function calculateDesiredArmySize(state: GameState, playerId: string): number {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return 1;
 
+    const personality = getPersonalityForPlayer(state, playerId);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const cityCount = myCities.length;
 
@@ -65,6 +64,10 @@ function calculateDesiredArmySize(state: GameState, playerId: string): number {
         // Want 1.3x enemy military + garrison
         desired = Math.max(desired, Math.ceil(enemyMilitary * 1.3) + cityCount);
     }
+
+    // v2.1: Apply personality-based army size multiplier (e.g., ForgeClans wants 50% more units)
+    const armyMultiplier = personality.armySizeMultiplier ?? 1.0;
+    desired = Math.ceil(desired * armyMultiplier);
 
     return Math.max(1, desired);
 }
@@ -201,6 +204,13 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         aiInfo(`[AI ARMY SIZE] ${playerId} URGENT military production! Current: ${armyStatus.currentMilitary}, Need: ${armyStatus.desired}`);
 
         const urgentMilitary: BuildOption[] = [];
+
+        // v2.0: AetherianVanguard special-case - Titan IS the ultimate military unit!
+        // Always prioritize building Titan's Core even during urgent wartime production.
+        // Once spawned, Titan (30 ATK, 30 HP) can single-handedly win wars.
+        if (player?.civName === "AetherianVanguard") {
+            urgentMilitary.push({ type: "Building" as const, id: BuildingType.TitansCore });
+        }
 
         // If sieges need capture units, prioritize those
         if (needsCaptureUnits) {
@@ -446,7 +456,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 }
 
 function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, scoutCount: number, isSafeEnough: boolean): BuildOption[] {
-    const shouldBuildScout = scoutCount < 2; // Cap scouts at 2
+    const shouldBuildScout = scoutCount === 0; // v2.0: Only build scout if none (civs start with one)
 
     const progress: BuildOption[] = [
         ...(shouldBuildScout ? [{ type: "Unit" as const, id: UnitType.Scout } as BuildOption] : []),          // Early exploration

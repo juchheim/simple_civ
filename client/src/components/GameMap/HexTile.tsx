@@ -130,6 +130,38 @@ export const HexTile: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, he
                                 </g>
                             );
                         }
+                        // NativeCamp renders as full-hex centered image like GoodieHut
+                        if (overlay === OverlayType.NativeCamp) {
+                            const campSize = hexSize * 1.6;
+                            return (
+                                <image
+                                    key={`${overlay}-${idx}`}
+                                    href={terrainImages.NativeCamp}
+                                    x={-campSize / 2}
+                                    y={-campSize / 2}
+                                    width={campSize}
+                                    height={campSize}
+                                    opacity={overlayOpacity}
+                                    style={{ pointerEvents: "none" }}
+                                />
+                            );
+                        }
+                        // ClearedSettlement renders as full-hex centered image
+                        if (overlay === OverlayType.ClearedSettlement) {
+                            const settlementSize = hexSize * 1.6;
+                            return (
+                                <image
+                                    key={`${overlay}-${idx}`}
+                                    href={terrainImages.ClearedSettlement}
+                                    x={-settlementSize / 2}
+                                    y={-settlementSize / 2}
+                                    width={settlementSize}
+                                    height={settlementSize}
+                                    opacity={overlayOpacity}
+                                    style={{ pointerEvents: "none" }}
+                                />
+                            );
+                        }
                         return null;
                     })}
                 </g>
