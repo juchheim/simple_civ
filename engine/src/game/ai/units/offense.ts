@@ -506,13 +506,15 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                 const requiredSiegeGroup = isInWarProsecutionMode ? Math.max(1, dynamicGroupSize - 1) : dynamicGroupSize;
 
                 const friendliesNearTarget = armyUnits.filter(u =>
-                    hexDistance(u.coord, nearest.coord) <= 3
+                    hexDistance(u.coord, nearest.coord) <= 5
                 ).length;
 
                 // --- GROUPING LOGIC (v1.0) ---
-                // If we are getting close (dist <= 3) but don't have enough support, WAIT.
+                // If we are getting close (dist <= 5) but don't have enough support, WAIT.
                 // This applies to both Ranged and Melee to form a "Deathball".
-                if (currentDist <= 3 && friendliesNearTarget < requiredSiegeGroup) {
+                // Distance 5 is the "Staging Area" (safe from most counter-attacks).
+                // Riders (Move 2) moving from 4 -> 2 are in danger. Waiting at 5 allows everyone to group up.
+                if (currentDist <= 5 && friendliesNearTarget < requiredSiegeGroup) {
                     // Exception: If the city is weak (HP < 50%), charge anyway
                     if (nearest.hp > nearest.maxHp * 0.5) {
                         aiInfo(`[AI GROUPING] ${playerId} ${current.type} waiting for reinforcements at dist ${currentDist} (${friendliesNearTarget}/${requiredSiegeGroup})`);

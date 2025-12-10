@@ -55,7 +55,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                {(title || onClose) && (
+                {title && (
                     <div style={{
                         padding: "16px 24px",
                         borderBottom: "1px solid var(--color-border, #374151)",

@@ -13,14 +13,14 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "ForgeClans",
         title: "ForgeClans",
         summary: "Industrial powerhouse with strong production and late-game military.",
-        perk: "+1 Production per Hill (Capital) • Military 5% cheaper • +1 Attack per Engine tech",
+        perk: "+1 Production per Hill (Capital) • Military 10% cheaper • +1 Attack per Engine tech",
         color: "#f97316",
     },
     {
         id: "ScholarKingdoms",
         title: "Scholar Kingdoms",
         summary: "Science-focused with defensive bonuses near their learning centers.",
-        perk: "+1 Science in Capital • +1 Science per CityWard • Scaling Defense: +6/cityCount near cities",
+        perk: "+1 Science in Capital • +1 Science per CityWard • Scaling Defense: +6 distributed across all cities",
         color: "#0ea5e9",
     },
     {

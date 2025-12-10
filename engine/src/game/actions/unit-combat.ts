@@ -9,7 +9,7 @@ import {
     FORTIFY_DEFENSE_BONUS,
     UNITS,
 } from "../../core/constants.js";
-import { hexDistance, hexEquals, hexToString } from "../../core/hex.js";
+import { hexDistance, hexEquals, hexToString, getNeighbors } from "../../core/hex.js";
 import { captureCity } from "../helpers/cities.js";
 import { buildTileLookup, calculateCiv6Damage, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { ensureWar } from "../helpers/diplomacy.js";
@@ -94,8 +94,22 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         }
         if (defender.state === UnitState.Fortified) defensePower += FORTIFY_DEFENSE_BONUS;
 
+        // v3.0: Flanking Bonus
+        // +1 Attack for each OTHER friendly military unit adjacent to defender
+        const defenderNeighbors = getNeighbors(defender.coord);
+        let flankingBonus = 0;
+        for (const n of defenderNeighbors) {
+            const friend = state.units.find(u =>
+                hexEquals(u.coord, n) &&
+                u.ownerId === action.playerId &&
+                u.id !== attacker.id &&
+                UNITS[u.type].domain !== "Civilian"
+            );
+            if (friend) flankingBonus += 1;
+        }
+
         // v2.0: Civ 6-style damage formula
-        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk, defensePower, state.seed);
+        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + flankingBonus, defensePower, state.seed);
         state.seed = newSeed;
 
         defender.hp -= damage;
@@ -203,7 +217,21 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2) + garrisonDefenseBonus;
         if (city.buildings.includes(BuildingType.CityWard)) defensePower += CITY_WARD_DEFENSE_BONUS;
 
-        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk, defensePower, state.seed);
+        // v3.0: Flanking Bonus vs City
+        // +1 Attack for each OTHER friendly military unit adjacent to city
+        const cityNeighbors = getNeighbors(city.coord);
+        let cityFlankingBonus = 0;
+        for (const n of cityNeighbors) {
+            const friend = state.units.find(u =>
+                hexEquals(u.coord, n) &&
+                u.ownerId === action.playerId &&
+                u.id !== attacker.id &&
+                UNITS[u.type].domain !== "Civilian"
+            );
+            if (friend) cityFlankingBonus += 1;
+        }
+
+        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus, defensePower, state.seed);
         state.seed = newSeed;
 
         city.hp = Math.max(0, city.hp - damage);

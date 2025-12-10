@@ -235,7 +235,7 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
         const unitType = action.buildId as UnitType;
         cost = getUnitCost(unitType, state.turn);
 
-        // v0.98 Update 5: ForgeClans "Forged Arms" - 20% cheaper military units
+        // v0.98 Update 5: ForgeClans "Forged Arms" - using FORGE_CLANS_MILITARY_DISCOUNT (10% cheaper)
         // Only applies to non-civilian units
         if (player?.civName === "ForgeClans" && UNITS[unitType].domain !== "Civilian") {
             cost = Math.floor(cost * FORGE_CLANS_MILITARY_DISCOUNT);
