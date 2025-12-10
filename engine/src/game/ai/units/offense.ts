@@ -59,7 +59,7 @@ function tryCityAttacks(
     primaryCity: GameState["cities"][number] | null
 ): { state: GameState; acted: boolean } {
     let next = state;
-    const stats = UNITS[unit.type];
+    const stats = UNITS[unit.type as UnitType];
     const cityTargets = warCities
         .filter(c => hexDistance(c.coord, unit.coord) <= stats.rng && c.hp > 0)
         .map(c => ({ city: c, dmg: expectedDamageToCity(unit, c, next) }))
@@ -98,8 +98,8 @@ function getWarEnemyIds(state: GameState, playerId: string): string[] {
         .map(p => p.id);
 }
 
-function getEnemyTargets(next: GameState, unit: any, warEnemyIds: string[]) {
-    const stats = UNITS[unit.type];
+function getEnemyTargets(next: GameState, unit: Unit, warEnemyIds: string[]) {
+    const stats = UNITS[unit.type as UnitType];
     return next.units
         .filter(u => warEnemyIds.includes(u.ownerId))
         .map(u => ({
