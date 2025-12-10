@@ -5,6 +5,11 @@ import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.j
 import { getTileYields } from "../rules.js";
 import { isTileAdjacentToRiver } from "../../map/rivers.js";
 
+const GAME_LOG_ENABLED = typeof process !== "undefined" && process.env.DEBUG_GAME_LOGS === "true";
+const gameLog = (...args: unknown[]): void => {
+    if (GAME_LOG_ENABLED) console.info(...args);
+};
+
 export function maxClaimableRing(city: City): number {
     if (city.pop >= 3) return Math.min(2, CITY_WORK_RADIUS_RINGS);
     return 1;
@@ -155,7 +160,7 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
 }
 
 export function captureCity(state: GameState, city: City, newOwnerId: string) {
-    console.info(`[GAME] City Captured: ${city.name} (${city.ownerId} -> ${newOwnerId})`);
+    gameLog(`[GAME] City Captured: ${city.name} (${city.ownerId} -> ${newOwnerId})`);
     city.ownerId = newOwnerId;
     city.hp = CAPTURED_CITY_HP_RESET;
     city.pop = Math.max(1, city.pop - 1);

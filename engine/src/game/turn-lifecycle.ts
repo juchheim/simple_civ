@@ -20,6 +20,11 @@ import { ensureTechSelected } from "./helpers/turn.js";
 import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from "./helpers/turn-movement.js";
 import { logEvent, recordTurnStats } from "./history.js";
 
+const GAME_LOG_ENABLED = typeof process !== "undefined" && process.env.DEBUG_GAME_LOGS === "true";
+const gameLog = (...args: unknown[]): void => {
+    if (GAME_LOG_ENABLED) console.log(...args);
+};
+
 /**
  * Handles the end of a player's turn.
  * Updates unit states (fortification), advances the current player, and triggers end-of-round logic if needed.
@@ -181,11 +186,11 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
     const maxHp = city.maxHp || BASE_CITY_HP;
     const wasDamagedThisTurn = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn === state.turn;
     if (city.hp > 0 && city.hp < maxHp && !wasDamagedThisTurn) {
-        console.log(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
+        gameLog(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
         city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
         if (!city.maxHp) city.maxHp = maxHp;
     } else if (city.hp <= 0) {
-        console.log(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
+        gameLog(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
     }
 
     city.storedFood += yields.F;
