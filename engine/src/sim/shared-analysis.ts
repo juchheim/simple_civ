@@ -76,7 +76,8 @@ export type TurnSnapshot = {
 export function seededRandom(seed: number): () => number {
     let s = seed;
     return () => {
-        s = Math.imul(48271, s) | 0 % 2147483647;
+        // Park-Miller minimal standard LCG with explicit modulus
+        s = (Math.imul(48271, s) | 0) % 2147483647;
         return (s & 2147483647) / 2147483648;
     };
 }
@@ -103,13 +104,17 @@ export function civList(limit?: number, seed?: number): { id: string; civName: C
     ];
     const shuffled = seed !== undefined ? shuffleWithSeed(allCivs, seed) : allCivs;
     const chosen = limit ? shuffled.slice(0, limit) : shuffled;
+    const rng = seed !== undefined ? seededRandom(seed + 17) : Math.random;
     const colors = ["#e25822", "#4b9be0", "#2fa866", "#8a4dd2", "#f4b400", "#888888"];
-    return chosen.map((civ, idx) => ({
-        id: `p${idx + 1}`,
-        civName: civ,
-        color: colors[idx] ?? `#${(Math.random() * 0xffffff) | 0}`,
-        ai: true,
-    }));
+    return chosen.map((civ, idx) => {
+        const fallback = `#${((rng() * 0xffffff) | 0).toString(16).padStart(6, "0")}`;
+        return {
+            id: `p${idx + 1}`,
+            civName: civ,
+            color: colors[idx] ?? fallback,
+            ai: true,
+        };
+    });
 }
 
 export function calculateCivStats(state: GameState, civId: string) {

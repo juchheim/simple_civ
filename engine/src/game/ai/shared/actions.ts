@@ -9,6 +9,7 @@ import {
     updateOccupancyAfterMove
 } from "./validation.js";
 import { hexEquals } from "../../../core/hex.js";
+import { isAiDebugEnabled } from "../debug-logging.js";
 
 let traceContext: { trace?: TraceEntry[]; playerId?: string } = {};
 
@@ -89,7 +90,7 @@ export function tryAction(state: GameState, action: Action): GameState {
 
         // Only log unexpected failures (not routine ones)
         const msg = (e as Error).message;
-        if (msg !== "No moves left" && msg !== "Unit not found") {
+        if (msg !== "No moves left" && msg !== "Unit not found" && isAiDebugEnabled()) {
             console.error(`[AI ACTION FAILED] ${action.type}: ${msg}`);
         }
         return state;

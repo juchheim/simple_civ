@@ -2,10 +2,10 @@
  * AI Debug Logging Module
  * 
  * Controls whether AI debug messages are output to console.
- * Disabled during simulations for performance (console.log is synchronous and slow).
+ * Disabled by default to keep test output clean and simulations fast (console.log is synchronous and slow).
  */
 
-let debugEnabled = true;
+let debugEnabled = false;
 
 /**
  * Enable or disable AI debug logging.
