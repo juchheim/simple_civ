@@ -39,9 +39,15 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                 gameState.players.forEach(p => {
                     prevErasRef.current[p.id] = p.currentEra;
                     prevBuildingStatesRef.current[p.id] = {
-                        buildingTitansCore: false,
-                        buildingSpiritObservatory: false,
-                        buildingJadeGranary: false,
+                        buildingTitansCore: gameState.cities.some(
+                            c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.TitansCore
+                        ),
+                        buildingSpiritObservatory: gameState.cities.some(
+                            c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.SpiritObservatory
+                        ),
+                        buildingJadeGranary: gameState.cities.some(
+                            c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.JadeGranary
+                        ),
                         completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
                         completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
                         completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
