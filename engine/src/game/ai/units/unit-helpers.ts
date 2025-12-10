@@ -92,44 +92,36 @@ export function stepToward(
     const unit = state.units.find(u => u.id === unitId);
     if (!unit || unit.movesLeft <= 0) return state;
 
-    if (hexDistance(unit.coord, target) === 1) {
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, target));
-        let allowed = true;
-        if (tile && tile.ownerId && tile.ownerId !== playerId) {
-            const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
-            const isCity = state.cities.some(c => hexEquals(c.coord, target));
-            if (!isCity && diplomacy !== DiplomacyState.War) allowed = false;
-        }
-
-        if (allowed) {
-            const movedDirect = tryAction(state, {
-                type: "MoveUnit",
-                playerId,
-                unitId,
-                to: target
-            });
-            if (movedDirect !== state) return movedDirect;
-        }
+    if (hexDistance(unit.coord, target) === 1 && canEnterTile(state, playerId, target)) {
+        const movedDirect = tryMove(state, playerId, unitId, target);
+        if (movedDirect !== state) return movedDirect;
     }
 
     const neighbors = getNeighbors(unit.coord);
     const ordered = sortByDistance(target, neighbors, coord => coord);
     for (const neighbor of ordered) {
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, neighbor));
-        if (tile && tile.ownerId && tile.ownerId !== playerId) {
-            const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
-            const isCity = state.cities.some(c => hexEquals(c.coord, neighbor));
-            if (!isCity && diplomacy !== DiplomacyState.War) continue;
-        }
+        if (!canEnterTile(state, playerId, neighbor)) continue;
 
-        const moved = tryAction(state, {
-            type: "MoveUnit",
-            playerId,
-            unitId,
-            to: neighbor
-        });
+        const moved = tryMove(state, playerId, unitId, neighbor);
         if (moved !== state) return moved;
     }
 
     return state;
 }
+
+const canEnterTile = (state: GameState, playerId: string, coord: { q: number; r: number }) => {
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+    if (!tile || !tile.ownerId || tile.ownerId === playerId) return true;
+    const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+    const isCity = state.cities.some(c => hexEquals(c.coord, coord));
+    return isCity || diplomacy === DiplomacyState.War;
+};
+
+const tryMove = (state: GameState, playerId: string, unitId: string, to: { q: number; r: number }) => {
+    return tryAction(state, {
+        type: "MoveUnit",
+        playerId,
+        unitId,
+        to
+    });
+};

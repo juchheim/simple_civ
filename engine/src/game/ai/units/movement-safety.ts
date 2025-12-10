@@ -23,37 +23,13 @@ export function getBestSkirmishPosition(
         if (enemiesAdj === 0) return unit.coord;
     }
 
-    const neighbors = getNeighbors(unit.coord);
-    const candidates = neighbors.map(n => ({
-        coord: n,
-        dist: hexDistance(n, target.coord),
-        defense: tileDefenseScore(state, n),
-        enemiesAdj: enemiesWithin(state, playerId, n, 1)
-    }));
+    const candidates = getNeighbors(unit.coord)
+        .map(n => buildSkirmishCandidate(state, playerId, target, n))
+        .filter((c): c is NonNullable<typeof c> => c !== null);
 
-    // Filter valid moves
-    const valid = candidates.filter(c => {
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, c.coord));
-        if (!tile || (tile.ownerId && tile.ownerId !== playerId && state.diplomacy[playerId]?.[tile.ownerId] !== DiplomacyState.War)) return false; // Respect borders if not at war
-        if (state.units.some(u => hexEquals(u.coord, c.coord))) return false; // Blocked
-        return true;
-    });
+    const valid = candidates.filter(c => isSkirmishTileValid(state, playerId, c.coord));
 
-    // Sort by: 
-    // 1. Safety (0 adjacent enemies)
-    // 2. Range (closest to max range without exceeding it)
-    // 3. Defense bonus
-    valid.sort((a, b) => {
-        const aSafe = a.enemiesAdj === 0 ? 1 : 0;
-        const bSafe = b.enemiesAdj === 0 ? 1 : 0;
-        if (aSafe !== bSafe) return bSafe - aSafe;
-
-        const aRangeScore = Math.abs(desiredDist - a.dist);
-        const bRangeScore = Math.abs(desiredDist - b.dist);
-        if (aRangeScore !== bRangeScore) return aRangeScore - bRangeScore;
-
-        return b.defense - a.defense;
-    });
+    sortSkirmishCandidates(valid, desiredDist);
 
     return valid.length > 0 ? valid[0].coord : null;
 }
@@ -133,6 +109,71 @@ export function getNearbyThreats(
     return threats.sort((a, b) => a.distance - b.distance);
 }
 
+const buildSkirmishCandidate = (state: GameState, playerId: string, target: any, coord: { q: number; r: number }) => ({
+    coord,
+    dist: hexDistance(coord, target.coord),
+    defense: tileDefenseScore(state, coord),
+    enemiesAdj: enemiesWithin(state, playerId, coord, 1)
+});
+
+const isSkirmishTileValid = (state: GameState, playerId: string, coord: { q: number; r: number }) => {
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+    if (!tile) return false;
+    if (tile.ownerId && tile.ownerId !== playerId && state.diplomacy[playerId]?.[tile.ownerId] !== DiplomacyState.War) return false;
+    if (state.units.some(u => hexEquals(u.coord, coord))) return false;
+    return true;
+};
+
+const sortSkirmishCandidates = (candidates: Array<{ enemiesAdj: number; dist: number; defense: number }>, desiredDist: number) => {
+    candidates.sort((a, b) => {
+        const aSafe = a.enemiesAdj === 0 ? 1 : 0;
+        const bSafe = b.enemiesAdj === 0 ? 1 : 0;
+        if (aSafe !== bSafe) return bSafe - aSafe;
+
+        const aRangeScore = Math.abs(desiredDist - a.dist);
+        const bRangeScore = Math.abs(desiredDist - b.dist);
+        if (aRangeScore !== bRangeScore) return aRangeScore - bRangeScore;
+
+        return b.defense - a.defense;
+    });
+};
+
+const buildRetreatCandidate = (
+    state: GameState,
+    playerId: string,
+    unit: any,
+    targetCoord: { q: number; r: number },
+    coord: { q: number; r: number }
+) => {
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+    if (!tile) return null;
+
+    const terrain = TERRAIN[tile.terrain];
+    if (terrain.blocksLoS) return null;
+
+    const blockingUnit = state.units.find(u => hexEquals(u.coord, coord));
+    if (blockingUnit && blockingUnit.ownerId !== playerId) return null;
+    if (blockingUnit && UNITS[blockingUnit.type].domain !== "Civilian") return null;
+
+    if (tile.ownerId && tile.ownerId !== playerId) {
+        const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
+        if (diplomacy !== DiplomacyState.War) return null;
+    }
+
+    const danger = evaluateTileDanger(state, playerId, coord);
+    const distToTarget = hexDistance(coord, targetCoord);
+    const currentDistToTarget = hexDistance(unit.coord, targetCoord);
+    const movesTowardTarget = distToTarget < currentDistToTarget;
+
+    return {
+        coord,
+        danger,
+        distToTarget,
+        movesTowardTarget,
+        defense: tileDefenseScore(state, coord)
+    };
+};
+
 export function findSafeRetreatTile(
     state: GameState,
     playerId: string,
@@ -140,41 +181,8 @@ export function findSafeRetreatTile(
     targetCoord: { q: number; r: number }
 ): { q: number; r: number } | null {
     const currentDanger = evaluateTileDanger(state, playerId, unit.coord);
-    const neighbors = getNeighbors(unit.coord);
-
-    const candidates = neighbors
-        .map(coord => {
-            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-            if (!tile) return null;
-
-            // Check terrain passability
-            const terrain = TERRAIN[tile.terrain];
-            if (terrain.blocksLoS) return null; // Mountains, etc.
-
-            // Check for blocking unit
-            const blockingUnit = state.units.find(u => hexEquals(u.coord, coord));
-            if (blockingUnit && blockingUnit.ownerId !== playerId) return null;
-            if (blockingUnit && UNITS[blockingUnit.type].domain !== "Civilian") return null;
-
-            // Check territory restrictions (peace time)
-            if (tile.ownerId && tile.ownerId !== playerId) {
-                const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
-                if (diplomacy !== DiplomacyState.War) return null;
-            }
-
-            const danger = evaluateTileDanger(state, playerId, coord);
-            const distToTarget = hexDistance(coord, targetCoord);
-            const currentDistToTarget = hexDistance(unit.coord, targetCoord);
-            const movesTowardTarget = distToTarget < currentDistToTarget;
-
-            return {
-                coord,
-                danger,
-                distToTarget,
-                movesTowardTarget,
-                defense: tileDefenseScore(state, coord)
-            };
-        })
+    const candidates = getNeighbors(unit.coord)
+        .map(coord => buildRetreatCandidate(state, playerId, unit, targetCoord, coord))
         .filter((c): c is NonNullable<typeof c> => c !== null);
 
     if (candidates.length === 0) return null;

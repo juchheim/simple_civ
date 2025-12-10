@@ -83,21 +83,21 @@ export function useTouchController({
     }, [svgRef]);
 
     /** Calculate distance between two touch points */
-    const getDistance = (touch1: React.Touch, touch2: React.Touch): number => {
+    const getDistance = useCallback((touch1: React.Touch, touch2: React.Touch): number => {
         const dx = touch2.clientX - touch1.clientX;
         const dy = touch2.clientY - touch1.clientY;
         return Math.sqrt(dx * dx + dy * dy);
-    };
+    }, []);
 
     /** Calculate center point between two touches */
-    const getCenter = (touch1: React.Touch, touch2: React.Touch): { x: number; y: number } => {
+    const getCenter = useCallback((touch1: React.Touch, touch2: React.Touch): { x: number; y: number } => {
         const svg = svgRef.current;
         const rect = svg?.getBoundingClientRect() ?? { left: 0, top: 0 };
         return {
             x: (touch1.clientX + touch2.clientX) / 2 - rect.left,
             y: (touch1.clientY + touch2.clientY) / 2 - rect.top,
         };
-    };
+    }, [svgRef]);
 
     const handleTouchStart = useCallback((e: ReactTouchEvent) => {
         // Prevent default to stop browser gestures
@@ -156,7 +156,7 @@ export function useTouchController({
             isDraggingRef.current = true;
             setIsPanning(true);
         }
-    }, [getTouchPosition, findHexAtScreen, panRef, zoomRef, isInertiaActiveRef, inertiaVelocityRef, setIsPanning]);
+    }, [findHexAtScreen, getCenter, getDistance, getTouchPosition, inertiaVelocityRef, isInertiaActiveRef, panRef, setIsPanning, zoomRef]);
 
     const handleTouchMove = useCallback((e: ReactTouchEvent) => {
         e.preventDefault();
@@ -258,7 +258,7 @@ export function useTouchController({
             // Schedule animation to update React state
             scheduleAnimation();
         }
-    }, [getTouchPosition, panRef, setPan, setZoom, inertiaVelocityRef, zoomRef, targetZoomRef, scheduleAnimation, setIsPanning]);
+    }, [activeTouchesRef, getCenter, getDistance, getTouchPosition, inertiaVelocityRef, isDraggingRef, panRef, panStartRef, pinchStateRef, scheduleAnimation, setIsPanning, setPan, setZoom, targetZoomRef, zoomRef]);
 
     const handleTouchEnd = useCallback((e: ReactTouchEvent) => {
         e.preventDefault();

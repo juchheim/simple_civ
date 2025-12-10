@@ -1,20 +1,6 @@
 import React from "react";
 import { HexCoord } from "@simple-civ/engine";
-
-type BlockingTask = {
-    id: string;
-    kind: "research" | "city";
-    label: string;
-    coord?: HexCoord;
-};
-
-type AttentionTask = {
-    id: string;
-    kind: "unit";
-    label: string;
-    coord: HexCoord;
-    unitId: string;
-};
+import type { AttentionTask, BlockingTask } from "../helpers";
 
 type TurnTasksProps = {
     blockingTasks: BlockingTask[];

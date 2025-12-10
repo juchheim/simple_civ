@@ -20,12 +20,7 @@ export function tileDefenseScore(state: GameState, coord: { q: number; r: number
 export function expectedDamageToUnit(attacker: any, defender: any, state: GameState): number {
     const attackerStats = getEffectiveUnitStats(attacker, state);
     const defenseStats = getEffectiveUnitStats(defender, state);
-    let defensePower = defenseStats.def;
-    const tile = state.map.tiles.find(t => hexEquals(t.coord, defender.coord));
-    if (tile) {
-        defensePower += TERRAIN[tile.terrain].defenseMod;
-    }
-    if (defender.state === UnitState.Fortified) defensePower += 1;
+    const defensePower = calculateDefensePower(state, defender, defenseStats.def);
     const attackPower = attackerStats.atk;
     const delta = attackPower - defensePower;
     const rawDamage = DAMAGE_BASE + Math.floor(delta / 2);
@@ -61,3 +56,13 @@ export function enemiesWithin(state: GameState, playerId: string, coord: { q: nu
         hexDistance(u.coord, coord) <= radius
     ).length;
 }
+
+const calculateDefensePower = (state: GameState, defender: any, baseDefense: number) => {
+    let defensePower = baseDefense;
+    const tile = state.map.tiles.find(t => hexEquals(t.coord, defender.coord));
+    if (tile) {
+        defensePower += TERRAIN[tile.terrain].defenseMod;
+    }
+    if (defender.state === UnitState.Fortified) defensePower += 1;
+    return defensePower;
+};

@@ -2,191 +2,25 @@ import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
 import { MapSize, GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
-import { UNITS } from "../core/constants.js";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { writeFileSync, statSync } from "fs";
 import * as os from "os";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 import { setAiDebug } from "../game/ai/debug-logging.js";
+import {
+    CivName,
+    Event,
+    TurnSnapshot,
+    estimateMilitaryPower,
+    seededRandom,
+    shuffleWithSeed,
+    civList,
+    calculateCivStats,
+    createTurnSnapshot
+} from "./shared-analysis.js";
 
 // Disable AI debug logging for simulation performance
 setAiDebug(false);
-
-// ==========================================
-// SHARED LOGIC (Copied from comprehensive-analysis.ts)
-// ==========================================
-
-// Simple military power estimation
-function estimateMilitaryPower(playerId: string, state: GameState): number {
-    const units = state.units.filter(u => u.ownerId === playerId);
-    let power = 0;
-    units.forEach(u => {
-        const stats = UNITS[u.type];
-        power += stats.atk + stats.def + (u.hp / stats.hp) * 2; // Weight by HP remaining
-    });
-    return power;
-}
-
-type CivName =
-    | "ForgeClans"
-    | "ScholarKingdoms"
-    | "RiverLeague"
-    | "AetherianVanguard"
-    | "StarborneSeekers"
-    | "JadeCovenant";
-
-type Event =
-    | { type: "WarDeclaration"; turn: number; initiator: string; target: string; initiatorPower: number; targetPower: number }
-    | { type: "PeaceTreaty"; turn: number; civ1: string; civ2: string }
-    | { type: "UnitDeath"; turn: number; unitId: string; unitType: UnitType; owner: string; killedBy?: string }
-    | { type: "UnitProduction"; turn: number; cityId: string; owner: string; unitType: UnitType }
-    | { type: "CityCapture"; turn: number; cityId: string; from: string; to: string }
-    | { type: "CityFound"; turn: number; cityId: string; owner: string }
-    | { type: "CityRaze"; turn: number; cityId: string; owner: string }
-    | { type: "TechComplete"; turn: number; civ: string; tech: TechId }
-    | { type: "ProjectComplete"; turn: number; civ: string; project: ProjectId }
-    | { type: "BuildingComplete"; turn: number; cityId: string; owner: string; building: BuildingType }
-    | { type: "Contact"; turn: number; civ1: string; civ2: string }
-    | { type: "SharedVision"; turn: number; civ1: string; civ2: string; action: "offer" | "accept" | "revoke" }
-    | { type: "Elimination"; turn: number; eliminated: string; by?: string }
-    | { type: "TitanSpawn"; turn: number; owner: string; unitId: string; unitCount: number }
-    | { type: "TitanDeath"; turn: number; owner: string; killedBy?: string }
-    | { type: "TitanKill"; turn: number; owner: string; victimType: string }
-    | { type: "TitanStep"; turn: number; owner: string; supportCount: number };
-
-type TurnSnapshot = {
-    turn: number;
-    civs: {
-        id: string;
-        civName: string;
-        cities: number;
-        totalPop: number;
-        techs: number;
-        projects: number;
-        units: number;
-        militaryPower: number;
-        totalProduction: number;
-        totalScience: number;
-        isEliminated: boolean;
-    }[];
-    cities: {
-        id: string;
-        owner: string;
-        pop: number;
-        buildings: BuildingType[];
-    }[];
-    units: {
-        id: string;
-        owner: string;
-        type: UnitType;
-    }[];
-    diplomacy: {
-        civ1: string;
-        civ2: string;
-        state: DiplomacyState;
-    }[];
-};
-
-// Seeded random number generator for reproducible civ selection
-function seededRandom(seed: number): () => number {
-    let s = seed;
-    return () => {
-        s = Math.imul(48271, s) | 0 % 2147483647;
-        return (s & 2147483647) / 2147483648;
-    };
-}
-
-// Fisher-Yates shuffle with seeded random
-function shuffleWithSeed<T>(array: T[], seed: number): T[] {
-    const result = [...array];
-    const random = seededRandom(seed);
-    for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-}
-
-function civList(limit?: number, seed?: number): { id: string; civName: CivName; color: string; ai: boolean }[] {
-    const allCivs: CivName[] = [
-        "ForgeClans",
-        "ScholarKingdoms",
-        "RiverLeague",
-        "AetherianVanguard",
-        "StarborneSeekers",
-        "JadeCovenant",
-    ];
-    // RANDOMIZE civ selection based on seed so all civs get equal representation
-    const shuffled = seed !== undefined ? shuffleWithSeed(allCivs, seed) : allCivs;
-    const chosen = limit ? shuffled.slice(0, limit) : shuffled;
-    const colors = ["#e25822", "#4b9be0", "#2fa866", "#8a4dd2", "#f4b400", "#888888"];
-    return chosen.map((civ, idx) => ({
-        id: `p${idx + 1}`,
-        civName: civ,
-        color: colors[idx] ?? `#${(Math.random() * 0xffffff) | 0}`,
-        ai: true,
-    }));
-}
-
-function calculateCivStats(state: GameState, civId: string) {
-    const player = state.players.find(p => p.id === civId);
-    if (!player) return null;
-
-    const cities = state.cities.filter(c => c.ownerId === civId);
-    const units = state.units.filter(u => u.ownerId === civId);
-    const totalPop = cities.reduce((sum, c) => sum + c.pop, 0);
-
-    // Calculate total production/science (simplified - actual would need yield calculations)
-    const totalProduction = cities.reduce((sum, c) => {
-        // Estimate based on population and buildings
-        let prod = c.pop; // Base production estimate
-        if (c.buildings.includes(BuildingType.StoneWorkshop)) prod += 1;
-        if (c.buildings.includes(BuildingType.LumberMill)) prod += 1;
-        if (c.buildings.includes(BuildingType.Forgeworks)) prod += 2;
-        if (c.buildings.includes(BuildingType.CitySquare)) prod += 1;
-        return sum + prod;
-    }, 0);
-
-    const totalScience = cities.length + // Base 1 per city
-        (cities.filter(c => c.buildings.includes(BuildingType.Scriptorium)).length) +
-        (cities.filter(c => c.buildings.includes(BuildingType.Academy)).length * 2) +
-        (player.techs.includes(TechId.SignalRelay) ? cities.length : 0);
-
-    return {
-        id: civId,
-        civName: player.civName,
-        cities: cities.length,
-        totalPop,
-        totalProduction,
-        totalScience,
-        techs: player.techs.length,
-        projects: player.completedProjects.length,
-        units: units.length,
-        militaryPower: estimateMilitaryPower(civId, state),
-        isEliminated: player.isEliminated || false,
-    };
-}
-
-function createTurnSnapshot(state: GameState): TurnSnapshot {
-    const civs = state.players.map(p => calculateCivStats(state, p.id)).filter(s => s !== null) as any[];
-
-    return {
-        turn: state.turn,
-        civs,
-        cities: state.cities.map(c => ({
-            id: c.id,
-            owner: c.ownerId,
-            pop: c.pop,
-            buildings: [...c.buildings],
-        })),
-        units: state.units.map(u => ({
-            id: u.id,
-            owner: u.ownerId,
-            type: u.type,
-        })),
-        diplomacy: [],
-    };
-}
 
 function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
     // Pass seed to civList for randomized civ selection

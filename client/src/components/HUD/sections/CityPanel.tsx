@@ -4,6 +4,83 @@ import { hexDistance } from "../../../utils/hex";
 import { getTerrainColor, hexToPixel } from "../../GameMap/geometry";
 import { CityBuildOptions } from "../hooks";
 
+const formatBuildId = (id: string) => {
+    return id
+        .replace(/_/g, " ")
+        .replace(/([A-Z])/g, " $1")
+        .trim();
+};
+
+const buildUnitTooltip = (unitId: UnitType, turn: number): string => {
+    const stats = UNITS[unitId];
+    if (!stats) return "";
+    const actualCost = getUnitCost(unitId, turn);
+    const lines: string[] = [];
+    if (actualCost !== stats.cost) {
+        lines.push(`Cost: ${actualCost} Production (base: ${stats.cost})`);
+    } else {
+        lines.push(`Cost: ${stats.cost} Production`);
+    }
+    lines.push(`Attack: ${stats.atk} | Defense: ${stats.def} | HP: ${stats.hp}`);
+    lines.push(`Move: ${stats.move} | Range: ${stats.rng} | Vision: ${stats.vision}`);
+    if (stats.canCaptureCity) lines.push("Can capture cities");
+    return lines.join("\n");
+};
+
+const buildBuildingTooltip = (buildingId: BuildingType): string => {
+    const data = BUILDINGS[buildingId];
+    if (!data) return "";
+    const lines = [`Cost: ${data.cost} Production`];
+    const yields = [];
+    if (data.yieldFlat?.F) yields.push(`+${data.yieldFlat.F} Food`);
+    if (data.yieldFlat?.P) yields.push(`+${data.yieldFlat.P} Production`);
+    if (data.yieldFlat?.S) yields.push(`+${data.yieldFlat.S} Science`);
+    if (yields.length > 0) lines.push(yields.join(", "));
+    if (data.defenseBonus) lines.push(`+${data.defenseBonus} City Defense`);
+    if (data.cityAttackBonus) lines.push(`+${data.cityAttackBonus} City Attack`);
+    if (data.growthMult) lines.push(`${Math.round((1 - data.growthMult) * 100)}% faster growth`);
+    if (data.conditional) lines.push(data.conditional);
+    return lines.join("\n");
+};
+
+const buildProjectTooltip = (projectId: ProjectId, turn: number): string => {
+    const data = PROJECTS[projectId];
+    if (!data) return "";
+    const actualCost = getProjectCost(projectId, turn);
+    const lines: string[] = [];
+    if (data.scalesWithTurn && actualCost !== data.cost) {
+        lines.push(`Cost: ${actualCost} Production (base: ${data.cost})`);
+    } else {
+        lines.push(`Cost: ${data.cost} Production`);
+    }
+    const effect = data.onComplete;
+    if (effect.type === "Milestone") {
+        if (effect.payload.scienceBonusCity) lines.push(`+${effect.payload.scienceBonusCity} Science in this city`);
+        if (effect.payload.scienceBonusPerCity) lines.push(`+${effect.payload.scienceBonusPerCity} Science per city`);
+        if (effect.payload.unlock) lines.push(`Unlocks: ${formatBuildId(effect.payload.unlock)}`);
+    } else if (effect.type === "Victory") {
+        lines.push("Completes Progress Victory!");
+    } else if (effect.type === "Transform") {
+        lines.push(`Upgrades ${formatBuildId(effect.payload.baseUnit)} to ${formatBuildId(effect.payload.armyUnit)}`);
+    } else if (effect.type === "GrantYield") {
+        const grant = effect.payload;
+        if (grant.F) lines.push(`Grants +${grant.F} Food`);
+        if (grant.S) lines.push(`Grants +${grant.S} Science`);
+    }
+    return lines.join("\n");
+};
+
+const getOwnedTilesForCity = (city: City, tiles: GameState["map"]["tiles"]) => {
+    const byCityClaim = tiles.filter(tile => tile.ownerCityId === city.id);
+    const fallbackRange = tiles.filter(tile => tile.ownerId === city.ownerId && hexDistance(tile.coord, city.coord) <= 2);
+    const tilesForMap = byCityClaim.length > 0 ? byCityClaim : fallbackRange;
+    const hasCenter = tilesForMap.some(t => t.coord.q === city.coord.q && t.coord.r === city.coord.r);
+    if (hasCenter) return tilesForMap;
+
+    const centerTile = tiles.find(t => t.coord.q === city.coord.q && t.coord.r === city.coord.r);
+    return centerTile ? [centerTile, ...tilesForMap] : tilesForMap;
+};
+
 type CityPanelProps = {
     city: City;
     isMyTurn: boolean;
@@ -39,18 +116,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
         setLocalWorked(city.workedTiles);
     }, [city.id, city.workedTiles]);
 
-    const ownedTiles = React.useMemo(() => {
-        const byCityClaim = gameState.map.tiles.filter(tile => tile.ownerCityId === city.id);
-        const fallbackRange = gameState.map.tiles.filter(
-            tile => tile.ownerId === city.ownerId && hexDistance(tile.coord, city.coord) <= 2,
-        );
-        const tilesForMap = byCityClaim.length > 0 ? byCityClaim : fallbackRange;
-        const hasCenter = tilesForMap.some(t => t.coord.q === city.coord.q && t.coord.r === city.coord.r);
-        if (hasCenter) return tilesForMap;
-
-        const centerTile = gameState.map.tiles.find(t => t.coord.q === city.coord.q && t.coord.r === city.coord.r);
-        return centerTile ? [centerTile, ...tilesForMap] : tilesForMap;
-    }, [city.coord, city.id, city.ownerId, gameState.map.tiles]);
+    const ownedTiles = React.useMemo(() => getOwnedTilesForCity(city, gameState.map.tiles), [city, gameState.map.tiles]);
 
     const yields = getCityYields(city, gameState);
     const civ = gameState.players.find(p => p.id === city.ownerId)?.civName;
@@ -60,154 +126,28 @@ export const CityPanel: React.FC<CityPanelProps> = ({
 
     const workedCount = localWorked.length;
 
-    const formatBuildId = (id: string) => {
-        return id
-            .replace(/_/g, " ")
-            .replace(/([A-Z])/g, " $1")
-            .trim();
-    };
-
-    const getUnitTooltip = (unitId: UnitType): string => {
-        const stats = UNITS[unitId];
-        if (!stats) return "";
-        const actualCost = getUnitCost(unitId, gameState.turn);
-        const lines: string[] = [];
-        if (actualCost !== stats.cost) {
-            lines.push(`Cost: ${actualCost} Production (base: ${stats.cost})`);
-        } else {
-            lines.push(`Cost: ${stats.cost} Production`);
-        }
-        lines.push(`Attack: ${stats.atk} | Defense: ${stats.def} | HP: ${stats.hp}`);
-        lines.push(`Move: ${stats.move} | Range: ${stats.rng} | Vision: ${stats.vision}`);
-        if (stats.canCaptureCity) lines.push("Can capture cities");
-        return lines.join("\n");
-    };
-
-    const getBuildingTooltip = (buildingId: BuildingType): string => {
-        const data = BUILDINGS[buildingId];
-        if (!data) return "";
-        const lines = [`Cost: ${data.cost} Production`];
-        const yields = [];
-        if (data.yieldFlat?.F) yields.push(`+${data.yieldFlat.F} Food`);
-        if (data.yieldFlat?.P) yields.push(`+${data.yieldFlat.P} Production`);
-        if (data.yieldFlat?.S) yields.push(`+${data.yieldFlat.S} Science`);
-        if (yields.length > 0) lines.push(yields.join(", "));
-        if (data.defenseBonus) lines.push(`+${data.defenseBonus} City Defense`);
-        if (data.cityAttackBonus) lines.push(`+${data.cityAttackBonus} City Attack`);
-        if (data.growthMult) lines.push(`${Math.round((1 - data.growthMult) * 100)}% faster growth`);
-        if (data.conditional) lines.push(data.conditional);
-        return lines.join("\n");
-    };
-
-    const getProjectTooltip = (projectId: ProjectId): string => {
-        const data = PROJECTS[projectId];
-        if (!data) return "";
-        const actualCost = getProjectCost(projectId, gameState.turn);
-        const lines: string[] = [];
-        if (data.scalesWithTurn && actualCost !== data.cost) {
-            lines.push(`Cost: ${actualCost} Production (base: ${data.cost})`);
-        } else {
-            lines.push(`Cost: ${data.cost} Production`);
-        }
-        const effect = data.onComplete;
-        if (effect.type === "Milestone") {
-            if (effect.payload.scienceBonusCity) lines.push(`+${effect.payload.scienceBonusCity} Science in this city`);
-            if (effect.payload.scienceBonusPerCity) lines.push(`+${effect.payload.scienceBonusPerCity} Science per city`);
-            if (effect.payload.unlock) lines.push(`Unlocks: ${formatBuildId(effect.payload.unlock)}`);
-        } else if (effect.type === "Victory") {
-            lines.push("Completes Progress Victory!");
-        } else if (effect.type === "Transform") {
-            lines.push(`Upgrades ${formatBuildId(effect.payload.baseUnit)} to ${formatBuildId(effect.payload.armyUnit)}`);
-        } else if (effect.type === "GrantYield") {
-            const grant = effect.payload;
-            if (grant.F) lines.push(`Grants +${grant.F} Food`);
-            if (grant.S) lines.push(`Grants +${grant.S} Science`);
-        }
-        return lines.join("\n");
-    };
-
     const isEnemyCity = city.ownerId !== playerId;
 
     if (isEnemyCity) {
+        const unitsAtCity = units.filter(u => u.coord.q === city.coord.q && u.coord.r === city.coord.r);
         return (
-            <div>
-                <div className="hud-section-title">City</div>
-                <div className="hud-menu-header" style={{ alignItems: "flex-start", marginBottom: 6 }}>
-                    <div>
-                        <p className="hud-title" style={{ margin: "0 0 4px 0" }}>{city.name}</p>
-                        <div className="hud-subtext" style={{ marginTop: 0 }}>
-                            {civ} · Pop {city.pop} · HP {city.hp}/{city.maxHp}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="city-panel__section">
-                    <h5>Stationed Units</h5>
-                    <div className="hud-chip-row" style={{ marginBottom: 8, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-                        {(() => {
-                            const unitsAtCity = units.filter(u => u.coord.q === city.coord.q && u.coord.r === city.coord.r);
-
-                            if (unitsAtCity.length === 0) {
-                                return <span className="hud-chip warn">No units in city</span>;
-                            }
-
-                            return (
-                                <>
-                                    {unitsAtCity.map(unit => {
-                                        const isGarrison = unit.type !== "Settler";
-                                        // We can select enemy units now, so allow clicking
-                                        return (
-                                            <button
-                                                key={unit.id}
-                                                className={`hud-chip clickable ${isGarrison ? "success" : ""}`}
-                                                onClick={() => {
-                                                    onSelectUnit(unit.id);
-                                                    onClose();
-                                                }}
-                                                style={{
-                                                    cursor: "pointer",
-                                                    border: isGarrison ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
-                                                    background: isGarrison ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.05)",
-                                                    width: "100%",
-                                                    textAlign: "left"
-                                                }}
-                                            >
-                                                {isGarrison ? "Garrison: " : "Unit: "}{unit.type}
-                                                <span style={{ float: "right", opacity: 0.7 }}>{unit.hp}/{unit.maxHp} HP</span>
-                                            </button>
-                                        );
-                                    })}
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>
-            </div>
+            <EnemyCityPanel
+                city={city}
+                civ={civ}
+                unitsAtCity={unitsAtCity}
+                onSelectUnit={onSelectUnit}
+                onClose={onClose}
+            />
         );
     }
 
     return (
         <div>
-            <div className="hud-section-title">City</div>
-            <div className="hud-menu-header" style={{ alignItems: "flex-start", marginBottom: 6 }}>
-                <div>
-                    <p className="hud-title" style={{ margin: "0 0 4px 0" }}>{city.name}</p>
-                    <div className="hud-subtext" style={{ marginTop: 0 }}>
-                        Pop {city.pop} · HP {city.hp}/{city.maxHp}
-                    </div>
-                    {civ === "ScholarKingdoms" && (
-                        <div className="hud-subtext" style={{ color: scholarActive ? "#a7f3d0" : "#fcd34d" }}>
-                            Scholar Kingdoms: +1 Science at pop 3+ ({scholarActive ? "active" : "inactive"})
-                        </div>
-                    )}
-                </div>
-                <div className="hud-chip-row" style={{ justifyContent: "flex-end" }}>
-                    <span className="hud-chip">Stored Food: {city.storedFood}</span>
-                    {city.storedProduction >= 1 && (
-                        <span className="hud-chip">Stored Prod: {city.storedProduction}</span>
-                    )}
-                </div>
-            </div>
+            <CityInfoHeader
+                city={city}
+                civ={civ}
+                scholarActive={scholarActive}
+            />
 
             <div className="city-panel__stats">
                 <span className="hud-chip">Yields: {yields.F}F / {yields.P}P / {yields.S}S</span>
@@ -216,160 +156,314 @@ export const CityPanel: React.FC<CityPanelProps> = ({
             </div>
 
             <div className="city-panel__grid">
-                <div className="city-panel__section">
-                    <h5>Production</h5>
-                    {city.currentBuild ? (
-                        <>
-                            <div className="hud-subtext">Building {formatBuildId(city.currentBuild.id)}</div>
-                            <div className="hud-progress" style={{ marginTop: 6 }}>
-                                <div
-                                    className="hud-progress-fill"
-                                    style={{
-                                        width: `${Math.min(100, Math.round((city.buildProgress / city.currentBuild.cost) * 100))}%`,
-                                    }}
-                                />
-                            </div>
-                            <div className="hud-subtext">
-                                Progress: {city.buildProgress}/{city.currentBuild.cost}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="hud-subtext" style={{ marginBottom: 6 }}>Choose what to produce.</div>
-                    )}
-                    {isMyTurn && (
-                        <div className="city-panel__build-grid" style={{ marginTop: 6 }}>
-                            {buildOptions.units.map(unit => {
-                                const key = `Unit:${unit.id}`;
-                                const saved = city.savedProduction?.[key];
-                                return (
-                                    <div key={unit.id} className="production-button-wrapper">
-                                        <button className="hud-button small" onClick={() => onBuild("Unit", unit.id)} style={{ width: "100%" }}>
-                                            Train {unit.name}
-                                            {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                                        </button>
-                                        <div className="production-tooltip">{getUnitTooltip(unit.id as UnitType)}</div>
-                                    </div>
-                                );
-                            })}
-                            {buildOptions.buildings.map(building => {
-                                const key = `Building:${building.id}`;
-                                const saved = city.savedProduction?.[key];
-                                return (
-                                    <div key={building.id} className="production-button-wrapper">
-                                        <button className="hud-button small" onClick={() => onBuild("Building", building.id)} style={{ width: "100%" }}>
-                                            Construct {building.name}
-                                            {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                                        </button>
-                                        <div className="production-tooltip">{getBuildingTooltip(building.id as BuildingType)}</div>
-                                    </div>
-                                );
-                            })}
-                            {buildOptions.projects.map(project => {
-                                const key = `Project:${project.id}`;
-                                const saved = city.savedProduction?.[key];
-                                return (
-                                    <div key={project.id} className="production-button-wrapper">
-                                        <button className="hud-button small" onClick={() => onBuild("Project", project.id)} style={{ width: "100%" }}>
-                                            Launch {project.name}
-                                            {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                                        </button>
-                                        <div className="production-tooltip">{getProjectTooltip(project.id as ProjectId)}</div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                <ProductionSection
+                    city={city}
+                    isMyTurn={isMyTurn}
+                    buildOptions={buildOptions}
+                    onBuild={onBuild}
+                    turn={gameState.turn}
+                />
+                <WorkedTilesSection
+                    city={city}
+                    workedCount={workedCount}
+                    ownedTiles={ownedTiles}
+                    gameMap={gameState.map}
+                    localWorked={localWorked}
+                    onLocalWorkedChange={setLocalWorked}
+                    onSetWorkedTiles={onSetWorkedTiles}
+                />
+                <DefenseSection
+                    city={city}
+                    isMyTurn={isMyTurn}
+                    playerId={playerId}
+                    units={units}
+                    garrison={garrison}
+                    onSelectUnit={onSelectUnit}
+                    onClose={onClose}
+                    onRazeCity={onRazeCity}
+                />
+            </div>
+        </div>
+    );
+};
 
-                <div className="city-panel__section">
-                    <div className="city-panel__section-head">
-                        <h5>Worked Tiles</h5>
-                        <span className="hud-chip">Assigned {workedCount}/{city.pop}</span>
-                    </div>
-                    <div className="hud-subtext" style={{ marginTop: 0 }}>
-                        Tap owned hexes to focus citizens; the layout scales as {city.name} claims more land.
-                    </div>
-                    <WorkedTilesMap
-                        city={city}
-                        map={gameState.map}
-                        tiles={ownedTiles}
-                        workedTiles={localWorked}
-                        onSetWorkedTiles={onSetWorkedTiles}
-                        onLocalChange={setLocalWorked}
-                    />
-                    <div className="hud-subtext" style={{ marginTop: 6 }}>
-                        City center is always assigned. Unseen or enemy tiles cannot be worked.
-                    </div>
-                </div>
+type EnemyCityPanelProps = {
+    city: City;
+    civ?: string;
+    unitsAtCity: Unit[];
+    onSelectUnit: (unitId: string) => void;
+    onClose: () => void;
+};
 
-                <div className="city-panel__section">
-                    <h5>Defense & Actions</h5>
-                    <div className="hud-chip-row" style={{ marginBottom: 8, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-                        {(() => {
-                            const unitsAtCity = units.filter(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
-                            const hasGarrison = unitsAtCity.some(u => u.type !== "Settler");
-
-                            if (unitsAtCity.length === 0) {
-                                return <span className="hud-chip warn">No units in city</span>;
-                            }
-
-                            return (
-                                <>
-                                    {unitsAtCity.map(unit => {
-                                        const isGarrison = unit.type !== "Settler";
-                                        return (
-                                            <button
-                                                key={unit.id}
-                                                className={`hud-chip clickable ${isGarrison ? "success" : ""}`}
-                                                onClick={() => {
-                                                    onSelectUnit(unit.id);
-                                                    onClose();
-                                                }}
-                                                style={{
-                                                    cursor: "pointer",
-                                                    border: isGarrison ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
-                                                    background: isGarrison ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.05)",
-                                                    width: "100%",
-                                                    textAlign: "left"
-                                                }}
-                                            >
-                                                {isGarrison ? "Garrison: " : "Unit: "}{unit.type}
-                                                <span style={{ float: "right", opacity: 0.7 }}>{unit.hp}/{unit.maxHp} HP</span>
-                                            </button>
-                                        );
-                                    })}
-                                    {!hasGarrison && <span className="hud-chip warn" style={{ marginTop: 4 }}>No garrison (Settlers cannot garrison)</span>}
-                                </>
-                            );
-                        })()}
-                        {city.hasFiredThisTurn && <span className="hud-chip warn">City fired this turn</span>}
-                    </div>
-                    {isMyTurn && city.ownerId === playerId && (
-                        <>
-                            {/* <div className="hud-subtext" style={{ marginTop: 0 }}>City attack range 2</div> */}
-                            {!garrison && <div className="hud-subtext warn">Station a unit to enable attacks.</div>}
-                            {/* {garrison && !city.hasFiredThisTurn && targets.length === 0 && (
-                                <div className="hud-subtext">No enemies in range.</div>
-                            )}
-                            {garrison && !city.hasFiredThisTurn && targets.length > 0 && (
-                                <div className="hud-chip-row" style={{ marginTop: 6 }}>
-                                    {targets.map(target => (
-                                        <button key={target.id} className="hud-button small" onClick={() => onCityAttack(target.id)}>
-                                            Fire at {target.type} ({target.hp} hp)
-                                        </button>
-                                    ))}
-                                </div>
-                            )} */}
-                            {!city.isCapital && (
-                                <button className="hud-button small danger" style={{ marginTop: 10 }} onClick={onRazeCity}>
-                                    Raze City
-                                </button>
-                            )}
-                        </>
-                    )}
-                    {!isMyTurn && <div className="hud-subtext">Wait for your turn to manage city actions.</div>}
+const EnemyCityPanel: React.FC<EnemyCityPanelProps> = ({ city, civ, unitsAtCity, onSelectUnit, onClose }) => (
+    <div>
+        <div className="hud-section-title">City</div>
+        <div className="hud-menu-header" style={{ alignItems: "flex-start", marginBottom: 6 }}>
+            <div>
+                <p className="hud-title" style={{ margin: "0 0 4px 0" }}>{city.name}</p>
+                <div className="hud-subtext" style={{ marginTop: 0 }}>
+                    {civ} · Pop {city.pop} · HP {city.hp}/{city.maxHp}
                 </div>
             </div>
+        </div>
+
+        <div className="city-panel__section">
+            <h5>Stationed Units</h5>
+            <div className="hud-chip-row" style={{ marginBottom: 8, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                {unitsAtCity.length === 0 ? (
+                    <span className="hud-chip warn">No units in city</span>
+                ) : (
+                    <>
+                        {unitsAtCity.map(unit => {
+                            const isGarrison = unit.type !== "Settler";
+                            return (
+                                <button
+                                    key={unit.id}
+                                    className={`hud-chip clickable ${isGarrison ? "success" : ""}`}
+                                    onClick={() => {
+                                        onSelectUnit(unit.id);
+                                        onClose();
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                        border: isGarrison ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
+                                        background: isGarrison ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                                        width: "100%",
+                                        textAlign: "left"
+                                    }}
+                                >
+                                    {isGarrison ? "Garrison: " : "Unit: "}{unit.type}
+                                    <span style={{ float: "right", opacity: 0.7 }}>{unit.hp}/{unit.maxHp} HP</span>
+                                </button>
+                            );
+                        })}
+                    </>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+type CityInfoHeaderProps = {
+    city: City;
+    civ?: string;
+    scholarActive: boolean;
+};
+
+const CityInfoHeader: React.FC<CityInfoHeaderProps> = ({ city, civ, scholarActive }) => (
+    <>
+        <div className="hud-section-title">City</div>
+        <div className="hud-menu-header" style={{ alignItems: "flex-start", marginBottom: 6 }}>
+            <div>
+                <p className="hud-title" style={{ margin: "0 0 4px 0" }}>{city.name}</p>
+                <div className="hud-subtext" style={{ marginTop: 0 }}>
+                    Pop {city.pop} · HP {city.hp}/{city.maxHp}
+                </div>
+                {civ === "ScholarKingdoms" && (
+                    <div className="hud-subtext" style={{ color: scholarActive ? "#a7f3d0" : "#fcd34d" }}>
+                        Scholar Kingdoms: +1 Science at pop 3+ ({scholarActive ? "active" : "inactive"})
+                    </div>
+                )}
+            </div>
+            <div className="hud-chip-row" style={{ justifyContent: "flex-end" }}>
+                <span className="hud-chip">Stored Food: {city.storedFood}</span>
+                {city.storedProduction >= 1 && (
+                    <span className="hud-chip">Stored Prod: {city.storedProduction}</span>
+                )}
+            </div>
+        </div>
+    </>
+);
+
+type ProductionSectionProps = {
+    city: City;
+    isMyTurn: boolean;
+    buildOptions: CityBuildOptions;
+    onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
+    turn: number;
+};
+
+const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, buildOptions, onBuild, turn }) => (
+    <div className="city-panel__section">
+        <h5>Production</h5>
+        {city.currentBuild ? (
+            <>
+                <div className="hud-subtext">Building {formatBuildId(city.currentBuild.id)}</div>
+                <div className="hud-progress" style={{ marginTop: 6 }}>
+                    <div
+                        className="hud-progress-fill"
+                        style={{
+                            width: `${Math.min(100, Math.round((city.buildProgress / city.currentBuild.cost) * 100))}%`,
+                        }}
+                    />
+                </div>
+                <div className="hud-subtext">
+                    Progress: {city.buildProgress}/{city.currentBuild.cost}
+                </div>
+            </>
+        ) : (
+            <div className="hud-subtext" style={{ marginBottom: 6 }}>Choose what to produce.</div>
+        )}
+        {isMyTurn && (
+            <div className="city-panel__build-grid" style={{ marginTop: 6 }}>
+                {buildOptions.units.map(unit => {
+                    const key = `Unit:${unit.id}`;
+                    const saved = city.savedProduction?.[key];
+                    return (
+                        <div key={unit.id} className="production-button-wrapper">
+                            <button className="hud-button small" onClick={() => onBuild("Unit", unit.id)} style={{ width: "100%" }}>
+                                Train {unit.name}
+                                {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                            </button>
+                            <div className="production-tooltip">{buildUnitTooltip(unit.id as UnitType, turn)}</div>
+                        </div>
+                    );
+                })}
+                {buildOptions.buildings.map(building => {
+                    const key = `Building:${building.id}`;
+                    const saved = city.savedProduction?.[key];
+                    return (
+                        <div key={building.id} className="production-button-wrapper">
+                            <button className="hud-button small" onClick={() => onBuild("Building", building.id)} style={{ width: "100%" }}>
+                                Construct {building.name}
+                                {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                            </button>
+                            <div className="production-tooltip">{buildBuildingTooltip(building.id as BuildingType)}</div>
+                        </div>
+                    );
+                })}
+                {buildOptions.projects.map(project => {
+                    const key = `Project:${project.id}`;
+                    const saved = city.savedProduction?.[key];
+                    return (
+                        <div key={project.id} className="production-button-wrapper">
+                            <button className="hud-button small" onClick={() => onBuild("Project", project.id)} style={{ width: "100%" }}>
+                                Launch {project.name}
+                                {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                            </button>
+                            <div className="production-tooltip">{buildProjectTooltip(project.id as ProjectId, turn)}</div>
+                        </div>
+                    );
+                })}
+            </div>
+        )}
+    </div>
+);
+
+type WorkedTilesSectionProps = {
+    city: City;
+    workedCount: number;
+    ownedTiles: GameState["map"]["tiles"];
+    gameMap: GameState["map"];
+    localWorked: HexCoord[];
+    onLocalWorkedChange: (tiles: HexCoord[]) => void;
+    onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
+};
+
+const WorkedTilesSection: React.FC<WorkedTilesSectionProps> = ({
+    city,
+    workedCount,
+    ownedTiles,
+    gameMap,
+    localWorked,
+    onLocalWorkedChange,
+    onSetWorkedTiles,
+}) => (
+    <div className="city-panel__section">
+        <div className="city-panel__section-head">
+            <h5>Worked Tiles</h5>
+            <span className="hud-chip">Assigned {workedCount}/{city.pop}</span>
+        </div>
+        <div className="hud-subtext" style={{ marginTop: 0 }}>
+            Tap owned hexes to focus citizens; the layout scales as {city.name} claims more land.
+        </div>
+        <WorkedTilesMap
+            city={city}
+            map={gameMap}
+            tiles={ownedTiles}
+            workedTiles={localWorked}
+            onSetWorkedTiles={onSetWorkedTiles}
+            onLocalChange={onLocalWorkedChange}
+        />
+        <div className="hud-subtext" style={{ marginTop: 6 }}>
+            City center is always assigned. Unseen or enemy tiles cannot be worked.
+        </div>
+    </div>
+);
+
+type DefenseSectionProps = {
+    city: City;
+    isMyTurn: boolean;
+    playerId: string;
+    units: Unit[];
+    garrison?: Unit;
+    onSelectUnit: (unitId: string) => void;
+    onClose: () => void;
+    onRazeCity: () => void;
+};
+
+const DefenseSection: React.FC<DefenseSectionProps> = ({
+    city,
+    isMyTurn,
+    playerId,
+    units,
+    garrison,
+    onSelectUnit,
+    onClose,
+    onRazeCity,
+}) => {
+    const unitsAtCity = units.filter(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
+    const hasGarrison = unitsAtCity.some(u => u.type !== "Settler");
+
+    return (
+        <div className="city-panel__section">
+            <h5>Defense & Actions</h5>
+            <div className="hud-chip-row" style={{ marginBottom: 8, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                {unitsAtCity.length === 0 ? (
+                    <span className="hud-chip warn">No units in city</span>
+                ) : (
+                    <>
+                        {unitsAtCity.map(unit => {
+                            const isGarrison = unit.type !== "Settler";
+                            return (
+                                <button
+                                    key={unit.id}
+                                    className={`hud-chip clickable ${isGarrison ? "success" : ""}`}
+                                    onClick={() => {
+                                        onSelectUnit(unit.id);
+                                        onClose();
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                        border: isGarrison ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
+                                        background: isGarrison ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                                        width: "100%",
+                                        textAlign: "left"
+                                    }}
+                                >
+                                    {isGarrison ? "Garrison: " : "Unit: "}{unit.type}
+                                    <span style={{ float: "right", opacity: 0.7 }}>{unit.hp}/{unit.maxHp} HP</span>
+                                </button>
+                            );
+                        })}
+                        {!hasGarrison && <span className="hud-chip warn" style={{ marginTop: 4 }}>No garrison (Settlers cannot garrison)</span>}
+                    </>
+                )}
+                {city.hasFiredThisTurn && <span className="hud-chip warn">City fired this turn</span>}
+            </div>
+            {isMyTurn && city.ownerId === playerId && (
+                <>
+                    {/* <div className="hud-subtext" style={{ marginTop: 0 }}>City attack range 2</div> */}
+                    {!garrison && <div className="hud-subtext warn">Station a unit to enable attacks.</div>}
+                    {/* City attack code omitted */}
+                    {!city.isCapital && (
+                        <button className="hud-button small danger" style={{ marginTop: 10 }} onClick={onRazeCity}>
+                            Raze City
+                        </button>
+                    )}
+                </>
+            )}
+            {!isMyTurn && <div className="hud-subtext">Wait for your turn to manage city actions.</div>}
         </div>
     );
 };

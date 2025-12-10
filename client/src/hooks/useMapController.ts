@@ -191,7 +191,7 @@ export const useMapController = ({
         }
 
         hasInitializedRef.current = true;
-    }, [tiles, hexToPixel, initialCenter]);
+    }, [hexToPixel, initialCenter, panRef, targetZoomRef, tiles, zoomRef]);
 
     // --- Wheel Handler ---
     useEffect(() => {
@@ -222,7 +222,7 @@ export const useMapController = ({
         return () => {
             svg.removeEventListener("wheel", handleWheel);
         };
-    }, [scheduleAnimation]);
+    }, [scheduleAnimation, targetZoomRef, zoomAnchorRef, zoomRef]);
 
     // --- Mouse Handlers ---
     const handleMouseDown = useCallback((e: ReactMouseEvent<SVGSVGElement>) => {
@@ -240,7 +240,7 @@ export const useMapController = ({
         isInertiaActiveRef.current = false;
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
         lastPointerRef.current = { x: e.clientX, y: e.clientY, time: performance.now() };
-    }, [findHexAtScreen]);
+    }, [findHexAtScreen, inertiaVelocityRef, isInertiaActiveRef, panRef]);
 
     const handleMouseMove = useCallback((e: ReactMouseEvent) => {
         if (!svgRef.current) return;
@@ -300,7 +300,7 @@ export const useMapController = ({
         };
         setPan(nextPan);
         panRef.current = nextPan;
-    }, [mouseDownPos, panStart, isPanning, findHexAtScreen, onHoverTile]);
+    }, [findHexAtScreen, inertiaVelocityRef, isPanning, mouseDownPos, mousePositionRef, onHoverTile, panRef, panStart, scheduleAnimation]);
 
     const handleMouseUp = useCallback(() => {
         if (isPanning) {
@@ -321,12 +321,12 @@ export const useMapController = ({
         setClickTarget(null);
         lastPointerRef.current = null;
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
-    }, [isPanning, clickTarget, onTileClick, scheduleAnimation]);
+    }, [clickTarget, inertiaVelocityRef, isInertiaActiveRef, isPanning, onTileClick, scheduleAnimation]);
 
     const handleMouseLeave = useCallback(() => {
         mousePositionRef.current = null;
         handleMouseUp();
-    }, [handleMouseUp]);
+    }, [handleMouseUp, mousePositionRef]);
 
     // --- API ---
     const centerOnPoint = useCallback((point: { x: number; y: number }) => {
@@ -346,7 +346,7 @@ export const useMapController = ({
 
         setPan(newPan);
         panRef.current = newPan;
-    }, []);
+    }, [panRef, zoomRef]);
 
     const centerOnCoord = useCallback((coord: HexCoord) => {
         const hexPos = hexToPixel(coord);

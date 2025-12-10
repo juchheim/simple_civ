@@ -12,15 +12,7 @@ type UseSelectedUnitsArgs = {
 
 export const useSelectedUnits = ({ selectedCoord, units, cities, playerId, selectedUnitId, onSelectUnit }: UseSelectedUnitsArgs) => {
     const unitsOnTile = React.useMemo(
-        () =>
-            selectedCoord
-                ? units.filter(
-                      unit =>
-                          unit.coord.q === selectedCoord.q &&
-                          unit.coord.r === selectedCoord.r &&
-                          unit.ownerId === playerId,
-                  )
-                : [],
+        () => getUnitsOnTile(selectedCoord, units, playerId),
         [selectedCoord, units, playerId],
     );
 
@@ -40,7 +32,7 @@ export const useSelectedUnits = ({ selectedCoord, units, cities, playerId, selec
 
     const linkedPartner = selectedUnit?.linkedUnitId ? units.find(u => u.id === selectedUnit.linkedUnitId) ?? null : null;
 
-    const linkCandidate = selectedUnit ? unitsOnTile.find(u => u.id !== selectedUnit.id && !u.linkedUnitId) : undefined;
+    const linkCandidate = selectedUnit ? findLinkCandidate(unitsOnTile, selectedUnit.id) : undefined;
 
     return {
         unitsOnTile,
@@ -50,3 +42,16 @@ export const useSelectedUnits = ({ selectedCoord, units, cities, playerId, selec
     };
 };
 
+const getUnitsOnTile = (coord: HexCoord | null, units: Unit[], playerId: string) => {
+    if (!coord) return [];
+    return units.filter(
+        unit =>
+            unit.coord.q === coord.q &&
+            unit.coord.r === coord.r &&
+            unit.ownerId === playerId,
+    );
+};
+
+const findLinkCandidate = (unitsOnTile: Unit[], selectedUnitId: string) => {
+    return unitsOnTile.find(u => u.id !== selectedUnitId && !u.linkedUnitId);
+};

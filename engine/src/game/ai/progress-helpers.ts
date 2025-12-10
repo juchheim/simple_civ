@@ -26,10 +26,13 @@ export type ProgressChainStatus = {
 export function getProgressChainStatus(state: GameState, playerId: string): ProgressChainStatus {
     const player = state.players.find(p => p.id === playerId);
 
-    const hasStarCharts = player?.techs.includes(TechId.StarCharts) ?? false;
-    const hasObservatory = player?.completedProjects.includes(ProjectId.Observatory) ?? false;
-    const hasGrandAcademy = player?.completedProjects.includes(ProjectId.GrandAcademy) ?? false;
-    const hasGrandExperiment = player?.completedProjects.includes(ProjectId.GrandExperiment) ?? false;
+    const techs = player?.techs ?? [];
+    const completedProjects = player?.completedProjects ?? [];
+
+    const hasStarCharts = techs.includes(TechId.StarCharts);
+    const hasObservatory = completedProjects.includes(ProjectId.Observatory);
+    const hasGrandAcademy = completedProjects.includes(ProjectId.GrandAcademy);
+    const hasGrandExperiment = completedProjects.includes(ProjectId.GrandExperiment);
 
     // Check if currently building a Progress project
     const progressCity = state.cities.find(c =>

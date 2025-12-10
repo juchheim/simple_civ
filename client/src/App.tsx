@@ -114,6 +114,28 @@ function App() {
     const closeGameMenu = useCallback(() => setShowGameMenu(false), []);
     const openGameMenu = useCallback(() => setShowGameMenu(true), []);
 
+    const resetMapNavigation = useCallback(() => {
+        setCityToCenter(null);
+        setMapView(null);
+    }, []);
+
+    const resetUiOverlays = useCallback(() => {
+        setShowTechTree(false);
+        setShowGameMenu(false);
+    }, []);
+
+    const resetToTitleScreen = useCallback(() => {
+        clearSelection();
+        resetUiOverlays();
+        resetMapNavigation();
+        setShowTitleScreen(true);
+    }, [clearSelection, resetMapNavigation, resetUiOverlays]);
+
+    const quitToTitle = useCallback(() => {
+        clearSession();
+        resetToTitleScreen();
+    }, [clearSession, resetToTitleScreen]);
+
     useGlobalHotkeys({
         selectedCoord,
         selectedUnitId,
@@ -144,29 +166,29 @@ function App() {
         dismissGameEventToast(id);
     };
 
+    const buildPlayers = useCallback((parsedSeed?: number) => {
+        const usedColors = new Set<string>();
+        const chosenCivs: CivId[] = [selectedCiv];
+        const humanColor = pickPlayerColor(selectedCiv, usedColors);
+
+        const players = [{ id: "p1", civName: selectedCiv, color: humanColor }];
+
+        for (let i = 1; i < numCivs; i++) {
+            const aiCiv = pickAiCiv(chosenCivs, parsedSeed ? parsedSeed + i : undefined);
+            const aiColor = pickPlayerColor(aiCiv.id, usedColors);
+            players.push({ id: `p${i + 1}`, civName: aiCiv.id, color: aiColor, ai: true });
+            chosenCivs.push(aiCiv.id);
+        }
+
+        return players;
+    }, [numCivs, selectedCiv]);
+
     const handleStartNewGame = () => {
         try {
             const rawSeed = seedInput.trim() === "" ? undefined : Number(seedInput);
             const parsedSeed = rawSeed != null && !Number.isNaN(rawSeed) ? rawSeed : undefined;
 
-            const usedColors = new Set<string>();
-            const humanColor = pickPlayerColor(selectedCiv, usedColors);
-
-            const players = [];
-
-            // Human player
-            players.push({ id: "p1", civName: selectedCiv, color: humanColor });
-
-            // AI players
-
-            // If we run out of unique civs, we might need to duplicate (though requirement says max <= unique)
-            // The constraint logic should prevent this, but let's be safe or just pick from available.
-
-            for (let i = 1; i < numCivs; i++) {
-                const aiCiv = pickAiCiv([selectedCiv, ...players.slice(1).map(p => p.civName as CivId)], parsedSeed ? parsedSeed + i : undefined);
-                const aiColor = pickPlayerColor(aiCiv.id, usedColors);
-                players.push({ id: `p${i + 1}`, civName: aiCiv.id, color: aiColor, ai: true });
-            }
+            const players = buildPlayers(parsedSeed);
 
             const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined };
             const state = startNewGame(settings);
@@ -174,8 +196,7 @@ function App() {
             setShowTechTree(true);
             setShowGameMenu(false);
             setShowTitleScreen(false);
-            setSelectedCoord(null);
-            setSelectedUnitId(null);
+            clearSelection();
         } catch (error: any) {
             console.error("App: Error generating world:", error);
             alert(`Failed to start game: ${error?.message ?? error}`);
@@ -185,10 +206,9 @@ function App() {
     const handleAction = useCallback((action: Action) => {
         runActions([action]);
         if (action.type === "SetAutoExplore") {
-            setSelectedUnitId(null);
-            setSelectedCoord(null);
+            clearSelection();
         }
-    }, [runActions, setSelectedCoord, setSelectedUnitId]);
+    }, [clearSelection, runActions]);
 
     const handleChooseTech = useCallback((techId: TechId) => {
         handleAction({ type: "ChooseTech", playerId, techId });
@@ -213,13 +233,12 @@ function App() {
         const success = loadGame(slot);
         if (success) {
             setShowTitleScreen(false);
-            setSelectedCoord(null);
-            setSelectedUnitId(null);
-            setShowGameMenu(false); // Close menu if open
+            clearSelection();
+            closeGameMenu();
         } else {
             alert("Failed to load game.");
         }
-    }, [loadGame, setSelectedCoord, setSelectedUnitId]);
+    }, [clearSelection, closeGameMenu, loadGame]);
 
     const handleRestart = useCallback(() => {
         if (!lastGameSettings) return;
@@ -228,22 +247,19 @@ function App() {
             if (!restarted) return;
             console.info("[World] Restarted with previous settings");
             setShowTechTree(true);
-            setShowGameMenu(false);
-            setSelectedCoord(null);
-            setSelectedUnitId(null);
+            closeGameMenu();
+            clearSelection();
         } catch (error: any) {
             console.error("App: Error restarting game:", error);
             alert(`Failed to restart game: ${error?.message ?? error}`);
         }
-    }, [lastGameSettings, restartLastGame, setSelectedCoord, setSelectedUnitId, setShowTechTree]);
+    }, [clearSelection, closeGameMenu, lastGameSettings, restartLastGame, setShowTechTree]);
 
     const handleResign = useCallback(() => {
         handleAction({ type: "Resign", playerId });
-        setShowGameMenu(false);
-        setShowTechTree(false);
-        setSelectedCoord(null);
-        setSelectedUnitId(null);
-    }, [handleAction, playerId]);
+        resetUiOverlays();
+        clearSelection();
+    }, [clearSelection, handleAction, playerId, resetUiOverlays]);
 
     // Reset cityToCenter after a brief delay to allow re-centering on same city
     useEffect(() => {
@@ -258,12 +274,8 @@ function App() {
     };
 
     const maxCivsGlobal = Math.max(...Object.values(MAX_CIVS_BY_MAP_SIZE));
-    const titleContent = showTitleScreen ? (
-        <TitleScreen
-            onNewGame={() => setShowTitleScreen(false)}
-            onLoadGame={handleLoadGame}
-        />
-    ) : (
+
+    const renderCivSelection = () => (
         <div style={{ position: "fixed", inset: 0, background: "var(--color-bg-deep)", color: "var(--color-text-main)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
             <div style={{ width: "min(1200px, 100%)", height: "min(700px, 85vh)", background: "var(--color-bg-panel)", borderRadius: 24, boxShadow: "0 20px 80px rgba(0,0,0,0.5)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "row", overflow: "hidden" }}>
 
@@ -408,14 +420,7 @@ function App() {
                                 Start Game
                             </button>
                             <button
-                                onClick={() => {
-                                    setShowTitleScreen(true);
-                                    setSelectedCoord(null);
-                                    setSelectedUnitId(null);
-                                    setShowTechTree(false);
-                                    setCityToCenter(null);
-                                    setMapView(null);
-                                }}
+                                onClick={resetToTitleScreen}
                                 style={{
                                     padding: "12px 16px",
                                     borderRadius: 10,
@@ -433,6 +438,15 @@ function App() {
                 </div>
             </div>
         </div>
+    );
+
+    const titleContent = showTitleScreen ? (
+        <TitleScreen
+            onNewGame={() => setShowTitleScreen(false)}
+            onLoadGame={handleLoadGame}
+        />
+    ) : (
+        renderCivSelection()
     );
     const gameContent = gameState ? (
         <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
@@ -463,16 +477,7 @@ function App() {
                 onLoad={handleLoadGame}
                 onRestart={handleRestart}
                 onResign={handleResign}
-                onQuit={() => {
-                    clearSession();
-                    setSelectedCoord(null);
-                    setSelectedUnitId(null);
-                    setShowTechTree(false);
-                    setShowGameMenu(false);
-                    setCityToCenter(null);
-                    setMapView(null);
-                    setShowTitleScreen(true);
-                }}
+                onQuit={quitToTitle}
                 showShroud={showShroud}
                 onToggleShroud={() => setShowShroud(prev => !prev)}
                 showYields={showTileYields}
@@ -498,16 +503,7 @@ function App() {
                     gameState={gameState}
                     playerId={playerId}
                     onRestart={handleRestart}
-                    onQuit={() => {
-                        clearSession();
-                        setSelectedCoord(null);
-                        setSelectedUnitId(null);
-                        setShowTechTree(false);
-                        setShowGameMenu(false);
-                        setCityToCenter(null);
-                        setMapView(null);
-                        setShowTitleScreen(true);
-                    }}
+                    onQuit={quitToTitle}
                 />
             )}
             {pendingWarAttack && (() => {
@@ -522,8 +518,7 @@ function App() {
                             // Then execute the attack
                             handleAction(pendingWarAttack.action);
                             setPendingWarAttack(null);
-                            setSelectedCoord(null);
-                            setSelectedUnitId(null);
+                            clearSelection();
                         }}
                         onCancel={() => {
                             setPendingWarAttack(null);
@@ -543,12 +538,6 @@ function App() {
                 isOpen={showSaveModal}
                 onClose={() => setShowSaveModal(false)}
                 onConfirmSave={confirmSaveGame}
-            />
-            <LoadGameModal
-                isOpen={showLoadModal}
-                onClose={() => setShowLoadModal(false)}
-                saves={listSaves()}
-                onLoad={confirmLoadGame}
             />
             {error && (
                 <div style={{
@@ -596,13 +585,7 @@ function App() {
                 titleContent={titleContent}
                 gameContent={gameContent}
             />
-            {/* Render LoadModal outside of AppShell/GameContent so it can appear on TitleScreen too if needed, 
-                but TitleScreen is inside AppShell structure. The Modals use portals or fixed positioning so it's fine. 
-                Wait, TitleScreen is passed as prop. Let's just put it at root if we want it global. 
-                Actually, the easiest is to just have them available. 
-                Since they are specific to Game/Title, let's just add the LoadModal to the TitleScreen part too 
-                or just put it at the end of the fragments. */}
-            {/* Global Modals that can appear on top of everything */}
+            {/* Global load modal for both title and in-game menus */}
             <LoadGameModal
                 isOpen={showLoadModal}
                 onClose={() => setShowLoadModal(false)}

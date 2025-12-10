@@ -36,7 +36,7 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
             return history;
         }
 
-        let cumulative = new Set<string>();
+        const cumulative = new Set<string>();
         // Initialize with starting vision if any? 
         // We assume turn 0 starts blank or with initial vision.
 
@@ -331,7 +331,7 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
                         case "VictoryAchieved":
                             text = `Victory (${e.data.victoryType})`;
                             break;
-                        case "CivContact":
+                        case "CivContact": {
                             // Only show if WE met them, not if they met us
                             if (e.playerId !== playerId) break;
 
@@ -341,6 +341,7 @@ export const ReplayMap: React.FC<ReplayMapProps> = ({ gameState, playerId }) => 
                             const otherCiv = gameState.players.find(p => p.id === otherId)?.civName || "Unknown";
                             text = `Met Civilization: ${formatId(otherCiv)}`;
                             break;
+                        }
                         case "WonderBuilt":
                             text = `Wonder Completed: ${formatId(e.data.buildId || e.data.wonderId || "Unknown")}`;
                             break;

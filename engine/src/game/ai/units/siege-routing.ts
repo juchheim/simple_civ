@@ -9,19 +9,14 @@ import { getWarTargets, stepToward } from "./unit-helpers.js";
 
 export function captureIfPossible(state: GameState, playerId: string, unitId: string): GameState {
     const unit = state.units.find(u => u.id === unitId);
-    if (!unit) return state;
-    const stats = UNITS[unit.type];
-    if (!stats.canCaptureCity || stats.domain === "Civilian") return state;
+    if (!unit || !canCapture(unit)) return state;
 
-    const adjCities = state.cities.filter(
-        c => c.ownerId !== playerId && hexDistance(c.coord, unit.coord) === 1 && c.hp <= 0
-    );
+    const adjCities = getAdjacentCapturableCities(state, playerId, unit);
     if (adjCities.length > 0) {
         aiInfo(`[AI CAPTURE ATTEMPT] ${playerId} ${unit.type} attempting to capture ${adjCities.length} cities at HP <=0`);
     }
     for (const city of adjCities) {
-        const unitsOnCity = state.units.filter(u => hexEquals(u.coord, city.coord));
-        aiInfo(`[AI CAPTURE] ${playerId} ${unit.type} capturing ${city.name} (${city.ownerId}) at ${city.hp} HP. Units on city: ${unitsOnCity.map(u => u.type).join(", ") || "None"}`);
+        logCaptureAttempt(playerId, unit, city, state.units);
         const moved = tryAction(state, { type: "MoveUnit", playerId, unitId: unit.id, to: city.coord });
         if (moved !== state) return moved;
     }
@@ -52,58 +47,11 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
         const path = findPath(unit.coord, city.coord, unit, next);
         const step = path[0];
         if (step) {
-            // Check if step is blocked by friendly unit
-            const blockingUnit = next.units.find(u => hexEquals(u.coord, step) && u.ownerId === playerId && u.id !== unit.id);
-            if (blockingUnit) {
-                let cleared = false;
-                // Try to move blocking unit aside
-                if (blockingUnit.movesLeft > 0) {
-                    const neighbors = getNeighbors(blockingUnit.coord);
-                    // Find a free neighbor that isn't the city and isn't the capture unit's tile
-                    const escape = neighbors.find(n => {
-                        if (hexEquals(n, city.coord) || hexEquals(n, unit.coord)) return false;
-                        if (next.units.some(u => hexEquals(u.coord, n))) return false;
-                        const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
-                        const blocksLos = tile ? TERRAIN[tile.terrain]?.blocksLoS : false;
-                        return !blocksLos;
-                    });
-
-                    if (escape) {
-                        aiInfo(`[AI CAPTURE] Moving blocking unit ${blockingUnit.type} to make way for ${unit.type}`);
-                        const movedBlocker = tryAction(next, {
-                            type: "MoveUnit",
-                            playerId,
-                            unitId: blockingUnit.id,
-                            to: escape
-                        });
-                        if (movedBlocker !== next) {
-                            next = movedBlocker;
-                            cleared = true;
-                            // Now try moving the capture unit again
-                        }
-                    }
-                }
-
-                if (!cleared) {
-                    // No escape or no moves? Try SWAP!
-                    // "advance through other units by swapping hexes"
-                    if (hexDistance(unit.coord, blockingUnit.coord) === 1) {
-                        aiInfo(`[AI CAPTURE] Blocking unit ${blockingUnit.type} cannot move aside. Attempting SWAP with ${unit.type}`);
-                        const swapped = tryAction(next, {
-                            type: "SwapUnits",
-                            playerId,
-                            unitId: unit.id,
-                            targetUnitId: blockingUnit.id
-                        });
-                        if (swapped !== next) {
-                            next = swapped;
-                            assigned.add(unit.id); // Unit moved (swapped)
-                            continue;
-                        }
-                    } else {
-                        console.warn(`[AI CAPTURE] Cannot swap: Units not adjacent (${hexDistance(unit.coord, blockingUnit.coord)})`);
-                    }
-                }
+            const { updatedState, movedCaptureUnit } = resolveBlockingAndMove(next, playerId, unit, city, step);
+            next = updatedState;
+            if (movedCaptureUnit) {
+                assigned.add(unit.id);
+                continue;
             }
 
             const moved = tryAction(next, {
@@ -126,6 +74,94 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
     return next;
 }
 
+const canCapture = (unit: any) => {
+    const stats = UNITS[unit.type];
+    return stats.canCaptureCity && stats.domain !== "Civilian";
+};
+
+const getAdjacentCapturableCities = (state: GameState, playerId: string, unit: any) => {
+    return state.cities.filter(
+        c => c.ownerId !== playerId && hexDistance(c.coord, unit.coord) === 1 && c.hp <= 0
+    );
+};
+
+const logCaptureAttempt = (playerId: string, unit: any, city: any, units: any[]) => {
+    const unitsOnCity = units.filter(u => hexEquals(u.coord, city.coord));
+    aiInfo(`[AI CAPTURE] ${playerId} ${unit.type} capturing ${city.name} (${city.ownerId}) at ${city.hp} HP. Units on city: ${unitsOnCity.map(u => u.type).join(", ") || "None"}`);
+};
+
+const resolveBlockingAndMove = (state: GameState, playerId: string, unit: any, city: any, step: { q: number; r: number }) => {
+    let next = state;
+    const blockingUnit = next.units.find(u => hexEquals(u.coord, step) && u.ownerId === playerId && u.id !== unit.id);
+    if (!blockingUnit) {
+        return { updatedState: next, movedCaptureUnit: false };
+    }
+
+    let cleared = false;
+    if (blockingUnit.movesLeft > 0) {
+        const escape = findEscapeHex(next, blockingUnit, unit, city);
+        if (escape) {
+            aiInfo(`[AI CAPTURE] Moving blocking unit ${blockingUnit.type} to make way for ${unit.type}`);
+            const movedBlocker = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: blockingUnit.id,
+                to: escape
+            });
+            if (movedBlocker !== next) {
+                next = movedBlocker;
+                cleared = true;
+            }
+        }
+    }
+
+    if (!cleared) {
+        if (hexDistance(unit.coord, blockingUnit.coord) === 1) {
+            aiInfo(`[AI CAPTURE] Blocking unit ${blockingUnit.type} cannot move aside. Attempting SWAP with ${unit.type}`);
+            const swapped = tryAction(next, {
+                type: "SwapUnits",
+                playerId,
+                unitId: unit.id,
+                targetUnitId: blockingUnit.id
+            });
+            if (swapped !== next) {
+                return { updatedState: swapped, movedCaptureUnit: true };
+            }
+        } else {
+            console.warn(`[AI CAPTURE] Cannot swap: Units not adjacent (${hexDistance(unit.coord, blockingUnit.coord)})`);
+        }
+    }
+
+    return { updatedState: next, movedCaptureUnit: false };
+};
+
+const findEscapeHex = (state: GameState, blockingUnit: any, captureUnit: any, city: any) => {
+    const neighbors = getNeighbors(blockingUnit.coord);
+    return neighbors.find(n => {
+        if (hexEquals(n, city.coord) || hexEquals(n, captureUnit.coord)) return false;
+        if (state.units.some(u => hexEquals(u.coord, n))) return false;
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, n));
+        const blocksLos = tile ? TERRAIN[tile.terrain]?.blocksLoS : false;
+        return !blocksLos;
+    });
+};
+
+const getNearbySiegeUnits = (state: GameState, playerId: string, targetCity: any, radiusToConsider: number) => {
+    return state.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].domain !== "Civilian" &&
+        hexDistance(u.coord, targetCity.coord) <= radiusToConsider
+    );
+};
+
+const findAvailableCaptureUnits = (state: GameState, playerId: string) => {
+    return state.units.filter(u =>
+        u.ownerId === playerId &&
+        u.movesLeft > 0 &&
+        UNITS[u.type].canCaptureCity
+    );
+};
+
 /**
  * Check if units near a target city form a viable siege force.
  * A viable siege requires at least one capture-capable unit (SpearGuard, Riders, etc.)
@@ -136,11 +172,7 @@ function hasSiegeCapability(
     targetCity: any,
     radiusToConsider: number = 4
 ): { hasCaptureUnit: boolean; captureUnits: string[]; siegeUnits: string[] } {
-    const nearbyUnits = state.units.filter(u =>
-        u.ownerId === playerId &&
-        UNITS[u.type].domain !== "Civilian" &&
-        hexDistance(u.coord, targetCity.coord) <= radiusToConsider
-    );
+    const nearbyUnits = getNearbySiegeUnits(state, playerId, targetCity, radiusToConsider);
 
     const captureUnits = nearbyUnits.filter(u => UNITS[u.type].canCaptureCity).map(u => u.id);
     const siegeUnits = nearbyUnits.map(u => u.id);
@@ -198,12 +230,7 @@ export function routeCaptureUnitsToActiveSieges(state: GameState, playerId: stri
     const siegesNeedingCapture = findSiegesNeedingCapture(next, playerId);
     if (siegesNeedingCapture.length === 0) return next;
 
-    // Find available capture units that aren't already at a siege
-    const captureUnits = next.units.filter(u =>
-        u.ownerId === playerId &&
-        u.movesLeft > 0 &&
-        UNITS[u.type].canCaptureCity
-    );
+    const captureUnits = findAvailableCaptureUnits(next, playerId);
 
     const assignedUnits = new Set<string>();
 

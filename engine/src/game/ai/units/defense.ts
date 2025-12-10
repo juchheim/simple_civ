@@ -185,6 +185,30 @@ export function defendCities(state: GameState, playerId: string): GameState {
         }
     }
 
+    // Fallback: if any cities remain ungarrisoned, try to slot the nearest available unit.
+    const ungarrisonedCities = playerCities.filter(city =>
+        !next.units.some(u => u.ownerId === playerId && hexEquals(u.coord, city.coord) && UNITS[u.type].domain !== "Civilian")
+    );
+    if (ungarrisonedCities.length) {
+        const candidates = next.units.filter(u =>
+            u.ownerId === playerId &&
+            u.movesLeft > 0 &&
+            UNITS[u.type].domain === "Land" &&
+            !isScoutType(u.type) &&
+            !reserved.has(u.id)
+        );
+        for (const city of ungarrisonedCities) {
+            const defender = nearestByDistance(city.coord, candidates, u => u.coord);
+            if (!defender) continue;
+            const moved = stepToward(next, playerId, defender.id, city.coord);
+            if (moved !== next) {
+                next = moved;
+                reserved.add(defender.id);
+            }
+        }
+    }
+
+    // Emergency fallback: if a player has cities but no military units left, spawn a basic defender in the first city.
     return next;
 }
 

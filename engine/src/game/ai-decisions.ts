@@ -258,7 +258,7 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     }
     const personality = getPersonalityForPlayer(state, playerId);
     const aggression = personality.aggression;
-    const warPowerThreshold = (() => {
+    const baseWarPowerThreshold = (() => {
         // v0.98 Update 7: Check for aggression spike triggers
         if (aggression.aggressionSpikeTrigger === "TitanBuilt" && hasTitan(playerId, state)) {
             return aggression.warPowerThresholdLate ?? aggression.warPowerThreshold;
@@ -284,6 +284,11 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         const lateProgress = Math.min(1, (state.turn - 150) / 80);
         escalationFactor = 1.0 - (lateProgress * 0.4);
     }
+
+    // Non-Conquest goals should be more cautious before declaring war.
+    const warPowerThreshold = victoryBias === "Conquest"
+        ? baseWarPowerThreshold
+        : Math.max(baseWarPowerThreshold, 1.1);
 
     // v0.99 Update: Large Map Scaling
     // On larger maps, distances are greater and there are more opponents.

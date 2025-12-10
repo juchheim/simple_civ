@@ -661,82 +661,107 @@ function countAvailableCitySites(state: GameState, playerId: string, limit: numb
     return count;
 }
 
-export function pickCityBuilds(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
-    let next = state;
-    const personality = getPersonalityForPlayer(next, playerId);
+type ExpansionContext = {
+    personality: AiPersonality;
+    desiredCities: number;
+    cityCountShort: boolean;
+    desiredShortfall: number;
+    freeLandNear: boolean;
+    settlersInFlight: number;
+    settlerCap: number;
+    availableSites: number;
+    cityOrder: City[];
+    canPursueProgress: boolean;
+    progressCityId: string | undefined;
+    atWar: boolean;
+    scoutCount: number;
+};
+
+function buildExpansionContext(state: GameState, playerId: string, goal: AiVictoryGoal): ExpansionContext {
+    const personality = getPersonalityForPlayer(state, playerId);
     const desiredCities = personality.desiredCities ?? 3;
-    const myCities = next.cities.filter(c => c.ownerId === playerId);
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
     const cityCountShort = myCities.length < desiredCities;
     const desiredShortfall = Math.max(0, desiredCities - myCities.length);
     const freeLandNear = myCities.some(c => {
         const ring = hexSpiral(c.coord, 4);
         return ring.some(coord => {
-            const tile = next.map.tiles.find(t => hexEquals(t.coord, coord));
+            const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
             return tile && !tile.ownerId && tile.terrain !== TerrainType.Mountain && tile.terrain !== TerrainType.DeepSea && tile.terrain !== TerrainType.Coast;
         });
     });
-    const activeSettlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler).length;
-    const settlersQueued = next.cities.filter(
+    const activeSettlers = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler).length;
+    const settlersQueued = state.cities.filter(
         c => c.ownerId === playerId && c.currentBuild?.type === "Unit" && c.currentBuild.id === UnitType.Settler
     ).length;
-    let settlersInFlight = activeSettlers + settlersQueued;
+    const cityOrder = state.cities.filter(c => c.ownerId === playerId);
+    const atWar = isAtWar(state, playerId);
 
-    // Strict Cap: Prevent "batch production" waste.
-    // "Finish Your Plate" Rule: Limit active settlers to 1 (2 on Large/Huge maps).
-    // This forces the AI to use its existing settler before building another.
-    const mapSize = state.map.width * state.map.height;
-    const isLargeMap = mapSize > 200; // Approx threshold for Large+
-    // v0.99 Tuning: Increased limits to encourage expansion
-    // Standard: 2 (was 1), Large: 3 (was 2)
-    let globalSettlerLimit = isLargeMap ? 3 : 2;
-
-    // v0.99 Tuning: Expansionist civs get +1 slot
     const player = state.players.find(p => p.id === playerId);
+    const mapSize = state.map.width * state.map.height;
+    const isLargeMap = mapSize > 200;
+    let globalSettlerLimit = isLargeMap ? 3 : 2;
     if (player?.civName === "JadeCovenant" || player?.civName === "RiverLeague") {
         globalSettlerLimit += 1;
     }
-
-    // v0.99 Tuning: Jade Covenant stops settling when in Conquest mode
-    // "I am awake. I do not settle anymore. I take."
     if (player?.civName === "JadeCovenant" && goal === "Conquest") {
         globalSettlerLimit = 0;
     }
 
-    // Cap based on shortfall, available sites, AND the strict global limit
     const settlerCap = Math.min(
         globalSettlerLimit,
         Math.max(1, Math.ceil(desiredShortfall / 2))
     );
+    const availableSites = countAvailableCitySites(state, playerId, settlerCap + 2);
 
-    // Check available sites up to a reasonable limit
-    const availableSites = countAvailableCitySites(next, playerId, settlerCap + 2);
-
-    const cityOrder = state.cities.filter(c => c.ownerId === playerId);
-    const atWar = isAtWar(next, playerId);
-
-    // v2.2: Per-city build specialization
-    // Capital (or highest-pop city if no capital) prioritizes progress projects
-    // Other cities handle military production during wartime
     const capital = myCities.find(c => c.isCapital);
     const highestPopCity = myCities.reduce((best, city) =>
         city.pop > (best?.pop ?? 0) ? city : best, myCities[0]);
     const progressCityId = capital?.id ?? highestPopCity?.id;
-
-    // Check if player can pursue progress victory (has StarCharts)
     const canPursueProgress = player?.techs.includes(TechId.StarCharts) ?? false;
+    const scoutCount = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Scout).length;
 
-    // Count scouts for priority decisions
-    const scoutCount = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Scout).length;
+    return {
+        personality,
+        desiredCities,
+        cityCountShort,
+        desiredShortfall,
+        freeLandNear,
+        settlersInFlight: activeSettlers + settlersQueued,
+        settlerCap,
+        availableSites,
+        cityOrder,
+        canPursueProgress,
+        progressCityId,
+        atWar,
+        scoutCount
+    };
+}
 
-    for (const city of cityOrder) {
+function getCityPrioritiesForGoal(
+    city: City,
+    player: { techs: TechId[]; completedProjects: ProjectId[]; civName?: string } | undefined,
+    goal: AiVictoryGoal,
+    context: ExpansionContext,
+    state: GameState,
+    playerId: string
+) {
+    const isProgressCity = city.id === context.progressCityId && context.canPursueProgress;
+    return isProgressCity
+        ? getProgressCityPriorities(player, context.scoutCount)
+        : buildPriorities(goal, context.personality, context.atWar, state, playerId);
+}
+
+export function pickCityBuilds(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
+    let next = state;
+    const expansion = buildExpansionContext(next, playerId, goal);
+    let settlersInFlight = expansion.settlersInFlight;
+    const player = next.players.find(p => p.id === playerId);
+
+    for (const city of expansion.cityOrder) {
         if (city.currentBuild) continue;
 
-        // v2.2: Use progress-first priorities for designated progress city
-        // This ensures at least one city always works on victory projects
-        const isProgressCity = city.id === progressCityId && canPursueProgress;
-        const priorities = isProgressCity
-            ? getProgressCityPriorities(player, scoutCount)
-            : buildPriorities(goal, personality, atWar, next, playerId);
+        const priorities = getCityPrioritiesForGoal(city, player, goal, expansion, next, playerId);
 
         for (const option of priorities) {
 
@@ -745,13 +770,13 @@ export function pickCityBuilds(state: GameState, playerId: string, goal: AiVicto
                 // 1. We want more cities (shortfall > 0)
                 // 2. We haven't hit the hard cap (inFlight < cap)
                 // 3. We have valid sites (inFlight < available)
-                const allowSettler = desiredShortfall > 0 &&
-                    settlersInFlight < settlerCap &&
-                    settlersInFlight < availableSites &&
-                    (cityCountShort || freeLandNear);
+                const allowSettler = expansion.desiredShortfall > 0 &&
+                    settlersInFlight < expansion.settlerCap &&
+                    settlersInFlight < expansion.availableSites &&
+                    (expansion.cityCountShort || expansion.freeLandNear);
 
                 if (!allowSettler) continue;
-                aiInfo(`[AI Build] ${playerId} queuing Settler in ${city.name} (cities=${myCities.length}/${desiredCities}, inFlight=${settlersInFlight}, sites=${availableSites}, cap=${settlerCap})`);
+                aiInfo(`[AI Build] ${playerId} queuing Settler in ${city.name} (cities=${expansion.cityOrder.length}/${expansion.desiredCities}, inFlight=${settlersInFlight}, sites=${expansion.availableSites}, cap=${expansion.settlerCap})`);
                 settlersInFlight++;
             }
             if (canBuild(city, option.type, option.id, next)) {

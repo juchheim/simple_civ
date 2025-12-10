@@ -31,26 +31,231 @@ import {
     getNearbyThreats
 } from "./unit-helpers.js";
 
-export function attackTargets(state: GameState, playerId: string): GameState {
+function coordinateBattleGroups(state: GameState, playerId: string): GameState {
     let next = state;
-
-    // v2.0: Coordinated group attacks with focus fire
     const battleGroups = identifyBattleGroups(next, playerId);
     for (const group of battleGroups) {
-        if (group.units.length >= 2) { // Only coordinate if 2+ units
+        if (group.units.length >= 2) {
             next = coordinateGroupAttack(next, playerId, group);
         }
     }
+    return next;
+}
 
-    // v1.0 Fix: Exclude garrisoned units from active attacks to prevent "unprovoked" city attacks.
-    // Garrisoned units will still retaliate if the city is attacked.
-    // v1.3 Fix: Explicitly check for presence in city, as u.state might not be updated yet.
-    const units = next.units.filter(u => {
+function getAttackingUnits(state: GameState, playerId: string) {
+    return state.units.filter(u => {
         if (u.ownerId !== playerId || u.type === UnitType.Settler || isScoutType(u.type) || u.state === UnitState.Garrisoned) return false;
-        const city = next.cities.find(c => hexEquals(c.coord, u.coord));
+        const city = state.cities.find(c => hexEquals(c.coord, u.coord));
         if (city && city.ownerId === playerId) return false;
         return true;
     });
+}
+
+function tryCityAttacks(
+    state: GameState,
+    playerId: string,
+    unit: any,
+    warCities: any[],
+    primaryCity: any
+): { state: GameState; acted: boolean } {
+    let next = state;
+    const stats = UNITS[unit.type];
+    const cityTargets = warCities
+        .filter(c => hexDistance(c.coord, unit.coord) <= stats.rng && c.hp > 0)
+        .map(c => ({ city: c, dmg: expectedDamageToCity(unit, c, next) }))
+        .sort((a, b) => {
+            const aKill = a.dmg >= a.city.hp ? 0 : 1;
+            const bKill = b.dmg >= b.city.hp ? 0 : 1;
+            if (aKill !== bKill) return aKill - bKill;
+            if (primaryCity) {
+                const aPrimary = a.city.id === primaryCity.id ? -1 : 0;
+                const bPrimary = b.city.id === primaryCity.id ? -1 : 0;
+                if (aPrimary !== bPrimary) return aPrimary - bPrimary;
+            }
+            return a.city.hp - b.city.hp;
+        });
+
+    for (const { city, dmg } of cityTargets) {
+        const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: city.id, targetType: "City" });
+        if (attacked !== next) {
+            aiInfo(`[AI ATTACK CITY] ${playerId} attacks ${city.name} (${city.ownerId}) with ${unit.type}, dealing ${dmg} damage (HP: ${city.hp}→${city.hp - dmg})`);
+            next = attacked;
+            next = captureIfPossible(next, playerId, unit.id);
+            return { state: next, acted: true };
+        }
+    }
+
+    return { state: next, acted: false };
+}
+
+function getWarEnemyIds(state: GameState, playerId: string): string[] {
+    return state.players
+        .filter(p =>
+            p.id !== playerId &&
+            !p.isEliminated &&
+            state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+        )
+        .map(p => p.id);
+}
+
+function getEnemyTargets(next: GameState, unit: any, warEnemyIds: string[]) {
+    const stats = UNITS[unit.type];
+    return next.units
+        .filter(u => warEnemyIds.includes(u.ownerId))
+        .map(u => ({
+            u,
+            d: hexDistance(u.coord, unit.coord),
+            dmg: expectedDamageToUnit(unit, u, next),
+            counter: expectedDamageFrom(u, unit, next),
+            isSettler: u.type === UnitType.Settler
+        }))
+        .filter(({ d, isSettler }) => {
+            if (isSettler) return d === 1;
+            return d <= stats.rng;
+        })
+        .sort((a, b) => {
+            const aKill = a.dmg >= a.u.hp ? 0 : 1;
+            const bKill = b.dmg >= b.u.hp ? 0 : 1;
+            if (aKill !== bKill) return aKill - bKill;
+
+            if (a.dmg !== b.dmg) return b.dmg - a.dmg;
+
+            if (a.isSettler !== b.isSettler) return a.isSettler ? 1 : -1;
+            if (a.d !== b.d) return a.d - b.d;
+            return a.u.hp - b.u.hp;
+        });
+}
+
+function attemptSettlerPounce(
+    next: GameState,
+    playerId: string,
+    unit: any,
+    target: { u: any; d: number; dmg: number; counter: number; isSettler: boolean }
+): { state: GameState; acted: boolean } {
+    const neighbors = getNeighbors(target.u.coord);
+    const bestNeighbor = neighbors
+        .map(coord => ({
+            coord,
+            dist: hexDistance(unit.coord, coord),
+            path: findPath(unit.coord, coord, unit, next)
+        }))
+        .filter(n => n.path.length > 0)
+        .sort((a, b) => a.dist - b.dist)[0];
+
+    if (bestNeighbor) {
+        const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: bestNeighbor.coord });
+        if (moved !== next) {
+            next = moved;
+            const updatedUnit = next.units.find(u => u.id === unit.id);
+            const updatedTarget = next.units.find(u => u.id === target.u.id);
+            if (!updatedUnit || updatedUnit.movesLeft <= 0 || !updatedTarget) return { state: next, acted: true };
+            const newDist = hexDistance(updatedUnit.coord, updatedTarget.coord);
+            if (newDist > 1) return { state: next, acted: true };
+            const newTarget = {
+                u: updatedTarget,
+                d: newDist,
+                dmg: expectedDamageToUnit(updatedUnit, updatedTarget, next),
+                counter: expectedDamageFrom(updatedTarget, updatedUnit, next),
+                isSettler: true
+            };
+            const attacked = tryAction(next, { type: "Attack", playerId, attackerId: updatedUnit.id, targetId: updatedTarget.id, targetType: "Unit" });
+            if (attacked !== next) {
+                aiInfo(`[AI ATTACK UNIT] ${playerId} ${updatedUnit.type} attacks ${updatedTarget.ownerId} ${updatedTarget.type}, dealing ${newTarget.dmg} damage (HP: ${updatedTarget.hp})`);
+                next = attacked;
+                const finalUnit = next.units.find(u => u.id === unit.id);
+                if (finalUnit) {
+                    const adjAfter = enemiesWithin(next, playerId, finalUnit.coord, 1);
+                    if (UNITS[finalUnit.type].rng > 1 && adjAfter > 0) {
+                        next = repositionRanged(next, playerId);
+                    }
+                }
+            }
+            return { state: next, acted: true };
+        }
+    }
+
+    return { state: next, acted: false };
+}
+
+function handlePostAttackRetreat(next: GameState, playerId: string, unitId: string): GameState {
+    const liveUnit = next.units.find(u => u.id === unitId);
+    if (!liveUnit || liveUnit.movesLeft <= 0) return next;
+    if (!shouldRetreatAfterAttacking(liveUnit, next, playerId)) return next;
+
+    const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
+    const nearestCity = friendlyCities.length > 0
+        ? friendlyCities.sort((a, b) => hexDistance(a.coord, liveUnit.coord) - hexDistance(b.coord, liveUnit.coord))[0]
+        : null;
+    if (!nearestCity) return next;
+
+    const safeTile = findSafeRetreatTile(next, playerId, liveUnit, nearestCity.coord);
+    if (!safeTile) return next;
+
+    const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: liveUnit.id, to: safeTile });
+    if (retreated !== next) {
+        aiInfo(`[AI POST-ATTACK RETREAT] ${playerId} ${liveUnit.type} retreating after attack (exposed to multiple threats)`);
+        return retreated;
+    }
+
+    return next;
+}
+
+function performUnitAttack(
+    next: GameState,
+    playerId: string,
+    unit: any,
+    target: { u: any; d: number; dmg: number; counter: number; isSettler: boolean }
+): GameState {
+    const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: target.u.id, targetType: "Unit" });
+    if (attacked === next) return next;
+
+    let updated = attacked;
+    aiInfo(`[AI ATTACK UNIT] ${playerId} ${unit.type} attacks ${target.u.ownerId} ${target.u.type}, dealing ${target.dmg} damage (HP: ${target.u.hp})`);
+    const updatedUnitAfterAttack = updated.units.find(u => u.id === unit.id);
+    if (updatedUnitAfterAttack) {
+        const adjAfter = enemiesWithin(updated, playerId, updatedUnitAfterAttack.coord, 1);
+        if (UNITS[updatedUnitAfterAttack.type].rng > 1 && adjAfter > 0) {
+            updated = repositionRanged(updated, playerId);
+        }
+        updated = handlePostAttackRetreat(updated, playerId, unit.id);
+    }
+    return updated;
+}
+
+function handleUnsafeAttack(
+    next: GameState,
+    playerId: string,
+    unit: any,
+    attackSafety: { safe: boolean; riskLevel: "low" | "medium" | "high" | "suicidal"; reason: string }
+): GameState {
+    aiInfo(`[AI SKIP UNSAFE ATTACK] ${playerId} ${unit.type} skipping attack: ${attackSafety.reason}`);
+
+    const inFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, unit.coord));
+
+    if (!inFriendlyCity && (attackSafety.riskLevel === "high" || attackSafety.riskLevel === "suicidal")) {
+        const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
+        const nearestCity = friendlyCities.length > 0
+            ? friendlyCities.sort((a, b) => hexDistance(a.coord, unit.coord) - hexDistance(b.coord, unit.coord))[0]
+            : null;
+        if (nearestCity && unit.movesLeft > 0) {
+            const safeTile = findSafeRetreatTile(next, playerId, unit, nearestCity.coord);
+            if (safeTile) {
+                const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: safeTile });
+                if (retreated !== next) {
+                    aiInfo(`[AI PROACTIVE RETREAT] ${playerId} ${unit.type} retreating from dangerous position`);
+                    return retreated;
+                }
+            }
+        }
+    }
+
+    return next;
+}
+
+export function attackTargets(state: GameState, playerId: string): GameState {
+    let next = coordinateBattleGroups(state, playerId);
+
+    const units = getAttackingUnits(next, playerId);
     const warTargets = getWarTargets(next, playerId);
     const isInWarProsecutionMode = shouldUseWarProsecutionMode(next, playerId, warTargets);
     const warCities = next.cities.filter(c => c.ownerId !== playerId);
@@ -62,69 +267,14 @@ export function attackTargets(state: GameState, playerId: string): GameState {
         { forceRetarget: isInWarProsecutionMode, preferClosest: isInWarProsecutionMode }
     );
     for (const unit of units) {
-        const stats = UNITS[unit.type];
         if (unit.hasAttacked) continue;
 
-        const cityTargets = warCities
-            .filter(c => hexDistance(c.coord, unit.coord) <= stats.rng && c.hp > 0)
-            .map(c => ({ city: c, dmg: expectedDamageToCity(unit, c, next) }))
-            .sort((a, b) => {
-                const aKill = a.dmg >= a.city.hp ? 0 : 1;
-                const bKill = b.dmg >= b.city.hp ? 0 : 1;
-                if (aKill !== bKill) return aKill - bKill;
-                if (primaryCity) {
-                    const aPrimary = a.city.id === primaryCity.id ? -1 : 0;
-                    const bPrimary = b.city.id === primaryCity.id ? -1 : 0;
-                    if (aPrimary !== bPrimary) return aPrimary - bPrimary;
-                }
-                return a.city.hp - b.city.hp;
-            });
-        let acted = false;
-        for (const { city, dmg } of cityTargets) {
-            const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: city.id, targetType: "City" });
-            if (attacked !== next) {
-                aiInfo(`[AI ATTACK CITY] ${playerId} attacks ${city.name} (${city.ownerId}) with ${unit.type}, dealing ${dmg} damage (HP: ${city.hp}→${city.hp - dmg})`);
-                next = attacked;
-                next = captureIfPossible(next, playerId, unit.id);
-                acted = true;
-                break;
-            }
-        }
-        if (acted) continue;
+        const cityAttack = tryCityAttacks(next, playerId, unit, warCities, primaryCity);
+        next = cityAttack.state;
+        if (cityAttack.acted) continue;
 
-        const warEnemyIds = next.players
-            .filter(p =>
-                p.id !== playerId &&
-                !p.isEliminated &&
-                next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-            )
-            .map(p => p.id);
-
-        const enemyUnits = next.units
-            .filter(u => warEnemyIds.includes(u.ownerId))
-            .map(u => ({
-                u,
-                d: hexDistance(u.coord, unit.coord),
-                dmg: expectedDamageToUnit(unit, u, next),
-                counter: expectedDamageFrom(u, unit, next),
-                isSettler: u.type === UnitType.Settler
-            }))
-            .filter(({ d, isSettler }) => {
-                if (isSettler) return d === 1;
-                return d <= stats.rng;
-            })
-            .sort((a, b) => {
-                const aKill = a.dmg >= a.u.hp ? 0 : 1;
-                const bKill = b.dmg >= b.u.hp ? 0 : 1;
-                if (aKill !== bKill) return aKill - bKill;
-
-                // Smart Targeting: Maximize damage (Ignore Bait)
-                if (a.dmg !== b.dmg) return b.dmg - a.dmg;
-
-                if (a.isSettler !== b.isSettler) return a.isSettler ? 1 : -1;
-                if (a.d !== b.d) return a.d - b.d;
-                return a.u.hp - b.u.hp;
-            });
+        const warEnemyIds = getWarEnemyIds(next, playerId);
+        const enemyUnits = getEnemyTargets(next, unit, warEnemyIds);
         const target = enemyUnits[0];
         const adjEnemies = enemiesWithin(next, playerId, unit.coord, 1);
         const rangedAndUnsafe = UNITS[unit.type].rng > 1 && adjEnemies > 0 && target && target.dmg < target.u.hp;
@@ -141,105 +291,14 @@ export function attackTargets(state: GameState, playerId: string): GameState {
 
         if (target && tradeWorthIt && attackSafety.safe && !rangedAndUnsafe) {
             if (target.isSettler && target.d > 1 && unit.movesLeft > 0) {
-                const neighbors = getNeighbors(target.u.coord);
-                const bestNeighbor = neighbors
-                    .map(coord => ({
-                        coord,
-                        dist: hexDistance(unit.coord, coord),
-                        path: findPath(unit.coord, coord, unit, next)
-                    }))
-                    .filter(n => n.path.length > 0)
-                    .sort((a, b) => a.dist - b.dist)[0];
-
-                if (bestNeighbor) {
-                    const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: bestNeighbor.coord });
-                    if (moved !== next) {
-                        next = moved;
-                        const updatedUnit = next.units.find(u => u.id === unit.id);
-                        const updatedTarget = next.units.find(u => u.id === target.u.id);
-                        if (!updatedUnit || updatedUnit.movesLeft <= 0 || !updatedTarget) continue;
-                        const newDist = hexDistance(updatedUnit.coord, updatedTarget.coord);
-                        if (newDist > 1) continue;
-                        const newTarget = {
-                            u: updatedTarget,
-                            d: newDist,
-                            dmg: expectedDamageToUnit(updatedUnit, updatedTarget, next),
-                            counter: expectedDamageFrom(updatedTarget, updatedUnit, next),
-                            isSettler: true
-                        };
-                        const attacked = tryAction(next, { type: "Attack", playerId, attackerId: updatedUnit.id, targetId: updatedTarget.id, targetType: "Unit" });
-                        if (attacked !== next) {
-                            aiInfo(`[AI ATTACK UNIT] ${playerId} ${updatedUnit.type} attacks ${updatedTarget.ownerId} ${updatedTarget.type}, dealing ${newTarget.dmg} damage (HP: ${updatedTarget.hp})`);
-                            next = attacked;
-                            const finalUnit = next.units.find(u => u.id === unit.id);
-                            if (finalUnit) {
-                                const adjAfter = enemiesWithin(next, playerId, finalUnit.coord, 1);
-                                if (UNITS[finalUnit.type].rng > 1 && adjAfter > 0) {
-                                    next = repositionRanged(next, playerId);
-                                }
-                            }
-                        }
-                        continue;
-                    }
-                }
+                const settlerAttack = attemptSettlerPounce(next, playerId, unit, target);
+                next = settlerAttack.state;
+                if (settlerAttack.acted) continue;
             }
 
-            const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: target.u.id, targetType: "Unit" });
-            if (attacked !== next) {
-                aiInfo(`[AI ATTACK UNIT] ${playerId} ${unit.type} attacks ${target.u.ownerId} ${target.u.type}, dealing ${target.dmg} damage (HP: ${target.u.hp})`);
-                next = attacked;
-                const updatedUnitAfterAttack = next.units.find(u => u.id === unit.id);
-                if (updatedUnitAfterAttack) {
-                    const adjAfter = enemiesWithin(next, playerId, updatedUnitAfterAttack.coord, 1);
-                    if (UNITS[updatedUnitAfterAttack.type].rng > 1 && adjAfter > 0) {
-                        next = repositionRanged(next, playerId);
-                    }
-
-                    // v3.0: Post-attack retreat evaluation
-                    // Check if unit is now dangerously exposed and should retreat
-                    const liveUnit = next.units.find(u => u.id === unit.id);
-                    if (liveUnit && liveUnit.movesLeft > 0 && shouldRetreatAfterAttacking(liveUnit, next, playerId)) {
-                        const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
-                        const nearestCity = friendlyCities.length > 0
-                            ? friendlyCities.sort((a, b) => hexDistance(a.coord, liveUnit.coord) - hexDistance(b.coord, liveUnit.coord))[0]
-                            : null;
-                        if (nearestCity) {
-                            const safeTile = findSafeRetreatTile(next, playerId, liveUnit, nearestCity.coord);
-                            if (safeTile) {
-                                const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: liveUnit.id, to: safeTile });
-                                if (retreated !== next) {
-                                    aiInfo(`[AI POST-ATTACK RETREAT] ${playerId} ${liveUnit.type} retreating after attack (exposed to multiple threats)`);
-                                    next = retreated;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            next = performUnitAttack(next, playerId, unit, target);
         } else if (target && tradeWorthIt && !attackSafety.safe) {
-            // v3.0: Attack not safe - consider retreating instead of hanging around
-            aiInfo(`[AI SKIP UNSAFE ATTACK] ${playerId} ${unit.type} skipping attack: ${attackSafety.reason}`);
-
-            // Don't retreat if already in a friendly city - that's the safest place!
-            const inFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, unit.coord));
-
-            // If unit is in danger and NOT in a city, retreat proactively
-            if (!inFriendlyCity && (attackSafety.riskLevel === "high" || attackSafety.riskLevel === "suicidal")) {
-                const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
-                const nearestCity = friendlyCities.length > 0
-                    ? friendlyCities.sort((a, b) => hexDistance(a.coord, unit.coord) - hexDistance(b.coord, unit.coord))[0]
-                    : null;
-                if (nearestCity && unit.movesLeft > 0) {
-                    const safeTile = findSafeRetreatTile(next, playerId, unit, nearestCity.coord);
-                    if (safeTile) {
-                        const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: safeTile });
-                        if (retreated !== next) {
-                            aiInfo(`[AI PROACTIVE RETREAT] ${playerId} ${unit.type} retreating from dangerous position`);
-                            next = retreated;
-                        }
-                    }
-                }
-            }
+            next = handleUnsafeAttack(next, playerId, unit, attackSafety);
         }
     }
     return next;

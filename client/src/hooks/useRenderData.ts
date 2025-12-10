@@ -70,12 +70,14 @@ export const useRenderData = ({
         let production = base.P;
         const science = base.S;
 
-        const adjRiver = isTileAdjacentToRiver(gameState.map, tile.coord);
+        const adjRiver = Array.isArray((gameState.map as any)?.rivers)
+            ? isTileAdjacentToRiver(gameState.map, tile.coord)
+            : false;
         if (civ === "RiverLeague" && adjRiver) food += 1;
         if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) production += 1;
 
         return { F: food, P: production, S: science };
-    }, [playersById, playerId, map]);
+    }, [gameState.map, playerId, playersById]);
 
     const citiesByCoord = useMemo(() => {
         const coordMap = new Map<string, City>();

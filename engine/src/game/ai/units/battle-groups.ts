@@ -21,71 +21,28 @@ export interface BattleGroup {
  * Returns groups that can coordinate their attacks.
  */
 export function identifyBattleGroups(state: GameState, playerId: string): BattleGroup[] {
-    const militaryUnits = state.units.filter(u =>
-        u.ownerId === playerId &&
-        UNITS[u.type].domain !== "Civilian" &&
-        !u.hasAttacked &&
-        u.type !== UnitType.Scout &&
-        u.type !== UnitType.ArmyScout
-    );
+    const militaryUnits = getEligibleMilitaryUnits(state, playerId);
 
     if (militaryUnits.length === 0) return [];
 
-    // Find enemies at war with us
-    const warEnemyIds = state.players
-        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
-        .map(p => p.id);
-    const enemyUnits = state.units.filter(u => warEnemyIds.includes(u.ownerId));
+    const enemyUnits = getWarEnemies(state, playerId);
 
-    // Group units that are within 3 tiles of each other
     const groups: BattleGroup[] = [];
     const assigned = new Set<string>();
 
     for (const unit of militaryUnits) {
         if (assigned.has(unit.id)) continue;
 
-        // Find nearby enemies within attack range
-        const nearbyEnemies = enemyUnits.filter(e => {
-            const dist = hexDistance(unit.coord, e.coord);
-            return dist <= 3; // Within potential engagement range
-        });
+        const nearbyEnemies = findNearbyEnemies(unit, enemyUnits);
 
-        // Skip if no enemies nearby
         if (nearbyEnemies.length === 0) continue;
 
-        // Find other friendly units in this area
-        const groupUnits = militaryUnits.filter(other => {
-            if (assigned.has(other.id)) return false;
-            const dist = hexDistance(unit.coord, other.coord);
-            return dist <= 3;
-        });
+        const groupUnits = collectGroupUnits(unit, militaryUnits, assigned);
 
-        // Mark all as assigned
-        for (const u of groupUnits) {
-            assigned.add(u.id);
-        }
+        markAssigned(groupUnits, assigned);
 
-        // Find the best target (lowest HP enemy that multiple units can hit)
-        const targetCandidates = nearbyEnemies.map(enemy => {
-            const unitsInRange = groupUnits.filter(u => {
-                const stats = UNITS[u.type];
-                const dist = hexDistance(u.coord, enemy.coord);
-                return dist <= stats.rng;
-            });
-            const totalDamage = unitsInRange.reduce((sum, u) => sum + expectedDamageToUnit(u, enemy, state), 0);
-            return { enemy, unitsInRange, totalDamage, canKill: totalDamage >= enemy.hp };
-        }).sort((a, b) => {
-            // Prioritize killable targets
-            if (a.canKill !== b.canKill) return a.canKill ? -1 : 1;
-            // Then targets more units can hit
-            if (a.unitsInRange.length !== b.unitsInRange.length) return b.unitsInRange.length - a.unitsInRange.length;
-            // Then lowest HP
-            return a.enemy.hp - b.enemy.hp;
-        });
+        const primaryTarget = selectPrimaryTarget(groupUnits, nearbyEnemies, state);
 
-        const primaryTarget = targetCandidates[0]?.enemy || null;
-
-        // Calculate center of group
         const avgQ = groupUnits.reduce((s, u) => s + u.coord.q, 0) / groupUnits.length;
         const avgR = groupUnits.reduce((s, u) => s + u.coord.r, 0) / groupUnits.length;
 
@@ -115,11 +72,7 @@ export function coordinateGroupAttack(
     if (!group.primaryTarget) return next;
 
     // Sort units: ranged first (to soften targets), then melee
-    const sortedUnits = [...group.units].sort((a, b) => {
-        const aRng = UNITS[a.type as UnitType].rng;
-        const bRng = UNITS[b.type as UnitType].rng;
-        return bRng - aRng; // Higher range first
-    });
+    const sortedUnits = sortUnitsByRange(group.units);
 
     // Track the current primary target (may change if killed)
     let currentTarget = group.primaryTarget;
@@ -132,17 +85,9 @@ export function coordinateGroupAttack(
         const targetStillAlive = next.units.find(u => u.id === currentTarget.id);
 
         if (!targetStillAlive) {
-            // Target died - find new target with focus fire logic
-            const warEnemyIds = next.players
-                .filter(p => p.id !== playerId && !p.isEliminated && next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
-                .map(p => p.id);
-
-            const newTargets = next.units
-                .filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, liveUnit.coord) <= UNITS[liveUnit.type].rng)
-                .sort((a, b) => a.hp - b.hp); // Lowest HP first
-
-            if (newTargets.length === 0) continue;
-            currentTarget = newTargets[0];
+            const replacement = findReplacementTarget(next, playerId, liveUnit);
+            if (!replacement) continue;
+            currentTarget = replacement;
         }
 
         const stats = UNITS[liveUnit.type];
@@ -167,3 +112,76 @@ export function coordinateGroupAttack(
 
     return next;
 }
+
+const getEligibleMilitaryUnits = (state: GameState, playerId: string) => {
+    return state.units.filter(u =>
+        u.ownerId === playerId &&
+        UNITS[u.type].domain !== "Civilian" &&
+        !u.hasAttacked &&
+        u.type !== UnitType.Scout &&
+        u.type !== UnitType.ArmyScout
+    );
+};
+
+const getWarEnemies = (state: GameState, playerId: string) => {
+    const warEnemyIds = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
+        .map(p => p.id);
+    return state.units.filter(u => warEnemyIds.includes(u.ownerId));
+};
+
+const findNearbyEnemies = (unit: any, enemies: any[]) => {
+    return enemies.filter(e => hexDistance(unit.coord, e.coord) <= 3);
+};
+
+const collectGroupUnits = (anchor: any, allUnits: any[], assigned: Set<string>) => {
+    return allUnits.filter(other => {
+        if (assigned.has(other.id)) return false;
+        const dist = hexDistance(anchor.coord, other.coord);
+        return dist <= 3;
+    });
+};
+
+const markAssigned = (units: any[], assigned: Set<string>) => {
+    for (const u of units) {
+        assigned.add(u.id);
+    }
+};
+
+const selectPrimaryTarget = (groupUnits: any[], nearbyEnemies: any[], state: GameState) => {
+    const targetCandidates = nearbyEnemies.map(enemy => {
+        const unitsInRange = groupUnits.filter(u => {
+            const stats = UNITS[u.type];
+            const dist = hexDistance(u.coord, enemy.coord);
+            return dist <= stats.rng;
+        });
+        const totalDamage = unitsInRange.reduce((sum, u) => sum + expectedDamageToUnit(u, enemy, state), 0);
+        return { enemy, unitsInRange, totalDamage, canKill: totalDamage >= enemy.hp };
+    }).sort((a, b) => {
+        if (a.canKill !== b.canKill) return a.canKill ? -1 : 1;
+        if (a.unitsInRange.length !== b.unitsInRange.length) return b.unitsInRange.length - a.unitsInRange.length;
+        return a.enemy.hp - b.enemy.hp;
+    });
+
+    return targetCandidates[0]?.enemy || null;
+};
+
+const sortUnitsByRange = (units: any[]) => {
+    return [...units].sort((a, b) => {
+        const aRng = UNITS[a.type as UnitType].rng;
+        const bRng = UNITS[b.type as UnitType].rng;
+        return bRng - aRng;
+    });
+};
+
+const findReplacementTarget = (state: GameState, playerId: string, liveUnit: any) => {
+    const warEnemyIds = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
+        .map(p => p.id);
+
+    const newTargets = state.units
+        .filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, liveUnit.coord) <= UNITS[liveUnit.type].rng)
+        .sort((a, b) => a.hp - b.hp);
+
+    return newTargets[0];
+};

@@ -11,19 +11,15 @@ type UseUnitActionsArgs = {
 };
 
 export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPartner, playerId, onAction }: UseUnitActionsArgs) => {
-    const canLinkUnits =
-        isMyTurn &&
-        !!selectedUnit &&
-        !!linkCandidate &&
-        !selectedUnit.linkedUnitId &&
-        !selectedUnit.hasAttacked &&
-        !linkCandidate.hasAttacked;
+    const canLinkUnits = isMyTurn &&
+        isLinkable(selectedUnit) &&
+        isLinkable(linkCandidate);
 
     const canUnlinkUnits = isMyTurn && !!selectedUnit?.linkedUnitId && (!linkedPartner || linkedPartner.ownerId === playerId);
 
     const handleLinkUnits = React.useCallback(() => {
         if (!selectedUnit || !linkCandidate) return;
-        onAction({ type: "LinkUnits", playerId, unitId: selectedUnit.id, partnerId: linkCandidate.id });
+        onAction(buildLinkAction(playerId, selectedUnit, linkCandidate));
     }, [selectedUnit, linkCandidate, playerId, onAction]);
 
     const handleUnlinkUnits = React.useCallback(() => {
@@ -70,4 +66,15 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
     };
 };
 
+const isLinkable = (unit?: Unit | null) => {
+    if (!unit) return false;
+    return !unit.linkedUnitId && !unit.hasAttacked;
+};
+
+const buildLinkAction = (playerId: string, unit: Unit, partner: Unit): Action => ({
+    type: "LinkUnits",
+    playerId,
+    unitId: unit.id,
+    partnerId: partner.id,
+});
 
