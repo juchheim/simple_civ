@@ -30,6 +30,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
     const capitalCountsRef = useRef<Record<string, number>>({});
     const prevEliminatedRef = useRef<Record<string, boolean>>({});
     const isFirstRunRef = useRef(true);
+    const hydratedRef = useRef(false);
 
     useEffect(() => {
         // Initialize tracking
@@ -72,6 +73,17 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
         const newToasts: Toast[] = [];
 
         if (!gameState) return;
+
+        // If we just hydrated (e.g., load/refresh), record current history/events and bail once
+        if (!hydratedRef.current) {
+            if (gameState.history?.events) {
+                gameState.history.events.forEach(e => {
+                    prevHistoryEventsRef.current.add(`${e.turn}-${e.type}-${e.playerId}-${JSON.stringify(e.data)}`);
+                });
+            }
+            hydratedRef.current = true;
+            return;
+        }
 
         // 1. Check history events for new occurrences
         if (gameState.history?.events) {
