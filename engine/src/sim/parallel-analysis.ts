@@ -1,6 +1,7 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
 import { MapSize, GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
+import { UNITS } from "../core/constants.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { writeFileSync, statSync } from "fs";

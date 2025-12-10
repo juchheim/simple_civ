@@ -1,6 +1,6 @@
 import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
-import { GameState } from "../../../core/types.js";
+import { GameState, UnitType } from "../../../core/types.js";
 import { TERRAIN, UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { nearestByDistance } from "../shared/metrics.js";
@@ -31,7 +31,7 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
     const captureUnits = next.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
-        UNITS[u.type].canCaptureCity
+        UNITS[u.type as UnitType].canCaptureCity
     );
     if (!captureUnits.length) return next;
 

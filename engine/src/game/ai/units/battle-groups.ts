@@ -1,6 +1,6 @@
 import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance } from "../../../core/hex.js";
-import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
+import { DiplomacyState, GameState, UnitType, Unit } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { expectedDamageToUnit } from "./unit-helpers.js";
 import { tryAction } from "../shared/actions.js";
@@ -10,10 +10,10 @@ import { tryAction } from "../shared/actions.js";
  * Used for coordinating attacks.
  */
 export interface BattleGroup {
-    units: any[];
+    units: Unit[];
     centerCoord: { q: number; r: number };
-    nearbyEnemies: any[];
-    primaryTarget: any | null;
+    nearbyEnemies: Unit[];
+    primaryTarget: Unit | null;
 }
 
 /**
@@ -130,11 +130,11 @@ const getWarEnemies = (state: GameState, playerId: string) => {
     return state.units.filter(u => warEnemyIds.includes(u.ownerId));
 };
 
-const findNearbyEnemies = (unit: any, enemies: any[]) => {
+const findNearbyEnemies = (unit: Unit, enemies: Unit[]) => {
     return enemies.filter(e => hexDistance(unit.coord, e.coord) <= 3);
 };
 
-const collectGroupUnits = (anchor: any, allUnits: any[], assigned: Set<string>) => {
+const collectGroupUnits = (anchor: Unit, allUnits: Unit[], assigned: Set<string>) => {
     return allUnits.filter(other => {
         if (assigned.has(other.id)) return false;
         const dist = hexDistance(anchor.coord, other.coord);
@@ -142,16 +142,16 @@ const collectGroupUnits = (anchor: any, allUnits: any[], assigned: Set<string>) 
     });
 };
 
-const markAssigned = (units: any[], assigned: Set<string>) => {
+const markAssigned = (units: Unit[], assigned: Set<string>) => {
     for (const u of units) {
         assigned.add(u.id);
     }
 };
 
-const selectPrimaryTarget = (groupUnits: any[], nearbyEnemies: any[], state: GameState) => {
+const selectPrimaryTarget = (groupUnits: Unit[], nearbyEnemies: Unit[], state: GameState) => {
     const targetCandidates = nearbyEnemies.map(enemy => {
         const unitsInRange = groupUnits.filter(u => {
-            const stats = UNITS[u.type];
+            const stats = UNITS[u.type as UnitType];
             const dist = hexDistance(u.coord, enemy.coord);
             return dist <= stats.rng;
         });
@@ -166,7 +166,7 @@ const selectPrimaryTarget = (groupUnits: any[], nearbyEnemies: any[], state: Gam
     return targetCandidates[0]?.enemy || null;
 };
 
-const sortUnitsByRange = (units: any[]) => {
+const sortUnitsByRange = (units: Unit[]) => {
     return [...units].sort((a, b) => {
         const aRng = UNITS[a.type as UnitType].rng;
         const bRng = UNITS[b.type as UnitType].rng;
@@ -174,13 +174,13 @@ const sortUnitsByRange = (units: any[]) => {
     });
 };
 
-const findReplacementTarget = (state: GameState, playerId: string, liveUnit: any) => {
+const findReplacementTarget = (state: GameState, playerId: string, liveUnit: Unit) => {
     const warEnemyIds = state.players
         .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
         .map(p => p.id);
 
     const newTargets = state.units
-        .filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, liveUnit.coord) <= UNITS[liveUnit.type].rng)
+        .filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, liveUnit.coord) <= UNITS[liveUnit.type as UnitType].rng)
         .sort((a, b) => a.hp - b.hp);
 
     return newTargets[0];

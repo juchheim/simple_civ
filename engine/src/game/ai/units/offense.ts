@@ -1,6 +1,6 @@
 import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
-import { DiplomacyState, GameState, UnitType, UnitState } from "../../../core/types.js";
+import { DiplomacyState, GameState, UnitType, UnitState, Unit } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { nearestByDistance } from "../shared/metrics.js";
@@ -54,9 +54,9 @@ function getAttackingUnits(state: GameState, playerId: string) {
 function tryCityAttacks(
     state: GameState,
     playerId: string,
-    unit: any,
-    warCities: any[],
-    primaryCity: any
+    unit: Unit,
+    warCities: GameState["cities"],
+    primaryCity: GameState["cities"][number] | null
 ): { state: GameState; acted: boolean } {
     let next = state;
     const stats = UNITS[unit.type];
