@@ -23,6 +23,8 @@ export type HUDHandlers = {
     onSelectCoord: (coord: HexCoord | null) => void;
     onCenterCity: (coord: HexCoord) => void;
     onNavigateMap: (point: { x: number; y: number }) => void;
+    onFocusCity: (coord: HexCoord) => void;
+    onFocusUnit: (unitId: string, coord: HexCoord) => void;
 };
 
 export type HUDMeta = {
@@ -81,4 +83,5 @@ export type HUDLayoutProps = {
         canEndTurn: boolean;
         endTurnMessage?: string;
     };
+    handlers: HUDHandlers;
 };

@@ -499,8 +499,6 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 onCancelMovement={onCancelMovement}
                 gameState={gameState}
                 onSelectUnit={onSelectUnit}
-                selectedCoord={selectedCoord}
-                selectedCity={selectedCity}
                 playerId={playerId}
                 cityBuildOptions={buildOptions}
                 onBuild={onBuild}

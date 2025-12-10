@@ -166,12 +166,12 @@ function App() {
         dismissGameEventToast(id);
     };
 
-    const buildPlayers = useCallback((parsedSeed?: number) => {
+    const buildPlayers = useCallback((parsedSeed?: number): Array<{ id: string; civName: CivId; color: string; ai?: boolean }> => {
         const usedColors = new Set<string>();
         const chosenCivs: CivId[] = [selectedCiv];
         const humanColor = pickPlayerColor(selectedCiv, usedColors);
 
-        const players = [{ id: "p1", civName: selectedCiv, color: humanColor }];
+        const players: Array<{ id: string; civName: CivId; color: string; ai?: boolean }> = [{ id: "p1", civName: selectedCiv, color: humanColor }];
 
         for (let i = 1; i < numCivs; i++) {
             const aiCiv = pickAiCiv(chosenCivs, parsedSeed ? parsedSeed + i : undefined);

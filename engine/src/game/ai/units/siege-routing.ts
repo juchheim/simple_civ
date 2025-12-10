@@ -75,7 +75,7 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
 }
 
 const canCapture = (unit: any) => {
-    const stats = UNITS[unit.type];
+    const stats = UNITS[unit.type as UnitType];
     return stats.canCaptureCity && stats.domain !== "Civilian";
 };
 
