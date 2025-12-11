@@ -167,12 +167,12 @@ export const TITAN_REGEN_CITY = 5;      // Friendly city
 // Native Camp System Constants
 export const NATIVE_CAMP_TERRITORY_RADIUS = 3;   // Tiles around camp considered territory
 export const NATIVE_CAMP_AGGRO_DURATION = 3;     // Turns natives stay aggro'd
-export const NATIVE_CAMP_CHASE_DISTANCE = 3;     // How far outside territory natives will chase
+export const NATIVE_CAMP_CHASE_DISTANCE = 2;     // How far outside territory natives will chase
 export const NATIVE_CHAMPION_CAMP_BONUS_ATK = 2; // +ATK when near camp
 export const NATIVE_CHAMPION_CAMP_BONUS_DEF = 2; // +DEF when near camp
 export const NATIVE_CHAMPION_CAMP_BONUS_RADIUS = 2; // Tiles from camp for bonus to apply
-export const NATIVE_HEAL_TERRITORY = 3;          // HP/turn in camp territory
-export const NATIVE_HEAL_CAMP_TILE = 5;          // HP/turn on camp tile itself
+export const NATIVE_HEAL_TERRITORY = 2;          // HP/turn in camp territory
+export const NATIVE_HEAL_CAMP_TILE = 2;          // HP/turn on camp tile itself
 export const NATIVE_CAMP_MIN_DISTANCE_FROM_START = 8; // Min tiles from starting positions
 export const NATIVE_CAMP_MIN_DISTANCE_BETWEEN = 6;    // Min tiles between camps
 export const NATIVE_CAMP_CLEAR_PRODUCTION_REWARD = 20; // Production granted to nearest city on clear
@@ -185,13 +185,13 @@ export const NATIVE_CAMP_COUNTS: Record<string, [number, number]> = {
 };
 
 // Map Dimensions (Width x Height)
-// v0.98 Update 8: Increased all sizes by ~5% (approx 10% more tiles) to encourage expansion
+// v2.1: Increased all sizes by 10% for more room for coastal features
 export const MAP_DIMS = {
-    Tiny: { width: 15, height: 11 },     // Was 14x10 (140) -> 165 (+18%)
-    Small: { width: 19, height: 15 },    // Was 18x14 (252) -> 285 (+13%)
-    Standard: { width: 23, height: 17 }, // Was 22x16 (352) -> 391 (+11%)
-    Large: { width: 25, height: 19 },    // Was 24x18 (432) -> 475 (+10%)
-    Huge: { width: 34, height: 25 },     // Was 32x24 (768) -> 850 (+10%)
+    Tiny: { width: 17, height: 12 },     // Was 15x11 -> +13%
+    Small: { width: 21, height: 17 },    // Was 19x15 -> +16%
+    Standard: { width: 25, height: 19 }, // Was 23x17 -> +14%
+    Large: { width: 28, height: 21 },    // Was 25x19 -> +16%
+    Huge: { width: 37, height: 28 },     // Was 34x25 -> +15%
 };
 
 // Data Tables
@@ -258,7 +258,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.Titan]: { atk: 30, def: 8, rng: 1, move: 2, hp: 24, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
-    [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 3, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
 };
 
 export type BuildingData = {

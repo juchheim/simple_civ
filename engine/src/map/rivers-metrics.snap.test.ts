@@ -42,12 +42,12 @@ describe("river metrics snapshots", () => {
         {
             mapSize: "Small",
             seed: 12345,
-            expected: { riverCount: 5, starts: 5, paths: 4, lengths: [6, 6, 6, 6] },
+            expected: { riverCount: 5, starts: 5, paths: 4, lengths: [7, 7, 6, 6] },
         },
         {
             mapSize: "Standard",
             seed: 98765,
-            expected: { riverCount: 8, starts: 8, paths: 6, lengths: [7, 7, 7, 6, 6, 6] },
+            expected: { riverCount: 8, starts: 8, paths: 8, lengths: [8, 8, 7, 6, 6, 6, 6, 6] },
         },
     ];
 

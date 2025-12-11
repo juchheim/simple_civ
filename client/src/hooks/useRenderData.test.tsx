@@ -22,6 +22,7 @@ describe("useRenderData", () => {
 
     const mockCities: City[] = [
         { id: "c1", ownerId: "p1", name: "City 1", coord: { q: 0, r: 0 }, pop: 1, buildings: [], storedFood: 0, storedProduction: 0, workedTiles: [], currentBuild: null, buildProgress: 0, hp: 100, maxHp: 100, isCapital: false, hasFiredThisTurn: false, milestones: [] },
+        { id: "c2", ownerId: "p2", name: "Enemy City", coord: { q: 1, r: 0 }, pop: 2, buildings: [], storedFood: 0, storedProduction: 0, workedTiles: [], currentBuild: null, buildProgress: 0, hp: 100, maxHp: 100, isCapital: true, hasFiredThisTurn: false, milestones: [] },
     ];
 
     const mockGameState = {
@@ -68,10 +69,12 @@ describe("useRenderData", () => {
         expect(result.current.unitRenderDataOffCity).toHaveLength(0);
     });
 
-    it("generates cityOverlayData for visible cities", () => {
+    it("generates cityOverlayData for visible and fogged cities", () => {
         const { result } = renderHook(() => useRenderData(defaultProps));
-        // c1 is at 0,0 (visible)
-        expect(result.current.cityOverlayData).toHaveLength(1);
-        expect(result.current.cityOverlayData[0].city.id).toBe("c1");
+        // c1 is at 0,0 (visible), c2 is at 1,0 (fogged)
+        // Both should be included since discovered cities persist in fog
+        expect(result.current.cityOverlayData).toHaveLength(2);
+        expect(result.current.cityOverlayData.find(c => c.city.id === "c1")).toBeDefined();
+        expect(result.current.cityOverlayData.find(c => c.city.id === "c2")).toBeDefined();
     });
 });

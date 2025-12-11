@@ -22,10 +22,10 @@ describe("World Generation", () => {
             players: [{ id: "p1", civName: "Civ A", color: "red" }],
         });
 
-        // v1.0 balance: Standard map size increased to 23x17
-        expect(state.map.width).toBe(23);
-        expect(state.map.height).toBe(17);
-        expect(state.map.tiles.length).toBe(23 * 17);
+        // v2.1: Standard map size increased to 25x19
+        expect(state.map.width).toBe(25);
+        expect(state.map.height).toBe(19);
+        expect(state.map.tiles.length).toBe(25 * 19);
     });
 
     it("should place players with starting units", () => {
@@ -38,7 +38,11 @@ describe("World Generation", () => {
         });
 
         expect(state.players.length).toBe(2);
-        expect(state.units.length).toBe(6); // v2.0: 3 units per player (Settler, Scout, SpearGuard)
+
+        // v2.0: 3 units per player (Settler, Scout, SpearGuard)
+        // Filter to player-owned units only (exclude native units)
+        const playerUnits = state.units.filter(u => u.ownerId === "p1" || u.ownerId === "p2");
+        expect(playerUnits.length).toBe(6);
 
         const p1Units = state.units.filter((u) => u.ownerId === "p1");
         expect(p1Units).toHaveLength(3);

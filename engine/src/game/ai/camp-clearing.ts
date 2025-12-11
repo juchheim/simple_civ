@@ -297,19 +297,3 @@ export function isWorthwhileAttack(
     // Worth it if: we survive OR we kill the target
     return wouldSurvive || wouldKillTarget;
 }
-
-/**
- * Clear the camp prep after successful clearing
- */
-export function onCampCleared(state: GameState, campId: string): GameState {
-    // Find any player who was targeting this camp and clear their prep
-    return {
-        ...state,
-        players: state.players.map(p => {
-            if (p.campClearingPrep?.targetCampId === campId) {
-                return { ...p, campClearingPrep: undefined };
-            }
-            return p;
-        })
-    };
-}

@@ -144,13 +144,15 @@ function applyScoutReward(
     const unitOnTile = state.units.find(u => hexEquals(u.coord, coord));
 
     if (unitOnTile) {
-        // Find an adjacent empty tile
+        // Find an adjacent empty tile that's not in enemy territory
         const nearby = hexSpiral(coord, 1);
         for (const c of nearby) {
             if (hexEquals(c, coord)) continue;
             const t = state.map.tiles.find(t => hexEquals(t.coord, c));
             if (!t) continue;
             if (t.terrain === "Mountain" || t.terrain === "DeepSea" || t.terrain === "Coast") continue;
+            // Don't spawn in enemy territory
+            if (t.ownerId && t.ownerId !== playerId) continue;
             const occupied = state.units.some(u => hexEquals(u.coord, c));
             if (!occupied) {
                 spawnCoord = c;

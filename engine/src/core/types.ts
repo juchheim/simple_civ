@@ -141,6 +141,7 @@ export type Unit = {
     hasAttacked: boolean;
     linkedUnitId?: string;
     capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
+    lastDamagedOnTurn?: number; // Turn when unit last took damage (for healing prevention / effects)
     autoMoveTarget?: HexCoord;
     isAutoExploring?: boolean;
     retaliatedAgainstThisTurn?: boolean; // v1.0: Track if unit was hit by city retaliation this turn
@@ -257,10 +258,8 @@ export type NativeCampState = "Patrol" | "Aggro" | "Retreat";
 export type NativeCamp = {
     id: string;
     coord: HexCoord;
-    unitIds: string[];  // Champion + 2 Archers
     state: NativeCampState;
     aggroTurnsRemaining: number;
-    aggroTargetPlayerId?: string;  // Player who triggered aggro
 };
 
 export type GameState = {

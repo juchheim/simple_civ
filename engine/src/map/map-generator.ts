@@ -76,6 +76,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         rng,
         getTile,
         isLand,
+        seed,
     });
 
     const effectiveBaseYields = (tile: Tile) => {
@@ -542,7 +543,6 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
         camps.push({
             id: campId,
             coord: campTile.coord,
-            unitIds: [championId, `native_archer_${campId}_0`, `native_archer_${campId}_1`],
             state: "Patrol",
             aggroTurnsRemaining: 0,
         });

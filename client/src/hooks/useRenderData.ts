@@ -117,7 +117,8 @@ export const useRenderData = ({
 
     const cityOverlayData = useMemo<CityOverlayDescriptor[]>(() => {
         return tileRenderData
-            .filter(entry => entry.visibility.isVisible && !!entry.city)
+            // Show cities in both visible AND fogged tiles (like native camps/goodie huts)
+            .filter(entry => (entry.visibility.isVisible || entry.visibility.isFogged) && !!entry.city)
             .map(entry => ({
                 key: entry.key,
                 position: entry.position,
@@ -145,7 +146,8 @@ export const useRenderData = ({
         const dedup = new Set<string>();
 
         tileRenderData
-            .filter(entry => entry.tile.ownerCityId && entry.visibility.isVisible)
+            // Show city bounds in both visible AND fogged tiles
+            .filter(entry => entry.tile.ownerCityId && (entry.visibility.isVisible || entry.visibility.isFogged))
             .forEach(entry => {
                 const ownerCityId = entry.tile.ownerCityId!;
                 const corners = HEX_CORNER_OFFSETS.map(c => ({ x: entry.position.x + c.x, y: entry.position.y + c.y }));

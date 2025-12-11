@@ -1,5 +1,5 @@
 import React from "react";
-import { Unit, UnitType, GameState, getUnitCombatStats, UnitState } from "@simple-civ/engine";
+import { Unit, UnitType, GameState, getUnitCombatStats, UnitState, UNITS, UnitDomain } from "@simple-civ/engine";
 import { getUnitDisplayName } from "../../../assets";
 
 type UnitPanelProps = {
@@ -146,7 +146,7 @@ const UnitActions: React.FC<UnitActionsProps> = ({
                 Found City
             </button>
         )}
-        {unit.type === UnitType.Scout && isMyTurn && (
+        {(unit.type === UnitType.Scout || UNITS[unit.type].domain === UnitDomain.Naval) && isMyTurn && (
             <button className="hud-button small" style={{ marginTop: 8 }} onClick={onToggleAutoExplore}>
                 {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
             </button>

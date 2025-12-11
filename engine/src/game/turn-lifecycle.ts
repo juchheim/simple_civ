@@ -13,6 +13,8 @@ import {
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
+import { expelUnitsFromTerritory } from "./helpers/movement.js";
+import { DiplomacyState } from "../core/types.js";
 import { hexEquals, hexToString } from "../core/hex.js";
 import { refreshPlayerVision } from "./vision.js";
 import { processCityBuild } from "./helpers/builds.js";
@@ -210,6 +212,15 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
     if (neededRing > claimedRing) {
         claimCityTerritory(city, state, player.id, neededRing);
         needsWorkedTileRefresh = true;
+
+        // Expel units from other players if not at war (they're now in our territory)
+        for (const otherPlayer of state.players) {
+            if (otherPlayer.id === player.id) continue;
+            const isAtWar = state.diplomacy[player.id]?.[otherPlayer.id] === DiplomacyState.War;
+            if (!isAtWar) {
+                expelUnitsFromTerritory(state, otherPlayer.id, player.id);
+            }
+        }
     }
 
     if (needsWorkedTileRefresh) {

@@ -12,8 +12,16 @@ import {
     Unit,
     UnitType,
     OverlayType,
+    UnitState,
+    Tile,
+    TerrainType,
 } from "../../core/types.js";
-import { UNITS } from "../../core/constants.js";
+import {
+    UNITS,
+    NATIVE_CAMP_CLEAR_PRODUCTION_REWARD,
+    TERRAIN,
+    FORTIFY_DEFENSE_BONUS,
+} from "../../core/constants.js";
 import {
     NATIVE_CAMP_TERRITORY_RADIUS,
     NATIVE_CAMP_AGGRO_DURATION,
@@ -22,6 +30,8 @@ import {
     NATIVE_HEAL_CAMP_TILE,
 } from "../../core/constants.js";
 import { hexDistance, getNeighbors, hexEquals, hexToString } from "../../core/hex.js";
+import { buildTileLookup, calculateCiv6Damage, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
+import { advanceSeed, seededBool, seededChoice } from "../helpers/random.js";
 
 const NATIVE_OWNER_ID = "natives";
 
@@ -66,7 +76,6 @@ function updateCampState(state: GameState, camp: NativeCamp): void {
             if (enemies.length > 0) {
                 camp.state = "Aggro";
                 camp.aggroTurnsRemaining = NATIVE_CAMP_AGGRO_DURATION;
-                camp.aggroTargetPlayerId = enemies[0].ownerId;
             }
             break;
 
@@ -74,7 +83,6 @@ function updateCampState(state: GameState, camp: NativeCamp): void {
             camp.aggroTurnsRemaining--;
             if (camp.aggroTurnsRemaining <= 0 && enemies.length === 0) {
                 camp.state = "Patrol";
-                camp.aggroTargetPlayerId = undefined;
             } else if (enemies.length > 0) {
                 // Reset timer if still enemies
                 camp.aggroTurnsRemaining = NATIVE_CAMP_AGGRO_DURATION;
@@ -103,15 +111,14 @@ function findPatrolTarget(state: GameState, unit: Unit, camp: NativeCamp): HexCo
     const currentDist = hexDistance(unit.coord, camp.coord);
     if (currentDist === targetDistance) {
         // Already in position, maybe move around for patrol effect
-        if (!isChampion && Math.random() < 0.5) {
+        if (!isChampion && seededBool(state)) {
             const neighbors = getNeighbors(unit.coord);
             const validMoves = neighbors.filter(n => {
                 const dist = hexDistance(n, camp.coord);
-                return dist >= 1 && dist <= 2 && isValidMoveTarget(state, n);
+                return dist >= 1 && dist <= 2 && isValidMoveTarget(state, n, unit.id);
             });
-            if (validMoves.length > 0) {
-                return validMoves[Math.floor(Math.random() * validMoves.length)];
-            }
+            const target = seededChoice(state, validMoves);
+            if (target) return target;
         }
         return null;
     }
@@ -121,7 +128,7 @@ function findPatrolTarget(state: GameState, unit: Unit, camp: NativeCamp): HexCo
     const betterMoves = neighbors.filter(n => {
         const newDist = hexDistance(n, camp.coord);
         return Math.abs(newDist - targetDistance) < Math.abs(currentDist - targetDistance)
-            && isValidMoveTarget(state, n);
+            && isValidMoveTarget(state, n, unit.id);
     });
 
     return betterMoves.length > 0 ? betterMoves[0] : null;
@@ -160,7 +167,7 @@ function findAggroTarget(state: GameState, unit: Unit, camp: NativeCamp, enemies
         const campDist = hexDistance(n, camp.coord);
         return newDist < minDist
             && campDist <= maxChaseRange
-            && isValidMoveTarget(state, n);
+            && isValidMoveTarget(state, n, unit.id);
     });
 
     return moves.length > 0 ? moves[0] : null;
@@ -176,7 +183,7 @@ function findRetreatTarget(state: GameState, unit: Unit, camp: NativeCamp): HexC
     const neighbors = getNeighbors(unit.coord);
     const closerMoves = neighbors.filter(n => {
         const newDist = hexDistance(n, camp.coord);
-        return newDist < currentDist && isValidMoveTarget(state, n);
+        return newDist < currentDist && isValidMoveTarget(state, n, unit.id);
     });
 
     return closerMoves.length > 0 ? closerMoves[0] : null;
@@ -190,8 +197,8 @@ function isValidMoveTarget(state: GameState, coord: HexCoord, movingUnitId?: str
     if (!tile) return false;
 
     // Check terrain
-    const impassable = ["Mountain", "DeepSea", "Coast"];
-    if (impassable.includes(tile.terrain)) return false;
+    const impassable = [TerrainType.Mountain, TerrainType.DeepSea, TerrainType.Coast];
+    if (impassable.includes(tile.terrain as TerrainType)) return false;
 
     // Check for blocking units (no stacking allowed now)
     const blockingUnit = state.units.find(u =>
@@ -241,20 +248,25 @@ function executeAggroBehavior(state: GameState, camp: NativeCamp): void {
     });
 
     for (const unit of campUnits) {
-        // Skip if no moves or already attacked
-        if (unit.movesLeft <= 0 && unit.hasAttacked) continue;
+        const activeUnit = state.units.find(u => u.id === unit.id);
+        if (!activeUnit) continue;
 
-        // Try to attack first if adjacent to enemy
-        if (!unit.hasAttacked) {
-            const attacked = tryNativeAttack(state, unit, allNearbyEnemies);
-            if (attacked) continue; // Used action on attack
+        // Skip if no moves and already attacked
+        if (activeUnit.movesLeft <= 0 && activeUnit.hasAttacked) continue;
+
+        let attacked = false;
+
+        // Prefer attacking if already in range
+        if (!activeUnit.hasAttacked) {
+            attacked = tryNativeAttack(state, activeUnit, allNearbyEnemies);
         }
 
-        // Then try to move toward enemies
-        if (unit.movesLeft > 0) {
-            const target = findAggroTarget(state, unit, camp, allNearbyEnemies.length > 0 ? allNearbyEnemies : enemies);
+        // If we haven't attacked yet, try to move into range, then fire once
+        if (!attacked && activeUnit.movesLeft > 0) {
+            const target = findAggroTarget(state, activeUnit, camp, allNearbyEnemies.length > 0 ? allNearbyEnemies : enemies);
             if (target) {
-                moveNativeUnit(unit, target);
+                moveNativeUnit(activeUnit, target);
+                tryNativeAttack(state, activeUnit, allNearbyEnemies);
             }
         }
     }
@@ -265,13 +277,22 @@ function executeAggroBehavior(state: GameState, camp: NativeCamp): void {
  * Returns true if attack was made
  */
 function tryNativeAttack(state: GameState, attacker: Unit, enemies: Unit[]): boolean {
-    const attackerStats = UNITS[attacker.type];
+    const attackerStats = getEffectiveUnitStats(attacker, state);
     const range = attackerStats.rng ?? 1;
+    const vision = attackerStats.vision ?? range;
+    const tileLookup = buildTileLookup(state);
 
     // Find enemies in attack range
     const targetsInRange = enemies.filter(e => {
         const dist = hexDistance(attacker.coord, e.coord);
-        return dist <= range && dist > 0;
+        if (dist <= 0 || dist > range) return false;
+        if (dist > vision) return false; // Do not shoot beyond vision
+        const cityAtLocation = state.cities.find(c => hexEquals(c.coord, e.coord));
+        if (cityAtLocation && cityAtLocation.ownerId === e.ownerId) {
+            // Respect city garrison protection: natives do not attack units inside their own city
+            return false;
+        }
+        return hasClearLineOfSight(state, attacker.coord, e.coord, tileLookup);
     });
 
     if (targetsInRange.length === 0) return false;
@@ -280,49 +301,79 @@ function tryNativeAttack(state: GameState, attacker: Unit, enemies: Unit[]): boo
     targetsInRange.sort((a, b) => a.hp - b.hp);
     const target = targetsInRange[0];
 
-    // Execute simple combat
-    executeNativeCombat(state, attacker, target);
-    attacker.hasAttacked = true;
+    // Execute combat using shared damage formula
+    resolveNativeAttack(state, attacker, target, tileLookup);
 
     return true;
 }
 
 /**
- * Execute combat between a native attacker and player defender
+ * Execute combat between a native attacker and player defender using the shared damage formula.
  */
-function executeNativeCombat(state: GameState, attacker: Unit, defender: Unit): void {
-    const attackerStats = UNITS[attacker.type];
-    const defenderStats = UNITS[defender.type];
+function resolveNativeAttack(state: GameState, attacker: Unit, defender: Unit, tileLookup: Map<string, Tile>): void {
+    const attackerStats = getEffectiveUnitStats(attacker, state);
+    const defenderStats = getEffectiveUnitStats(defender, state);
 
-    // Get effective stats (including camp bonus for champion)
-    let atk = attackerStats.atk;
-    let def = attackerStats.def;
+    // Defender terrain/fortify bonus
+    let defensePower = defenderStats.def;
+    const defenderTile = tileLookup.get(hexToString(defender.coord));
+    if (defenderTile) defensePower += TERRAIN[defenderTile.terrain].defenseMod;
+    if (defender.state === UnitState.Fortified) defensePower += FORTIFY_DEFENSE_BONUS;
 
-    // Champion gets +2/+2 within 2 tiles of camp
-    if (attacker.type === UnitType.NativeChampion && attacker.campId) {
-        const camp = state.nativeCamps.find(c => c.id === attacker.campId);
-        if (camp && hexDistance(attacker.coord, camp.coord) <= 2) {
-            atk += 2;
-            def += 2;
-        }
+    // Flanking bonus for natives: same rule as players (+1 per other friendly adjacent)
+    const defenderNeighbors = getNeighbors(defender.coord);
+    let flankingBonus = 0;
+    for (const n of defenderNeighbors) {
+        const friend = state.units.find(u =>
+            hexEquals(u.coord, n) &&
+            u.ownerId === attacker.ownerId &&
+            u.id !== attacker.id &&
+            UNITS[u.type].domain !== "Civilian"
+        );
+        if (friend) flankingBonus += 1;
     }
 
-    // Calculate damage (simplified formula)
-    const attackerDamage = Math.max(1, atk - (defenderStats.def * 0.5));
-    const defenderDamage = Math.max(1, defenderStats.atk - (def * 0.5));
+    // Primary damage roll
+    const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + flankingBonus, defensePower, state.seed);
+    state.seed = newSeed;
 
-    // Apply damage
-    defender.hp -= Math.round(attackerDamage);
-    attacker.hp -= Math.round(defenderDamage * 0.5); // Counter-attack is weaker
+    defender.hp -= damage;
+    defender.lastDamagedOnTurn = state.turn;
+    attacker.hasAttacked = true;
+    attacker.movesLeft = 0;
+    attacker.state = UnitState.Normal;
 
-    // Remove dead units
+    // Remove defender if dead
     if (defender.hp <= 0) {
-        const idx = state.units.findIndex(u => u.id === defender.id);
-        if (idx !== -1) state.units.splice(idx, 1);
+        state.units = state.units.filter(u => u.id !== defender.id);
     }
+
+    // Counter-attack for melee defenders
+    if (defender.hp > 0 && attackerStats.rng === 1) {
+        let attackerDefense = attackerStats.def;
+        const attackerTile = tileLookup.get(hexToString(attacker.coord));
+        if (attackerTile) attackerDefense += TERRAIN[attackerTile.terrain].defenseMod;
+        // Note: attacker cannot be fortified after attacking (state is Normal)
+
+        const { damage: returnDamage, newSeed: returnSeed } = calculateCiv6Damage(
+            defenderStats.atk, attackerDefense, state.seed
+        );
+        state.seed = returnSeed;
+        attacker.hp -= returnDamage;
+        attacker.lastDamagedOnTurn = state.turn;
+    }
+
+    // Remove attacker if dead
     if (attacker.hp <= 0) {
-        const idx = state.units.findIndex(u => u.id === attacker.id);
-        if (idx !== -1) state.units.splice(idx, 1);
+        state.units = state.units.filter(u => u.id !== attacker.id);
+    }
+
+    // Check for camp clearing when the last defender dies (reward credited to defender's owner)
+    if (attacker.campId) {
+        const remaining = state.units.filter(u => u.campId === attacker.campId);
+        if (remaining.length === 0) {
+            clearNativeCamp(state, attacker.campId, defender.ownerId);
+        }
     }
 }
 
@@ -351,8 +402,10 @@ function healNatives(state: GameState, camp: NativeCamp): void {
     for (const unit of campUnits) {
         const distFromCamp = hexDistance(unit.coord, camp.coord);
 
-        // Only heal if in territory
+        // Only heal on camp tile or within patrol ring (territory radius)
         if (distFromCamp > NATIVE_CAMP_TERRITORY_RADIUS) continue;
+        // Do not heal if unit was damaged this turn
+        if (unit.lastDamagedOnTurn === state.turn) continue;
 
         const healAmount = distFromCamp === 0 ? NATIVE_HEAL_CAMP_TILE : NATIVE_HEAL_TERRITORY;
         unit.hp = Math.min(unit.maxHp, unit.hp + healAmount);
@@ -364,38 +417,57 @@ function healNatives(state: GameState, camp: NativeCamp): void {
  */
 function resetNativeMovement(state: GameState): void {
     for (const unit of state.units.filter(u => u.ownerId === NATIVE_OWNER_ID)) {
-        const stats = unit.type === UnitType.NativeChampion
-            ? { move: 1 }
-            : { move: 1 };
+        const stats = UNITS[unit.type];
         unit.movesLeft = stats.move;
         unit.hasAttacked = false;
     }
 }
 
 /**
- * Handle camp clearing when all natives are dead
+ * Clear a native camp: remove overlay, reward player (if provided), drop from state, and reset AI prep.
  */
-function handleCampClearing(state: GameState): void {
-    for (const camp of [...state.nativeCamps]) {
-        const campUnits = getCampUnits(state, camp);
+export function clearNativeCamp(state: GameState, campId: string, killerPlayerId?: string): void {
+    if (!state.nativeCamps) {
+        state.nativeCamps = [];
+    }
+    const campIndex = state.nativeCamps.findIndex(c => c.id === campId);
+    if (campIndex === -1) return;
 
-        if (campUnits.length === 0) {
-            // All natives dead - clear the camp
-            const campTile = state.map.tiles.find(t => hexEquals(t.coord, camp.coord));
-            if (campTile) {
-                // Remove NativeCamp overlay, add ClearedSettlement
-                const campIdx = campTile.overlays.indexOf(OverlayType.NativeCamp);
-                if (campIdx !== -1) {
-                    campTile.overlays.splice(campIdx, 1);
+    const camp = state.nativeCamps[campIndex];
+    const campTile = state.map.tiles.find(t => hexEquals(t.coord, camp.coord));
+    if (campTile) {
+        const campIdx = campTile.overlays.indexOf(OverlayType.NativeCamp);
+        if (campIdx !== -1) {
+            campTile.overlays.splice(campIdx, 1);
+        }
+        if (!campTile.overlays.includes(OverlayType.ClearedSettlement)) {
+            campTile.overlays.push(OverlayType.ClearedSettlement);
+        }
+    }
+
+    if (killerPlayerId) {
+        const playerCities = state.cities.filter(c => c.ownerId === killerPlayerId);
+        if (playerCities.length > 0) {
+            let nearestCity = playerCities[0];
+            let nearestDist = hexDistance(nearestCity.coord, camp.coord);
+            for (const city of playerCities) {
+                const dist = hexDistance(city.coord, camp.coord);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestCity = city;
                 }
-                campTile.overlays.push(OverlayType.ClearedSettlement);
             }
 
-            // Remove camp from state
-            const campIndex = state.nativeCamps.findIndex(c => c.id === camp.id);
-            if (campIndex !== -1) {
-                state.nativeCamps.splice(campIndex, 1);
-            }
+            nearestCity.storedProduction = (nearestCity.storedProduction || 0) + NATIVE_CAMP_CLEAR_PRODUCTION_REWARD;
+        }
+    }
+
+    state.nativeCamps.splice(campIndex, 1);
+
+    // Clear any AI camp prep that targeted this camp
+    for (const player of state.players) {
+        if (player.campClearingPrep?.targetCampId === campId) {
+            player.campClearingPrep = undefined;
         }
     }
 }
@@ -405,14 +477,23 @@ function handleCampClearing(state: GameState): void {
  * Called after all players have taken their turns
  */
 export function processNativeTurn(state: GameState): void {
+    if (!state.nativeCamps) {
+        state.nativeCamps = [];
+    }
+
     // First, reset movement for all native units
     resetNativeMovement(state);
 
-    // Handle any camps that were cleared during the round
-    handleCampClearing(state);
+    // Handle any camps that were cleared during the round (no reward context here)
+    for (const camp of [...state.nativeCamps]) {
+        const campUnits = getCampUnits(state, camp);
+        if (campUnits.length === 0) {
+            clearNativeCamp(state, camp.id);
+        }
+    }
 
     // Process each camp
-    for (const camp of state.nativeCamps) {
+    for (const camp of [...state.nativeCamps]) {
         // Update camp state based on enemy presence
         updateCampState(state, camp);
 
@@ -451,7 +532,7 @@ export function triggerNativeRetreat(state: GameState, damagedUnit: Unit): void 
  * Check if attacking a native should trigger aggro for the camp
  * Should be called from attack logic when a native is targeted
  */
-export function triggerNativeAggro(state: GameState, targetedUnit: Unit, attackerPlayerId: string): void {
+export function triggerNativeAggro(state: GameState, targetedUnit: Unit, _attackerPlayerId: string): void {
     if (!targetedUnit.campId) return;
 
     const camp = state.nativeCamps.find(c => c.id === targetedUnit.campId);
@@ -459,5 +540,4 @@ export function triggerNativeAggro(state: GameState, targetedUnit: Unit, attacke
 
     camp.state = "Aggro";
     camp.aggroTurnsRemaining = NATIVE_CAMP_AGGRO_DURATION;
-    camp.aggroTargetPlayerId = attackerPlayerId;
 }
