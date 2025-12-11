@@ -58,10 +58,10 @@
   - Ties resolve per section 17.
 
 ## 4. Setup & Start State
-- **Map size**: Tiny 15×11, Small 19×15, Standard 23×17, Large 25×19, Huge 34×25.
+- **Map size**: Tiny 17×12, Small 21×17, Standard 25×19, Large 28×21, Huge 37×28.
 - **Civ count caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
 - **Players**: 1–4 (human/AI/hotseat). Rules identical for all.
-- **Starting units**: each civ begins with 1 Settler + 1 Scout (Starborne Seekers start with an additional SpearGuard).
+- **Starting units**: each civ begins with 1 Settler + 1 Scout + 1 Spear Guard (Starborne Seekers start with an additional Scout).
 - **Starting placement**: fair-start zones with nearby workable tiles; capitals named from civ list (unique first-city name, then list, then "New [Capital] n" if exhausted). Players may rename on founding.
 - **Fog**: unseen tiles start in shroud; vision comes from units/cities and shared vision offers.
 
@@ -79,7 +79,7 @@
   - Cities with garrison may attack once at range 2 if unfired.
   - Units may Fortify (consumes moves, +2 defense).
 - **End of Turn**: pass control; no resolutions occur here.
-- **End of Round**: after all players, check victory/ties/elimination.
+- **End of Round**: native camps take their turn (patrol/aggro/retreat, attacks, heal) before victory/ties/elimination checks.
 
 ## 6. Yields & Economy
 - **Only three yields**: Food (growth), Production (build progress), Science (research). No gold/happiness/upkeep/trade.
@@ -139,6 +139,8 @@
     - **Production**: +10 Production to nearest city if no active build, otherwise +5 Production.
     - **Research**: +20% progress toward current tech if < 50% complete, otherwise +10%. No reward if no tech is being researched.
     - **Free Scout**: Spawns a Scout unit at or adjacent to the hut (0 moves remaining).
+  - **Native Camp**: Hostile neutral encampment with a 3-hex territory. Each camp spawns 1 Native Champion and 2 Native Archers; natives aggro when attacked or when enemy units enter territory and may chase up to 2 tiles beyond it. Natives heal +2 HP/turn inside camp territory.
+  - **Cleared Settlement**: Appears after a camp is cleared; grants +1 Food on the tile and replaces the camp overlay.
 - **City Center rule**: apply terrain + overlay, then enforce minimums, then civ perks.
 
 ## 9. Units
@@ -156,6 +158,7 @@
   - Army Bow Guard 6/3/2/1, no capture, vision 2.
   - Army Riders 8/4/1/2, capture, vision 2.
   - **Titan**: 30 atk / 8 def / rng 1 / move 2 / HP 30 / capture / vision 3 (summoned by Titan's Core). **Location-based regeneration**: 1 HP/turn in enemy territory, 3 HP/turn in friendly territory, 5 HP/turn in friendly city.
+- **Neutral Native Defenders** (not buildable; guard camps): Native Champion 4/4/1/1/18, no capture, vision 2; Native Archer 3/2/2/1/12, no capture, vision 2.
 - **States**: Normal, Fortified (+2 defense until move/attack), Garrisoned (on city), PendingSpawn (queued).
 - **Linking**: eligible units can link into armies via Form Army projects; unlink to split back to base units.
 - **Vision**: provided per unit; shared vision extends via diplomacy.
@@ -199,6 +202,10 @@
   - Friendly tile: +3 HP/turn; friendly city: +5 HP/turn.
   - Cities heal 2 HP/turn if not damaged that turn.
   - Captured units may have healing delay; cities track last damaged turn to gate healing.
+- **Native Camps & Aggro**:
+  - Camp territory is a 3-hex radius; entering or attacking natives triggers Aggro for 3 turns (timer refreshes while enemies remain). Aggro natives may chase targets up to 2 tiles beyond camp territory.
+  - Native turns resolve at end-of-round: reset moves, patrol if idle, attack/advance when Aggro, retreat toward camp when damaged, then heal (+2 HP/turn inside territory).
+  - Clearing the last native removes the camp, applies the Cleared Settlement overlay (+1F), and grants +20 Production to the nearest city of the clearing player.
 - **Capture**:
   - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
 
@@ -259,14 +266,15 @@
 - **Scholar Kingdoms**: **Citadel Protocol**: +1 Science in Capital. +1 Science per city with a City Ward. Units near cities get scaling Defense bonus: +6/cityCount (1 city = +6 DEF, 2 = +3 each, 3 = +2 each, 4+ = +1 each). Rewards "tall" play with fewer, fortified cities.
 - **River League**: +1 Food per river tile. +1 Production per 4 river tiles worked. **River Guardians**: Units near rivers get +1 Attack, +1 Defense.
 - **AetherianVanguard**: Unique Unit: Titan (Super-Unit). **Battle Hardened**: Military units gain +2 HP per era researched (max +6). **Scavenger Doctrine**: Units gain Science on kill. **Vanguard Logistics**: Cities with a garrison gain +1 Production.
-- **StarborneSeekers**: Unique Building: Spirit Observatory (220 Prod, +1 Science per city, counts as Observatory). **Celestial Guidance**: Units near capital +1 Defense. Starts with Scout + SpearGuard.
+- **StarborneSeekers**: Unique Building: Spirit Observatory (220 Prod, +1 Science per city, counts as Observatory). **Celestial Guidance**: Units near capital +1 Defense. Starts with an extra Scout (total 2 Scouts + Spear Guard).
 - **JadeCovenant**: Unique Building: Jade Granary (30 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler, Growth 15% cheaper. **Bountiful Harvest**: Cities start with +5 stored Food. **Verdant Growth**: 10% cheaper growth globally. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 8 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation
-- **Sizes**: Tiny 15×11, Small 19×15, Standard 23×17, Large 25×19, Huge 34×25.
+- **Sizes**: Tiny 17×12, Small 21×17, Standard 25×19, Large 28×21, Huge 37×28.
 - **Civ caps**: Tiny 2, Small 3, Standard 4, Large/Huge 6.
-- **Terrain generation**: mix of Plains/Hills/Forest/Marsh/Desert/Mountain/Coast/Deep Sea with overlays (River edges, Rich Soil, Ore Vein, Sacred Site, Goodie Huts).
+- **Terrain generation**: Perlin-driven landmasses with coast detection, mountain clusters, and overlays (River edges, Rich Soil, Ore Vein, Sacred Site, Goodie Huts).
+- **Native camps**: Spawn after player starts are placed (minimum 8 tiles from starts, 6 between camps). Camp counts scale by map size: Tiny 1–2, Small 2–3, Standard 3–4, Large 5–6, Huge 8–10. Each camp begins with 1 Champion + 2 Archers.
 - **Start fairness**: each civ placed in balanced start zones with access to workable tiles; capitals get civ-specific first name.
 - **Territory**: exclusive ownership; auto-claim rules in section 7.
 - **Vision**: see section 2 for states; shared vision via diplomacy applies after acceptance.
@@ -329,4 +337,3 @@
   - Tech progression: ChooseTech required to spend Science.
   - Vision sharing/diplomacy stored in gameState.sharedVision/diplomacy/diplomacyOffers.
   - Progress tracking: milestones stored via projects (Observatory, Grand Academy, Grand Experiment, JadeGranaryComplete).
-

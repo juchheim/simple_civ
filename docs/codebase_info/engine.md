@@ -51,8 +51,8 @@ stateDiagram-v2
 - Seedable PRNG via `generation/seeding.ts` (`WorldRng` + `resolveSeed`); reproducible when `settings.seed` is provided.
 - Builds hex grid sized by `MAP_DIMS`, then defers to `generation/terrain.ts` for coast bias, biome noise, mountain clusters, and overlay placement.
 - River workflow lives in `generation/rivers.ts`: selects high-elevation starts, runs constrained A* toward distinct coasts, records edge graphs, emits corner-based polylines, and tags land tiles with `RiverEdge` overlays.
-- `generation/starts.ts` enforces start guarantees (food/prod tiles in radius 2, workable land) and spacing before `map-generator.ts` spawns Settlers/Scouts.
-- Seeds per-player units (Settler + Scout), initializes visibility/contact/shared-vision/diplomacy matrices, assigns game id, and returns the initial `GameState`.
+- `generation/starts.ts` enforces start guarantees (food/prod tiles in radius 2, workable land) and spacing before `map-generator.ts` spawns starting units (Settler + Scout + Spear Guard baseline; Starborne adds a bonus Scout; civ hooks allow extras).
+- Seeds per-player units, generates native camps (counts scaled by map size, 3-hex territories, 1 Champion + 2 Archers each, with NativeCamp/ClearedSettlement overlays), initializes visibility/contact/shared-vision/diplomacy matrices, assigns game id, and returns the initial `GameState`.
 
 ## AI Loop
 - `game/ai/goals.ts` derives/records victory bias (Observatory → Progress, strike-range capital → Conquest); `game/ai/tech.ts` maps goals to tech paths and dispatches `ChooseTech`.

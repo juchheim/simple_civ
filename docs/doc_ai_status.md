@@ -42,6 +42,7 @@
 - Civ-flavored AI personalities (data-only) added in `engine/src/game/ai/personality.ts`:
   - Aggression thresholds/distances, peace thresholds, settle/expansion biases, tech weights, project rush targets, and unit prefs per civ (ForgeClans hills/aggression, Scholar peace/science, River river/naval, Aetherian Titan spike, Starborne progress rush, Jade wide growth).
   - War/peace decisions, tech picks, city builds, and settler site scoring pull from the personality map; defaults remain neutral for new civs.
+- Native camp clearing: `game/ai/camp-clearing.ts` tracks visible camps after turn 10, enters Buildup → Gathering → Positioning → Ready phases (needs 4+ military units, 3+ positioned within 4 tiles), aborts when war prep starts/active wars/15-turn timeout, and targets archers before champions when attacking.
 
 ## Gaps vs docs
 - Remaining approximations to tighten:

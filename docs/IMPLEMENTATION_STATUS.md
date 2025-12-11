@@ -1,6 +1,6 @@
 # Implementation Status - v2.0 codebase
 
-Last Updated: 2025-12-07
+Last Updated: 2025-12-11
 
 ## ✅ Implemented
 - Core turn loop with unit movement/combat (melee/ranged with **v2.0 Civ 6-style damage formula and melee return damage**), city production/growth/healing/fortify, city capture & raze, territory claim (radius 2), and worked-tile assignment UI.
@@ -13,18 +13,20 @@ Last Updated: 2025-12-07
 - Number of civilizations selection (2-4) with map size constraints enforced.
 - Unique city names: each civ has 20 thematic names, capital is fixed, subsequent names are random and unique.
 - Unit linking: players can link two units on the same hex for synchronized movement, with automatic unlinking on separation.
+- Native camp system: maps spawn camps scaled by size (Tiny 1–2, Small 2–3, Standard 3–4, Large 5–6, Huge 8–10) at least 8 tiles from starts and 6 apart; each camp has 1 Native Champion + 2 Native Archers, a 3-hex territory with end-of-round patrol/aggro/retreat logic, and clearing grants +20 Production to the nearest city plus a +1F Cleared Settlement overlay.
 - **AI & War Escalation**:
     - Full AI implementation: City founding, tile evaluation, economy management, and tech progression.
     - **War Escalation**: AI aggression scales with time; "Bloodthirsty" mode in late game (Turn 50+) refuses peace.
     - **Tactical Combat**: AI uses "Smart Buildup" for war prep, coordinates attacks, and uses "Clear the Way" tactics for city capture.
     - **Diplomacy**: AI respects peace durations but can bypass them if overwhelming (Domination Bypass).
+    - **Camp Clearing**: AI monitors visible native camps after turn 10, runs a Buildup → Gathering → Positioning → Ready flow (needs 4+ military units, 3+ positioned within 4 tiles), aborts on wars or a 15-turn timeout.
 - **End Game Experience**:
     - **History Replay**: Interactive map scrubbing showing turn-by-turn expansion, fog reveals, and key events (Cities founded, Battles, etc.) with responsive SVG rendering.
     - **Statistics**: Detailed line charts tracking Score, Science, Production, Military, and Territory over the course of the game.
     - **Visuals**: Polished Victory/Defeat screens with dynamic backgrounds based on the winning Era/Civilization.
     - **Engine History**: Efficient delta-compressed history tracking for minimal memory footprint.
 - **Balance Adjustments (v1.0)**:
-    - **Starborne Seekers**: Nerfed Spirit Observatory (Cost 300). Removed Sacred Site Science Bonus. Restored starting SpearGuard.
+    - **Starborne Seekers**: Nerfed Spirit Observatory (Cost 300). Removed Sacred Site Science Bonus. Baseline starts now include a Spear Guard for all civs; Starborne receives an extra Scout.
     - **River League**: Buffed river bonus to +1 Production per 2 river tiles (was 1/3). Buffed River Guardians to +2 Defense near rivers. Auto-assigner prioritizes river tiles.
     - **Jade Covenant**: Buffed Settlers (10 HP, 3 Movement). Added "Jade Granary" unique building (Hearth Era, Cost 30, +1 Pop/Food, Spawns Free Settler). Added "Nature's Wrath" (1 HP Attrition to enemies in territory). AI aggressively expands (2-tile density) and pivots to victory earlier. Stops settling in late-game wars.
     - **Aetherian Vanguard**: Titans ignore terrain movement costs. **Battle Hardened** perk buffed to +2 HP/era (max +6). **Scavenger Doctrine**: Science on Kill.
@@ -48,7 +50,8 @@ Last Updated: 2025-12-07
 - Dev-spec helper modules (cities/states/ai) are not present; logic lives in turn-loop.
 
 ## 🎮 Current Gameplay Notes
-- Start: each civ gets Settler + Scout (Aetherian +1 SpearGuard); no start-quality guarantees, spacing is loose (~4 hex min in code). Choose map size (Tiny to Huge) and number of civilizations (2-4).
+- Start: each civ gets Settler + Scout + Spear Guard; Starborne Seekers get an extra Scout. No start-quality guarantees, spacing is loose (~4 hex min in code). Choose map size (Tiny to Huge) and number of civilizations (2-4).
+- Neutral natives: camps (1–10 based on map size) are at least 8 tiles from starts with 3-hex territories; each has 1 Champion + 2 Archers, takes an end-of-round turn, and clearing grants +20 Production to the nearest city plus a +1F Cleared Settlement tile.
 - Civilizations: Forge Clans, Scholar Kingdoms, River League, The Aetherian Vanguard, Starborne Seekers, and Jade Covenant.
 - Play: move/attack, found cities, build units/buildings/projects, research techs, manage worked tiles, city ranged attack (range 2), offer/accept peace or vision sharing.
-- Limitations: no LoS blocking, no save/load, contact always active, map quality/generator is basic, no naval embark rules.
+- Limitations: no save/load, diplomacy tables default to Peace until contact but lack notifications, map generator is still basic with no tunable params, no naval embark rules.
