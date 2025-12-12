@@ -31,7 +31,8 @@ export function routeCityCaptures(state: GameState, playerId: string): GameState
     const captureUnits = next.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
-        UNITS[u.type as UnitType].canCaptureCity
+        UNITS[u.type as UnitType].canCaptureCity &&
+        u.type !== UnitType.Titan
     );
     if (!captureUnits.length) return next;
 
@@ -158,7 +159,8 @@ const findAvailableCaptureUnits = (state: GameState, playerId: string) => {
     return state.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
-        UNITS[u.type].canCaptureCity
+        UNITS[u.type].canCaptureCity &&
+        u.type !== UnitType.Titan
     );
 };
 

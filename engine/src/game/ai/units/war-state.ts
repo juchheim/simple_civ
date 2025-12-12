@@ -96,6 +96,15 @@ export function selectPrimarySiegeCity(
         primarySiegeMemory.delete(playerId);
     }
 
+    // v2.8: Forge Clans "Total Destruction" Strategy
+    // Forge Clans always target the closest city to systematically clear the map.
+    // They do not ignore border cities to rush the Capital.
+    // We check civName by looking up the player in the state.
+    const player = state.players.find(p => p.id === playerId);
+    if (player?.civName === "ForgeClans") {
+        preferClosest = true;
+    }
+
     const stored = primarySiegeMemory.get(playerId);
     if (stored) {
         const storedCity = warCities.find(c => c.id === stored.cityId);

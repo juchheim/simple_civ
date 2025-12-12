@@ -15,6 +15,8 @@ import {
     UnitState,
     Tile,
     TerrainType,
+    DiplomacyState,
+    HistoryEventType,
 } from "../../core/types.js";
 import {
     UNITS,
@@ -32,6 +34,9 @@ import {
 import { hexDistance, getNeighbors, hexEquals, hexToString } from "../../core/hex.js";
 import { buildTileLookup, calculateCiv6Damage, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { advanceSeed, seededBool, seededChoice } from "../helpers/random.js";
+import { createCity, claimCityTerritory, ensureWorkedTiles } from "../helpers/cities.js";
+import { expelUnitsFromTerritory } from "../helpers/movement.js";
+import { logEvent } from "../history.js";
 
 const NATIVE_OWNER_ID = "natives";
 
@@ -423,8 +428,37 @@ function resetNativeMovement(state: GameState): void {
     }
 }
 
+function convertCampToCity(state: GameState, camp: NativeCamp, killerPlayerId: string, campTile?: Tile): void {
+    const newCity = createCity(state, killerPlayerId, camp.coord, { storedProduction: NATIVE_CAMP_CLEAR_PRODUCTION_REWARD });
+
+    if (campTile) {
+        const clearedIdx = campTile.overlays.indexOf(OverlayType.ClearedSettlement);
+        if (clearedIdx !== -1) {
+            campTile.overlays.splice(clearedIdx, 1);
+        }
+        campTile.ownerId = killerPlayerId;
+        campTile.ownerCityId = newCity.id;
+        campTile.hasCityCenter = true;
+    }
+
+    claimCityTerritory(newCity, state, killerPlayerId, 1);
+    newCity.workedTiles = ensureWorkedTiles(newCity, state);
+    state.cities.push(newCity);
+
+    for (const otherPlayer of state.players) {
+        if (otherPlayer.id === killerPlayerId) continue;
+
+        const isAtWar = state.diplomacy[killerPlayerId]?.[otherPlayer.id] === DiplomacyState.War;
+        if (!isAtWar) {
+            expelUnitsFromTerritory(state, otherPlayer.id, killerPlayerId);
+        }
+    }
+
+    logEvent(state, HistoryEventType.CityFounded, killerPlayerId, { cityId: newCity.id, cityName: newCity.name, coord: newCity.coord });
+}
+
 /**
- * Clear a native camp: remove overlay, reward player (if provided), drop from state, and reset AI prep.
+ * Clear a native camp: remove overlay, optionally convert to a city for the killer, drop from state, and reset AI prep.
  */
 export function clearNativeCamp(state: GameState, campId: string, killerPlayerId?: string): void {
     if (!state.nativeCamps) {
@@ -440,26 +474,13 @@ export function clearNativeCamp(state: GameState, campId: string, killerPlayerId
         if (campIdx !== -1) {
             campTile.overlays.splice(campIdx, 1);
         }
-        if (!campTile.overlays.includes(OverlayType.ClearedSettlement)) {
+        if (!killerPlayerId && !campTile.overlays.includes(OverlayType.ClearedSettlement)) {
             campTile.overlays.push(OverlayType.ClearedSettlement);
         }
     }
 
     if (killerPlayerId) {
-        const playerCities = state.cities.filter(c => c.ownerId === killerPlayerId);
-        if (playerCities.length > 0) {
-            let nearestCity = playerCities[0];
-            let nearestDist = hexDistance(nearestCity.coord, camp.coord);
-            for (const city of playerCities) {
-                const dist = hexDistance(city.coord, camp.coord);
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestCity = city;
-                }
-            }
-
-            nearestCity.storedProduction = (nearestCity.storedProduction || 0) + NATIVE_CAMP_CLEAR_PRODUCTION_REWARD;
-        }
+        convertCampToCity(state, camp, killerPlayerId, campTile);
     }
 
     state.nativeCamps.splice(campIndex, 1);

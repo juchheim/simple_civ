@@ -26,7 +26,7 @@ import {
 } from "../../core/constants.js";
 import { hexEquals, hexDistance, hexSpiral, hexToString } from "../../core/hex.js";
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
-import { claimCityTerritory, clearCityTerritory, ensureWorkedTiles, getCityName } from "../helpers/cities.js";
+import { claimCityTerritory, clearCityTerritory, createCity, ensureWorkedTiles } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { canBuild, getMinimumCityDistance, getProjectCost } from "../rules.js";
 import { getUnitCost } from "../units.js";
@@ -151,44 +151,7 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
         }
     }
 
-    // Generate unique ID using seed
-    const rand = Math.floor(state.seed * 10000);
-    state.seed = (state.seed * 9301 + 49297) % 233280;
-    const cityId = `c_${action.playerId}_${Date.now()}_${rand}`;
-    const player = state.players.find(p => p.id === action.playerId);
-
-    // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
-    const startingFood = player?.civName === "JadeCovenant" ? 5 : 0;
-
-    if (player) {
-        player.hasFoundedFirstCity = true;
-    }
-
-    const newCity: City = {
-        id: cityId,
-        name: action.name || getCityName(state, player?.civName || "", action.playerId),
-        ownerId: action.playerId,
-        coord: unit.coord,
-        pop: 1,
-        storedFood: startingFood,
-        storedProduction: 0,
-        buildings: [],
-        workedTiles: [unit.coord],
-        currentBuild: null,
-        buildProgress: 0,
-        hp: 20,
-        maxHp: 20,
-        isCapital: state.cities.filter(c => c.ownerId === action.playerId).length === 0,
-        hasFiredThisTurn: false,
-        milestones: [],
-        savedProduction: {},
-    };
-
-    // Track used city name
-    if (!state.usedCityNames) state.usedCityNames = [];
-    if (!state.usedCityNames.includes(newCity.name)) {
-        state.usedCityNames.push(newCity.name);
-    }
+    const newCity: City = createCity(state, action.playerId, unit.coord, { name: action.name });
 
     claimCityTerritory(newCity, state, action.playerId, 1);
     newCity.workedTiles = ensureWorkedTiles(newCity, state);

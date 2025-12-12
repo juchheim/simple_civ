@@ -421,7 +421,8 @@ if (isMainThread) {
     }
 
     // Create task queue
-    const tasks: { seed: number; config: typeof MAP_CONFIGS[0]; mapIndex: number }[] = [];
+    const tasks: { seed: number; config: typeof MAP_CONFIGS[0]; mapIndex: number; debug: boolean }[] = [];
+    const debug = process.env.DEBUG_AI_LOGS === "true";
 
     if (seedOverride) {
         // Find which map config corresponds to this seed (assuming standard generation)
@@ -430,19 +431,18 @@ if (isMainThread) {
         // But base is variable.
         // Instead, just try to find a matching map config or default to Standard
         // Actually, for debugging, we usually know the map size.
-        // Let's just run it on ALL map sizes if override is set, or let user specify map size?
-        // Simpler: Just run it as a single task with "Standard" or infer from seed if possible.
+        // Let's just run it as a single task with "Standard" or infer from seed if possible.
         // For 101001: 101001 % 100000 = 1001. 101001 / 100000 = 1. Map Index 1 = Small.
         const mapIndex = Math.floor(seedOverride / 100000);
         const config = MAP_CONFIGS[mapIndex] || MAP_CONFIGS[2]; // Default to Standard if out of bounds
         console.log(`Overriding simulation to run ONLY Seed ${seedOverride} on ${config.size} map`);
-        tasks.push({ seed: seedOverride, config, mapIndex });
+        tasks.push({ seed: seedOverride, config, mapIndex, debug });
     } else {
         for (const config of MAP_CONFIGS) {
             const mapIndex = MAP_CONFIGS.indexOf(config);
             for (let i = 0; i < seeds.length; i++) {
                 const seed = seeds[i] + (mapIndex * 100000);
-                tasks.push({ seed, config, mapIndex });
+                tasks.push({ seed, config, mapIndex, debug });
             }
         }
     }
@@ -457,6 +457,7 @@ if (isMainThread) {
     // v2.0: Changed from numCPUs - 1 (~70%) to 90% of cores for faster simulation
     const workerCount = Math.max(1, Math.floor(numCPUs * 0.9));
     console.log(`Starting parallel simulation with ${workerCount} workers (90% of ${numCPUs} CPUs) for ${totalTasks} tasks...`);
+    if (debug) console.log("DEBUG LOGGING ENABLED - Output logs may be large.");
 
     let activeWorkers = 0;
 
@@ -521,7 +522,13 @@ if (isMainThread) {
 
 } else {
     // Worker thread logic
-    const { seed, config, mapIndex: _mapIndex } = workerData;
+    const { seed, config, debug } = workerData;
+
+    // Enable debug logging if requested
+    if (debug) {
+        setAiDebug(true);
+    }
+
     const start = Date.now();
 
     try {

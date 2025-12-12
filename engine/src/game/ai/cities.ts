@@ -389,15 +389,11 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     // Not at war, but if we have Army Doctrine and units to form, consider it
     let normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
 
-    // v1.9: RESTORED ForgeClans early military deterrence
-    if (player?.civName === "ForgeClans") {
-        normalPriorities = getForgeClansEarlyMilitaryPriorities(state, playerId, normalPriorities);
-    }
-
-    // v1.9: ScholarKingdoms early military - they have high elimination rate (42.7%)
-    // Give them one early spearguard to help survive
-    if (player?.civName === "ScholarKingdoms") {
-        normalPriorities = getScholarKingdomsEarlyMilitaryPriorities(state, playerId, normalPriorities);
+    // v2.2: ForgeClans & ScholarKingdoms maintain standing armies
+    // ForgeClans: 2x army size (Aggressive)
+    // ScholarKingdoms: 1.5x army size (Defensive deterrence)
+    if (player?.civName === "ForgeClans" || player?.civName === "ScholarKingdoms") {
+        normalPriorities = getStandingArmyPriorities(state, playerId, normalPriorities);
     }
 
     if (armyPriorities.length > 0) {
@@ -558,78 +554,48 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
 }
 
 /**
- * v0.98 Update 8: ForgeClans early military deterrence (toned down further)
- * ForgeClans gets attacked the most - they need early military to deter aggression
- * Reduced to 1 military per city, only first 15 turns (was 20, originally 25)
+ * v2.2: Standing Army Priority
+ * Enforces armySizeMultiplier (from personality) even during peacetime.
+ * Used by ForgeClans (Aggressive) and ScholarKingdoms (Defensive).
  */
-function getForgeClansEarlyMilitaryPriorities(state: GameState, playerId: string, basePriorities: BuildOption[]): BuildOption[] {
-    // Only apply in first 15 turns - after that, normal build priorities (was 20)
-    if (state.turn > 15) {
+function getStandingArmyPriorities(state: GameState, playerId: string, basePriorities: BuildOption[]): BuildOption[] {
+    const armyStatus = getArmyDeficit(state, playerId);
+
+    // If at or above desired army size, use normal priorities
+    if (armyStatus.deficit <= 0) {
         return basePriorities;
     }
 
-    const myCities = state.cities.filter(c => c.ownerId === playerId);
     const myUnits = state.units.filter(u => u.ownerId === playerId);
-    const militaryUnits = myUnits.filter(u =>
-        u.type !== UnitType.Settler &&
-        u.type !== UnitType.Scout &&
-        u.type !== UnitType.Skiff
-    );
-
-    // Early game: 1-2 cities, need 1 military per city as minimum deterrence
-    // Reduced from 2-per-city which was too strong
-    const isEarlyGame = myCities.length <= 2;
-    const needsMoreMilitary = militaryUnits.length < myCities.length;
     const scoutCount = myUnits.filter(u => u.type === UnitType.Scout).length;
 
-    if (isEarlyGame && needsMoreMilitary) {
-        aiInfo(`[AI Build] ForgeClans ${playerId} prioritizing military deterrence (${militaryUnits.length} military, ${myCities.length} cities)`);
+    // aiInfo(`[AI Build] Standing Army ${playerId} (${armyStatus.currentMilitary}/${armyStatus.desired}, deficit: ${armyStatus.deficit})`);
 
-        // Lighter military focus - one defender then continue normally
-        const militaryFirst: BuildOption[] = [
-            ...(scoutCount < 2 ? [{ type: "Unit" as const, id: UnitType.Scout } as BuildOption] : []),           // Still need scouts early
-            { type: "Unit" as const, id: UnitType.SpearGuard },      // One defender
-            { type: "Building" as const, id: BuildingType.StoneWorkshop },  // Production boost
-            { type: "Unit" as const, id: UnitType.Settler },         // Can expand earlier now
-            { type: "Building" as const, id: BuildingType.Farmstead },
-            { type: "Unit" as const, id: UnitType.BowGuard },        // Then ranged support
-        ];
+    // Prioritize military units to reach target
+    // Still allow scouts early and production buildings
+    const militaryPriorities: BuildOption[] = [
+        ...(scoutCount < 1 ? [{ type: "Unit" as const, id: UnitType.Scout }] : []),
+        // v2.5: Forge Clans prioritizes "Siege & Steel" (BowGuard + SpearGuard)
+        // User Request: "bowguard are siege units! prioritize spearguard and bowguard"
+        ...(playerId.startsWith("ForgeClans") || playerId === "ForgeClans" ? [
+            { type: "Unit" as const, id: UnitType.BowGuard },   // Siege (Top Priority)
+            { type: "Unit" as const, id: UnitType.SpearGuard }, // Steel (Frontline)
+            // Riders deprioritized for Forge Clans
+        ] : [
+            { type: "Unit" as const, id: UnitType.BowGuard },
+            { type: "Unit" as const, id: UnitType.SpearGuard },
+            { type: "Unit" as const, id: UnitType.Riders },
+        ]),
+        { type: "Building" as const, id: BuildingType.StoneWorkshop },
+        { type: "Building" as const, id: BuildingType.Farmstead },
+        { type: "Unit" as const, id: UnitType.Settler },  // Still expand, but after military
+        ...basePriorities.filter(p =>
+            !((p.type === "Unit" && (p.id === UnitType.BowGuard || p.id === UnitType.SpearGuard || p.id === UnitType.Riders || p.id === UnitType.Settler)) ||
+                (p.type === "Building" && (p.id === BuildingType.StoneWorkshop || p.id === BuildingType.Farmstead)))
+        ),
+    ];
 
-        return militaryFirst;
-    }
-
-    return basePriorities;
-}
-
-/**
- * v1.9: ScholarKingdoms early military deterrence
- * They have high elimination rate (42.7%) - give them one early spearguard
- * Simpler than ForgeClans - just need one defender
- */
-function getScholarKingdomsEarlyMilitaryPriorities(state: GameState, playerId: string, basePriorities: BuildOption[]): BuildOption[] {
-    // Only apply in first 12 turns
-    if (state.turn > 12) {
-        return basePriorities;
-    }
-
-    const myUnits = state.units.filter(u => u.ownerId === playerId);
-    const militaryUnits = myUnits.filter(u =>
-        u.type !== UnitType.Settler &&
-        u.type !== UnitType.Scout &&
-        u.type !== UnitType.Skiff
-    );
-
-    // If no military at all, prioritize getting one spearguard
-    if (militaryUnits.length === 0) {
-        aiInfo(`[AI Build] ScholarKingdoms ${playerId} prioritizing early defender`);
-
-        return [
-            { type: "Unit" as const, id: UnitType.SpearGuard },  // One defender first
-            ...basePriorities.filter(p => !(p.type === "Unit" && p.id === UnitType.SpearGuard)),
-        ];
-    }
-
-    return basePriorities;
+    return militaryPriorities;
 }
 
 function countAvailableCitySites(state: GameState, playerId: string, limit: number = 10): number {
@@ -756,7 +722,12 @@ function getCityPrioritiesForGoal(
     state: GameState,
     playerId: string
 ) {
-    const isProgressCity = city.id === context.progressCityId && context.canPursueProgress;
+    // v2.8: Unblocking Progress Victory for Forge Clans
+    // Removed logic that forced military production when army deficit > 0.
+    // Forge Clans can now pursue Progress victory if they choose.
+    const forceMilitary = false;
+
+    const isProgressCity = !forceMilitary && city.id === context.progressCityId && context.canPursueProgress;
     return isProgressCity
         ? getProgressCityPriorities(player, context.scoutCount)
         : buildPriorities(goal, context.personality, context.atWar, state, playerId);

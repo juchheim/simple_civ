@@ -189,6 +189,8 @@ export type Player = {
     researchHistory?: Record<string, number>; // TechId -> progress
     hasFoundedFirstCity?: boolean;
     currentEra: EraId;
+    scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
+    titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number }; // Titan performance tracking
 };
 
 export type ProjectDefinition = {

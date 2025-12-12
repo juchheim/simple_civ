@@ -1,5 +1,5 @@
 import { aiLog, aiInfo } from "./debug-logging.js";
-import { GameState, Player, DiplomacyState } from "../../core/types.js";
+import { GameState, Player, DiplomacyState, UnitType } from "../../core/types.js";
 import { aiWarPeaceDecision } from "../ai-decisions.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
@@ -194,7 +194,7 @@ function checkForNewWarTargets(state: GameState, player: Player): GameState {
 }
 
 function areUnitsPositioned(state: GameState, playerId: string, targetId: string): boolean {
-    const myUnits = state.units.filter(u => u.ownerId === playerId && !isScoutType(u.type) && UNITS[u.type].domain !== "Civilian");
+    const myUnits = state.units.filter(u => u.ownerId === playerId && !isScoutType(u.type) && UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan);
     const targetCities = state.cities.filter(c => c.ownerId === targetId);
 
     if (myUnits.length === 0 || targetCities.length === 0) return false;

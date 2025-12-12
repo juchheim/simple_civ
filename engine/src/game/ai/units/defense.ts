@@ -57,7 +57,9 @@ export function defendCities(state: GameState, playerId: string): GameState {
                     u.movesLeft > 0 &&
                     !reserved.has(u.id) &&
                     UNITS[u.type].domain !== "Civilian" &&
-                    !isScoutType(u.type)
+                    UNITS[u.type].domain !== "Civilian" &&
+                    !isScoutType(u.type) &&
+                    u.type !== UnitType.Titan
                 );
 
                 // Sort by distance to capital
@@ -85,7 +87,8 @@ export function defendCities(state: GameState, playerId: string): GameState {
             u.movesLeft > 0 &&
             !reserved.has(u.id) &&
             u.type !== UnitType.Settler &&
-            !isScoutType(u.type)
+            !isScoutType(u.type) &&
+            u.type !== UnitType.Titan
         );
         const nearbyWarEnemies = warEnemyIds.length
             ? next.units.filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, city.coord) <= 3)
@@ -164,7 +167,8 @@ export function defendCities(state: GameState, playerId: string): GameState {
             u.movesLeft > 0 &&
             !reserved.has(u.id) &&
             UNITS[u.type].domain !== "Civilian" &&
-            !isScoutType(u.type)
+            !isScoutType(u.type) &&
+            u.type !== UnitType.Titan
         );
         if (!remaining.length) continue;
 
@@ -195,7 +199,8 @@ export function defendCities(state: GameState, playerId: string): GameState {
             u.movesLeft > 0 &&
             UNITS[u.type].domain === "Land" &&
             !isScoutType(u.type) &&
-            !reserved.has(u.id)
+            !reserved.has(u.id) &&
+            u.type !== UnitType.Titan
         );
         for (const city of ungarrisonedCities) {
             const defender = nearestByDistance(city.coord, candidates, u => u.coord);
@@ -241,6 +246,7 @@ export function rotateGarrisons(state: GameState, playerId: string): GameState {
             !reserved.has(u.id) &&
             UNITS[u.type].domain !== "Civilian" &&
             !isScoutType(u.type) &&
+            u.type !== UnitType.Titan &&
             u.movesLeft > 0 &&
             u.hp > garrison.hp &&
             hexDistance(u.coord, city.coord) === 1
@@ -349,7 +355,9 @@ export function retreatWounded(state: GameState, playerId: string): GameState {
     const units = next.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
-        UNITS[u.type].domain !== "Civilian"
+        u.movesLeft > 0 &&
+        UNITS[u.type].domain !== "Civilian" &&
+        u.type !== UnitType.Titan
     );
 
     for (const unit of units) {
@@ -523,6 +531,7 @@ export function aidVulnerableUnits(state: GameState, playerId: string): GameStat
         u.movesLeft > 0 &&
         UNITS[u.type].domain !== "Civilian" &&
         !isScoutType(u.type) &&
+        u.type !== UnitType.Titan &&
         u.hp > 5 && // Must be healthy enough to help
         (u.hp / u.maxHp) > 0.6 // At least 60% HP
     );

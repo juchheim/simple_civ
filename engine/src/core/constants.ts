@@ -100,6 +100,9 @@ export const AETHERIAN_EXTRA_STARTING_UNITS: UnitType[] = []; // v1.4: Removed e
 export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout (was too strong)
 // NOTE: JadeCovenant extra settler REMOVED - 80% win rate was too strong
 
+// v2.7: Forge Clans "Unleashed" - Start with Riders to begin aggression immediately
+export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [UnitType.Riders];
+
 // v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8, then to 10
 // At 54 avg pop, this reduces bonus from +6/+6 (at 8) to +5/+5 (at 10)
 export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // v1.5: Reverted to 8 (was 10)
@@ -113,15 +116,16 @@ export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonu
 export const FORGE_CLANS_HILL_COMBAT_BONUS = 1; // +1 Attack for units from hill cities
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.90; // v1.9: BUFFED - 10% cheaper (was 5%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // v2.0: BUFFED - 20% cheaper (was 10%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
 export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (max +5)
 
 // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
-export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 3; // Tiles from capital
-export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // v1.9: Nerfed from +2 to +1
+// v2.6: Starborne Buff - increased defense radius (3 -> 4)
+export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 4; // Tiles from capital
+export const STARBORNE_CAPITAL_DEFENSE_BONUS = 2; // v2.8: Buffed from +1 to +2
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
@@ -159,10 +163,10 @@ export const CIV6_DAMAGE_RANDOM_MAX = 1.1;
 export const CIV6_DAMAGE_MIN = 1;
 export const CIV6_DAMAGE_MAX = 15;
 
-// v2.0: Titan regeneration by location
-export const TITAN_REGEN_BASE = 1;      // Enemy/neutral territory
-export const TITAN_REGEN_TERRITORY = 3; // Friendly territory
-export const TITAN_REGEN_CITY = 5;      // Friendly city
+// v2.1: Titan regeneration by location (Buffed from 0/2/4 to 1/2/4)
+export const TITAN_REGEN_BASE = 1;      // Enemy/neutral territory (Was 0)
+export const TITAN_REGEN_TERRITORY = 2; // Friendly territory
+export const TITAN_REGEN_CITY = 4;      // Friendly city
 
 // Native Camp System Constants
 export const NATIVE_CAMP_TERRITORY_RADIUS = 3;   // Tiles around camp considered territory
@@ -175,7 +179,7 @@ export const NATIVE_HEAL_TERRITORY = 2;          // HP/turn in camp territory
 export const NATIVE_HEAL_CAMP_TILE = 2;          // HP/turn on camp tile itself
 export const NATIVE_CAMP_MIN_DISTANCE_FROM_START = 8; // Min tiles from starting positions
 export const NATIVE_CAMP_MIN_DISTANCE_BETWEEN = 6;    // Min tiles between camps
-export const NATIVE_CAMP_CLEAR_PRODUCTION_REWARD = 20; // Production granted to nearest city on clear
+export const NATIVE_CAMP_CLEAR_PRODUCTION_REWARD = 20; // Production granted to the captured camp city
 export const NATIVE_CAMP_COUNTS: Record<string, [number, number]> = {
     Tiny: [1, 2],
     Small: [2, 3],
@@ -255,7 +259,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.Titan]: { atk: 30, def: 8, rng: 1, move: 2, hp: 24, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 3 },
+    [UnitType.Titan]: { atk: 22, def: 5, rng: 1, move: 2, hp: 20, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -282,9 +286,9 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 4, cityAttackBonus: 1 },
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
-    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, conditional: "Summons The Titan upon completion" }, // v1.9: Buffed to 80 (was 100)
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 220, conditional: "The Revelation: +1 Science per city, counts as Observatory milestone" }, // v1.6: Reduced from 300 to match Observatory cost
-    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 30, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v0.99 BUFF: Cost 30, Free Settler
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 180, conditional: "Summons The Titan upon completion" }, // v2.6: Nerfed to 180 (was 80) to delay Titan
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 160, yieldFlat: { S: 4, F: 4 }, conditional: "The Revelation: +4 Science, +4 Food, counts as Observatory milestone" }, // v2.6: Cost reduced 220 -> 160
+    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 30, yieldFlat: { P: 1 }, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v2.3: Added +1P yield
 };
 
 export type TechData = {

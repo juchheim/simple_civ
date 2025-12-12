@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Default to 1 sim per map size if not specified
-COUNT=${1:-1}
+# Support both command line arg and SIM_SEEDS_COUNT env var
+# Priority: $1 > SIM_SEEDS_COUNT > default (1)
+COUNT=${1:-${SIM_SEEDS_COUNT:-1}}
 TOTAL=$((COUNT * 5))
 
 LOG_FILE="/tmp/sim-progress-flexible.log"
@@ -14,11 +15,12 @@ echo "Total simulations: $TOTAL"
 echo "=========================================="
 echo ""
 
-# Start simulation in background
+# Start simulation in background using parallel analysis (90% of CPU cores)
 cd /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv
-SIM_SEEDS_COUNT=$COUNT node engine/dist/sim/comprehensive-analysis.js > "$LOG_FILE" 2>&1 &
+# Enable DEBUG_AI_LOGS=true for Titan logging
+DEBUG_AI_LOGS=false SIM_SEEDS_COUNT=$COUNT node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
 SIM_PID=$!
-echo "Simulation started with PID: $SIM_PID"
+echo "Simulation started with PID: $SIM_PID (parallel - 90% CPUs)"
 echo "Logging to: $LOG_FILE"
 echo ""
 
@@ -26,16 +28,16 @@ echo ""
 while kill -0 "$SIM_PID" 2>/dev/null; do
     sleep 10 # Update more frequently (10s) for better feedback
     
-    # Get current progress
-    # We look for [X/TOTAL] pattern
-    CURRENT=$(grep "\[[0-9]*/$TOTAL\]" "$LOG_FILE" 2>/dev/null | tail -1 | grep -o "\[[0-9]*/$TOTAL\]" | grep -o "[0-9]*" | head -1 || echo "0")
-    COMPLETED=$(grep -c "✓ Completed in" "$LOG_FILE" 2>/dev/null || echo "0")
+    # Get current progress from completed count (parallel-analysis uses "Completed" log pattern)
+    COMPLETED=$(grep -c "Completed" "$LOG_FILE" 2>/dev/null | tr -d '\n' || echo "0")
+    # Sanitize to ensure it's a number
+    COMPLETED=${COMPLETED:-0}
     
-    if [ "$CURRENT" != "0" ]; then
-        PERCENT=$((CURRENT * 100 / TOTAL))
-        echo "[$(date +%H:%M:%S)] Status: $CURRENT/$TOTAL simulations ($PERCENT%) - $COMPLETED completed"
+    if [ "$COMPLETED" -gt 0 ] 2>/dev/null; then
+        PERCENT=$((COMPLETED * 100 / TOTAL))
+        echo "[$(date +%H:%M:%S)] Status: $COMPLETED/$TOTAL simulations ($PERCENT%)"
     else
-        echo "[$(date +%H:%M:%S)] Status: Starting up... ($COMPLETED completed)"
+        echo "[$(date +%H:%M:%S)] Status: Starting up..."
     fi
     
     # Check if complete
@@ -75,11 +77,26 @@ echo "Running enhanced analysis..."
 node engine/src/sim/analyze-enhanced.mjs
 
 echo ""
+echo "Running AetherianVanguard analysis..."
+node engine/src/sim/analyze-aetherian.mjs
+
+echo ""
+echo "Extracting Titan Action Logs..."
+titan_log="/tmp/titan-actions.log"
+grep "TITAN LOG" "$LOG_FILE" > "$titan_log"
+# If empty, add a note
+if [ ! -s "$titan_log" ]; then
+    echo "No Titan logs found." > "$titan_log"
+fi
+
 echo "Copying reports..."
 cp /tmp/enhanced-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/comprehensive-analysis-report.md docs/analysis/ 2>/dev/null
+cp /tmp/aetherian-analysis-report.md docs/analysis/ 2>/dev/null
+cp "$titan_log" docs/analysis/titan-actions.log 2>/dev/null
 
 echo ""
 echo "=========================================="
 echo "✓ Complete! Reports saved to docs/analysis/"
+echo "✓ Titan logs saved to docs/analysis/titan-actions.log"
 echo "=========================================="

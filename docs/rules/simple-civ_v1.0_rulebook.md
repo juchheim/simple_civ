@@ -139,8 +139,8 @@
     - **Production**: +10 Production to nearest city if no active build, otherwise +5 Production.
     - **Research**: +20% progress toward current tech if < 50% complete, otherwise +10%. No reward if no tech is being researched.
     - **Free Scout**: Spawns a Scout unit at or adjacent to the hut (0 moves remaining).
-  - **Native Camp**: Hostile neutral encampment with a 3-hex territory. Each camp spawns 1 Native Champion and 2 Native Archers; natives aggro when attacked or when enemy units enter territory and may chase up to 2 tiles beyond it. Natives heal +2 HP/turn inside camp territory.
-  - **Cleared Settlement**: Appears after a camp is cleared; grants +1 Food on the tile and replaces the camp overlay.
+  - **Native Camp**: Hostile neutral encampment with a 3-hex territory. Each camp spawns 1 Native Champion and 2 Native Archers; natives aggro when attacked or when enemy units enter territory and may chase up to 2 tiles beyond it. Natives heal +2 HP/turn inside camp territory. When a player clears the camp, it immediately becomes a city for the captor (seeded with +20 Production); the camp overlay is removed.
+  - **Cleared Settlement**: Fallback state if a camp disappears without a capturing player; grants +1 Food on the tile and replaces the camp overlay.
 - **City Center rule**: apply terrain + overlay, then enforce minimums, then civ perks.
 
 ## 9. Units
@@ -205,7 +205,7 @@
 - **Native Camps & Aggro**:
   - Camp territory is a 3-hex radius; entering or attacking natives triggers Aggro for 3 turns (timer refreshes while enemies remain). Aggro natives may chase targets up to 2 tiles beyond camp territory.
   - Native turns resolve at end-of-round: reset moves, patrol if idle, attack/advance when Aggro, retreat toward camp when damaged, then heal (+2 HP/turn inside territory).
-  - Clearing the last native removes the camp, applies the Cleared Settlement overlay (+1F), and grants +20 Production to the nearest city of the clearing player.
+  - Clearing the last native converts the camp into a city for the capturing player (auto-named using their next available city name) with +20 Production stored; camp overlay is removed.
 - **Capture**:
   - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
 

@@ -1,13 +1,15 @@
-import { DiplomacyState, GameState } from "../core/types.js";
+import { DiplomacyState, GameState, HexCoord } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
 import { hexDistance, hexToString, hexSpiral } from "../core/hex.js";
 import { buildTileLookup, hasClearLineOfSight } from "./helpers/combat.js";
 import { disableSharedVision, setContact } from "./helpers/diplomacy.js";
 import { recordFogDelta } from "./history.js";
+import { LookupCache, buildLookupCache, getOwnedTilesCached } from "./helpers/lookup-cache.js";
 
-export function computeVisibility(state: GameState, playerId: string): string[] {
+export function computeVisibility(state: GameState, playerId: string, cache?: LookupCache): string[] {
     const visible = new Set<string>();
-    const tileByKey = buildTileLookup(state);
+    const tileByKey = cache?.tileByKey ?? buildTileLookup(state);
+    const effectiveCache = cache ?? buildLookupCache(state);
 
     const addVisionFrom = (ownerId: string) => {
         const units = state.units.filter(u => u.ownerId === ownerId);
@@ -41,11 +43,10 @@ export function computeVisibility(state: GameState, playerId: string): string[] 
             }
         }
 
-        // Always see own territory
-        for (const tile of state.map.tiles) {
-            if (tile.ownerId === ownerId) {
-                visible.add(hexToString(tile.coord));
-            }
+        // Always see own territory - O(1) lookup via cache instead of O(tiles) iteration
+        const ownedTiles = getOwnedTilesCached(effectiveCache, ownerId);
+        for (const coord of ownedTiles) {
+            visible.add(hexToString(coord));
         }
     };
 
@@ -62,14 +63,11 @@ export function computeVisibility(state: GameState, playerId: string): string[] 
         }
     }
 
-    // Filter to ensure we only return valid map tiles (though hexSpiral checks likely kept us close, tileByKey check ensures validity)
-    // The previous implementation iterated all map tiles to filter. We can just check existence.
-    // However, logic above already checks `tileByKey.has(key)`.
     return Array.from(visible);
 }
 
-export function refreshPlayerVision(state: GameState, playerId: string) {
-    const nowVisible = computeVisibility(state, playerId);
+export function refreshPlayerVision(state: GameState, playerId: string, cache?: LookupCache) {
+    const nowVisible = computeVisibility(state, playerId, cache);
     state.visibility[playerId] = nowVisible;
     const prev = new Set(state.revealed[playerId] ?? []);
 
@@ -86,20 +84,25 @@ export function refreshPlayerVision(state: GameState, playerId: string) {
 
     nowVisible.forEach(v => prev.add(v));
     state.revealed[playerId] = Array.from(prev);
-    handleContactDiscovery(state, playerId, new Set(nowVisible));
+    handleContactDiscovery(state, playerId, new Set(nowVisible), cache);
 }
 
-export function handleContactDiscovery(state: GameState, viewerId: string, visibleKeys: Set<string>) {
-    const keyHasEnemy = (key: string): string | null => {
-        const unit = state.units.find(u => hexToString(u.coord) === key && u.ownerId !== viewerId);
-        if (unit) return unit.ownerId;
-        const city = state.cities.find(c => hexToString(c.coord) === key && c.ownerId !== viewerId);
-        return city ? city.ownerId : null;
-    };
+export function handleContactDiscovery(state: GameState, viewerId: string, visibleKeys: Set<string>, cache?: LookupCache) {
+    // Build unit/city maps for O(1) lookup if no cache provided
+    const effectiveCache = cache ?? buildLookupCache(state);
+    const unitByKey = effectiveCache.unitByCoordKey;
+    const cityByKey = effectiveCache.cityByCoordKey;
 
     visibleKeys.forEach(key => {
-        const owner = keyHasEnemy(key);
-        if (owner) setContact(state, viewerId, owner);
+        // O(1) lookup instead of O(units + cities) per key
+        const unit = unitByKey.get(key);
+        if (unit && unit.ownerId !== viewerId) {
+            setContact(state, viewerId, unit.ownerId);
+            return;
+        }
+        const city = cityByKey.get(key);
+        if (city && city.ownerId !== viewerId) {
+            setContact(state, viewerId, city.ownerId);
+        }
     });
 }
-

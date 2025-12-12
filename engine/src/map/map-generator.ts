@@ -16,7 +16,7 @@ import {
     EraId,
     NativeCamp,
 } from "../core/types.js";
-import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS, NATIVE_CAMP_COUNTS, NATIVE_CAMP_MIN_DISTANCE_FROM_START, NATIVE_CAMP_MIN_DISTANCE_BETWEEN } from "../core/constants.js";
+import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS, FORGE_CLANS_EXTRA_STARTING_UNITS, NATIVE_CAMP_COUNTS, NATIVE_CAMP_MIN_DISTANCE_FROM_START, NATIVE_CAMP_MIN_DISTANCE_BETWEEN } from "../core/constants.js";
 import { hexEquals, hexToString, hexSpiral, getNeighbors, hexDistance } from "../core/hex.js";
 import { getTileYields } from "../game/rules.js";
 import { scoreCitySite } from "../game/ai-heuristics.js";
@@ -230,6 +230,27 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         // v0.98 Update 2: AetherianVanguard starts with extra units (defined in constants)
         if (p.civName === "AetherianVanguard") {
             const extraUnits = AETHERIAN_EXTRA_STARTING_UNITS;
+            for (const unitType of extraUnits) {
+                const stats = UNITS[unitType];
+                const coord = findSpawnCoord(usedCoords);
+                usedCoords.push(coord);
+                units.push({
+                    id: `u_${p.id}_extra_${units.length}`,
+                    type: unitType,
+                    ownerId: p.id,
+                    coord: coord,
+                    hp: stats.hp,
+                    maxHp: stats.hp,
+                    movesLeft: stats.move,
+                    state: UnitState.Normal,
+                    hasAttacked: false,
+                });
+            }
+        }
+
+        // v2.7: Forge Clans starts with extra units (Riders) to fuel early aggression
+        if (p.civName === "ForgeClans") {
+            const extraUnits = FORGE_CLANS_EXTRA_STARTING_UNITS;
             for (const unitType of extraUnits) {
                 const stats = UNITS[unitType];
                 const coord = findSpawnCoord(usedCoords);

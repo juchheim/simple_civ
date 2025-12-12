@@ -152,23 +152,28 @@ export function getCityYields(city: City, state: GameState): Yields {
                 if (t?.terrain === TerrainType.Hills) total.P += 1;
             }
         }
+        // v2.3: "Industrial Network" - +1 Production for industrial buildings
+        // v2.6: "Industrial Research" - +1 Science for industrial buildings (to fix tech lag)
+        if (city.buildings.includes(BuildingType.StoneWorkshop)) { total.P += 1; total.S += 1; }
+        if (city.buildings.includes(BuildingType.LumberMill)) total.P += 1;
+        if (city.buildings.includes(BuildingType.Forgeworks)) { total.P += 1; total.S += 1; }
     } else if (trait === "ScholarKingdoms") {
         // v1.9: "Citadel Protocol"
-        // 1. +1 Science in Capital
+        // 1. +3 Science in Capital (Buffed from +1)
         if (city.isCapital) {
-            total.S += 1;
+            total.S += 2; // v2.8: Nerfed from 3 to 2
         }
-        // 2. +1 Science per CityWard building (defensive science synergy)
+        // 2. +3 Science per CityWard building (Buffed from +2)
         const cityWardCount = state.cities.filter(c =>
             c.ownerId === city.ownerId && c.buildings.includes(BuildingType.CityWard)
         ).length;
-        total.S += cityWardCount;
+        total.S += cityWardCount * 2; // v2.8: Nerfed from 3 to 2
     } else if (trait === "RiverLeague") {
-        // v1.9: BUFF - +1 Prod per 2 river tiles (was per 3)
+        // v2.3: BUFF - +1 Prod per 1 river tile (was per 2) - doubled efficiency
         total.F += riverAdjacencyCount(state.map, workedTiles);
-        total.P += Math.floor(riverAdjacencyCount(state.map, workedTiles) / 2);
+        total.P += riverAdjacencyCount(state.map, workedTiles);
     } else if (trait === "StarborneSeekers") {
-        // v1.9: "Peaceful Meditation" - +1 Science when not at war
+        // v1.9: "Peaceful Meditation" - +2 Science when not at war (Buffed from +1)
         // Fits their defensive identity - they avoid wars to pursue Progress
         const player = state.players.find(p => p.id === city.ownerId);
         const atWar = state.players.some(other =>
@@ -177,7 +182,7 @@ export function getCityYields(city: City, state: GameState): Yields {
             state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
         );
         if (!atWar) {
-            total.S += 1;
+            total.S += 3; // v2.8: Buffed from 2 to 3
         }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)

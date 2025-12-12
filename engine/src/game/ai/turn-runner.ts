@@ -2,7 +2,7 @@ import { GameState } from "../../core/types.js";
 import { aiVictoryBias, setAiGoal } from "./goals.js";
 import { pickTech, chooseFallbackTech } from "./tech.js";
 import { assignWorkedTiles, pickCityBuilds, considerRazing } from "./cities.js";
-import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveUnitsForPreparation, routeCaptureUnitsToActiveSieges, aidVulnerableUnits, moveUnitsForCampClearing, attackCampTargets } from "./units.js";
+import { moveSettlersAndFound, manageSettlerEscorts, patrolAndExplore, defendCities, rotateGarrisons, retreatWounded, repositionRanged, routeCityCaptures, attackTargets, moveMilitaryTowardTargets, titanRampage, moveTroopsTowardTitan, moveUnitsForPreparation, routeCaptureUnitsToActiveSieges, aidVulnerableUnits, moveUnitsForCampClearing, attackCampTargets } from "./units.js";
 import { handleDiplomacy } from "./diplomacy.js";
 import { manageWarPreparation } from "./war-prep.js";
 import { manageCampClearing } from "./camp-clearing.js";
@@ -68,6 +68,9 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
 
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
     state = titanRampage(state, playerId);
+
+    // v2.1: Deathball coordination - move army toward Titan's target
+    state = moveTroopsTowardTitan(state, playerId);
 
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);
@@ -135,6 +138,9 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
 
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
     state = titanRampage(state, playerId);
+
+    // v2.1: Deathball coordination - move army toward Titan's target
+    state = moveTroopsTowardTitan(state, playerId);
 
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);

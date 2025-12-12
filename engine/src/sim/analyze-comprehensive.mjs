@@ -606,6 +606,10 @@ if (titanAnalysis.unitCountsAtSpawn.length > 0) {
 }
 report += `\n`;
 
+// Note: Detailed AetherianVanguard analysis (Scavenger Doctrine, Titan stats) 
+// is in a separate file: /tmp/aetherian-analysis-report.md
+// Run: node engine/src/sim/analyze-aetherian.mjs
+
 report += `---\n\n`;
 
 // Victory Analysis

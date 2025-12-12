@@ -219,3 +219,57 @@ export function getCityName(state: GameState, civName: string, ownerId: string):
     }
     return fallbackName;
 }
+
+export function createCity(
+    state: GameState,
+    ownerId: string,
+    coord: HexCoord,
+    options: { name?: string; storedProduction?: number; startingFood?: number } = {},
+): City {
+    const player = state.players.find(p => p.id === ownerId);
+    const playerCities = state.cities.filter(c => c.ownerId === ownerId);
+
+    // Generate unique ID using seed
+    const rand = Math.floor(state.seed * 10000);
+    state.seed = (state.seed * 9301 + 49297) % 233280;
+    const cityId = `c_${ownerId}_${Date.now()}_${rand}`;
+
+    const name = options.name && options.name.trim().length > 0
+        ? options.name
+        : getCityName(state, player?.civName || "", ownerId);
+
+    // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
+    const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 5 : 0);
+
+    if (player) {
+        player.hasFoundedFirstCity = true;
+    }
+
+    const newCity: City = {
+        id: cityId,
+        name,
+        ownerId,
+        coord,
+        pop: 1,
+        storedFood: startingFood,
+        storedProduction: options.storedProduction ?? 0,
+        buildings: [],
+        workedTiles: [coord],
+        currentBuild: null,
+        buildProgress: 0,
+        hp: 20,
+        maxHp: 20,
+        isCapital: playerCities.length === 0,
+        hasFiredThisTurn: false,
+        milestones: [],
+        savedProduction: {},
+    };
+
+    // Track used city name
+    if (!state.usedCityNames) state.usedCityNames = [];
+    if (!state.usedCityNames.includes(newCity.name)) {
+        state.usedCityNames.push(newCity.name);
+    }
+
+    return newCity;
+}

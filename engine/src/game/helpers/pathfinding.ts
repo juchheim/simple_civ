@@ -1,6 +1,22 @@
 import { GameState, HexCoord, Tile, Unit, UnitDomain, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
+import { LookupCache, buildLookupCache } from "./lookup-cache.js";
+
+/**
+ * Internal pathfinding context - built once per findPath call
+ */
+type PathContext = {
+    cache: LookupCache;
+    visibilitySet: Set<string>;
+    gameState: GameState;
+};
+
+function buildPathContext(gameState: GameState, unit: Unit, externalCache?: LookupCache): PathContext {
+    const cache = externalCache ?? buildLookupCache(gameState);
+    const visibilitySet = cache.visibilitySet.get(unit.ownerId) ?? new Set();
+    return { cache, visibilitySet, gameState };
+}
 
 /**
  * Calculates the movement cost for a unit to enter a specific tile.
@@ -8,7 +24,7 @@ import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/he
  * - If tile is visible: Returns actual cost (or Infinity if impassable)
  * - If tile is hidden (Fog/Shroud): Returns 1 (assumes passable)
  */
-export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): number {
+export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState, ctx?: PathContext): number {
     const stats = UNITS[unit.type];
     if (!stats) {
         console.error(`[Pathfinding Error] Unknown unit type: ${unit.type}`);
@@ -16,81 +32,75 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState): n
         return Infinity;
     }
 
-    // Check visibility
+    // Use context if provided, otherwise fall back to old behavior
     const tileKey = hexToString(tile.coord);
-    const playerVisibility = gameState.visibility[unit.ownerId] || [];
-    const isVisible = playerVisibility.includes(tileKey);
+    const isVisible = ctx
+        ? ctx.visibilitySet.has(tileKey)
+        : (gameState.visibility[unit.ownerId] || []).includes(tileKey);
 
     // If hidden, be optimistic! Assume it's a plain (cost 1) unless we know otherwise
-    // We treat Shroud and Fog the same here - if we can't see it NOW, we assume it's clear.
     if (!isVisible) {
         return 1;
     }
 
-    // Check for blocking units (still applies)
-    const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
-    if (unitOnTile && unitOnTile.ownerId !== unit.ownerId) return Infinity;
+    // Check for blocking units - O(1) with cache, O(n) without
+    const unitOnTile = ctx
+        ? ctx.cache.unitByCoordKey.get(tileKey)
+        : gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
 
-    // Check for peacetime borders (still applies)
+    // Filter out self if using cache (cache returns first unit at coord)
+    const blockingUnit = unitOnTile && unitOnTile.id !== unit.id ? unitOnTile : undefined;
+
+    if (blockingUnit && blockingUnit.ownerId !== unit.ownerId) return Infinity;
+
+    // Check for peacetime borders
     if (tile.ownerId && tile.ownerId !== unit.ownerId) {
         const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
-        const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
+        const isCity = ctx
+            ? ctx.cache.cityByCoordKey.has(tileKey)
+            : gameState.cities.some(c => hexEquals(c.coord, tile.coord));
         if (!isCity && diplomacy !== "War") return Infinity;
     }
 
-
-
-    // If visible, check actual terrain constraints
+    // Terrain-specific logic
     if (stats.domain === UnitDomain.Land) {
         if (tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea) return Infinity;
         if (tile.terrain === TerrainType.Mountain) return Infinity;
 
-        // Check for peacetime movement restrictions
+        // Check for peacetime movement restrictions (duplicate from above for domain-specific)
         if (tile.ownerId && tile.ownerId !== unit.ownerId) {
             const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
-            const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
-            // We can enter enemy cities to attack them (if at war) or if the game allows capturing.
-            // But the rule is: "Cannot enter enemy territory during peacetime".
-            // Exception: Enemy cities are allowed IF we are at war? 
-            // The validation logic says: if (!isEnemyCityTile && diplomacy !== "War") throw Error.
-            // So if it IS an enemy city, we can enter? Even in peace?
-            // "Allow entering enemy city tiles to resolve capture logic" - implies we might capture in peace?
-            // No, capture usually requires war. But let's match the validation logic exactly.
+            const isCity = ctx
+                ? ctx.cache.cityByCoordKey.has(tileKey)
+                : gameState.cities.some(c => hexEquals(c.coord, tile.coord));
             if (!isCity && diplomacy !== "War") {
                 return Infinity;
             }
         }
 
-        // Check for blocking units
-        const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
-        if (unitOnTile) {
-            // If enemy, it's impassable (can't move onto them without attacking)
-            if (unitOnTile.ownerId !== unit.ownerId) return Infinity;
-            // If friendly, it's passable for PATHFINDING (we can move through them or they might move)
-            // But give it a penalty so we prefer empty tiles
+        // Check for blocking units with penalty for friendly
+        if (blockingUnit) {
+            if (blockingUnit.ownerId !== unit.ownerId) return Infinity;
             return (TERRAIN[tile.terrain].moveCostLand ?? Infinity) + 5;
         }
 
         return TERRAIN[tile.terrain].moveCostLand ?? Infinity;
     } else if (stats.domain === UnitDomain.Naval) {
         if (tile.terrain !== TerrainType.Coast && tile.terrain !== TerrainType.DeepSea) return Infinity;
-        // Skiff is restricted to Coast only (no DeepSea)
         if (unit.type === UnitType.Skiff && tile.terrain === TerrainType.DeepSea) return Infinity;
 
-        // Check for peacetime movement restrictions (Naval units also respect borders?)
-        // The validation logic applies to all units.
         if (tile.ownerId && tile.ownerId !== unit.ownerId) {
             const diplomacy = gameState.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
-            const isCity = gameState.cities.some(c => hexEquals(c.coord, tile.coord));
+            const isCity = ctx
+                ? ctx.cache.cityByCoordKey.has(tileKey)
+                : gameState.cities.some(c => hexEquals(c.coord, tile.coord));
             if (!isCity && diplomacy !== "War") {
                 return Infinity;
             }
         }
 
-        // Check for blocking units
-        const unitOnTile = gameState.units.find(u => hexEquals(u.coord, tile.coord) && u.id !== unit.id);
-        if (unitOnTile) {
-            if (unitOnTile.ownerId !== unit.ownerId) return Infinity;
+        if (blockingUnit) {
+            if (blockingUnit.ownerId !== unit.ownerId) return Infinity;
             return (TERRAIN[tile.terrain].moveCostNaval ?? Infinity) + 5;
         }
 
@@ -112,12 +122,17 @@ type Node = {
  * A* Pathfinding Algorithm
  * Returns an array of HexCoords representing the path from start to end (excluding start).
  * Returns empty array if no path found.
+ * 
+ * @param cache - Optional external cache for batch pathfinding operations
  */
-export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: GameState): HexCoord[] {
+export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: GameState, cache?: LookupCache): HexCoord[] {
     const startKey = hexToString(start);
     const endKey = hexToString(end);
 
     if (startKey === endKey) return [];
+
+    // Build context once for entire pathfinding operation
+    const ctx = buildPathContext(gameState, unit, cache);
 
     const openSet = new Map<string, Node>();
     const closedSet = new Set<string>();
@@ -172,13 +187,13 @@ export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: 
 
             if (closedSet.has(neighborKey)) continue;
 
-            // Find the tile object
-            const tile = gameState.map.tiles.find(t => hexEquals(t.coord, neighborCoord));
+            // O(1) tile lookup via cache
+            const tile = ctx.cache.tileByKey.get(neighborKey);
 
             // If tile doesn't exist (off map), skip
             if (!tile) continue;
 
-            const moveCost = getMovementCost(tile, unit, gameState);
+            const moveCost = getMovementCost(tile, unit, gameState, ctx);
 
             // If impassable, skip
             if (moveCost === Infinity) continue;
@@ -207,21 +222,28 @@ export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: 
 /**
  * Finds all reachable tiles from a starting point within a given range (or unlimited).
  * Returns a map of reachable HexCoords to their cost/distance.
+ * 
+ * @param cache - Optional external cache for batch operations
  */
-export function findReachableTiles(start: HexCoord, unit: Unit, gameState: GameState, maxRange: number = 20): Map<string, HexCoord> {
+export function findReachableTiles(start: HexCoord, unit: Unit, gameState: GameState, maxRange: number = 20, cache?: LookupCache): Map<string, HexCoord> {
     const reachable = new Map<string, HexCoord>();
     const startKey = hexToString(start);
     reachable.set(startKey, start);
 
+    // Build context once
+    const ctx = buildPathContext(gameState, unit, cache);
+
+    // Use index-based deque instead of shift() for O(1) dequeue
     const queue: { coord: HexCoord; cost: number }[] = [{ coord: start, cost: 0 }];
+    let queueHead = 0;
     const visited = new Set<string>([startKey]);
 
     let iterations = 0;
     const MAX_ITERATIONS = 2000;
 
-    while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+    while (queueHead < queue.length && iterations < MAX_ITERATIONS) {
         iterations++;
-        const current = queue.shift()!;
+        const current = queue[queueHead++];
 
         if (current.cost >= maxRange) continue;
 
@@ -230,15 +252,16 @@ export function findReachableTiles(start: HexCoord, unit: Unit, gameState: GameS
             const neighborKey = hexToString(neighbor);
             if (visited.has(neighborKey)) continue;
 
-            const tile = gameState.map.tiles.find(t => hexEquals(t.coord, neighbor));
+            // O(1) tile lookup via cache
+            const tile = ctx.cache.tileByKey.get(neighborKey);
             if (!tile) continue;
 
-            const moveCost = getMovementCost(tile, unit, gameState);
+            const moveCost = getMovementCost(tile, unit, gameState, ctx);
             if (moveCost === Infinity) continue;
 
             visited.add(neighborKey);
             reachable.set(neighborKey, neighbor);
-            queue.push({ coord: neighbor, cost: current.cost + 1 }); // Using simple step distance for range limit
+            queue.push({ coord: neighbor, cost: current.cost + 1 });
         }
     }
 

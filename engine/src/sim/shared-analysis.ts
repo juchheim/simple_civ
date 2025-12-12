@@ -37,7 +37,8 @@ export type Event =
     | { type: "TitanSpawn"; turn: number; owner: string; unitId: string; unitCount: number }
     | { type: "TitanDeath"; turn: number; owner: string; killedBy?: string }
     | { type: "TitanKill"; turn: number; owner: string; victimType: string }
-    | { type: "TitanStep"; turn: number; owner: string; supportCount: number };
+    | { type: "TitanStep"; turn: number; owner: string; supportCount: number }
+    | { type: "ScavengerDoctrineScience"; turn: number; owner: string; victimType: UnitType; scienceGain: number };
 
 export type TurnSnapshot = {
     turn: number;
@@ -53,6 +54,8 @@ export type TurnSnapshot = {
         totalProduction: number;
         totalScience: number;
         isEliminated: boolean;
+        scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
+        titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number }; // Titan performance tracking
     }[];
     cities: {
         id: string;
@@ -151,6 +154,8 @@ export function calculateCivStats(state: GameState, civId: string) {
         units: units.length,
         militaryPower: estimateMilitaryPower(civId, state),
         isEliminated: player.isEliminated || false,
+        scavengerDoctrineStats: player.scavengerDoctrineStats,
+        titanStats: player.titanStats,
     };
 }
 

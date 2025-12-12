@@ -45,6 +45,8 @@ function coordinateBattleGroups(state: GameState, playerId: string): GameState {
 function getAttackingUnits(state: GameState, playerId: string) {
     return state.units.filter(u => {
         if (u.ownerId !== playerId || u.type === UnitType.Settler || isScoutType(u.type) || u.state === UnitState.Garrisoned) return false;
+        // v2.2: Titan has its own attack logic in titanRampage - exclude from generic attacks
+        if (u.type === UnitType.Titan) return false;
         const city = state.cities.find(c => hexEquals(c.coord, u.coord));
         if (city && city.ownerId === playerId) return false;
         return true;
@@ -341,7 +343,7 @@ export function moveUnitsForPreparation(state: GameState, playerId: string): Gam
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
         !isScoutType(u.type) &&
-        UNITS[u.type].domain !== "Civilian" &&
+        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan &&
         !reservedUnitIds.has(u.id)
     );
 
@@ -408,7 +410,8 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
     const targetCities = next.cities
         .filter(c => warTargets.some(w => w.id === c.ownerId))
         .sort((a, b) => a.hp - b.hp);
-    const armyUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian" && !isScoutType(u.type));
+    // v2.2: Titan is excluded - it has dedicated logic in titanRampage
+    const armyUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian" && !isScoutType(u.type) && u.type !== UnitType.Titan);
     const garrisonCap = warGarrisonCap(next, playerId, isInWarProsecutionMode);
     const heldGarrisons = selectHeldGarrisons(next, playerId, warTargets, garrisonCap);
 
@@ -486,7 +489,7 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                     u.id !== current.id &&
                     u.ownerId === playerId &&
                     hexEquals(u.coord, friendlyCity.coord) &&
-                    UNITS[u.type].domain !== "Civilian"
+                    UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan
                 );
                 if (!otherGarrison) break;  // Don't leave city ungarrisoned
             }
@@ -783,7 +786,7 @@ export function moveUnitsForCampClearing(state: GameState, playerId: string): Ga
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
         !isScoutType(u.type) &&
-        UNITS[u.type].domain !== "Civilian"
+        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan
     );
 
     aiInfo(`[AI CAMP MOVE] ${playerId} moving ${units.length} units toward camp (${phase} phase)`);
@@ -868,7 +871,7 @@ export function attackCampTargets(state: GameState, playerId: string): GameState
         u.ownerId === playerId &&
         !u.hasAttacked &&
         !isScoutType(u.type) &&
-        UNITS[u.type].domain !== "Civilian"
+        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan
     );
 
     for (const attacker of attackers) {

@@ -8,7 +8,6 @@ import {
     TERRAIN,
     FORTIFY_DEFENSE_BONUS,
     UNITS,
-    NATIVE_CAMP_CLEAR_PRODUCTION_REWARD,
 } from "../../core/constants.js";
 import { hexDistance, hexEquals, hexToString, getNeighbors } from "../../core/hex.js";
 import { captureCity } from "../helpers/cities.js";
@@ -164,12 +163,27 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 if (player && player.civName === "AetherianVanguard" && player.currentTech) {
                     const victimStats = UNITS[defender.type as UnitType];
                     // v1.9: Reworked - Base on combat power (ATK + DEF + HP/2), not cost
-                    // This makes Army units and Titans more valuable targets
+                    // v2.7: Nerfed multiplier from 0.5 to 0.2 - Prevent snowballing
+                    // This makes Army units and Titans more valuable targets, but less game-breaking
                     const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.75);
+                    const scienceGain = Math.floor(combatPower * 0.2);
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
+                        // Track for simulation analysis
+                        if (!player.scavengerDoctrineStats) {
+                            player.scavengerDoctrineStats = { kills: 0, scienceGained: 0 };
+                        }
+                        player.scavengerDoctrineStats.kills++;
+                        player.scavengerDoctrineStats.scienceGained += scienceGain;
                     }
+                }
+
+                // Track Titan kills for AetherianVanguard analysis
+                if (attacker.type === UnitType.Titan && player) {
+                    if (!player.titanStats) {
+                        player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                    }
+                    player.titanStats.kills++;
                 }
             }
 
@@ -300,6 +314,26 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
 
                 captureCity(state, city, action.playerId);
                 logEvent(state, HistoryEventType.CityCaptured, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord, isCapital: city.isCapital });
+
+                // Track Titan city captures for analysis
+                if (attacker.type === UnitType.Titan) {
+                    const player = state.players.find(p => p.id === action.playerId);
+                    if (player) {
+                        if (!player.titanStats) {
+                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                        }
+                        player.titanStats.cityCaptures++;
+                    }
+                } else {
+                    // Track deathball captures (non-Titan city captures by AetherianVanguard)
+                    const player = state.players.find(p => p.id === action.playerId);
+                    if (player && player.civName === "AetherianVanguard") {
+                        if (!player.titanStats) {
+                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                        }
+                        player.titanStats.deathballCaptures++;
+                    }
+                }
 
                 attacker.coord = cityCoord;
                 attacker.movesLeft = 0;
