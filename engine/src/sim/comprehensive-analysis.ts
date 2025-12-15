@@ -16,7 +16,7 @@ import {
 import { writeFileSync, statSync } from "fs";
 
 function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
-    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
+    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed, aiSystem: "UtilityV2" });
     clearWarVetoLog();
 
     for (const a of state.players) {
@@ -116,6 +116,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         cityId: city.id,
                         owner: u.ownerId,
                         unitType: u.type,
+                        unitId: u.id,
                     });
                 }
             } else {
@@ -129,6 +130,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                             cityId: city.id,
                             owner: u.ownerId,
                             unitType: u.type,
+                            unitId: u.id,
                         });
                     }
                 }

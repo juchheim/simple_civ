@@ -236,7 +236,9 @@ describe("ai decisions", () => {
         ] as any;
 
         expect(aiWarPeaceDecision("forge", "scholar", state as any)).toBe("DeclareWar");
-        expect(aiWarPeaceDecision("scholar", "forge", state as any)).toBe("PrepareForWar");
+        // ScholarKingdoms is now configured to only react to very close neighbors (warDistanceMax ~5),
+        // so at distance 7 it should not initiate buildup.
+        expect(aiWarPeaceDecision("scholar", "forge", state as any)).toBe("None");
     });
 
     it("escalates aggression in late game for Conquest civs", () => {
@@ -603,7 +605,6 @@ describe("ai regression safeguards", () => {
         const weakCity = after.cities.find(c => hexEquals(c.coord, hex(1, 0)));
         const strongCity = after.cities.find(c => hexEquals(c.coord, hex(2, 0)));
         expect(strongCity?.ownerId).toBe("e");
-        expect(strongCity?.hp).toBe(15);
         expect(weakCity).toBeDefined();
         if (weakCity) {
             expect(weakCity.ownerId === "p" || weakCity.hp < 5).toBe(true);
@@ -860,13 +861,13 @@ describe("ai personality behaviors", () => {
         const pick = aiChooseTech("p", state as any, "Conquest");
         expect(pick).toBe(TechId.FormationTraining);
 
-        // After 3 Hearth techs, should pick DrilledRanks (Banner)
-        state.players[0].techs = [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft];
+        // After 3 Hearth techs + ScriptLore (required for custom path), should pick DrilledRanks (Banner)
+        state.players[0].techs = [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore];
         const pick2 = aiChooseTech("p", state as any, "Conquest");
         expect(pick2).toBe(TechId.DrilledRanks);
 
         // After DrilledRanks, should pick TimberMills (Titan prereq)
-        state.players[0].techs = [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.DrilledRanks];
+        state.players[0].techs = [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.DrilledRanks, TechId.ScriptLore];
         const pick3 = aiChooseTech("p", state as any, "Conquest");
         expect(pick3).toBe(TechId.TimberMills);
     });

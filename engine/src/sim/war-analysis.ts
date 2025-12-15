@@ -27,7 +27,7 @@ type Event =
     | { type: "WarDeclaration"; turn: number; initiator: string; target: string; initiatorPower: number; targetPower: number }
     | { type: "PeaceTreaty"; turn: number; civ1: string; civ2: string }
     | { type: "UnitDeath"; turn: number; unitId: string; unitType: UnitType; owner: string; killedBy?: string }
-    | { type: "UnitProduction"; turn: number; cityId: string; owner: string; unitType: UnitType }
+    | { type: "UnitProduction"; turn: number; cityId: string; owner: string; unitType: UnitType; unitId?: string }
     | { type: "CityCapture"; turn: number; cityId: string; from: string; to: string; isCapital: boolean }
     | { type: "CityFound"; turn: number; cityId: string; owner: string }
     | { type: "CityRaze"; turn: number; cityId: string; owner: string }
@@ -174,7 +174,7 @@ function createTurnSnapshot(state: GameState): TurnSnapshot {
 
 function runWarSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
     // Pass seed to civList for randomized civ selection
-    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
+    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed, aiSystem: "UtilityV2" });
     clearWarVetoLog();
 
     // Force initial contact
@@ -279,6 +279,7 @@ function runWarSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200,
                         cityId: city.id,
                         owner: u.ownerId,
                         unitType: u.type,
+                        unitId: u.id,
                     });
                 }
             }

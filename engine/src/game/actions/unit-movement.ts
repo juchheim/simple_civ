@@ -105,6 +105,12 @@ export function handleLinkUnits(state: GameState, action: LinkUnitsAction): Game
     if (unit.linkedUnitId || partner.linkedUnitId) throw new Error("Units already linked");
     if (unit.hasAttacked || partner.hasAttacked) throw new Error("Units are combat-engaged");
 
+    const unitDomain = UNITS[unit.type].domain;
+    const partnerDomain = UNITS[partner.type].domain;
+    if (unitDomain !== "Civilian" && partnerDomain !== "Civilian") {
+        throw new Error("Cannot link two military units");
+    }
+
     unit.linkedUnitId = partner.id;
     partner.linkedUnitId = unit.id;
     return state;

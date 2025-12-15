@@ -11,7 +11,11 @@ describe("Turn Loop & Actions", () => {
         expect(unit).toBeDefined();
 
         const startCoord = unit!.coord;
-        const targetCoord = hexNeighbor(startCoord, 0); // Neighbor 0
+        const targetCoord =
+            [0, 1, 2, 3, 4, 5]
+                .map(d => hexNeighbor(startCoord, d))
+                .find(c => !state.units.some(u => u.ownerId === "p1" && u.type !== UnitType.Settler && hexEquals(u.coord, c)));
+        if (!targetCoord) throw new Error("No empty neighbor for move test");
 
         // Ensure target is valid (not deep sea/mountain) for test stability
         // Map gen is random, but let's assume it's valid or mock map.
@@ -159,7 +163,9 @@ describe("Turn Loop & Actions", () => {
         const scout = state.units.find(u => u.type === UnitType.Scout && u.ownerId === "p1");
         expect(scout).toBeDefined();
 
-        const targetCoord = hexNeighbor(scout!.coord, 0);
+        const neighbors = [0, 1, 2, 3, 4, 5].map(d => hexNeighbor(scout!.coord, d));
+        const targetCoord = neighbors.find(c => !state.units.some(u => hexEquals(u.coord, c)));
+        if (!targetCoord) throw new Error("No empty neighbor for scout");
         const tile = state.map.tiles.find(t => hexEquals(t.coord, targetCoord));
         if (tile) tile.terrain = TerrainType.Hills; // Cost 2
 

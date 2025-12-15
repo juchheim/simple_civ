@@ -18,7 +18,7 @@ echo ""
 # Start simulation in background using parallel analysis (90% of CPU cores)
 cd /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv
 # Enable DEBUG_AI_LOGS=true for Titan logging
-DEBUG_AI_LOGS=false SIM_SEEDS_COUNT=$COUNT node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
+DEBUG_AI_LOGS=false SIM_QUIET=true SIM_SEEDS_COUNT=$COUNT node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
 SIM_PID=$!
 echo "Simulation started with PID: $SIM_PID (parallel - 90% CPUs)"
 echo "Logging to: $LOG_FILE"
@@ -81,6 +81,10 @@ echo "Running AetherianVanguard analysis..."
 node engine/src/sim/analyze-aetherian.mjs
 
 echo ""
+echo "Running ScholarKingdoms analysis..."
+node engine/src/sim/analyze-scholar.mjs
+
+echo ""
 echo "Extracting Titan Action Logs..."
 titan_log="/tmp/titan-actions.log"
 grep "TITAN LOG" "$LOG_FILE" > "$titan_log"
@@ -93,6 +97,7 @@ echo "Copying reports..."
 cp /tmp/enhanced-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/comprehensive-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/aetherian-analysis-report.md docs/analysis/ 2>/dev/null
+cp /tmp/scholar-kingdoms-analysis.md docs/analysis/ 2>/dev/null
 cp "$titan_log" docs/analysis/titan-actions.log 2>/dev/null
 
 echo ""

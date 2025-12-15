@@ -18,6 +18,7 @@ import { AiPersonality, getPersonalityForPlayer } from "./personality.js";
 import { hexSpiral } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { getProgressChainStatus } from "./progress-helpers.js";
+import { isDefensiveCiv } from "../helpers/civ-helpers.js";
 
 function isAtWar(state: GameState, playerId: string): boolean {
     return state.players.some(
@@ -152,13 +153,12 @@ function getNextProgressProject(player: { techs: TechId[]; completedProjects: Pr
 function getProgressCityPriorities(player: { techs: TechId[]; completedProjects: ProjectId[]; civName?: string } | undefined, scoutCount: number): BuildOption[] {
     const priorities: BuildOption[] = [];
 
-    // v1.9: ScholarKingdoms gets CityWard as TOP priority (for +1 Science per CityWard bonus)
-    // "Fortified Knowledge" - defensive science synergy
-    if (player?.civName === "ScholarKingdoms") {
+    // v5.1: ScholarKingdoms and StarborneSeekers get CityWard -> Bulwark as TOP priority
+    // Bulwark provides +2 Science and high defense for these defensive civs
+    if (isDefensiveCiv(player?.civName)) {
         priorities.push({ type: "Building" as const, id: BuildingType.CityWard });
+        priorities.push({ type: "Building" as const, id: BuildingType.Bulwark });  // v5.1: Core defensive building
     }
-
-    // v1.9: StarborneSeekers Academy priority removed - they now get +1 Science in Capital instead
 
     // Victory projects at TOP priority
     const nextProgress = getNextProgressProject(player);
@@ -177,8 +177,11 @@ function getProgressCityPriorities(player: { techs: TechId[]; completedProjects:
         { type: "Building" as const, id: BuildingType.Scriptorium },
         { type: "Building" as const, id: BuildingType.SpiritObservatory },
         { type: "Building" as const, id: BuildingType.StoneWorkshop },
-        { type: "Building" as const, id: BuildingType.CityWard },  // v1.9: For ScholarKingdoms science bonus
+        { type: "Building" as const, id: BuildingType.CityWard },
     );
+
+    // Note: Bulwark is already pushed at TOP priority above for defensive civs
+    // canBuild() prevents building a second Bulwark, so we don't need duplicate entries
 
     // Fallback to military if nothing else
     priorities.push(
@@ -198,6 +201,10 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
     // v2.0: Siege composition awareness
     const needsCaptureUnits = siegesNeedCaptureUnits(state, playerId);
+
+    if (player?.civName === "ForgeClans") {
+        aiInfo(`[AI Build] ForgeClans Army Check: Deficit=${armyStatus.deficit} (Curr:${armyStatus.currentMilitary}/Desired:${armyStatus.desired}) | War=${atWar} | Prep=${!!player.warPreparation}`);
+    }
 
     // If we urgently need military (at war with deficit), force military production
     if (atWar && armyStatus.deficit >= 2) {
@@ -392,7 +399,8 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     // v2.2: ForgeClans & ScholarKingdoms maintain standing armies
     // ForgeClans: 2x army size (Aggressive)
     // ScholarKingdoms: 1.5x army size (Defensive deterrence)
-    if (player?.civName === "ForgeClans" || player?.civName === "ScholarKingdoms") {
+    // v5.1: StarborneSeekers also included for Bulwark defense
+    if (player?.civName === "ForgeClans" || player?.civName === "ScholarKingdoms" || player?.civName === "StarborneSeekers") {
         normalPriorities = getStandingArmyPriorities(state, playerId, normalPriorities);
     }
 
@@ -426,16 +434,16 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
         if (hasFormArmyTech) {
             warPrepPriorities.push(
+                { type: "Project" as const, id: ProjectId.FormArmy_Riders }, // Riders prioritized for Deathball speed (v2.2)
                 { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
                 { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
-                { type: "Project" as const, id: ProjectId.FormArmy_Riders }
             );
         }
 
         warPrepPriorities.push(
+            { type: "Unit" as const, id: UnitType.Riders }, // Riders prioritized for Deathball speed
             { type: "Unit" as const, id: UnitType.BowGuard },
             { type: "Unit" as const, id: UnitType.SpearGuard },
-            { type: "Unit" as const, id: UnitType.Riders }
         );
 
         // Still allow Stone Workshop for production if we have nothing else
@@ -557,9 +565,12 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
  * v2.2: Standing Army Priority
  * Enforces armySizeMultiplier (from personality) even during peacetime.
  * Used by ForgeClans (Aggressive) and ScholarKingdoms (Defensive).
+ * v5.1: Added Bulwark support for ScholarKingdoms/StarborneSeekers.
  */
 function getStandingArmyPriorities(state: GameState, playerId: string, basePriorities: BuildOption[]): BuildOption[] {
     const armyStatus = getArmyDeficit(state, playerId);
+    const player = state.players.find(p => p.id === playerId);
+    const isDefensive = isDefensiveCiv(player?.civName);
 
     // If at or above desired army size, use normal priorities
     if (armyStatus.deficit <= 0) {
@@ -571,13 +582,32 @@ function getStandingArmyPriorities(state: GameState, playerId: string, basePrior
 
     // aiInfo(`[AI Build] Standing Army ${playerId} (${armyStatus.currentMilitary}/${armyStatus.desired}, deficit: ${armyStatus.deficit})`);
 
-    // Prioritize military units to reach target
+    // v5.1: Defensive civs prioritize Bulwark defense over mobile military
+    if (isDefensive) {
+        const militaryPriorities: BuildOption[] = [
+            ...(scoutCount < 1 ? [{ type: "Unit" as const, id: UnitType.Scout }] : []),
+            { type: "Building" as const, id: BuildingType.CityWard },  // Required for Bulwark
+            { type: "Building" as const, id: BuildingType.Bulwark },           // v5.1: Core defense + Science
+            { type: "Unit" as const, id: UnitType.BowGuard },          // Ranged support
+            { type: "Unit" as const, id: UnitType.SpearGuard },        // Melee if needed
+            { type: "Building" as const, id: BuildingType.StoneWorkshop },
+            { type: "Building" as const, id: BuildingType.Farmstead },
+            { type: "Unit" as const, id: UnitType.Settler },
+            ...basePriorities.filter(p =>
+                !((p.type === "Unit" && (p.id === UnitType.BowGuard || p.id === UnitType.SpearGuard || p.id === UnitType.Settler)) ||
+                    (p.type === "Building" && (p.id === BuildingType.StoneWorkshop || p.id === BuildingType.Farmstead || p.id === BuildingType.CityWard)))
+            ),
+        ];
+        return militaryPriorities;
+    }
+
+    // Prioritize military units to reach target (non-defensive civs)
     // Still allow scouts early and production buildings
     const militaryPriorities: BuildOption[] = [
         ...(scoutCount < 1 ? [{ type: "Unit" as const, id: UnitType.Scout }] : []),
         // v2.5: Forge Clans prioritizes "Siege & Steel" (BowGuard + SpearGuard)
         // User Request: "bowguard are siege units! prioritize spearguard and bowguard"
-        ...(playerId.startsWith("ForgeClans") || playerId === "ForgeClans" ? [
+        ...(player?.civName === "ForgeClans" ? [
             { type: "Unit" as const, id: UnitType.BowGuard },   // Siege (Top Priority)
             { type: "Unit" as const, id: UnitType.SpearGuard }, // Steel (Frontline)
             // Riders deprioritized for Forge Clans

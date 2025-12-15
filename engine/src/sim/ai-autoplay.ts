@@ -112,7 +112,7 @@ function firstPop10Turn(city: City, turn: number, tracker: Map<string, number>) 
 
 function runSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, debug = false, playerCount?: number) {
     // Pass seed to civList for randomized civ selection
-    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
+    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed, aiSystem: "UtilityV2" });
     clearWarVetoLog();
     // Force contact for diagnostics so war logic can trigger
     for (const a of state.players) {

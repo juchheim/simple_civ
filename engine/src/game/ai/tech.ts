@@ -29,12 +29,12 @@ function goalTechPath(goal: AiVictoryGoal, civName?: string): TechId[] {
     // This respects era gates (3 Hearth for Banner, 2 Banner for Engine) while prioritizing military
     if (civName === "AetherianVanguard") {
         return [
-            TechId.FormationTraining,  // Hearth #1 - Military first (+1/+1 combat)
-            TechId.StoneworkHalls,     // Hearth #2 - Titan prereq chain
-            TechId.Fieldcraft,         // Hearth #3 - Unlocks Banner era
-            TechId.DrilledRanks,       // Banner #1 - Enables Form Army projects
-            TechId.TimberMills,        // Banner #2 - Unlocks Engine era + Titan prereq
-            TechId.SteamForges,        // Engine - Unlocks Titan's Core!
+            TechId.FormationTraining,  // Hearth #1 - Military first
+            TechId.ScriptLore,         // Hearth #2 - Science boost (User requested)
+            TechId.StoneworkHalls,     // Hearth #3 - Titan prereq (Completion of Era Gate)
+            TechId.DrilledRanks,       // Banner #1 - Enables Form Army
+            TechId.TimberMills,        // Banner #2 - Unlocks Engine era
+            TechId.SteamForges,        // Engine - Unlocks Titan's Core
         ];
     }
 

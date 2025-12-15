@@ -6,11 +6,11 @@ import { startPlayerTurn } from "./turn-lifecycle.js";
 import { GameState, PlayerPhase, TerrainType, UnitState, DiplomacyState } from "../core/types.js";
 
 describe("Titan Stats & Mechanics", () => {
-    it("should have correct nerfed stats (Defense 8, HP 30)", () => {
+    it("should have correct Titan stats (as defined in core/constants)", () => {
         const titan = UNITS[UnitType.Titan];
-        expect(titan.def).toBe(8);
-        expect(titan.hp).toBe(30);
-        expect(titan.atk).toBe(30);
+        expect(titan.def).toBe(6);
+        expect(titan.hp).toBe(25);
+        expect(titan.atk).toBe(22);
     });
 
     it("should regenerate exactly 1 HP per turn", () => {

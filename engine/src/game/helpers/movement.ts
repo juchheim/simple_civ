@@ -176,6 +176,21 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
 
         ensureWar(state, playerId, cityOnTile.ownerId);
         captureCity(state, cityOnTile, playerId);
+
+        // Track Titan / deathball captures for AetherianVanguard analysis.
+        // NOTE: `handleAttack` already tracks these when capture happens via Attack.
+        // Captures that occur via movement onto a 0-HP city tile must also be tracked here.
+        const player = state.players.find(p => p.id === playerId);
+        if (player && player.civName === "AetherianVanguard") {
+            if (!player.titanStats) {
+                player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+            }
+            if (unit.type === UnitType.Titan) {
+                player.titanStats.cityCaptures++;
+            } else {
+                player.titanStats.deathballCaptures++;
+            }
+        }
     }
 
     // Check for goodie hut on destination tile

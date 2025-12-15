@@ -112,3 +112,37 @@
   - **Starborne Seekers** (teal #14b8a6): Can build Spirit Observatory (Engine era, Star Charts, 200 Prod) which triggers The Revelation — completes current tech, grants one free auto-selected tech, +2 Science per city permanently, and counts as Observatory milestone for Progress chain.
   - **Jade Covenant** (gold #eab308): Can build Jade Granary (Banner era, Wellworks, 150 Prod) which triggers The Great Harvest — +1 Pop to all cities, 15% cheaper growth permanently (stacks with Farmstead), +1 Food per city permanently.
   - Both wonders are consumed on completion (not added to buildings), similar to Titan's Core. Added city name lists (20 each), building data, civ-specific canBuild restrictions, and completion effects in turn-lifecycle.ts.
+
+- **AI Code Review (Dec 12, 2025):** High-level assessment after reading `engine/src/game/ai/*`:
+  - **Architecture**: AI is a deterministic “pipeline” (`ai/turn-runner.ts`) which makes behavior reproducible and debuggable, but creates heavy **order-dependence** (early steps can invalidate later heuristics).
+  - **Error handling**: `ai/shared/actions.ts` intentionally swallows `applyAction` exceptions via `tryAction()` and marks failures to avoid retries; great for robustness, but it can **mask systemic bugs** and silently degrade decisions if pre-validation misses edge cases.
+  - **Heuristics debt**: Many “vX.Y tuning” layers (war escalation, domination bypass, progress fallback, city razing, deathball grouping) are effective but accumulate **magic thresholds** and special-casing, making it hard to reason about global behavior changes.
+  - **Type safety & statefulness**: A few `as any` escape hatches and function-static memory (`selectPrimarySiegeCity as any)._memory`) introduce hidden state, which is risky for long simulations and makes tests less isolated.
+  - **Personality extremes**: Some civ personalities intentionally push extremes (e.g., ForgeClans always-rush / huge army multipliers). This achieves flavor but can make outcomes feel “scripted” and can stress-balance other systems.
+
+- **AI Overhaul Branch + Toggle (Dec 12, 2025):**
+  - Added `GameState.aiSystem` (`"Legacy" | "UtilityV2"`) and a new `engine/src/game/ai2/*` namespace behind the toggle.
+  - Sims now default to `aiSystem: "UtilityV2"` when calling `generateWorld` (so we can iterate on v2 without affecting manual play).
+  - Client new-game flow includes an **AI System** toggle (Legacy vs UtilityV2) and persists it in `simple-civ-last-settings`.
+
+- **UtilityV2 Standalone (Dec 12, 2025):**
+  - `engine/src/game/ai2/turn-runner.ts` no longer delegates to Legacy; it now runs a full v2 pipeline (tech, city builds, tiles, settlers, diplomacy, defense, tactics).
+  - Civ playstyles are encoded as data in `engine/src/game/ai2/rules.ts` (diplomacy/tech/build/tactics/titan profiles per civ).
+  - Titan behavior is now driven by v2 Titan profile and stored in `GameState.aiMemoryV2` (no hidden function-static memory).
+
+- **UtilityV2 War + Titan “Major Leap” (Dec 12, 2025):**
+  - **Progress denial**:
+    - Added “progress threat” detection that triggers even in `"Balanced"` mode for aggressive civs and can **force early war** to deny Observatory/Academy/Experiment wins.
+    - `ai2/strategy.ts` now strongly prioritizes the **specific enemy city currently building** a progress-chain project as the focus siege city.
+    - `ai2/diplomacy.ts` bypasses staging requirements for progress-denial declarations (otherwise AIs staged for too long and lost to GrandExperiment).
+  - **Titan learned-from-legacy fixes**:
+    - Reviewed `engine/src/game/ai/units/titan.ts` and ported the key lesson: **engagement pathing + blocker clearing** (attack blocking enemy units, then resume city siege) into `ai2/tactics.ts`.
+  - **Siege/capture grouping**:
+    - Implemented explicit siege composition behavior: **capturers** (Spear/ArmySpear) + **siege** (Bow/ArmyBow) + **riders** paced to not outrun the stack, with staging outside city range and strong focus-city bias.
+  - **Simulation speed**:
+    - Reduced sim output volume by adding `SIM_QUIET=true` (wired in `engine/src/sim/monitor-flexible.sh`) and switching `/tmp/comprehensive-simulation-results.json` to **minified JSON** for faster writes (`engine/src/sim/parallel-analysis.ts`).
+  - **Titan capture stats correctness**:
+    - Fixed a metrics mismatch: Titan/deathball capture counters were only incremented when capture happened via `Attack`; captures performed via moving onto a 0‑HP city tile were not counted.
+    - Added equivalent tracking in `engine/src/game/helpers/movement.ts` so Aetherian’s `player.titanStats.cityCaptures/deathballCaptures` reflect **all** city captures regardless of capture method.
+  - **Sim performance (events)**:
+    - Gated expensive per-turn `TitanStep` event emission behind `SIM_LOG_TITAN_STEPS=true` (or `DEBUG_AI_LOGS=true`) in `engine/src/sim/parallel-analysis.ts` to materially reduce event volume and JSON size for default runs.

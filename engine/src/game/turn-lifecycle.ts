@@ -12,6 +12,7 @@ import {
     TITAN_REGEN_CITY,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost } from "./rules.js";
+import { buildLookupCache } from "./helpers/lookup-cache.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
 import { expelUnitsFromTerritory } from "./helpers/movement.js";
 import { DiplomacyState } from "../core/types.js";
@@ -261,6 +262,9 @@ function checkProgressVictory(state: GameState): string | null {
 
 function checkConquestVictory(state: GameState): string | null {
     const alivePlayers = state.players.filter(p => !p.isEliminated);
+    // If this is a multi-player game and only one player remains alive, they win by conquest.
+    // (This fixes “stalled None games” where everyone else is eliminated but no victory is awarded.)
+    if (state.players.length > 1 && alivePlayers.length === 1) return alivePlayers[0]!.id;
     // Avoid premature victory in single-player or setup states.
     if (alivePlayers.length <= 1) return null;
 
@@ -422,7 +426,9 @@ function applyAttrition(state: GameState, playerId: string) {
 function getSciencePerTurn(state: GameState, playerId: string): number {
     const cities = state.cities.filter(c => c.ownerId === playerId);
     const player = state.players.find(p => p.id === playerId);
-    const baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state).S, 0);
+    // Build cache once for all city yield calculations (O(1) tile/unit lookups)
+    const cache = buildLookupCache(state);
+    const baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state, cache).S, 0);
     const signalRelayBonus = player?.techs.includes(TechId.SignalRelay) ? cities.length : 0;
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
     // Spirit Observatory grants +2 Science per city (tracked via Observatory milestone in completedProjects)

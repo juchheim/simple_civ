@@ -1,0 +1,444 @@
+Overriding simulation to run ONLY Seed 405005 on Huge map
+Starting parallel simulation with 9 workers (90% of 10 CPUs) for 1 tasks...
+DEBUG LOGGING ENABLED - Output logs may be large.
+[AI Escort] p1 linked Scout to settler at 17,8
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[1/1] Completed Huge (Seed 405005) in 54.3s | Winner: JadeCovenant | 100% | ETA 0s
+[AI Found] p1 founded Skywhisper at 17,8
+[AI Escort] p2 linked Scout to settler at 1,15
+[AI Found] p2 founded Jadehall at 1,16
+[AI Escort] p3 linked Scout to settler at 9,17
+[AI Found] p3 founded Savantia at 10,16
+[AI Escort] p4 linked Scout to settler at 14,19
+[AI Found] p4 founded Xylos at 14,19
+[AI Escort] p5 linked Scout to settler at 18,13
+[AI Found] p5 founded Verdantia at 18,13
+[AI Escort] p6 linked Scout to settler at 3,19
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:1/Desired:2) | War=false
+[AI Build] p4 chose Settler (Score: 303)
+[AI Found] p6 founded Ironhold at 2,20
+[AI Build] ForgeClans (p6) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p6 chose Settler (Score: 298)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:1/Desired:2) | War=false
+[AI Build] p4 chose Settler (Score: 303)
+[AI Escort] p4 linked Scout to settler at 13,20
+[AI Escort] p4 linked Scout to settler at 14,20
+[AI Escort] p4 linked Scout to settler at 13,20
+[AI Escort] p5 linked Scout to settler at 17,14
+[AI Escort] p2 linked Scout to settler at 0,17
+[AI Escort] p4 linked Scout to settler at 12,20
+[AI Escort] p4 linked Scout to settler at 13,20
+[AI Escort] p4 linked Scout to settler at 12,20
+[AI Escort] p4 linked Scout to settler at 12,21
+[AI Found] p2 founded Silkveil at 4,12
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:1/Desired:2) | War=false
+[AI Build] p4 chose BowGuard (Score: 294)
+[AI Escort] p4 linked Scout to settler at 13,21
+[AI Escort] p4 linked Scout to settler at 14,21
+[AI Found] p2 founded Serene Dawn at 5,16
+[AI Found] p4 founded Zenthor at 17,20
+[AI Escort] p1 linked Scout to settler at 16,9
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=3 (Current:1/Desired:4) | War=false
+[AI Build] p4 chose BowGuard (Score: 317.5)
+[AI Found] p5 founded Greenfield at 21,16
+[AI Escort] p4 linked SpearGuard to settler at 14,20
+[AI Found] p5 founded Fairhaven at 20,9
+[AI Escort] p4 linked SpearGuard to settler at 13,20
+[AI Build] ForgeClans (p6) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p6 chose Settler (Score: 298)
+[AI Escort] p6 linked Scout to settler at 1,21
+[AI Found] p2 founded Golden Crane at 1,11
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:2/Desired:4) | War=false
+[AI Build] p4 chose Settler (Score: 285)
+[AI Escort] p4 linked SpearGuard to settler at 14,20
+[AI Escort] p6 linked Scout to settler at 2,21
+[AI Found] p2 founded Moonlit Shrine at 2,13
+[AI Escort] p4 linked SpearGuard to settler at 13,20
+[AI Escort] p6 linked Scout to settler at 3,21
+[AI Escort] p2 linked Scout to settler at 3,13
+[AI Escort] p4 linked SpearGuard to settler at 14,20
+[AI Escort] p5 linked SpearGuard to settler at 17,14
+[AI Found] p6 founded Blackanvil at 3,23
+[AI Escort] p4 linked SpearGuard to settler at 13,20
+[AI Escort] p5 linked SpearGuard to settler at 18,13
+[AI Build] ForgeClans (p6) Army Check: Deficit=2 (Current:2/Desired:4) | War=false
+[AI Build] p6 chose BowGuard (Score: 330)
+[AI Found] p2 founded Pearlfold at 4,10
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:2/Desired:4) | War=false
+[AI Build] p4 chose SpearGuard (Score: 160)
+[AI Escort] p4 linked SpearGuard to settler at 12,20
+[AI Escort] p4 linked BowGuard to settler at 14,20
+[AI Escort] p5 linked SpearGuard to settler at 19,12
+[AI Escort] p4 linked SpearGuard to settler at 11,20
+[AI Escort] p4 linked BowGuard to settler at 13,20
+[AI Escort] p5 linked SpearGuard to settler at 20,11
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:3/Desired:4) | War=false
+[AI Build] p4 chose SpearGuard (Score: 152.5)
+[AI Escort] p4 linked SpearGuard to settler at 11,19
+[AI Escort] p4 linked BowGuard to settler at 12,20
+[AI Escort] p5 linked SpearGuard to settler at 19,11
+[AI Escort] p5 linked Scout to settler at 20,17
+[AI Escort] p4 linked SpearGuard to settler at 11,20
+[AI Escort] p4 linked BowGuard to settler at 12,19
+[AI Escort] p5 linked SpearGuard to settler at 18,11
+[AI Escort] p4 linked SpearGuard to settler at 11,21
+[AI Escort] p4 linked BowGuard to settler at 13,19
+[AI Found] p4 founded Vexia at 11,21
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p3 linked Scout to settler at 9,17
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:3/Desired:5) | War=false
+[AI Build] p4 chose Settler (Score: 267)
+[AI Escort] p4 linked BowGuard to settler at 14,18
+[AI Escort] p5 linked SpearGuard to settler at 18,10
+[AI Escort] p4 linked BowGuard to settler at 14,17
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p4 linked BowGuard to settler at 14,18
+[AI Escort] p5 linked SpearGuard to settler at 18,10
+[AI Build] ForgeClans (p6) Army Check: Deficit=2 (Current:2/Desired:4) | War=false
+[AI Build] p6 chose BowGuard (Score: 330)
+[AI Found] p1 founded Starhollow at 13,11
+[AI Found] p3 founded Lumina at 7,20
+[AI Escort] p4 linked BowGuard to settler at 14,17
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p6 linked Scout to settler at 3,20
+[AI Escort] p4 linked BowGuard to settler at 14,18
+[AI Escort] p5 linked SpearGuard to settler at 18,10
+[AI Escort] p6 linked Scout to settler at 4,19
+[AI Escort] p4 linked BowGuard to settler at 15,18
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p6 linked Scout to settler at 4,20
+[AI Escort] p4 linked BowGuard to settler at 16,18
+[AI Escort] p5 linked SpearGuard to settler at 18,10
+[AI Escort] p6 linked Scout to settler at 3,21
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:4/Desired:6) | War=true
+[AI Build] p4 chose SpearGuard (Score: 270)
+[AI Escort] p4 linked BowGuard to settler at 17,18
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p6 linked Scout to settler at 4,20
+[AI Escort] p2 linked SpearGuard to settler at 7,11
+[AI Escort] p4 linked BowGuard to settler at 18,18
+[AI Escort] p5 linked SpearGuard to settler at 18,10
+[AI Escort] p6 linked Scout to settler at 3,21
+[AI Escort] p2 linked SpearGuard to settler at 6,11
+[AI Escort] p2 linked Scout to settler at 3,11
+[AI Escort] p4 linked Scout to settler at 18,19
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p2 linked SpearGuard to settler at 7,11
+[AI Escort] p2 linked Scout to settler at 4,11
+[AI Escort] p5 linked SpearGuard to settler at 19,11
+[AI Escort] p2 linked SpearGuard to settler at 6,11
+[AI Escort] p2 linked Scout to settler at 5,11
+[AI Escort] p5 linked SpearGuard to settler at 20,10
+[AI Escort] p5 linked Scout to settler at 22,10
+[AI Escort] p2 linked SpearGuard to settler at 7,11
+[AI Escort] p2 linked Scout to settler at 6,10
+[AI Found] p2 founded Harmony at 8,10
+[AI Escort] p5 linked SpearGuard to settler at 21,10
+[AI Escort] p5 linked Scout to settler at 23,10
+[AI Build] ForgeClans (p6) Army Check: Deficit=7 (Current:3/Desired:10) | War=true
+[AI Build] p6 chose SpearGuard (Score: 385)
+[AI Settler] p2 settler at -1,14 waiting for escort (low threat, no escort)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:4/Desired:6) | War=true
+[AI Build] p4 chose BowGuard (Score: 620)
+[AI Escort] p5 linked SpearGuard to settler at 22,10
+[AI Settler] p2 settler at -1,14 waiting for escort (low threat, no escort)
+[AI Escort] p5 linked SpearGuard to settler at 23,10
+[AI Settler] p2 settler at -1,14 waiting for escort (low threat, no escort)
+[AI Settler] p2 settler at -1,14 waiting for escort (low threat, no escort)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:5/Desired:6) | War=true
+[AI Build] p4 chose BowGuard (Score: 605)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:5/Desired:6) | War=true
+[AI Build] p4 chose BowGuard (Score: 605)
+[AI Escort] p4 linked SpearGuard to settler at 10,22
+[AI Escort] p2 linked SpearGuard to settler at -1,14
+[AI Found] p2 founded Goldenwish at -2,15
+[AI Escort] p4 linked SpearGuard to settler at 11,21
+[AI Escort] p5 linked BowGuard to settler at 17,14
+[AI Escort] p2 linked SpearGuard to settler at -2,14
+[AI Escort] p4 linked SpearGuard to settler at 12,21
+[AI Escort] p5 linked BowGuard to settler at 18,13
+[AI Escort] p2 linked SpearGuard to settler at -2,15
+[AI Escort] p4 linked SpearGuard to settler at 13,21
+[AI Escort] p5 linked SpearGuard to settler at 19,10
+[AI Escort] p5 linked BowGuard to settler at 18,12
+[AI Escort] p2 linked SpearGuard to settler at -2,16
+[AI Found] p2 founded Ancestor's Keep at 9,13
+[AI Found] p2 founded Lantern Gate at -2,17
+[AI Escort] p4 linked SpearGuard to settler at 14,21
+[AI Escort] p5 linked SpearGuard to settler at 20,9
+[AI Escort] p5 linked BowGuard to settler at 18,11
+[AI Escort] p4 linked SpearGuard to settler at 15,21
+[AI Escort] p5 linked BowGuard to settler at 18,12
+[AI Escort] p5 linked SpearGuard to settler at 21,8
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[VALIDATION FAIL] Peacetime block: p6 -> p3 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p6 -> p3 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p6 -> p3 (Diplomacy: Peace)
+[AI Escort] p1 linked Scout to settler at 12,12
+[AI Escort] p4 linked SpearGuard to settler at 16,21
+[AI Escort] p5 linked BowGuard to settler at 19,12
+[AI Escort] p5 linked SpearGuard to settler at 22,7
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[VALIDATION FAIL] Peacetime block: p6 -> p3 (Diplomacy: Peace)
+[AI Escort] p1 linked Scout to settler at 13,11
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:5/Desired:7) | War=true
+[AI Build] p4 chose BowGuard (Score: 620)
+[AI Escort] p5 linked BowGuard to settler at 19,13
+[AI Escort] p5 linked SpearGuard to settler at 23,6
+[AI Found] p5 founded Bountiful at 23,5
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[AI Escort] p5 linked BowGuard to settler at 20,13
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[AI Found] p6 founded Deepforge at 8,23
+[AI Escort] p5 linked BowGuard to settler at 21,13
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[AI Build] ForgeClans (p6) Army Check: Deficit=19 (Current:1/Desired:20) | War=true
+[AI Build] p6 chose BowGuard (Score: 695)
+[AI Escort] p5 linked BowGuard to settler at 22,13
+[AI Found] p5 founded Tradewind at 23,12
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[AI Found] p1 founded Moondance at 15,6
+[AI Settler] p5 settler at 18,13 waiting for linked escort (high threat)
+[AI Escort] p1 linked SpearGuard to settler at 18,13
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:6/Desired:7) | War=true
+[AI Build] p4 chose SpearGuard (Score: 255)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=1 (Current:6/Desired:7) | War=true
+[AI Build] p4 chose SpearGuard (Score: 255)
+[VALIDATION FAIL] Peacetime block: p2 -> p4 (Diplomacy: Peace)
+[AI Build] p2 chose Observatory (Score: 240)
+[VALIDATION FAIL] Peacetime block: p2 -> p4 (Diplomacy: Peace)
+[AI Build] p1 chose Observatory (Score: 240)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:10/Desired:12) | War=true
+[AI Build] p4 chose SpearGuard (Score: 270)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:10/Desired:12) | War=true
+[AI Build] p4 chose SpearGuard (Score: 270)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=5 (Current:10/Desired:15) | War=true
+[AI Build] p4 chose SpearGuard (Score: 315)
+[AI Found] p1 founded Dreamwalk at 17,11
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p4 (Diplomacy: Peace)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=2 (Current:10/Desired:12) | War=true
+[AI Build] p4 chose TitansCore (Score: 10199)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=3 (Current:8/Desired:11) | War=true
+[AI Build] p4 chose SpearGuard (Score: 285)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=36 (Current:8/Desired:44) | War=true
+[AI Build] p4 chose SpearGuard (Score: 780)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=38 (Current:5/Desired:43) | War=true
+[AI Build] p4 chose SpearGuard (Score: 810)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=42 (Current:4/Desired:46) | War=true
+[AI Build] p4 chose BowGuard (Score: 1220)
+[AI Build] p2 chose GrandAcademy (Score: 240)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=42 (Current:4/Desired:46) | War=true
+[AI Build] p4 chose BowGuard (Score: 1220)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=42 (Current:4/Desired:46) | War=true
+[AI Build] p4 chose BowGuard (Score: 1220)
+[TITAN LOG] p4 Turn 102 | HP: 26/20 | Moves: 0 | At: (17,18)
+[TITAN LOG] Waiting for support (Current: 1/3)
+[TITAN LOG] p4 Turn 103 | HP: 26/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 1/3)
+[TITAN LOG] p4 Turn 104 | HP: 26/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 1/3)
+[TITAN LOG] p4 Turn 105 | HP: 24/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[TITAN LOG] p4 Turn 106 | HP: 21/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[TITAN LOG] p4 Turn 107 | HP: 19/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=45 (Current:2/Desired:47) | War=true
+[AI Build] p4 chose SpearGuard (Score: 915)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=45 (Current:2/Desired:47) | War=true
+[AI Build] p4 chose SpearGuard (Score: 915)
+[TITAN LOG] p4 Turn 108 | HP: 17/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[TITAN LOG] p4 Turn 109 | HP: 14/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[TITAN LOG] p4 Turn 110 | HP: 11/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[TITAN LOG] p4 Turn 111 | HP: 8/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] Waiting for support (Current: 0/3)
+[TITAN LOG] p4 Turn 112 | HP: 5/20 | Moves: 0 | At: (19,16)
+[TITAN LOG] p4 Turn 113 | HP: 3/20 | Moves: 0 | At: (19,16)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=57 (Current:2/Desired:59) | War=true
+[AI Build] p4 chose SpearGuard (Score: 1035)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=61 (Current:2/Desired:63) | War=true
+[AI Build] p4 chose SpearGuard (Score: 1095)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=64 (Current:2/Desired:66) | War=true
+[AI Build] p4 chose SpearGuard (Score: 1140)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] p2 chose GrandExperiment (Score: 240)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=77 (Current:0/Desired:77) | War=true
+[AI Build] p4 chose SpearGuard (Score: 1335)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] AetherianVanguard (p4) Army Check: Deficit=80 (Current:0/Desired:80) | War=true
+[AI Build] p4 chose SpearGuard (Score: 1380)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI Build] p1 chose GrandAcademy (Score: 230)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p1 -> p2 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p1 -> p2 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[VALIDATION FAIL] Peacetime block: p2 -> p1 (Diplomacy: Peace)
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Must be adjacent to capture settler
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+
+============================================================
+ALL SIMULATIONS COMPLETE!
+============================================================
+Total simulations: 1
+Total time: 54s (54.4s per simulation)
+✓ Results written to /tmp/comprehensive-simulation-results.json
+File size: 0.4 MB

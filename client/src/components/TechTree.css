@@ -190,8 +190,8 @@
 
 /* Era Sections */
 .tech-tree-era {
-    min-width: 320px;
-    max-width: 360px;
+    min-width: 240px;
+    max-width: 280px;
     padding: 18px 22px;
     position: relative;
     display: flex;
@@ -287,8 +287,8 @@
 
 /* Individual Tech Card */
 .tech-card {
-    padding: 14px 16px;
-    min-height: 85px;
+    padding: 10px 12px;
+    min-height: 50px;
     background: rgba(30, 10, 0, 0.7);
     border: 1px solid var(--color-border);
     border-radius: 10px;
@@ -575,4 +575,22 @@
         min-width: 300px;
         padding: 16px;
     }
+}
+
+/* Tech Card Tooltip - mouse-following style */
+.tech-card-tooltip {
+    position: fixed;
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--color-text-main);
+    white-space: pre-line;
+    z-index: 2000;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    min-width: 220px;
+    max-width: 320px;
+    line-height: 1.5;
 }

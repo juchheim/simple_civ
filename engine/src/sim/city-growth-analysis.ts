@@ -61,7 +61,7 @@ function civList(limit?: number, seed?: number): { id: string; civName: CivName;
 
 function runCityGrowthSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
     // Pass seed to civList for randomized civ selection
-    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
+    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed, aiSystem: "UtilityV2" });
     clearWarVetoLog();
     
     // Force contact for diagnostics

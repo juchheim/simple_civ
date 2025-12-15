@@ -161,8 +161,8 @@ export function getStarborneCelestialBonus(state: GameState, player: Player, uni
 
 /**
  * v1.9: ScholarKingdoms "Citadel Protocol" - scaling city defense.
- * Total bonus pool: +6 Defense distributed across all cities.
- * 1 city = +6, 2 = +3, 3 = +2, 4+ = ~1.5 each
+ * Total bonus pool: +8 Defense distributed across all cities (Buffed v2.9).
+ * 1 city = +8, 2 = +4, 3 = ~2.6, 4 = +2 each
  * Rewards "tall" play (few highly developed cities).
  */
 export function getScholarKingdomsDefenseBonus(state: GameState, player: Player, unit: Unit): number {
@@ -175,10 +175,10 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
     for (const city of cities) {
         const dist = hexDistance(unit.coord, city.coord);
         if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
-            // v1.9: Scaling bonus - 6 total distributed across cities
-            // Math.floor(6 / cityCount): 1 city = +6, 2 = +3, 3 = +2, 4 = +1, 5 = +1, 6 = +1
+            // v2.9: Scaling bonus - 8 total distributed across cities (Buffed from 6)
+            // Math.floor(8 / cityCount): 1 city = +8, 2 = +4, 3 = +2, 4 = +2, 5 = +1, 6 = +1
             // Using Math.max to ensure minimum of +1
-            return Math.max(1, Math.floor(6 / cities.length));
+            return Math.max(1, Math.floor(8 / cities.length));
         }
     }
 

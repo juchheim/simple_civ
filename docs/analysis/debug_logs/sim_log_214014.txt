@@ -1,0 +1,383 @@
+Overriding simulation to run ONLY Seed 214014 on Standard map
+Starting parallel simulation with 9 workers (90% of 10 CPUs) for 1 tasks...
+DEBUG LOGGING ENABLED - Output logs may be large.
+[AI Escort] p1 linked Scout to settler at 15,6
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[1/1] Completed Standard (Seed 214014) in 11.4s | Winner: JadeCovenant | 100% | ETA 0s
+[AI Found] p1 founded Xylos at 15,6
+[AI Escort] p2 linked Scout to settler at 8,6
+[AI Found] p2 founded Jadehall at 8,6
+[AI Escort] p3 linked Scout to settler at 12,12
+[AI Found] p3 founded Savantia at 12,12
+[AI Escort] p4 linked Scout to settler at 2,12
+[AI Found] p4 founded Verdantia at 2,12
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=1 (Current:1/Desired:2) | War=false
+[AI Build] p1 chose BowGuard (Score: 297.40000000000003)
+[AI Escort] p4 linked Scout to settler at 1,13
+[AI Escort] p4 linked Scout to settler at 2,12
+[AI Escort] p4 linked Scout to settler at 3,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p1 chose Settler (Score: 267)
+[AI Escort] p4 linked Scout to settler at 4,10
+[AI Escort] p2 linked Scout to settler at 7,7
+[AI Escort] p4 linked Scout to settler at 4,9
+[AI Escort] p2 linked Scout to settler at 6,7
+[AI Escort] p4 linked Scout to settler at 3,10
+[AI Escort] p4 linked Scout to settler at 3,11
+[AI Found] p2 founded Silkveil at 4,8
+[AI Escort] p4 linked Scout to settler at 2,11
+[AI Escort] p3 linked Scout to settler at 11,13
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p1 chose Settler (Score: 267)
+[AI Escort] p1 linked Scout to settler at 14,7
+[AI Escort] p3 linked Scout to settler at 10,13
+[AI Escort] p4 linked Scout to settler at 4,12
+[AI Escort] p1 linked Scout to settler at 15,6
+[AI Escort] p2 linked SpearGuard to settler at 9,5
+[AI Escort] p3 linked Scout to settler at 9,13
+[AI Found] p3 founded Lumina at 8,14
+[AI Escort] p1 linked Scout to settler at 16,6
+[AI Escort] p2 linked SpearGuard to settler at 10,5
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Found] p4 founded Greenfield at 6,12
+[AI Escort] p2 linked SpearGuard to settler at 10,5
+[AI Escort] p4 linked Scout to settler at 5,13
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Escort] p4 linked Scout to settler at 6,13
+[AI Escort] p2 linked SpearGuard to settler at 10,6
+[AI Escort] p4 linked Scout to settler at 6,12
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Escort] p4 linked Scout to settler at 7,11
+[AI Escort] p2 linked SpearGuard to settler at 10,6
+[AI Escort] p2 linked Scout to settler at 4,8
+[AI Escort] p4 linked Scout to settler at 8,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p1 chose SpearGuard (Score: 110.00000000000001)
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Escort] p4 linked Scout to settler at 7,11
+[AI Escort] p2 linked SpearGuard to settler at 10,6
+[AI Escort] p4 linked Scout to settler at 8,11
+[AI Escort] p4 linked BowGuard to settler at 1,13
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Found] p2 founded Serene Dawn at 12,5
+[AI Escort] p3 linked Scout to settler at 7,15
+[AI Escort] p4 linked SpearGuard to settler at 7,11
+[AI Escort] p4 linked BowGuard to settler at 2,13
+[AI Escort] p1 linked BowGuard to settler at 16,6
+[AI Escort] p2 linked SpearGuard to settler at 10,6
+[AI Escort] p4 linked SpearGuard to settler at 6,12
+[AI Escort] p4 linked BowGuard to settler at 3,13
+[AI Escort] p1 linked BowGuard to settler at 17,6
+[AI Escort] p2 linked SpearGuard to settler at 10,7
+[AI Found] p3 founded Scribesrest at 4,17
+[AI Escort] p4 linked SpearGuard to settler at 5,13
+[AI Escort] p4 linked BowGuard to settler at 4,13
+[AI Escort] p1 linked BowGuard to settler at 16,6
+[AI Escort] p2 linked SpearGuard to settler at 10,6
+[AI Found] p2 founded Golden Crane at 9,8
+[AI Escort] p4 linked SpearGuard to settler at 6,12
+[AI Escort] p4 linked BowGuard to settler at 5,12
+[AI Escort] p1 linked BowGuard to settler at 15,6
+[AI Escort] p2 linked Scout to settler at 10,7
+[AI Escort] p4 linked SpearGuard to settler at 6,11
+[AI Escort] p4 linked BowGuard to settler at 5,11
+[AI Escort] p1 linked BowGuard to settler at 16,6
+[AI Escort] p4 linked SpearGuard to settler at 6,10
+[AI Escort] p4 linked BowGuard to settler at 5,10
+[AI Found] p4 founded Fairhaven at 6,9
+[VALIDATION FAIL] Peacetime block: p4 -> p2 (Diplomacy: Peace)
+[AI Escort] p1 linked BowGuard to settler at 17,6
+[AI Escort] p4 linked BowGuard to settler at 4,10
+[AI Escort] p1 linked BowGuard to settler at 16,6
+[AI Escort] p4 linked BowGuard to settler at 3,10
+[AI Escort] p1 linked BowGuard to settler at 17,6
+[AI Escort] p2 linked BowGuard to settler at 7,7
+[AI Escort] p4 linked BowGuard to settler at 2,10
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked BowGuard to settler at 8,6
+[AI Escort] p4 linked BowGuard to settler at 1,10
+[AI Found] p4 founded Bountiful at 0,10
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked BowGuard to settler at 9,5
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked BowGuard to settler at 10,4
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked BowGuard to settler at 10,3
+[AI Escort] p2 linked SpearGuard to settler at 11,6
+[AI Found] p2 founded Moonlit Shrine at 10,2
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked Scout to settler at 9,3
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 11,6
+[AI Escort] p2 linked Scout to settler at 8,4
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=-1 (Current:3/Desired:2) | War=false
+[AI Build] p1 chose BowGuard (Score: 460)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked Scout to settler at 7,4
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Found] p2 founded Pearlfold at 6,4
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 11,6
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 11,6
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 11,6
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 11,6
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 11,5
+[AI Settler] p2 settler at 9,8 waiting for linked escort (high threat)
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=-2 (Current:4/Desired:2) | War=false
+[AI Build] p1 chose Scriptorium (Score: 150)
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p4 linked BowGuard to settler at 9,8
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 11,13
+[AI Escort] p1 linked BowGuard to settler at 16,6
+[AI Escort] p2 linked SpearGuard to settler at 13,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p1 linked BowGuard to settler at 17,6
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 13,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p4 linked SpearGuard to settler at 5,10
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p4 linked SpearGuard to settler at 5,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=-2 (Current:4/Desired:2) | War=false
+[AI Build] p1 chose SpearGuard (Score: 110.00000000000001)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 13,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p4 linked SpearGuard to settler at 5,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Build] p3 chose Observatory (Score: 240)
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p4 linked SpearGuard to settler at 6,11
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 13,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p4 linked SpearGuard to settler at 6,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p4 linked Scout to settler at 7,12
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 13,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p4 linked Scout to settler at 6,13
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p4 linked Scout to settler at 5,13
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 13,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p4 linked Scout to settler at 6,13
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p4 linked Scout to settler at 5,13
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=-3 (Current:5/Desired:2) | War=false
+[AI Build] p1 chose SpearGuard (Score: 170)
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 13,12
+[AI Escort] p1 linked BowGuard to settler at 16,7
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 13,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=-4 (Current:6/Desired:2) | War=false
+[AI Build] p1 chose SpearGuard (Score: 170)
+[AI Escort] p1 linked BowGuard to settler at 15,7
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 12,11
+[AI Found] p4 founded Tradewind at -1,16
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Build] p3 chose GrandAcademy (Score: 230)
+[AI Escort] p3 linked SpearGuard to settler at 12,12
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked SpearGuard to settler at 13,12
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked SpearGuard to settler at 13,11
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked ArmySpearGuard to settler at 12,11
+[VALIDATION FAIL] Peacetime block: p1 -> p2 (Diplomacy: Peace)
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 12,12
+[AI Escort] p2 linked SpearGuard to settler at 12,6
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked SpearGuard to settler at 13,4
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[AI Escort] p2 linked SpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked SpearGuard to settler at 12,4
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,4
+[AI Escort] p3 linked ArmySpearGuard to settler at 12,12
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p2 linked ArmySpearGuard to settler at 1,16
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[VALIDATION FAIL] Peacetime block: p1 -> p2 (Diplomacy: Peace)
+[AI Escort] p2 linked ArmySpearGuard to settler at 1,16
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,4
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 2,15
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 12,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p2 linked BowGuard to settler at 2,14
+[AI Escort] p3 linked ArmySpearGuard to settler at 12,12
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p2 linked BowGuard to settler at 2,13
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[AI Build] p2 chose Observatory (Score: 240)
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,4
+[AI Escort] p2 linked BowGuard to settler at 2,12
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p2 linked BowGuard to settler at 2,11
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,12
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,4
+[AI Escort] p2 linked BowGuard to settler at 2,10
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p2 linked BowGuard to settler at 2,9
+[AI Escort] p3 linked ArmySpearGuard to settler at 14,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=4 (Current:5/Desired:9) | War=true
+[AI Build] p1 chose BowGuard (Score: 650)
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p2 linked BowGuard to settler at 2,8
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked BowGuard to settler at 2,7
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Found] p2 founded Harmony at 2,6
+[AI Escort] p3 linked ArmySpearGuard to settler at 14,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p3 linked ArmySpearGuard to settler at 14,12
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 14,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 14,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p3 linked ArmySpearGuard to settler at 13,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p3 linked ArmySpearGuard to settler at 14,11
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,5
+[AI Escort] p2 linked ArmySpearGuard to settler at 12,6
+[AI Escort] p2 linked ArmySpearGuard to settler at 11,6
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Must be adjacent to capture settler
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] MoveUnit: Cannot enter enemy territory during peacetime
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+
+============================================================
+ALL SIMULATIONS COMPLETE!
+============================================================
+Total simulations: 1
+Total time: 12s (11.5s per simulation)
+✓ Results written to /tmp/comprehensive-simulation-results.json
+File size: 0.1 MB

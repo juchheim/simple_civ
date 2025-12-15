@@ -18,8 +18,8 @@
 - [15. Map & Generation](#15-map-generation)
 - [16. Diplomacy](#16-diplomacy)
 - [17. Victory, Ties, Elimination](#17-victory-ties-elimination)
-- [18. State Indicators & UI Standards](#18-state-indicators-ui-standards)
-- [19. Rules Priority & Engine Hooks](#19-rules-priority-engine-hooks)
+- [[DEV-ONLY] 18. State Indicators & UI Standards](#18-state-indicators-ui-standards)
+- [[DEV-ONLY] 19. Rules Priority & Engine Hooks](#19-rules-priority-engine-hooks)
 
 <!-- CODEX_SKIP_START -->
 ## [DEV-ONLY] Authoring & Codex Conventions
@@ -87,7 +87,7 @@
 - **Storage & overflow**: Food and Production overflow carry after growth/completion.
 - **Growth cost**: base 30 for Pop 2; scales by Pop range multipliers:
   - Pop 2–4: ×1.30, Pop 5–6: ×1.40, Pop 7–8: ×1.80, Pop 9–10: ×2.00, Pop 11+: ×2.50.
-  - Modifiers: Farmstead ×0.9, Jade Granary ×0.85, Jade Covenant passive ×0.9 (stack multiplicatively on base formula).
+  - Modifiers: Farmstead ×0.9, Jade Granary ×0.85 (stack multiplicatively on base formula).
 - **Production**: stored per city; switching builds discards current progress.
 - **Science**: global per turn; applied only to selected tech; pauses if none selected.
 
@@ -110,7 +110,7 @@
   - Build categories: Unit, Building, Project (one active slot). Switching clears progress.
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
-  - Base city HP 15; capture resets to 8. Base defense strength 3.
+  - Base city HP 25; capture resets to 8. Base defense strength 4.
   - City heal 2 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
   - **Garrison Bonuses**:
     - **Melee Unit**: +2 City Defense, +1 City Attack Strength, Retaliation Range 1.
@@ -139,7 +139,7 @@
     - **Production**: +10 Production to nearest city if no active build, otherwise +5 Production.
     - **Research**: +20% progress toward current tech if < 50% complete, otherwise +10%. No reward if no tech is being researched.
     - **Free Scout**: Spawns a Scout unit at or adjacent to the hut (0 moves remaining).
-  - **Native Camp**: Hostile neutral encampment with a 3-hex territory. Each camp spawns 1 Native Champion and 2 Native Archers; natives aggro when attacked or when enemy units enter territory and may chase up to 2 tiles beyond it. Natives heal +2 HP/turn inside camp territory. When a player clears the camp, it immediately becomes a city for the captor (seeded with +20 Production); the camp overlay is removed.
+  - **Native Camp**: Hostile neutral encampment with a 3-hex territory. Each camp spawns 1 Native Champion and 2 Native Archers; natives aggro when attacked or when enemy units enter territory and may chase up to 2 tiles beyond it. **Native Champions gain +2 Attack/Defense when within 2 tiles of their camp.** Natives heal +2 HP/turn inside camp territory. When a player clears the camp, it immediately becomes a city for the captor (seeded with +20 Production); the camp overlay is removed.
   - **Cleared Settlement**: Fallback state if a camp disappears without a capturing player; grants +1 Food on the tile and replaces the camp overlay.
 - **City Center rule**: apply terrain + overlay, then enforce minimums, then civ perks.
 
@@ -157,7 +157,7 @@
   - Army Spear Guard 8/4/1/1, capture, vision 2.
   - Army Bow Guard 6/3/2/1, no capture, vision 2.
   - Army Riders 8/4/1/2, capture, vision 2.
-  - **Titan**: 30 atk / 8 def / rng 1 / move 2 / HP 30 / capture / vision 3 (summoned by Titan's Core). **Location-based regeneration**: 1 HP/turn in enemy territory, 3 HP/turn in friendly territory, 5 HP/turn in friendly city.
+  - **Titan**: 22 atk / 6 def / rng 1 / move 2 / HP 25 / capture / vision 2 (summoned by Titan's Core). **Location-based regeneration**: 1 HP/turn in enemy territory, 2 HP/turn in friendly territory, 4 HP/turn in friendly city.
 - **Neutral Native Defenders** (not buildable; guard camps): Native Champion 4/4/1/1/18, no capture, vision 2; Native Archer 3/2/2/1/12, no capture, vision 2.
 - **States**: Normal, Fortified (+2 defense until move/attack), Garrisoned (on city), PendingSpawn (queued).
 - **Linking**: eligible units can link into armies via Form Army projects; unlink to split back to base units.
@@ -184,7 +184,7 @@
 - **Attacking**:
   - One attack per unit per turn; ranged must respect range; melee requires adjacency.
   - Cities can be attacked; only capture-capable units take cities.
-- **Damage Model (v2.0 - Civ 6-style)**:
+- **Damage Model**:
   - Formula: `Damage = 5 × e^(StrengthDiff / 25) × RandomMult`
   - StrengthDiff = Attacker ATK - Defender DEF (includes terrain/fortify bonuses)
   - RandomMult = 0.9 to 1.1 (deterministic from game seed)
@@ -194,7 +194,7 @@
   - Fortified state adds +1 defense.
 - **Line of Sight**:
   - Hills/Forest/Mountain block LoS; ranged attacks require LoS unless adjacent.
-- **Counterattacks (v2.0 - Melee Return Damage)**:
+- **Counterattacks (Melee Return Damage)**:
   - When a melee unit (range 1) attacks and the defender survives, the defender counter-attacks using the same damage formula (Defender ATK vs Attacker DEF).
   - Ranged units (range > 1) do NOT take return damage from units.
   - City garrison retaliation uses the same formula.
@@ -210,7 +210,7 @@
   - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
 
 ## 11. Technology
-- **Costs by era**: Hearth 20, Banner 50, Engine 85 Science.
+- **Costs by era**: Hearth 20, Banner 50, Engine 100/120 Science.
 - **Single active tech**: Science applies each Start of Turn; on completion choose next (research pauses if none).
 - **Unlocks** (one per tech):
   - Fieldcraft → Farmstead.
@@ -234,16 +234,17 @@
   - **Farmstead** (40, Fieldcraft): +1 Food; growth 10% cheaper.
   - **Stone Workshop** (40, Stonework Halls): +1 Production.
   - **Scriptorium** (40, Script Lore): +1 Science.
-  - **Reservoir** (60, Wellworks): +1 Food (+1 extra if river city).
+  - **Reservoir** (50, Wellworks): +2 Food (+1 extra if river city).
   - **Lumber Mill** (60, Timber Mills): +1 Production (+1 extra if any Forest worked).
-  - **Academy** (60, Scholar Courts): +2 Science.
-  - **City Ward** (60, City Wards): +4 city defense, +1 city attack.
-  - **Forgeworks** (80, Steam Forges): +2 Production.
-  - **City Square** (80, Urban Plans): +1 Food, +1 Production.
-  - **Titan's Core**: Cost 100. Summons **The Titan** (Limit 1).
-    - **Titan Stats**: Attack 30, Defense 8, HP 30, Moves 2. Location-based regeneration.
-- **Spirit Observatory**: Cost 300. +1 Science per city. Counts as Observatory. milestone (unique per civ).
-  - **Jade Granary** (30, Fieldcraft): "The Great Harvest"—+1 Pop per city, growth 15% cheaper, +1 Food per city, Spawns Free Settler (unique per civ).
+  - **Academy** (50, Scholar Courts): +3 Science.
+  - **City Ward** (40, City Wards): +4 city defense, +1 city attack.
+  - **Forgeworks** (80, Steam Forges): +4 Production.
+  - **City Square** (80, Urban Plans): +2 Food, +2 Production.
+  - **Titan's Core**: Cost 180. Summons **The Titan** (Limit 1).
+    - **Titan Stats**: Attack 22, Defense 6, HP 25, Moves 2. Location-based regeneration.
+- **Spirit Observatory**: Cost 160. +5 Science, +4 Food. Counts as Observatory milestone (unique per civ).
+  - **Jade Granary** (50, Fieldcraft): "The Great Harvest"— +2 Food, +1 Prod (Yield); +1 Pop per city, growth 15% cheaper, +1 Food per city, Spawns Free Settler (unique per civ).
+  - **Bulwark** (60, Stonework Halls): Scholar/Starborne Only. +12 Defense, +4 City Attack, +1 Science. City cannot build offensive military units.
 
 ## 13. Projects & Wonders
 - **Progress Chain** (once per civ, one city at a time):
@@ -259,15 +260,15 @@
   - Alchemical Experiments (100 base, Scriptorium): Grants 25 Science.
 - **Milestone Marker**:
   - JadeGranaryComplete (0 cost) tracks Jade Granary completion (not player-selectable).
-- **Wonders**: not otherwise defined in v0.94 beyond unique buildings/projects above.
+- **Wonders**: None defined beyond unique buildings/projects above.
 
 ## 14. Civilizations & Traits
-- **ForgeClans**: +1 Production from each worked Hill (Capital Only). **Forged Arms**: Military units 10% cheaper; units from cities with 2+ Hills get +1 Attack. **Industrial Warfare**: +1 Attack per Engine tech (max +5).
-- **Scholar Kingdoms**: **Citadel Protocol**: +1 Science in Capital. +1 Science per city with a City Ward. Units near cities get scaling Defense bonus: +6/cityCount (1 city = +6 DEF, 2 = +3 each, 3 = +2 each, 4+ = +1 each). Rewards "tall" play with fewer, fortified cities.
-- **River League**: +1 Food per river tile. +1 Production per 4 river tiles worked. **River Guardians**: Units near rivers get +1 Attack, +1 Defense.
-- **AetherianVanguard**: Unique Unit: Titan (Super-Unit). **Battle Hardened**: Military units gain +2 HP per era researched (max +6). **Scavenger Doctrine**: Units gain Science on kill. **Vanguard Logistics**: Cities with a garrison gain +1 Production.
-- **StarborneSeekers**: Unique Building: Spirit Observatory (220 Prod, +1 Science per city, counts as Observatory). **Celestial Guidance**: Units near capital +1 Defense. Starts with an extra Scout (total 2 Scouts + Spear Guard).
-- **JadeCovenant**: Unique Building: Jade Granary (30 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler, Growth 15% cheaper. **Bountiful Harvest**: Cities start with +5 stored Food. **Verdant Growth**: 10% cheaper growth globally. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 8 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
+- **ForgeClans**: +1 Production from each worked Hill (Capital Only). **Forged Arms**: Military units 15% cheaper; units from cities with 2+ Hills get +1 Attack. **Industrial Warfare**: +1 Attack per Engine tech (max +5).
+- **Scholar Kingdoms**: **Citadel Protocol**: +1 Science in Capital. +1 Science per city with a City Ward. Units near cities get scaling Defense bonus: +8/cityCount (1 city = +8 DEF, 2 = +4 each, 3 = +2 each, 4+ = +2 each). Rewards "tall" play with fewer, fortified cities.
+- **River League**: +1 Food per river tile. +1 Production per 2 river tiles worked (rounded up). **River Guardians**: Units near rivers get +1 Attack, +1 Defense.
+- **AetherianVanguard**: Unique Unit: Titan (Super-Unit). **Battle Hardened**: Military units gain +2 HP per era researched (max +6). **Scavenger Doctrine**: Units gain Science on kill. **Vanguard Logistics**: Cities with a garrison gain +1 Production. Titan's Core costs 180.
+- **StarborneSeekers**: Unique Building: Spirit Observatory (160 Prod, +5 Sci/+4 Food, counts as Observatory). **Celestial Guidance**: +2 Defense Global. **Peaceful Meditation**: +1 Science when not at war. Starts with an extra Scout (total 2 Scouts + Spear Guard).
+- **JadeCovenant**: Unique Building: Jade Granary (50 Prod) - +1 Pop/City, +1 Food/City, Spawns Free Settler, Growth 15% cheaper. **Bountiful Harvest**: Cities start with +5 stored Food. **Nomadic Heritage**: Settlers have 3 Movement and 10 HP. **Ancestral Protection**: Settlers gain +2 Defense. **Population Power**: Units +1 Atk/Def per 12 Pop. **Nature's Wrath**: Enemy units in Jade Covenant territory take 1 HP attrition damage at the start of their turn if at war.
 - AI personalities differ by civ goal/aggression but follow identical rules.
 
 ## 15. Map & Generation
@@ -291,7 +292,7 @@
 - **Peace Duration**: After establishing peace (or at initial contact), at least **15 turns** must pass before either civilization can declare war on the other. This creates stable periods for diplomacy and prevents immediate re-hostilities.
 - **Purpose**: These minimum durations make diplomatic states meaningful and prevent rapid oscillation between war and peace.
 
-### AI Diplomacy Behavior
+### [DEV-ONLY] AI Diplomacy Behavior
 - **War Escalation**: AI aggression scales with the game turn. In the late game (Turn 50+), AI civilizations become "Bloodthirsty" and will refuse all peace offers to drive the game to a conclusion.
 - **Map Scaling**: On Standard, Large, and Huge maps, Conquest-biased civilizations (e.g., Aetherian Vanguard) are more aggressive to overcome travel distances.
 - **Domination Bypass**: Extremely powerful AI civilizations (3x stronger than target) may bypass the standard peace duration to crush weak neighbors.
@@ -311,7 +312,7 @@
   - **Main Menu**: Returns to the title screen to configure a new game.
   - The game turn counter freezes at the victory moment (`endTurn`) to ensure accurate statistics and replay data.
 
-## 18. State Indicators & UI Standards
+## [DEV-ONLY] 18. State Indicators & UI Standards
 - **Per-unit flags**: hasAttacked (attack availability), movesLeft (movement), linkedUnitId (army pairing), capturedOnTurn (healing gate).
 - **Per-city flags**: hasFiredThisTurn (city attack), lastDamagedOnTurn (healing gate), currentBuild/progress.
 - **HUD expectations**:
@@ -330,7 +331,7 @@
   - Era progression gates clearly indicated (e.g., \"Requires 3 Hearth techs\" for Banner era, \"Requires 2 Banner techs\" for Engine era).
 - **Status colors**: use existing HUD styles (chips/pills) to denote peace/war, garrison, fired, fortified, etc.
 
-## 19. Rules Priority & Engine Hooks
+## [DEV-ONLY] 19. Rules Priority & Engine Hooks
 - **Priority**: Engine logic (constants/types) → this rulebook → UI copy. If discrepancies arise, engine constants are authoritative; update rulebook to match.
 - **Engine hooks**:
   - Actions: EndTurn, MoveUnit, Attack (unit/city), SetCityBuild, FoundCity, CityAttack, SetWorkedTiles, SetDiplomacy/Peace/Vision actions, Link/Unlink, RazeCity, Propose/Accept offers, FortifyUnit.

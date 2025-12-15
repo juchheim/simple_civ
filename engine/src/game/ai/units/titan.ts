@@ -47,7 +47,7 @@ function findEngagementPath(start: HexCoord, target: HexCoord, unit: Unit, state
 /**
  * Dynamic target selection - prioritizes NEAREST city for fast captures
  */
-function getNextTargetCity(state: GameState, playerId: string, titanCoord: { q: number; r: number }): City | null {
+export function getNextTargetCity(state: GameState, playerId: string, titanCoord: { q: number; r: number }): City | null {
     let targets = getWarEnemies(state, playerId);
 
     // If no active wars, Titan acts as Vanguard: Target ANYONE (except self)
@@ -107,7 +107,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
         if (!liveTitan) continue;
 
         const warEnemies = getWarEnemies(next, playerId);
-        // aiInfo(`[TITAN LOG] Turn ${next.turn} | HP: ${liveTitan.hp}/${UNITS[UnitType.Titan].hp} | Moves: ${liveTitan.movesLeft} | At: (${liveTitan.coord.q},${liveTitan.coord.r}) | Wars: ${warEnemies.length} enemies`);
+        aiLog(`[TITAN LOG] Turn ${next.turn} | HP: ${liveTitan.hp}/${UNITS[UnitType.Titan].hp} | Moves: ${liveTitan.movesLeft} | At: (${liveTitan.coord.q},${liveTitan.coord.r}) | Wars: ${warEnemies.length} enemies`);
 
         let safety = 0;
         while (safety < 10 && liveTitan && liveTitan.movesLeft > 0) {
@@ -133,7 +133,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                             to: path[0]
                         });
                         if (moveResult !== next) {
-                            // aiInfo(`[TITAN LOG] RETREATING - critically wounded (${Math.floor(hpPercent * 100)}% HP)`);
+                            aiLog(`[TITAN LOG] RETREATING - critically wounded (${Math.floor(hpPercent * 100)}% HP)`);
                             next = moveResult;
                             liveTitan = next.units.find(u => u.id === titan.id);
                             continue;
@@ -161,7 +161,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                     if (unitPath && unitPath.length > 0) {
                         const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: liveTitan.id, to: unitPath[0] });
                         if (moveResult !== next) {
-                            // aiInfo(`[TITAN LOG] HUNTING UNIT - Moving to engage ${nearestEnemy.type} at dist ${hexDistance(liveTitan.coord, nearestEnemy.coord)}`);
+                            aiLog(`[TITAN LOG] HUNTING UNIT - Moving to engage ${nearestEnemy.type} at dist ${hexDistance(liveTitan.coord, nearestEnemy.coord)}`);
                             next = moveResult;
                             liveTitan = next.units.find(u => u.id === titan.id);
                             continue;
@@ -170,7 +170,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                 }
 
                 // 2. Explore
-                // aiInfo(`[TITAN LOG] NO TARGETS - Exploring unknown lands`);
+                aiLog(`[TITAN LOG] NO TARGETS - Exploring unknown lands`);
                 const revealed = new Set(next.revealed[playerId] ?? []);
                 let bestTile = null;
                 let minStartDist = Infinity;
@@ -190,7 +190,7 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                     if (path && path.length > 0) {
                         const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: liveTitan.id, to: path[0] });
                         if (moveResult !== next) {
-                            // aiInfo(`[TITAN LOG] EXPLORING - Moving to fog at (${bestTile.coord.q},${bestTile.coord.r})`);
+                            aiInfo(`[TITAN LOG] EXPLORING - Moving to fog at (${bestTile.coord.q},${bestTile.coord.r})`);
                             next = moveResult;
                             liveTitan = next.units.find(u => u.id === titan.id);
                             continue;
@@ -198,15 +198,42 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                     }
                 }
 
-                // aiInfo(`[TITAN LOG] IDLING - no targets and exploration failed`);
+                aiInfo(`[TITAN LOG] IDLING - no targets and exploration failed`);
                 break;
             }
 
             const distToTarget = hexDistance(liveTitan.coord, targetCity.coord);
-            // aiInfo(`[TITAN LOG] Target: ${targetCity.name} (HP:${targetCity.hp}) at dist ${distToTarget}`);
+            aiInfo(`[TITAN LOG] Target: ${targetCity.name} (HP:${targetCity.hp}) at dist ${distToTarget}`);
 
             // 1. Check for immediate capture
-            if (targetCity.hp <= 0 && distToTarget === 1) {
+            const canCaptureNow = targetCity.hp <= 0 && distToTarget === 1;
+
+            // v2.2: Titan Leash - Wait for support if army is left behind
+            // Only effective if we are NOT about to capture a city
+            if (!canCaptureNow && distToTarget > 2) { // Allow moving if very close to target
+                const myUnits = next.units.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan);
+                const totalMilitary = myUnits.length;
+
+                // If army is depleted, don't wait forever. Wait for up to 4, or everyone if < 4.
+                const requiredSupport = Math.min(4, totalMilitary);
+
+                // Count units within support range (radius 5)
+                const nearbySupport = myUnits.filter(u => hexDistance(u.coord, liveTitan!.coord) <= 5).length;
+
+                // aiLog(`[TITAN DEBUG] Leash Check: Total=${totalMilitary}, Required=${requiredSupport}, Nearby=${nearbySupport}`);
+
+                // NOTE: TitanStep events are expensive (event volume + JSON size). 
+                // They are tracked in parallel-analysis.ts when SIM_LOG_TITAN_STEPS=true.
+                // Removed unconditional emission here to improve simulation performance.
+
+                if (nearbySupport < requiredSupport) {
+                    aiInfo(`[TITAN LOG] WAITING FOR ARMY (Support: ${nearbySupport}/${requiredSupport} nearby) - Leashed`);
+                    // End turn (break loop) to let army catch up
+                    break;
+                }
+            }
+
+            if (canCaptureNow) {
                 const moveResult = tryAction(next, {
                     type: "MoveUnit",
                     playerId,
@@ -214,18 +241,19 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                     to: targetCity.coord
                 });
                 if (moveResult !== next) {
-                    // aiInfo(`[TITAN LOG] CAPTURING ${targetCity.name}!`);
+                    aiInfo(`[TITAN LOG] CAPTURING ${targetCity.name}!`);
                     next = moveResult;
                     liveTitan = next.units.find(u => u.id === titan.id);
                     continue;
                 } else {
-                    // aiInfo(`[TITAN LOG] CAPTURE FAILED - move to city blocked!`);
+                    aiInfo(`[TITAN LOG] CAPTURE FAILED - move to city blocked!`);
                 }
             }
 
             // 2. Move towards target
             let moveFailed = false;
-            if (distToTarget > UNITS[UnitType.Titan].rng) {
+            // v2.2: Ensure we don't try pathing if we can capture now (already handled above but safe check)
+            if (!canCaptureNow && distToTarget > UNITS[UnitType.Titan].rng) {
                 const path = findEngagementPath(liveTitan.coord, targetCity.coord, liveTitan, next);
                 if (path && path.length > 0) {
                     const moveResult = tryAction(next, {
@@ -236,22 +264,22 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                     });
                     if (moveResult !== next) {
                         const newDist = hexDistance(path[0], targetCity.coord);
-                        // aiInfo(`[TITAN LOG] MOVING toward ${targetCity.name} (dist ${distToTarget} -> ${newDist})`);
+                        aiInfo(`[TITAN LOG] MOVING toward ${targetCity.name} (dist ${distToTarget} -> ${newDist})`);
                         next = moveResult;
                         liveTitan = next.units.find(u => u.id === titan.id);
                         continue;
                     } else {
-                        // aiInfo(`[TITAN LOG] MOVE FAILED - path blocked at (${path[0].q},${path[0].r})`);
+                        aiInfo(`[TITAN LOG] MOVE FAILED - path blocked at (${path[0].q},${path[0].r})`);
                         moveFailed = true;
                     }
                 } else {
-                    // aiInfo(`[TITAN LOG] NO PATH to ${targetCity.name}!`);
+                    aiInfo(`[TITAN LOG] NO PATH to ${targetCity.name}!`);
                     moveFailed = true;
                 }
             }
 
             if (!liveTitan || liveTitan.movesLeft <= 0) {
-                // aiInfo(`[TITAN LOG] OUT OF MOVES`);
+                aiInfo(`[TITAN LOG] OUT OF MOVES`);
                 break;
             }
 
@@ -266,16 +294,16 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                         targetType: "City"
                     });
                     if (attackResult !== next) {
-                        // aiInfo(`[TITAN LOG] ATTACKING ${targetCity.name} (HP: ${targetCity.hp})`);
+                        aiLog(`[TITAN LOG] ATTACKING ${targetCity.name} (HP: ${targetCity.hp})`);
                         next = attackResult;
                         liveTitan = next.units.find(u => u.id === titan.id);
                         continue;
                     } else {
-                        // aiInfo(`[TITAN LOG] ATTACK FAILED on ${targetCity.name}!`);
+                        aiLog(`[TITAN LOG] ATTACK FAILED on ${targetCity.name}!`);
                     }
                 } else if (distToTarget > UNITS[UnitType.Titan].rng && moveFailed) {
                     // PATH CLEARING: If we couldn't move because we are blocked, attack the blocker!
-                    // aiInfo(`[TITAN LOG] PATH BLOCKED - attempting to clear the way`);
+                    aiLog(`[TITAN LOG] PATH BLOCKED - attempting to clear the way`);
                     // Attack ANY non-friendly unit that is blocking us (including neutrals)
                     const blockingUnit = next.units.find(u =>
                         u.ownerId !== playerId &&
@@ -291,15 +319,15 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                             targetType: "Unit"
                         });
                         if (attackResult !== next) {
-                            // aiInfo(`[TITAN LOG] CLEARING PATH - Attacking blocking unit ${blockingUnit.type} (HP: ${blockingUnit.hp})`);
+                            aiLog(`[TITAN LOG] CLEARING PATH - Attacking blocking unit ${blockingUnit.type} (HP: ${blockingUnit.hp})`);
                             next = attackResult;
                             liveTitan = next.units.find(u => u.id === titan.id);
                             continue;
                         } else {
-                            // aiInfo(`[TITAN LOG] CLEARING FAILED - attack rejected`);
+                            aiLog(`[TITAN LOG] CLEARING FAILED - attack rejected`);
                         }
                     } else {
-                        // aiInfo(`[TITAN LOG] BLOCKED and no adjacent unit - hunting nearest enemy`);
+                        aiLog(`[TITAN LOG] BLOCKED and no adjacent unit - hunting nearest enemy`);
                         // Find nearest enemy unit ANYWHERE and move to it
                         const warEnemies = getWarEnemies(next, playerId);
                         const nearestEnemy = next.units.find(u =>
@@ -316,29 +344,29 @@ export function titanRampage(state: GameState, playerId: string): GameState {
                                     to: unitPath[0]
                                 });
                                 if (moveResult !== next) {
-                                    // aiInfo(`[TITAN LOG] HUNTING UNIT - Moving to engage ${nearestEnemy.type}`);
+                                    aiLog(`[TITAN LOG] HUNTING UNIT - Moving to engage ${nearestEnemy.type}`);
                                     next = moveResult;
                                     liveTitan = next.units.find(u => u.id === titan.id);
                                     continue;
                                 } else {
-                                    // aiInfo(`[TITAN LOG] HUNTING MOVE FAILED - blocked at (${unitPath[0].q},${unitPath[0].r})`);
+                                    aiLog(`[TITAN LOG] HUNTING MOVE FAILED - blocked at (${unitPath[0].q},${unitPath[0].r})`);
                                 }
                             } else {
-                                // aiInfo(`[TITAN LOG] HUNTING FAILED - no path to nearest enemy`);
+                                aiLog(`[TITAN LOG] HUNTING FAILED - no path to nearest enemy`);
                             }
                         }
                     }
                 } else if (distToTarget > UNITS[UnitType.Titan].rng) {
-                    // aiInfo(`[TITAN LOG] CITY OUT OF RANGE (dist ${distToTarget} > rng ${UNITS[UnitType.Titan].rng}) - ending turn`);
+                    aiLog(`[TITAN LOG] CITY OUT OF RANGE (dist ${distToTarget} > rng ${UNITS[UnitType.Titan].rng}) - ending turn`);
                 }
                 break;
             }
 
-            // aiInfo(`[TITAN LOG] ALREADY ATTACKED this turn`);
+            aiLog(`[TITAN LOG] ALREADY ATTACKED this turn`);
             break;
         }
 
-        // aiInfo(`[TITAN LOG] Turn ${next.turn} END - safety=${safety}`);
+        aiLog(`[TITAN LOG] Turn ${next.turn} END - safety=${safety}`);
     }
 
     return next;

@@ -1,0 +1,143 @@
+
+> @simple-civ/engine@1.0.0 test
+> vitest run
+
+
+ RUN  v1.6.1 /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine
+
+ ✓ src/map/generation/landmass.test.ts  (10 tests) 30ms
+ ✓ src/map/rivers-polylines.snap.test.ts  (3 tests) 220ms
+ ✓ src/game/city_visibility_repro.test.ts  (4 tests) 7ms
+ ✓ src/game/garrison.test.ts  (6 tests) 8ms
+ ✓ src/game/city-combat.test.ts  (6 tests) 25ms
+ ✓ src/game/found_city_validation.test.ts  (7 tests) 16ms
+ ✓ src/game/ai/units/tactics.test.ts  (7 tests) 31ms
+ ✓ src/game/ai/war-prep.test.ts  (9 tests) 45ms
+ ✓ src/game/post-attack-movement.test.ts  (2 tests) 7ms
+ ✓ src/game/filler_projects.test.ts  (5 tests) 25ms
+ ✓ src/game/bug_fixes.test.ts  (3 tests) 8ms
+ ❯ src/game/ai.test.ts  (23 tests | 1 failed) 230ms
+   ❯ src/game/ai.test.ts > ai personality behaviors > AetherianVanguard prioritizes Titan rush path over Conquest path
+     → expected 'ScriptLore' to be 'TimberMills' // Object.is equality
+ ✓ src/game/repro_retaliation.test.ts  (3 tests) 11ms
+ ✓ src/game/garrison_attack_uncaptured_city.test.ts  (3 tests) 11ms
+ ✓ src/game/ai.rules-compliance.test.ts  (1 test) 1110ms
+stdout | src/game/ai.rules-compliance.test.ts > ai rules compliance > keeps AI actions within movement/stacking/terrain rules over multiple turns
+Turn 1: afterP1=true, afterP2=true
+Turn 2: afterP1=true, afterP2=true
+Turn 3: afterP1=false, afterP2=false
+
+ ✓ src/game/ai/units/ranged-threat-awareness.test.ts  (3 tests) 393ms
+ ✓ src/game/worked-tiles-optimization.test.ts  (3 tests) 8ms
+ ✓ src/game/ai.behavior.test.ts  (5 tests) 378ms
+ ✓ src/game/balance/balance_round_2.test.ts  (4 tests) 4ms
+ ✓ src/game/ai/swap_units.test.ts  (4 tests) 114ms
+ ✓ src/game/helpers/action-helpers.test.ts  (6 tests) 8ms
+ ✓ src/game/army-advance.test.ts  (3 tests) 5ms
+ ✓ src/game/era_advancement.test.ts  (4 tests) 7ms
+ ✓ src/game/unique_city_names.test.ts  (4 tests) 9ms
+ ✓ src/game/city_capture_garrison.test.ts  (2 tests) 7ms
+ ✓ src/game/bowguard_settler_capture.test.ts  (2 tests) 4ms
+ ✓ src/game/goodie-huts.test.ts  (6 tests) 67ms
+ ✓ src/game/expel-units.test.ts  (2 tests) 3ms
+ ✓ src/game/ai/unit-production.test.ts  (3 tests) 7ms
+ ✓ src/game/unit-linking.test.ts  (4 tests) 8ms
+ ✓ src/game/natures_wrath.test.ts  (3 tests) 3608ms
+ ✓ src/game/balance/bulwark_production.test.ts  (8 tests) 5ms
+ ✓ src/game/auto_explore.test.ts  (6 tests) 1181ms
+ ✓ src/map/rivers-selection.test.ts  (3 tests) 18ms
+ ✓ src/game/turn-loop.test.ts  (10 tests) 6302ms
+ ✓ src/game/balance/nerfs.test.ts  (5 tests) 4ms
+ ✓ src/game/pathing_fixes.test.ts  (2 tests) 410ms
+ ✓ src/game/territory-growth.test.ts  (2 tests) 13ms
+ ✓ src/game/balance.test.ts  (9 tests) 5ms
+ ✓ src/game/production_switching.test.ts  (2 tests) 3ms
+ ✓ src/game/ai.e2e.test.ts  (2 tests) 50ms
+ ✓ src/map/generation/noise.test.ts  (11 tests) 127ms
+ ✓ src/game/helpers/spawn.test.ts  (3 tests) 4ms
+ ✓ src/map/rivers-metrics.snap.test.ts  (1 test) 104ms
+ ✓ src/game/research.test.ts  (3 tests) 3ms
+ ✓ src/game/ai/siege.test.ts  (2 tests) 1705ms
+ ✓ src/game/ai/units/titan.leash.test.ts  (4 tests) 3265ms
+ ✓ src/map/rivers-helpers.test.ts  (3 tests) 3ms
+ ✓ src/game/ai2/behavior.test.ts  (2 tests) 175ms
+ ✓ src/map/rivers-pathfinding.integration.test.ts  (1 test) 186ms
+ ✓ src/game/bowguard_range_attack.test.ts  (1 test) 6ms
+ ✓ src/game/rules.test.ts  (4 tests) 1878ms
+ ✓ src/game/repro_garrison_attack.test.ts  (1 test) 4ms
+ ✓ src/game/movement.test.ts  (2 tests) 6ms
+ ✓ src/game/repro_garrison_active_attack.test.ts  (1 test) 3ms
+ ✓ src/game/auto_explore_efficiency.test.ts  (2 tests) 3ms
+ ✓ src/game/cost_scaling.test.ts  (6 tests) 3ms
+stdout | src/game/fog_movement.test.ts > Fog of War Movement > findPath should return a valid path to fogged tiles
+Path found: [ { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 } ]
+
+ ✓ src/game/fog_movement.test.ts  (1 test) 4ms
+ ✓ src/game/repro_fortify_bug.test.ts  (1 test) 3ms
+ ✓ src/game/natives/native-behavior.test.ts  (2 tests) 6ms
+ ❯ src/game/titan_stats.test.ts  (2 tests | 1 failed) 11ms
+   ❯ src/game/titan_stats.test.ts > Titan Stats & Mechanics > should have correct Titan stats (as defined in core/constants)
+     → expected 25 to be 20 // Object.is equality
+ ✓ src/game/actions/diplomacy_verification.test.ts  (1 test) 3ms
+ ✓ src/game/conquest-stall.test.ts  (2 tests) 2ms
+ ✓ src/game/auto_move_debug.test.ts  (1 test) 341ms
+ ✓ src/map/rivers.test.ts  (4 tests) 3ms
+ ✓ src/game/balance/army_size.test.ts  (2 tests) 2ms
+ ✓ src/game/auto_explore_terrain.test.ts  (1 test) 263ms
+ ✓ src/game/tech_requirements.test.ts  (2 tests) 2ms
+ ✓ src/game/victory_type.test.ts  (2 tests) 2ms
+ ✓ src/game/defeat_condition.test.ts  (1 test) 249ms
+ ✓ src/map/map-generator.test.ts  (8 tests) 11869ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/game/ai.test.ts > ai personality behaviors > AetherianVanguard prioritizes Titan rush path over Conquest path
+AssertionError: expected 'ScriptLore' to be 'TimberMills' // Object.is equality
+
+- Expected
++ Received
+
+- TimberMills
++ ScriptLore
+
+ ❯ src/game/ai.test.ts:872:23
+    870|         state.players[0].techs = [TechId.FormationTraining, TechId.Sto…
+    871|         const pick3 = aiChooseTech("p", state as any, "Conquest");
+    872|         expect(pick3).toBe(TechId.TimberMills);
+       |                       ^
+    873|     });
+    874| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/game/titan_stats.test.ts > Titan Stats & Mechanics > should have correct Titan stats (as defined in core/constants)
+AssertionError: expected 25 to be 20 // Object.is equality
+
+- Expected
++ Received
+
+- 20
++ 25
+
+ ❯ src/game/titan_stats.test.ts:12:26
+     10|         const titan = UNITS[UnitType.Titan];
+     11|         expect(titan.def).toBe(6);
+     12|         expect(titan.hp).toBe(20);
+       |                          ^
+     13|         expect(titan.atk).toBe(22);
+     14|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed | 69 passed (71)
+      Tests  2 failed | 274 passed (276)
+   Start at  12:18:18
+   Duration  13.61s (transform 6.52s, setup 5ms, collect 26.19s, tests 34.64s, environment 13ms, prepare 25.05s)
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine
+npm error workspace @simple-civ/engine@1.0.0
+npm error location /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine
+npm error command failed
+npm error command sh -c vitest run

@@ -1,4 +1,4 @@
-import { City, GameState, HexCoord } from "../../core/types.js";
+import { BuildingType, City, GameState, HexCoord } from "../../core/types.js";
 import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, CITY_NAMES } from "../../core/constants.js";
 import { TerrainType } from "../../core/types.js";
 import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
@@ -168,6 +168,7 @@ export function captureCity(state: GameState, city: City, newOwnerId: string) {
     city.buildProgress = 0;
     city.manualWorkedTiles = undefined;
     city.manualExcludedTiles = undefined;
+
     const currentRing = getClaimedRing(city, state);
     const targetRing = Math.max(currentRing, maxClaimableRing(city));
     claimCityTerritory(city, state, newOwnerId, targetRing);

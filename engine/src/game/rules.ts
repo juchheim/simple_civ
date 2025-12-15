@@ -26,8 +26,9 @@ import {
     UNITS,
     CITY_WORK_RADIUS_RINGS,
 } from "../core/constants.js";
-import { hexEquals, hexDistance } from "../core/hex.js";
+import { hexEquals, hexDistance, hexToString } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
+import { LookupCache } from "./helpers/lookup-cache.js";
 
 /**
  * Determines the minimum distance required between cities for a given player.
@@ -86,14 +87,15 @@ export function getCityCenterYields(city: City, tile: Tile): Yields {
  * @param state - The current game state.
  * @returns The total yields (Food, Production, Science).
  */
-export function getCityYields(city: City, state: GameState): Yields {
+export function getCityYields(city: City, state: GameState, cache?: LookupCache): Yields {
     const total: Yields = { F: 0, P: 0, S: 0 };
     const cityCoord = city.coord ?? { q: 0, r: 0 };
     const workedTiles = Array.isArray(city.workedTiles) ? city.workedTiles : [];
 
     // 1. Worked Tiles
     for (const coord of workedTiles) {
-        const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
+        const coordKey = hexToString(coord);
+        const tile = cache ? cache.tileByKey.get(coordKey) : state.map.tiles.find(t => hexEquals(t.coord, coord));
         if (!tile) continue;
 
         let tileY: Yields;
@@ -117,7 +119,8 @@ export function getCityYields(city: City, state: GameState): Yields {
 
     let worksForest = false;
     for (const coord of workedTiles) {
-        const t = state.map.tiles.find(tile => hexEquals(tile.coord, coord));
+        const tKey = hexToString(coord);
+        const t = cache ? cache.tileByKey.get(tKey) : state.map.tiles.find(tile => hexEquals(tile.coord, coord));
         if (t && t.terrain === TerrainType.Forest) worksForest = true;
     }
 
@@ -148,7 +151,8 @@ export function getCityYields(city: City, state: GameState): Yields {
         // ForgeClans: +1 Production per worked Hill tile (Capital Only)
         if (city.isCapital) {
             for (const c of workedTiles) {
-                const t = state.map.tiles.find(tt => hexEquals(tt.coord, c));
+                const cKey = hexToString(c);
+                const t = cache ? cache.tileByKey.get(cKey) : state.map.tiles.find(tt => hexEquals(tt.coord, c));
                 if (t?.terrain === TerrainType.Hills) total.P += 1;
             }
         }
@@ -159,19 +163,19 @@ export function getCityYields(city: City, state: GameState): Yields {
         if (city.buildings.includes(BuildingType.Forgeworks)) { total.P += 1; total.S += 1; }
     } else if (trait === "ScholarKingdoms") {
         // v1.9: "Citadel Protocol"
-        // 1. +3 Science in Capital (Buffed from +1)
+        // 1. +3 Science in Capital (Buffed v2.9)
         if (city.isCapital) {
-            total.S += 2; // v2.8: Nerfed from 3 to 2
+            total.S += 1; // v2.9: Nerfed to +1 (was +3)
         }
-        // 2. +3 Science per CityWard building (Buffed from +2)
+        // 2. +3 Science per CityWard building (Buffed v2.9)
         const cityWardCount = state.cities.filter(c =>
             c.ownerId === city.ownerId && c.buildings.includes(BuildingType.CityWard)
         ).length;
-        total.S += cityWardCount * 2; // v2.8: Nerfed from 3 to 2
+        total.S += cityWardCount * 1; // v2.9: Nerfed to +1 (was +3)
     } else if (trait === "RiverLeague") {
         // v2.3: BUFF - +1 Prod per 1 river tile (was per 2) - doubled efficiency
         total.F += riverAdjacencyCount(state.map, workedTiles);
-        total.P += riverAdjacencyCount(state.map, workedTiles);
+        total.P += Math.ceil(riverAdjacencyCount(state.map, workedTiles) / 2);
     } else if (trait === "StarborneSeekers") {
         // v1.9: "Peaceful Meditation" - +2 Science when not at war (Buffed from +1)
         // Fits their defensive identity - they avoid wars to pursue Progress
@@ -182,7 +186,7 @@ export function getCityYields(city: City, state: GameState): Yields {
             state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
         );
         if (!atWar) {
-            total.S += 3; // v2.8: Buffed from 2 to 3
+            total.S += 1; // v2.8: Nerfed to +1 (was +3)
         }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)
@@ -191,11 +195,17 @@ export function getCityYields(city: City, state: GameState): Yields {
         }
         // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
         // This bridges their weak early game to the Titan
-        const hasGarrison = state.units.some(u =>
-            u.ownerId === city.ownerId &&
-            hexEquals(u.coord, city.coord) &&
-            u.type !== UnitType.Settler
-        );
+        const cityKey = hexToString(city.coord);
+        const unitAtCity = cache ? cache.unitByCoordKey.get(cityKey) : state.units.find(u => hexEquals(u.coord, city.coord));
+
+        // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
+        const hasGarrison = unitAtCity
+            ? (unitAtCity.ownerId === city.ownerId && unitAtCity.type !== UnitType.Settler)
+            : state.units.some(u =>
+                u.ownerId === city.ownerId &&
+                hexEquals(u.coord, city.coord) &&
+                u.type !== UnitType.Settler
+            );
         if (hasGarrison) {
             total.P += 1;
         }
@@ -206,6 +216,8 @@ export function getCityYields(city: City, state: GameState): Yields {
     if (player?.completedProjects.includes(ProjectId.JadeGranaryComplete)) {
         total.F += 1;
     }
+
+
 
     // v1.0: ScholarKingdoms "Fortified Knowledge" - Science Bonus
     // (Logic moved or implemented elsewhere, or this is a placeholder for future expansion)
@@ -268,9 +280,10 @@ export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary
  * @param type - The type of item ("Unit", "Building", "Project").
  * @param id - The ID of the item.
  * @param state - The current game state.
+ * @param cache - Optional lookup cache for O(1) unit lookups.
  * @returns True if the item can be built.
  */
-export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: string, state: GameState): boolean {
+export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: string, state: GameState, cache?: LookupCache): boolean {
     const player = state.players.find(p => p.id === city.ownerId);
     if (!player) return false;
 
@@ -287,6 +300,11 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (bId === BuildingType.TitansCore && player.civName !== "AetherianVanguard") return false;
         if (bId === BuildingType.SpiritObservatory && player.civName !== "StarborneSeekers") return false;
         if (bId === BuildingType.JadeGranary && player.civName !== "JadeCovenant") return false;
+
+        // Bulwark: Scholar/Starborne Only
+        if (bId === BuildingType.Bulwark) {
+            if (player.civName !== "ScholarKingdoms" && player.civName !== "StarborneSeekers") return false;
+        }
 
         // Titans Core: once per civ (tracked via TitansCoreComplete marker)
         if (bId === BuildingType.TitansCore) {
@@ -323,6 +341,18 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // "Trail Maps -> River Boat"
         if (uId === UnitType.Skiff && !player.techs.includes(TechId.TrailMaps)) return false;
 
+
+
+        // v5.6: Bulwark Building Protocol
+        // A city with a Bulwark Building commits to a "Fortress" role and cannot produce offensive armies.
+        // It can only build Civilian units (Settler) and Recon units (Scout).
+        if (city.buildings.includes(BuildingType.Bulwark)) {
+            // Exception: Allow Settlers and Scouts
+            if (uId !== UnitType.Settler && uId !== UnitType.Scout) {
+                return false;
+            }
+        }
+
         // Armies?
         // "After Army Doctrine, a city may build Form Army..."
         // Those are Projects, not Units directly.
@@ -342,6 +372,16 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
                     t.terrain === TerrainType.DeepSea
                 );
                 if (!hasWaterAccess) return false;
+            }
+        }
+
+        // v5.6: Bulwark Building Protocol
+        // A city with a Bulwark Building commits to a "Fortress" role and cannot produce offensive armies.
+        // It can only build Civilian units (Settler) and Recon units (Scout).
+        if (city.buildings.includes(BuildingType.Bulwark)) {
+            // Exception: Allow Settlers and Scouts
+            if (uId !== UnitType.Settler && uId !== UnitType.Scout) {
+                return false;
             }
         }
 

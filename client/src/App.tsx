@@ -9,7 +9,7 @@ import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sectio
 import { ToastContainer } from "./components/Toast";
 import { SaveGameModal } from "./components/SaveGameModal";
 import { LoadGameModal } from "./components/LoadGameModal";
-import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
+import { Action, AiSystem, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
@@ -49,6 +49,7 @@ function App() {
     const [selectedMapSize, setSelectedMapSize] = useState<MapSize>("Small");
     const [numCivs, setNumCivs] = useState(2);
     const [seedInput, setSeedInput] = useState("");
+
     const [showTitleScreen, setShowTitleScreen] = useState(true);
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
     const [mapView, setMapView] = useState<MapViewport | null>(null);
@@ -190,7 +191,7 @@ function App() {
 
             const players = buildPlayers(parsedSeed);
 
-            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined };
+            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined, aiSystem: "UtilityV2" as AiSystem };
             const state = startNewGame(settings);
             console.info("[World] seed", state.seed);
             setShowTechTree(true);
@@ -328,111 +329,112 @@ function App() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: "auto", flexShrink: 0 }}>
 
                         {/* Settings Row */}
-                        <div style={{ display: "flex", gap: 32, alignItems: "flex-end" }}>
-                            {/* Map Size */}
-                            <div>
-                                <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Map Size</label>
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => setSelectedMapSize(size)}
-                                            style={{
-                                                padding: "8px 12px",
-                                                fontSize: 14,
-                                                borderRadius: 8,
-                                                border: size === selectedMapSize ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
-                                                background: size === selectedMapSize ? "var(--color-bg-deep)" : "transparent",
-                                                color: "var(--color-text-main)",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            {size}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Number of Civs */}
-                            <div>
-                                <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Civilizations</label>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))", gap: 3, maxWidth: 240 }}>
-                                    {Array.from({ length: maxCivsGlobal - 1 }, (_, i) => i + 2).map(count => {
-                                        const allowedForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
-                                        const allowed = count <= allowedForMap && count <= CIV_OPTIONS.length;
-                                        return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                            <div style={{ display: "flex", gap: 32, alignItems: "flex-end", width: "100%" }}>
+                                {/* Map Size */}
+                                <div>
+                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Map Size</label>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
                                             <button
-                                                key={count}
-                                                onClick={() => {
-                                                    if (!allowed) return;
-                                                    setNumCivs(count);
-                                                }}
-                                                disabled={!allowed}
+                                                key={size}
+                                                onClick={() => setSelectedMapSize(size)}
                                                 style={{
-                                                    width: 40,
-                                                    height: 40,
+                                                    padding: "8px 12px",
+                                                    fontSize: 14,
                                                     borderRadius: 8,
-                                                    border: count === numCivs ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
-                                                    background: count === numCivs ? "var(--color-bg-deep)" : "transparent",
+                                                    border: size === selectedMapSize ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
+                                                    background: size === selectedMapSize ? "var(--color-bg-deep)" : "transparent",
                                                     color: "var(--color-text-main)",
-                                                    fontWeight: 600,
-                                                    cursor: allowed ? "pointer" : "not-allowed",
-                                                    opacity: allowed ? 1 : 0.5
+                                                    cursor: "pointer",
                                                 }}
                                             >
-                                                {count}
+                                                {size}
                                             </button>
-                                        );
-                                    })}
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Number of Civs */}
+                                <div>
+                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Civilizations</label>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))", gap: 3, maxWidth: 240 }}>
+                                        {Array.from({ length: maxCivsGlobal - 1 }, (_, i) => i + 2).map(count => {
+                                            const allowedForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
+                                            const allowed = count <= allowedForMap && count <= CIV_OPTIONS.length;
+                                            return (
+                                                <button
+                                                    key={count}
+                                                    onClick={() => {
+                                                        if (!allowed) return;
+                                                        setNumCivs(count);
+                                                    }}
+                                                    disabled={!allowed}
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 8,
+                                                        border: count === numCivs ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
+                                                        background: count === numCivs ? "var(--color-bg-deep)" : "transparent",
+                                                        color: "var(--color-text-main)",
+                                                        fontWeight: 600,
+                                                        cursor: allowed ? "pointer" : "not-allowed",
+                                                        opacity: allowed ? 1 : 0.5
+                                                    }}
+                                                >
+                                                    {count}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Seed Input */}
+                                <div style={{ minWidth: 40, maxWidth: 60 }}>
+                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Seed</label>
+                                    <input
+                                        type="text"
+                                        value={seedInput}
+                                        onChange={(e) => setSeedInput(e.target.value)}
+                                        placeholder="Random"
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg-deep)", color: "var(--color-text-main)" }}
+                                    />
                                 </div>
                             </div>
-
-                            {/* Seed Input */}
-                            <div style={{ marginLeft: "auto", minWidth: 40, maxWidth: 60, marginRight: 32 }}>
-                                <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Seed</label>
-                                <input
-                                    type="text"
-                                    value={seedInput}
-                                    onChange={(e) => setSeedInput(e.target.value)}
-                                    placeholder="Random"
-                                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg-deep)", color: "var(--color-text-main)" }}
-                                />
+                            {/* Buttons */}
+                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                <button
+                                    onClick={handleStartNewGame}
+                                    style={{
+                                        flex: 1,
+                                        padding: "12px",
+                                        borderRadius: 10,
+                                        border: "none",
+                                        background: "var(--color-highlight-strong, #cd8a36)",
+                                        color: "white",
+                                        fontWeight: 700,
+                                        fontSize: 16,
+                                        cursor: "pointer",
+                                        boxShadow: "0 10px 30px rgba(0,0,0,0.25)"
+                                    }}
+                                >
+                                    Start Game
+                                </button>
+                                <button
+                                    onClick={resetToTitleScreen}
+                                    style={{
+                                        padding: "12px 16px",
+                                        borderRadius: 10,
+                                        border: "1px solid var(--color-border)",
+                                        background: "transparent",
+                                        color: "var(--color-text-main)",
+                                        cursor: "pointer",
+                                        marginRight: 8
+                                    }}
+                                >
+                                    Back
+                                </button>
                             </div>
-                        </div>
-
-                        {/* Buttons */}
-                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                            <button
-                                onClick={handleStartNewGame}
-                                style={{
-                                    flex: 1,
-                                    padding: "12px",
-                                    borderRadius: 10,
-                                    border: "none",
-                                    background: "var(--color-highlight-strong, #cd8a36)",
-                                    color: "white",
-                                    fontWeight: 700,
-                                    fontSize: 16,
-                                    cursor: "pointer",
-                                    boxShadow: "0 10px 30px rgba(0,0,0,0.25)"
-                                }}
-                            >
-                                Start Game
-                            </button>
-                            <button
-                                onClick={resetToTitleScreen}
-                                style={{
-                                    padding: "12px 16px",
-                                    borderRadius: 10,
-                                    border: "1px solid var(--color-border)",
-                                    background: "transparent",
-                                    color: "var(--color-text-main)",
-                                    cursor: "pointer",
-                                    marginRight: 8
-                                }}
-                            >
-                                Back
-                            </button>
                         </div>
                     </div>
                 </div>

@@ -1,0 +1,268 @@
+import { Action, AiVictoryGoal, DiplomacyState, GameState, ProjectId } from "../../core/types.js";
+import { hexDistance } from "../../core/hex.js";
+import { estimateMilitaryPower } from "../ai/goals.js";
+import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
+import { getAiProfileV2 } from "./rules.js";
+import { selectFocusCityAgainstTarget } from "./strategy.js";
+
+function hasUnitType(state: GameState, playerId: string, unitType: string): boolean {
+    return state.units.some(u => u.ownerId === playerId && u.type === unitType);
+}
+
+function countNearbyByPredicate(
+    state: GameState,
+    playerId: string,
+    center: { q: number; r: number },
+    distMax: number,
+    pred: (u: any) => boolean
+): number {
+    return state.units.filter(u => u.ownerId === playerId && pred(u) && hexDistance(u.coord, center) <= distMax).length;
+}
+
+function stanceDurationOk(state: GameState, playerId: string, targetId: string, minTurns: number, memory: ReturnType<typeof getAiMemoryV2>): boolean {
+    const last = memory.lastStanceTurn?.[targetId] ?? 0;
+    return last === 0 || (state.turn - last) >= minTurns;
+}
+
+function isProgressThreat(state: GameState, targetPlayerId: string): boolean {
+    const p = state.players.find(x => x.id === targetPlayerId);
+    if (!p) return false;
+    const completedObs = p.completedProjects?.includes(ProjectId.Observatory);
+    const completedAcad = p.completedProjects?.includes(ProjectId.GrandAcademy);
+    const completedExp = p.completedProjects?.includes(ProjectId.GrandExperiment);
+    if (completedExp) return true;
+
+    // If they are currently building any progress-chain project, treat as a threat that scales with turn.
+    const buildingProgress = state.cities.some(c =>
+        c.ownerId === targetPlayerId &&
+        c.currentBuild?.type === "Project" &&
+        (c.currentBuild.id === ProjectId.Observatory || c.currentBuild.id === ProjectId.GrandAcademy || c.currentBuild.id === ProjectId.GrandExperiment)
+    );
+
+    // Early chain is only a "soft" threat; once Observatory is done or they are building Academy/Experiment, it's urgent.
+    if (completedAcad || buildingProgress) return true;
+    if (completedObs && state.turn >= 110) return true;
+    return false;
+}
+
+function currentWarCount(state: GameState, playerId: string): number {
+    return state.players.filter(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        (state.diplomacy?.[playerId]?.[p.id] ?? DiplomacyState.Peace) === DiplomacyState.War
+    ).length;
+}
+
+export function decideDiplomacyActionsV2(state: GameState, playerId: string, goal: AiVictoryGoal): { state: GameState; actions: Action[] } {
+    let next = state;
+    const actions: Action[] = [];
+    const profile = getAiProfileV2(next, playerId);
+    const memory = getAiMemoryV2(next, playerId);
+
+    const myPower = estimateMilitaryPower(playerId, next);
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
+    const myAnchor = myCities.find(c => c.isCapital) ?? myCities[0];
+    const myMilitaryCount = next.units.filter(u => u.ownerId === playerId && u.type !== "Settler" && u.type !== "Scout" && u.type !== "Skiff" && u.type !== "ArmyScout").length;
+    const warsNow = currentWarCount(next, playerId);
+    let warsPlanned = warsNow;
+
+    for (const other of next.players) {
+        if (other.id === playerId || other.isEliminated) continue;
+
+        const stance = next.diplomacy?.[playerId]?.[other.id] ?? DiplomacyState.Peace;
+        const theirPower = estimateMilitaryPower(other.id, next);
+        const ratio = theirPower > 0 ? myPower / theirPower : Infinity;
+
+        const theirCities = next.cities.filter(c => c.ownerId === other.id);
+        const theirAnchor = theirCities.find(c => c.isCapital) ?? theirCities[0];
+        const dist = (myAnchor && theirAnchor) ? hexDistance(myAnchor.coord, theirAnchor.coord) : 999;
+
+        const warDistanceMax = next.turn >= 160 ? Math.max(profile.diplomacy.warDistanceMax, 999) : profile.diplomacy.warDistanceMax;
+
+        if (stance === DiplomacyState.War) {
+            if (!stanceDurationOk(next, playerId, other.id, profile.diplomacy.minStanceTurns, memory)) continue;
+            const wantsPeace = ratio < profile.diplomacy.peaceIfBelowRatio;
+            const enemyCitiesNow = next.cities.filter(c => c.ownerId === other.id).length;
+            // Stalemate heuristic: if we aren't decisively winning, and the war has dragged, propose peace.
+            const stalemate = (ratio < 1.15) && (next.turn - (memory.lastStanceTurn?.[other.id] ?? next.turn)) >= Math.ceil(profile.diplomacy.minStanceTurns * 2.5);
+
+            // REVISION 2: Much stricter "Finish Him" to prevent eternal wars.
+            // Only prevent peace when TRULY winning and enemy has 1 city left.
+            // OLD: cities <= 2 && ratio >= 0.9 (caused eternal wars between evenly matched civs)
+            // NEW: cities <= 1 && ratio >= 1.2 (only when decisively winning against 1-city enemy)
+            const shouldFinishEnemy = enemyCitiesNow <= 1 && ratio >= 1.2;
+            if (shouldFinishEnemy) continue; // Don't peace out when delivering the finishing blow!
+
+            // Legacy "shouldAvoidPeaceToFinish" kept for compatibility but now redundant with above.
+            const shouldAvoidPeaceToFinish = enemyCitiesNow <= 2 && ratio >= 1.05;
+
+            // Also never peace out against a progress threat (we need the war pressure to keep denying).
+            const progressThreatNow =
+                isProgressThreat(next, other.id) &&
+                profile.diplomacy.canInitiateWars &&
+                profile.diplomacy.warPowerRatio <= 1.35;
+            // Aggressive civs should not "stalemate peace"—they must prosecute wars to completion.
+            const aggressive = profile.diplomacy.canInitiateWars && profile.diplomacy.warPowerRatio <= 1.35;
+            const allowStalematePeace = !aggressive;
+            // Also don't accept/propose peace when we're winning (prevents peace loops).
+            const winning = ratio >= 1.05;
+            if (!progressThreatNow && !winning && !shouldAvoidPeaceToFinish && (wantsPeace || (allowStalematePeace && stalemate))) {
+                const incomingPeace = next.diplomacyOffers?.some(o => o.type === "Peace" && o.from === other.id && o.to === playerId);
+                actions.push(incomingPeace
+                    ? { type: "AcceptPeace", playerId, targetPlayerId: other.id }
+                    : { type: "ProposePeace", playerId, targetPlayerId: other.id }
+                );
+                const mem2 = getAiMemoryV2(next, playerId);
+                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+            }
+            continue;
+        }
+
+        // Peace → consider war.
+        if (!profile.diplomacy.canInitiateWars) continue;
+        if (dist > warDistanceMax) continue;
+        // If we're overwhelmingly ahead, allow re-declaring war faster (prevents long "peace cooldown" stalls).
+        const dominant = ratio >= 1.6;
+        if (!dominant && !stanceDurationOk(next, playerId, other.id, profile.diplomacy.minStanceTurns, memory)) continue;
+
+        // If we're already at war, do NOT start additional wars (concentration wins wars),
+        // except for urgent progress-denial.
+        // (This is the primary fix for "tons of wars but no conquest wins".)
+        // Rate-limit war initiations.
+        const recentInitiations = (memory.warInitiationTurns ?? []).filter(t => (next.turn - t) <= 50);
+
+        // Progress-denial: if an opponent is on/near the Progress win chain, aggressive civs should override distance/thresholds.
+        // This must trigger even when our goal is "Balanced" (otherwise Progress civs get a free win window).
+        const progressThreat =
+            isProgressThreat(next, other.id) &&
+            profile.diplomacy.canInitiateWars &&
+            (goal === "Conquest" || profile.diplomacy.warPowerRatio <= 1.35);
+
+        // FIX #4: "Finish Him" - Allow multiple wars if we're finishing a weak enemy (≤2 cities).
+        // This prevents the AI from stopping conquest at the 1-yard line.
+        const currentWars = state.players.filter(p =>
+            p.id !== playerId &&
+            !p.isEliminated &&
+            (state.diplomacy?.[playerId]?.[p.id] ?? DiplomacyState.Peace) === DiplomacyState.War
+        );
+        const finishingWeakEnemy = currentWars.some(w => {
+            const warCities = next.cities.filter(c => c.ownerId === w.id).length;
+            return warCities <= 2;
+        });
+
+        // If we're already at war, do NOT start additional wars (concentration wins wars),
+        // UNLESS we're finishing a weak enemy OR facing urgent progress-denial.
+        if (warsNow >= 1 && !progressThreat && !finishingWeakEnemy) continue;
+        const hasTitanNow = hasUnitType(next, playerId, "Titan");
+        const isAetherian = profile.civName === "AetherianVanguard";
+        // Titan online => lower threshold: the whole point is to start capturing.
+        const requiredRatio = (hasTitanNow && isAetherian)
+            ? Math.min(profile.diplomacy.warPowerRatio, 0.9)
+            : (progressThreat
+                ? Math.min(profile.diplomacy.warPowerRatio * 0.7, 1.0)
+                : profile.diplomacy.warPowerRatio);
+        const allowDistance = progressThreat ? Math.max(warDistanceMax, 999) : warDistanceMax;
+        if (dist > allowDistance) continue;
+
+        if (ratio >= requiredRatio) {
+            // Basic sanity gate: don't declare war with no army.
+            if (myMilitaryCount < Math.max(2, Math.ceil(myCities.length * 0.75))) continue;
+
+            const focusCity = selectFocusCityAgainstTarget(next, playerId, other.id);
+
+            // Force concentration gate (prevents "trickle wars"): require some forces near the prospective front.
+            if (focusCity) {
+                // Titan online for Aetherian: declare war immediately (Titan is the conquest engine).
+                // Staging gates are intentionally bypassed to avoid "Titan exists but never fights".
+                if (isAetherian && hasTitanNow) {
+                    const mem2 = getAiMemoryV2(next, playerId);
+                    next = setAiMemoryV2(next, playerId, {
+                        ...mem2,
+                        focusTargetPlayerId: other.id,
+                        focusCityId: focusCity.id,
+                        focusSetTurn: next.turn,
+                        lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
+                        warInitiationTurns: [...recentInitiations, next.turn],
+                    });
+                    actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
+                    warsPlanned += 1;
+                    continue;
+                }
+                // Progress denial must be allowed to start immediately, even if we aren't staged yet.
+                // Otherwise we "politely stage for 30 turns" and lose to GrandExperiment.
+                if (progressThreat) {
+                    const mem2a = getAiMemoryV2(next, playerId);
+                    next = setAiMemoryV2(next, playerId, {
+                        ...mem2a,
+                        focusTargetPlayerId: other.id,
+                        focusCityId: focusCity.id,
+                        focusSetTurn: next.turn,
+                    });
+                } else {
+                    // REVISION 2: Moderate staging requirements (compromise between too fast and too slow).
+                    // V1: 3-5 units (too slow, 50+ turn staging)
+                    // Fix 1: 2-3 units (too fast, premature wars)
+                    // Revision: 3-4 units (middle ground)
+                    const stageDistMax = 6;
+                    const requiredNear = Math.max(3, Math.ceil(profile.tactics.forceConcentration * 4));
+                    const nearCount = next.units.filter(u =>
+                        u.ownerId === playerId &&
+                        u.type !== "Settler" && u.type !== "Scout" && u.type !== "Skiff" && u.type !== "ArmyScout" &&
+                        hexDistance(u.coord, focusCity.coord) <= stageDistMax
+                    ).length;
+
+                    // Composition gate: must have at least one capturer and one siege unit staged.
+                    const capturersNear = countNearbyByPredicate(next, playerId, focusCity.coord, stageDistMax, (u) =>
+                        u.type === "SpearGuard" || u.type === "ArmySpearGuard" || u.type === "Titan"
+                    );
+                    const siegeNear = countNearbyByPredicate(next, playerId, focusCity.coord, stageDistMax, (u) =>
+                        u.type === "BowGuard" || u.type === "ArmyBowGuard"
+                    );
+
+                    if (nearCount < requiredNear) {
+                        // Start focusing, but wait to declare until forces are staged.
+                        const mem2a = getAiMemoryV2(next, playerId);
+                        next = setAiMemoryV2(next, playerId, {
+                            ...mem2a,
+                            focusTargetPlayerId: other.id,
+                            focusCityId: focusCity.id,
+                            focusSetTurn: next.turn,
+                        });
+                        continue;
+                    }
+                    if (!hasTitanNow && (capturersNear < 1 || siegeNear < 1)) {
+                        const mem2a = getAiMemoryV2(next, playerId);
+                        next = setAiMemoryV2(next, playerId, {
+                            ...mem2a,
+                            focusTargetPlayerId: other.id,
+                            focusCityId: focusCity.id,
+                            focusSetTurn: next.turn,
+                        });
+                        continue;
+                    }
+                }
+            }
+
+            // From here, we have enough nearby forces. Apply "declare now" gates.
+            if (next.turn < profile.diplomacy.minWarTurn) continue;
+            if (warsPlanned >= profile.diplomacy.maxConcurrentWars) continue;
+            if (recentInitiations.length >= profile.diplomacy.maxInitiatedWarsPer50Turns) continue;
+
+            const mem2 = getAiMemoryV2(next, playerId);
+            next = setAiMemoryV2(next, playerId, {
+                ...mem2,
+                focusTargetPlayerId: other.id,
+                focusCityId: focusCity?.id,
+                focusSetTurn: next.turn,
+                lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
+                warInitiationTurns: [...recentInitiations, next.turn],
+            });
+            actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
+            warsPlanned += 1;
+        }
+    }
+
+    return { state: next, actions };
+}
+
+

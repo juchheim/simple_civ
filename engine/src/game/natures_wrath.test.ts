@@ -37,7 +37,7 @@ describe('City Attack / Attrition Reproduction', () => {
 
         coords.forEach((coord, i) => {
             state.units.push({
-                id: `u_p1_${i}`,
+                id: `test_adj_${i}`,
                 type: UnitType.SpearGuard,
                 ownerId: p1.id,
                 coord: coord,
@@ -54,8 +54,8 @@ describe('City Attack / Attrition Reproduction', () => {
         // End P2 turn -> P1 starts turn
         state = handleEndTurn(state, { type: 'EndTurn', playerId: p2.id });
 
-        // Check P1 units HP
-        const p1Units = state.units.filter(u => u.ownerId === p1.id && u.type === UnitType.SpearGuard);
+        // Check the 3 injected P1 units HP (ignore any starting SpearGuards from world gen)
+        const p1Units = state.units.filter(u => u.ownerId === p1.id && u.type === UnitType.SpearGuard && String(u.id).startsWith("test_adj_"));
         expect(p1Units.length).toBe(3);
         p1Units.forEach(u => {
             expect(u.hp).toBe(UNITS[UnitType.SpearGuard].hp); // Should be full HP
@@ -87,7 +87,7 @@ describe('City Attack / Attrition Reproduction', () => {
 
         coords.forEach((coord, i) => {
             state.units.push({
-                id: `u_p1_${i}`,
+                id: `test_adj_${i}`,
                 type: UnitType.SpearGuard,
                 ownerId: p1.id,
                 coord: coord,
@@ -104,8 +104,8 @@ describe('City Attack / Attrition Reproduction', () => {
         // End P2 turn -> P1 starts turn -> Attrition applied
         state = handleEndTurn(state, { type: 'EndTurn', playerId: p2.id });
 
-        // Check P1 units HP
-        const p1Units = state.units.filter(u => u.ownerId === p1.id && u.type === UnitType.SpearGuard);
+        // Check the 3 injected P1 units HP (ignore any starting SpearGuards from world gen)
+        const p1Units = state.units.filter(u => u.ownerId === p1.id && u.type === UnitType.SpearGuard && String(u.id).startsWith("test_adj_"));
         expect(p1Units.length).toBe(3);
         p1Units.forEach(u => {
             expect(u.hp).toBe(UNITS[UnitType.SpearGuard].hp - 1); // Should take 1 damage

@@ -17,7 +17,8 @@ export function completeBuild(state: GameState, city: City) {
     if (build.type === "Unit") {
         const uType = build.id as UnitType;
 
-        const spawnCoord = findSpawnCoord(state, city, uType, 2);
+        // v5.2: Bulwark is immobile and must spawn directly on city tile
+        const spawnCoord = city.coord;
 
         const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
         const unitHp = UNITS[uType].hp + hpBonus;
@@ -94,39 +95,14 @@ export function completeBuild(state: GameState, city: City) {
                 player.completedProjects.push(ProjectId.JadeGranaryComplete);
                 city.milestones.push(ProjectId.JadeGranaryComplete);
 
-                for (const c of state.cities.filter(c => c.ownerId === city.ownerId)) {
-                    c.pop += 1;
-                    c.workedTiles = ensureWorkedTiles(c, state, {
-                        pinned: c.manualWorkedTiles,
-                        excluded: c.manualExcludedTiles,
-                    });
-                }
-
-                let spawnCoord = city.coord;
-                const maxRing = 2;
-                const area = hexSpiral(city.coord, maxRing);
-                for (const coord of area) {
-                    const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
-                    if (!tile) continue;
-                    if (tile.terrain === "Coast" || tile.terrain === "DeepSea" || tile.terrain === "Mountain") continue;
-                    const occupied = state.units.some(u => hexEquals(u.coord, coord));
-                    if (!occupied) {
-                        spawnCoord = coord;
-                        break;
-                    }
-                }
-
-                state.units.push({
-                    id: generateUnitId(state, city.ownerId, "free_settler", Date.now()),
-                    type: UnitType.Settler,
-                    ownerId: city.ownerId,
-                    coord: spawnCoord,
-                    hp: 10,
-                    maxHp: 10,
-                    movesLeft: 3,
-                    state: UnitState.Normal,
-                    hasAttacked: false,
+                // v2.9 NERF: Only grant +1 Pop to THIS city (was global)
+                city.pop += 1;
+                city.workedTiles = ensureWorkedTiles(city, state, {
+                    pinned: city.manualWorkedTiles,
+                    excluded: city.manualExcludedTiles,
                 });
+
+                // v2.9 NERF: Free Settler removed.
             }
         }
     } else if (build.type === "Project") {

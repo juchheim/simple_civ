@@ -64,13 +64,13 @@ export function runAiTurnSequence(initialState: GameState, playerId: string): Ga
     // Attack camp targets (separate from regular attackTargets)
     state = attackCampTargets(state, playerId);
 
-    state = moveMilitaryTowardTargets(state, playerId);
-
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
     state = titanRampage(state, playerId);
 
     // v2.1: Deathball coordination - move army toward Titan's target
     state = moveTroopsTowardTitan(state, playerId);
+
+    state = moveMilitaryTowardTargets(state, playerId);
 
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);
@@ -134,13 +134,13 @@ export function runAiTurnSequenceWithTrace(initialState: GameState, playerId: st
     // Attack camp targets (separate from regular attackTargets)
     state = attackCampTargets(state, playerId);
 
-    state = moveMilitaryTowardTargets(state, playerId);
-
     // v0.97: Titan Rampage - aggressive city capture for AetherianVanguard
     state = titanRampage(state, playerId);
 
     // v2.1: Deathball coordination - move army toward Titan's target
     state = moveTroopsTowardTitan(state, playerId);
+
+    state = moveMilitaryTowardTargets(state, playerId);
 
     // Consider razing poorly situated cities (v0.96 balance)
     state = considerRazing(state, playerId);

@@ -1,6 +1,7 @@
 import { GameState, UnitState, UnitType, BuildingType, HistoryEventType } from "../../core/types.js";
 import { logEvent } from "../history.js";
 import {
+    BUILDINGS,
     CITY_DEFENSE_BASE,
     CITY_WARD_DEFENSE_BONUS,
     CITY_ATTACK_BASE,
@@ -252,8 +253,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         }
 
         // v2.0: Civ 6-style damage formula for city attacks
+        // v5.0: Dynamic defense calculation from all buildings
         let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2) + garrisonDefenseBonus;
-        if (city.buildings.includes(BuildingType.CityWard)) defensePower += CITY_WARD_DEFENSE_BONUS;
+        for (const b of city.buildings) {
+            if (BUILDINGS[b].defenseBonus) defensePower += BUILDINGS[b].defenseBonus;
+        }
 
         // v3.0: Flanking Bonus vs City
         // +1 Attack for each OTHER friendly military unit adjacent to city
@@ -327,7 +331,9 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 } else {
                     // Track deathball captures (non-Titan city captures by AetherianVanguard)
                     const player = state.players.find(p => p.id === action.playerId);
-                    if (player && player.civName === "AetherianVanguard") {
+                    const hasTitan = state.units.some(u => u.ownerId === action.playerId && u.type === UnitType.Titan);
+
+                    if (player && player.civName === "AetherianVanguard" && hasTitan) {
                         if (!player.titanStats) {
                             player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
                         }

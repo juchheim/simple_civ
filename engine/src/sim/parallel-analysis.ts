@@ -25,7 +25,7 @@ setAiDebug(false);
 
 function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
     // Pass seed to civList for randomized civ selection
-    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed });
+    let state = generateWorld({ mapSize, players: civList(playerCount, seed), seed, aiSystem: "UtilityV2" });
     clearWarVetoLog();
 
     // Force initial contact
@@ -53,7 +53,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     let winTurn: number | null = null;
 
     while (!state.winnerId && state.turn <= turnLimit) {
-        const playerId = state.currentPlayerId;
+        const actingPlayerId = state.currentPlayerId;
 
         // Capture snapshot BEFORE turn
         const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, hp: u.hp }]));
@@ -76,7 +76,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             });
         });
 
-        state = runAiTurn(state, playerId);
+        state = runAiTurn(state, actingPlayerId);
 
         // Detect changes and log events
 
@@ -126,6 +126,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         cityId: city.id,
                         owner: u.ownerId,
                         unitType: u.type,
+                        unitId: u.id,
                     });
                 }
             } else {
@@ -140,6 +141,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                             cityId: city.id,
                             owner: u.ownerId,
                             unitType: u.type,
+                            unitId: u.id,
                         });
                     }
                 }
@@ -247,13 +249,17 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         const warKey = [civ1, civ2].sort().join("-") + "-" + state.turn;
                         if (!warsLoggedThisTurn.has(warKey)) {
                             warsLoggedThisTurn.add(warKey);
-                            const initiatorPower = estimateMilitaryPower(civ1, state);
-                            const targetPower = estimateMilitaryPower(civ2, state);
+                            // Attribute initiator to the acting player when possible; symmetric diplomacy updates
+                            // otherwise cause random initiator assignment depending on iteration order.
+                            const initiator = (actingPlayerId === civ1 || actingPlayerId === civ2) ? actingPlayerId : civ1;
+                            const target = initiator === civ1 ? civ2 : civ1;
+                            const initiatorPower = estimateMilitaryPower(initiator, state);
+                            const targetPower = estimateMilitaryPower(target, state);
                             events.push({
                                 type: "WarDeclaration",
                                 turn: state.turn,
-                                initiator: civ1,
-                                target: civ2,
+                                initiator,
+                                target,
                                 initiatorPower,
                                 targetPower,
                             });
@@ -308,30 +314,40 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         });
 
         // --- TITAN LOGGING ---
-        state.units.forEach(u => {
-            if (u.type === UnitType.Titan) {
-                // Titan Step: Log support count (Deathball metric)
-                const supportCount = state.units.filter(other =>
-                    other.ownerId === u.ownerId &&
-                    other.id !== u.id &&
-                    UNITS[other.type].domain !== "Civilian" &&
-                    // Simple distance check (hexDistance needs import, but we can approximate or assume it's available/copy it)
-                    // Since we don't have hexDistance imported in this file scope easily without adding imports,
-                    // let's just use a simple coordinate check if possible, or assume we can add the import.
-                    // Actually, let's just add the import or a helper.
-                    // For now, let's assume we can use a helper or just skip if too complex.
-                    // Wait, we can just use the same logic as in the game code:
-                    (Math.abs(other.coord.q - u.coord.q) + Math.abs(other.coord.q + other.coord.r - u.coord.q - u.coord.r) + Math.abs(other.coord.r - u.coord.r)) / 2 <= 3
-                ).length;
+        // Per-turn TitanStep events are expensive (event volume + JSON size). Keep them off by default.
+        // Enable detailed Titan step logging with SIM_LOG_TITAN_STEPS=true (or DEBUG_AI_LOGS=true).
+        if (process.env.DEBUG_AI_LOGS === "true" || process.env.SIM_LOG_TITAN_STEPS === "true") {
+            state.units.forEach(u => {
+                if (u.type === UnitType.Titan) {
+                    const supportCount = state.units.filter(other =>
+                        other.ownerId === u.ownerId &&
+                        other.id !== u.id &&
+                        UNITS[other.type].domain !== "Civilian" &&
+                        (Math.abs(other.coord.q - u.coord.q) + Math.abs(other.coord.q + other.coord.r - u.coord.q - u.coord.r) + Math.abs(other.coord.r - u.coord.r)) / 2 <= 3
+                    ).length;
 
-                events.push({
-                    type: "TitanStep",
-                    turn: state.turn,
-                    owner: u.ownerId,
-                    supportCount
-                });
+                    events.push({
+                        type: "TitanStep",
+                        turn: state.turn,
+                        owner: u.ownerId,
+                        supportCount
+                    });
 
-                if (!beforeUnits.has(u.id)) {
+                    if (!beforeUnits.has(u.id)) {
+                        events.push({
+                            type: "TitanSpawn",
+                            turn: state.turn,
+                            owner: u.ownerId,
+                            unitId: u.id,
+                            unitCount: state.units.filter(unit => unit.ownerId === u.ownerId).length
+                        });
+                    }
+                }
+            });
+        } else {
+            // Still log spawns (rare) so reports can track Titan timing.
+            state.units.forEach(u => {
+                if (u.type === UnitType.Titan && !beforeUnits.has(u.id)) {
                     events.push({
                         type: "TitanSpawn",
                         turn: state.turn,
@@ -340,8 +356,8 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         unitCount: state.units.filter(unit => unit.ownerId === u.ownerId).length
                     });
                 }
-            }
-        });
+            });
+        }
 
         // Titan Deaths & Kills
         beforeUnits.forEach((prevUnit, unitId) => {
@@ -404,13 +420,26 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 // ==========================================
 
 if (isMainThread) {
-    const MAP_CONFIGS: { size: MapSize; maxCivs: number }[] = [
+    const allConfigs: { size: MapSize; maxCivs: number }[] = [
         { size: "Tiny", maxCivs: 2 },
         { size: "Small", maxCivs: 3 },
         { size: "Standard", maxCivs: 4 },
         { size: "Large", maxCivs: 6 },
         { size: "Huge", maxCivs: 6 },
     ];
+
+    const allowedSizes = process.env.SIM_MAP_SIZES
+        ? process.env.SIM_MAP_SIZES.split(",").map(s => s.trim())
+        : [];
+
+    const MAP_CONFIGS = allowedSizes.length > 0
+        ? allConfigs.filter(c => allowedSizes.includes(c.size))
+        : allConfigs;
+
+    if (MAP_CONFIGS.length === 0) {
+        console.error(`Error: No valid map sizes found in SIM_MAP_SIZES: ${process.env.SIM_MAP_SIZES}`);
+        process.exit(1);
+    }
 
     const seedsCount = process.env.SIM_SEEDS_COUNT ? parseInt(process.env.SIM_SEEDS_COUNT) : 10;
     const seedOverride = process.env.SIM_SEED_OVERRIDE ? parseInt(process.env.SIM_SEED_OVERRIDE) : null;
@@ -423,6 +452,7 @@ if (isMainThread) {
     // Create task queue
     const tasks: { seed: number; config: typeof MAP_CONFIGS[0]; mapIndex: number; debug: boolean }[] = [];
     const debug = process.env.DEBUG_AI_LOGS === "true";
+    const quiet = process.env.SIM_QUIET === "true";
 
     if (seedOverride) {
         // Find which map config corresponds to this seed (assuming standard generation)
@@ -456,8 +486,10 @@ if (isMainThread) {
     const numCPUs = os.cpus().length;
     // v2.0: Changed from numCPUs - 1 (~70%) to 90% of cores for faster simulation
     const workerCount = Math.max(1, Math.floor(numCPUs * 0.9));
-    console.log(`Starting parallel simulation with ${workerCount} workers (90% of ${numCPUs} CPUs) for ${totalTasks} tasks...`);
-    if (debug) console.log("DEBUG LOGGING ENABLED - Output logs may be large.");
+    if (!quiet) {
+        console.log(`Starting parallel simulation with ${workerCount} workers (90% of ${numCPUs} CPUs) for ${totalTasks} tasks...`);
+        if (debug) console.log("DEBUG LOGGING ENABLED - Output logs may be large.");
+    }
 
     let activeWorkers = 0;
 
@@ -478,8 +510,11 @@ if (isMainThread) {
             const avgTime = elapsed / completedTasks;
             const remaining = (totalTasks - completedTasks) * avgTime;
 
-            console.log(`[${completedTasks}/${totalTasks}] Completed ${result.mapSize} (Seed ${result.seed}) in ${(result.duration / 1000).toFixed(1)}s - Winner: ${result.winner?.civ || 'None'}`);
-            console.log(`  Progress: ${Math.round(completedTasks / totalTasks * 100)}% | Elapsed: ${elapsed.toFixed(0)}s | Est. Remaining: ${remaining.toFixed(0)}s`);
+            // NOTE: monitor-flexible.sh relies on the "Completed" token for progress tracking (grep -c "Completed").
+            console.log(
+                `[${completedTasks}/${totalTasks}] Completed ${result.mapSize} (Seed ${result.seed}) in ${(result.duration / 1000).toFixed(1)}s ` +
+                `| Winner: ${result.winner?.civ || "None"} | ${Math.round(completedTasks / totalTasks * 100)}% | ETA ${remaining.toFixed(0)}s`
+            );
         });
 
         worker.on('error', (err) => {
@@ -507,16 +542,23 @@ if (isMainThread) {
 
     const finish = () => {
         const totalTimeSeconds = (Date.now() - startTime) / 1000;
-        console.log(`\n${'='.repeat(60)}`);
-        console.log(`ALL SIMULATIONS COMPLETE!`);
-        console.log(`${'='.repeat(60)}`);
-        console.log(`Total simulations: ${allResults.length}`);
-        console.log(`Total time: ${totalTimeSeconds.toFixed(0)}s (${(totalTimeSeconds / allResults.length).toFixed(1)}s per simulation)`);
+        if (!quiet) {
+            console.log(`\n${"=".repeat(60)}`);
+            console.log(`ALL SIMULATIONS COMPLETE!`);
+            console.log(`${"=".repeat(60)}`);
+            console.log(`Total simulations: ${allResults.length}`);
+            console.log(`Total time: ${totalTimeSeconds.toFixed(0)}s (${(totalTimeSeconds / allResults.length).toFixed(1)}s per simulation)`);
+        } else {
+            console.log(`ALL SIMULATIONS COMPLETE`);
+        }
 
-        writeFileSync("/tmp/comprehensive-simulation-results.json", JSON.stringify(allResults, null, 2));
+        // Writing minified JSON is materially faster and smaller for large runs (e.g. 120 sims).
+        writeFileSync("/tmp/comprehensive-simulation-results.json", JSON.stringify(allResults));
 
-        console.log(`✓ Results written to /tmp/comprehensive-simulation-results.json`);
-        console.log(`File size: ${(statSync('/tmp/comprehensive-simulation-results.json').size / 1024 / 1024).toFixed(1)} MB`);
+        if (!quiet) {
+            console.log(`✓ Results written to /tmp/comprehensive-simulation-results.json`);
+            console.log(`File size: ${(statSync("/tmp/comprehensive-simulation-results.json").size / 1024 / 1024).toFixed(1)} MB`);
+        }
         process.exit(0);
     };
 

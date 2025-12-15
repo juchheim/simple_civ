@@ -101,7 +101,7 @@ describe('Bowguard Settler Capture in City', () => {
         // Attack is redirected to the city; Settler is untouched and not captured.
         expect(updatedBowguard?.coord).toEqual({ q: 0, r: 0 });
         expect(updatedSettler?.ownerId).toBe('p2');
-        expect(cityAfter?.hp).toBe(15); // v2.0: Civ 6 formula deals 5 damage (was 3)
+        expect(cityAfter?.hp).toBe(16); // v2.0: Civ 6 formula deals 4 damage (was 5)
     });
 
     it("should NOT capture Settler in enemy city (redirects to city damage) for SpearGuard", () => {
@@ -167,6 +167,6 @@ describe('Bowguard Settler Capture in City', () => {
         // Attack is redirected to the city; Settler is untouched and not captured.
         expect(updatedSpearguard?.coord).toEqual({ q: 0, r: 0 });
         expect(updatedSettler?.ownerId).toBe('p2');
-        expect(cityAfter?.hp).toBe(15); // v2.0: Civ 6 formula deals 5 damage (was 3)
+        expect(cityAfter?.hp).toBe(16); // v2.0: Civ 6 formula deals 4 damage (was 5)
     });
 });

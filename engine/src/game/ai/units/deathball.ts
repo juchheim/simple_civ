@@ -1,6 +1,7 @@
 import { aiInfo } from "../debug-logging.js";
+import { getNextTargetCity } from "./titan.js";
 import { hexDistance, hexEquals } from "../../../core/hex.js";
-import { DiplomacyState, GameState, UnitType, UnitState } from "../../../core/types.js";
+import { DiplomacyState, GameState, UnitType, UnitState, BuildingType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { findPath } from "../../helpers/pathfinding.js";
@@ -14,26 +15,34 @@ export function moveTroopsTowardTitan(state: GameState, playerId: string): GameS
 
     // Find the Titan
     const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
-    if (!titan) return next; // No Titan, no deathball
 
-    // Find Titan's target city (same logic as titan.ts)
-    const warEnemies = next.players.filter(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        next.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
+    // Find Titan's target city
+    let targetCity = null;
+    let rallyPoint: { q: number; r: number } | null = null;
+    let isPreSpawn = false;
 
-    if (warEnemies.length === 0) return next;
+    if (titan) {
+        targetCity = getNextTargetCity(next, playerId, titan.coord);
+        if (targetCity) rallyPoint = targetCity.coord;
+        else rallyPoint = titan.coord;
+    } else {
+        // v2.2: Pre-Spawn Rally Logic
+        // If Titan is being built, rally to the city building it
+        const builderCity = next.cities.find(c =>
+            c.ownerId === playerId &&
+            c.currentBuild?.type === "Building" &&
+            c.currentBuild.id === BuildingType.TitansCore
+        );
 
-    const enemyCities = next.cities
-        .filter(c => warEnemies.some(e => e.id === c.ownerId))
-        .sort((a, b) => {
-            if (a.isCapital !== b.isCapital) return a.isCapital ? -1 : 1;
-            return a.hp - b.hp;
-        });
+        if (builderCity) {
+            rallyPoint = builderCity.coord;
+            isPreSpawn = true;
+            aiInfo(`[AI Deathball] ${playerId} PRE-RALLYING army to ${builderCity.name} (Building Titan's Core)`);
+        }
+    }
 
-    const targetCity = enemyCities.find(c => c.isCapital) ?? enemyCities[0];
-    if (!targetCity) return next;
+    if (!rallyPoint) return next;
+
 
     // Get military units that can support (not garrisoned, not Titan, have moves)
     const supportUnits = next.units.filter(u =>
@@ -46,14 +55,18 @@ export function moveTroopsTowardTitan(state: GameState, playerId: string): GameS
     );
 
     // Only consider units within reasonable range (10 hexes of Titan or target)
+    // v2.2: If pre-spawn, check global capable units (to pull them from anywhere)
     const nearbyUnits = supportUnits.filter(u => {
+        if (isPreSpawn) return true; // Pull everyone for pre-rally
+        if (!titan || !targetCity) return false;
+
         const distToTitan = hexDistance(u.coord, titan.coord);
         const distToTarget = hexDistance(u.coord, targetCity.coord);
         return distToTitan <= 12 || distToTarget <= 12;
     });
 
     let movedCount = 0;
-    const MAX_MOVES = 5; // Limit to avoid excessive pathfinding
+    const MAX_MOVES = 50; // Increased from 5 to allow full army support
 
     for (const unit of nearbyUnits) {
         if (movedCount >= MAX_MOVES) break;
@@ -62,11 +75,12 @@ export function moveTroopsTowardTitan(state: GameState, playerId: string): GameS
         if (!liveUnit || liveUnit.movesLeft <= 0) continue;
 
         // Already adjacent to target or Titan? Stay
-        if (hexDistance(liveUnit.coord, targetCity.coord) <= 2) continue;
-        if (hexDistance(liveUnit.coord, titan.coord) <= 1) continue;
+        if (targetCity && hexDistance(liveUnit.coord, targetCity.coord) <= 2) continue;
+        if (titan && hexDistance(liveUnit.coord, titan.coord) <= 1) continue;
+        if (isPreSpawn && hexDistance(liveUnit.coord, rallyPoint) <= 1) continue;
 
-        // Move toward target city (same destination as Titan)
-        const path = findPath(liveUnit.coord, targetCity.coord, liveUnit, next);
+        // Move toward target city (same destination as Titan) or Rally Point
+        const path = findPath(liveUnit.coord, rallyPoint, liveUnit, next);
         if (path && path.length > 0) {
             const moveResult = tryAction(next, {
                 type: "MoveUnit",
@@ -75,7 +89,8 @@ export function moveTroopsTowardTitan(state: GameState, playerId: string): GameS
                 to: path[0]
             });
             if (moveResult !== next) {
-                aiInfo(`[AI Deathball] ${playerId} ${liveUnit.type} moving to support Titan attack on ${targetCity.name}`);
+                const targetName = targetCity ? targetCity.name : (isPreSpawn ? "Rally Point" : "Titan");
+                aiInfo(`[AI Deathball] ${playerId} ${liveUnit.type} moving to support ${targetName}`);
                 next = moveResult;
                 movedCount++;
             }

@@ -31,6 +31,7 @@ export type WorldGenSettings = {
     players: { id: string; civName: string; color: string; ai?: boolean }[];
     seed?: number;
     riverOptions?: RiverGenerationOptions;
+    aiSystem?: "Legacy" | "UtilityV2";
 };
 
 /**
@@ -287,6 +288,24 @@ export function generateWorld(settings: WorldGenSettings): GameState {
             });
         }
 
+        // v2.9: ScholarKingdoms starts with extra BowGuard (defensive theme)
+        if (p.civName === "ScholarKingdoms") {
+            const bowStats = UNITS[UnitType.BowGuard];
+            const extraBowCoord = findSpawnCoord(usedCoords);
+            usedCoords.push(extraBowCoord);
+            units.push({
+                id: `u_${p.id}_bow`,
+                type: UnitType.BowGuard,
+                ownerId: p.id,
+                coord: extraBowCoord,
+                hp: bowStats.hp,
+                maxHp: bowStats.hp,
+                movesLeft: bowStats.move,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            });
+        }
+
         // NOTE: JadeCovenant extra settler REMOVED in v0.98 update
         // Their 80% win rate with growth bonuses + pop combat bonus was too strong
     }
@@ -307,6 +326,8 @@ export function generateWorld(settings: WorldGenSettings): GameState {
     const initialState: GameState = {
         id: crypto.randomUUID(),
         turn: 1,
+        aiSystem: settings.aiSystem ?? "UtilityV2",
+        aiMemoryV2: {},
         players,
         currentPlayerId: players[0].id,
         phase: PlayerPhase.StartOfTurn,

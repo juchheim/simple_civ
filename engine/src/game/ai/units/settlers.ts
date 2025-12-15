@@ -408,7 +408,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         const hasAdjacentEscort = hasNearbyEscort(next, liveSettler, playerId, hasLinkedEscortFlag);
 
         // Safety Check: Wait for escort if threatened or outside borders
-        if (safety.threatLevel !== "none" && !hasLinkedEscort && !hasAdjacentEscort) {
+        if (safety.threatLevel !== "none" && !hasLinkedEscortFlag && !hasAdjacentEscort) {
             // If we are in danger and have no escort, we should RETREAT, not just wait.
             // Waiting just makes us a sitting duck.
             const danger = detectNearbyDanger(liveSettler.coord, playerId, next);
@@ -503,6 +503,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             u.ownerId === playerId &&
             u.id !== settler.id &&
             UNITS[u.type].domain !== "Civilian" &&
+            UNITS[u.type].move > 0 &&  // v5.2: Exclude immobile units like Bulwark
             hexEquals(u.coord, settler.coord) &&
             !u.linkedUnitId
         );

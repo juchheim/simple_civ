@@ -179,43 +179,57 @@ function analyzeUnitKills(results) {
     // NEW: Track production
     const productionByType = new Map();
     const productionByCiv = new Map();
+    // Track deaths of units that were actually produced (excluding starting units).
+    const producedDeathsByType = new Map();
 
     results.forEach(sim => {
+        // Two-pass: events are not guaranteed to be sorted by turn (or production before death),
+        // so first collect all produced unitIds, then attribute deaths to "produced vs starting".
+        const producedIds = new Set();
+
         sim.events.forEach(e => {
-            if (e.type === "UnitDeath") {
-                kills.push({
-                    turn: e.turn,
-                    unitType: e.unitType,
-                    owner: e.owner,
-                    killedBy: e.killedBy,
-                    mapSize: sim.mapSize,
-                });
+            if (e.type !== "UnitProduction") return;
+            productionByType.set(e.unitType, (productionByType.get(e.unitType) || 0) + 1);
+            if (e.unitId) producedIds.add(e.unitId);
 
-                // Get civ name for owner
-                const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
-                if (ownerCiv) {
-                    deathsByCiv.set(ownerCiv, (deathsByCiv.get(ownerCiv) || 0) + 1);
-                }
-                deathsByType.set(e.unitType, (deathsByType.get(e.unitType) || 0) + 1);
+            const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
+            if (ownerCiv) {
+                productionByCiv.set(ownerCiv, (productionByCiv.get(ownerCiv) || 0) + 1);
+            }
+        });
 
-                if (e.killedBy) {
-                    const killerCiv = sim.finalState?.civs.find(c => c.id === e.killedBy)?.civName;
-                    if (killerCiv) {
-                        killsByCiv.set(killerCiv, (killsByCiv.get(killerCiv) || 0) + 1);
-                    }
-                }
-            } else if (e.type === "UnitProduction") {
-                productionByType.set(e.unitType, (productionByType.get(e.unitType) || 0) + 1);
+        sim.events.forEach(e => {
+            if (e.type !== "UnitDeath") return;
+            kills.push({
+                turn: e.turn,
+                unitType: e.unitType,
+                owner: e.owner,
+                killedBy: e.killedBy,
+                mapSize: sim.mapSize,
+            });
 
-                const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
-                if (ownerCiv) {
-                    productionByCiv.set(ownerCiv, (productionByCiv.get(ownerCiv) || 0) + 1);
+            // Get civ name for owner
+            const ownerCiv = sim.finalState?.civs.find(c => c.id === e.owner)?.civName;
+            if (ownerCiv) {
+                deathsByCiv.set(ownerCiv, (deathsByCiv.get(ownerCiv) || 0) + 1);
+            }
+            deathsByType.set(e.unitType, (deathsByType.get(e.unitType) || 0) + 1);
+
+            // Produced-only death tracking (exclude starting units)
+            if (e.unitId && producedIds.has(e.unitId)) {
+                producedDeathsByType.set(e.unitType, (producedDeathsByType.get(e.unitType) || 0) + 1);
+            }
+
+            if (e.killedBy) {
+                const killerCiv = sim.finalState?.civs.find(c => c.id === e.killedBy)?.civName;
+                if (killerCiv) {
+                    killsByCiv.set(killerCiv, (killsByCiv.get(killerCiv) || 0) + 1);
                 }
             }
         });
     });
 
-    return { kills, deathsByCiv, deathsByType, killsByCiv, productionByType, productionByCiv };
+    return { kills, deathsByCiv, deathsByType, producedDeathsByType, killsByCiv, productionByType, productionByCiv };
 }
 
 function analyzeCityGrowth(results) {
@@ -682,8 +696,11 @@ report += `### Deaths by Unit Type\n`;
 const sortedTypes = Array.from(unitAnalysis.deathsByType.entries()).sort((a, b) => b[1] - a[1]);
 sortedTypes.forEach(([type, count]) => {
     const produced = unitAnalysis.productionByType.get(type) || 0;
-    const survivalRate = produced > 0 ? (((produced - count) / produced) * 100).toFixed(1) : 'N/A';
-    report += `- **${type}:** ${count} deaths (${produced} produced, ${survivalRate}% survival)\n`;
+    const producedDeaths = unitAnalysis.producedDeathsByType.get(type) || 0;
+    const producedSurvival = produced > 0
+        ? (((produced - producedDeaths) / produced) * 100).toFixed(1)
+        : "N/A";
+    report += `- **${type}:** ${count} deaths (${produced} produced, ${producedDeaths} of produced died, ${producedSurvival}% produced survival)\n`;
 });
 report += `\n`;
 

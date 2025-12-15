@@ -1,0 +1,106 @@
+Overriding simulation to run ONLY Seed 107007 on Small map
+Starting parallel simulation with 9 workers (90% of 10 CPUs) for 1 tasks...
+DEBUG LOGGING ENABLED - Output logs may be large.
+[AI Escort] p1 linked Scout to settler at 3,11
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[1/1] Completed Small (Seed 107007) in 3.2s | Winner: JadeCovenant | 100% | ETA 0s
+[AI Found] p1 founded Xylos at 3,11
+[AI Escort] p2 linked Scout to settler at 0,7
+[AI Found] p2 founded Skywhisper at 0,7
+[AI Escort] p3 linked Scout to settler at 11,8
+[AI Found] p3 founded Jadehall at 11,8
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=1 (Current:1/Desired:2) | War=false
+[AI Build] p1 chose BowGuard (Score: 300.375)
+[AI Escort] p3 linked Scout to settler at 10,9
+[AI Escort] p3 linked Scout to settler at 9,9
+[AI Found] p3 founded Silkveil at 7,11
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p1 chose Settler (Score: 249)
+[AI Found] p3 founded Serene Dawn at 11,6
+[AI Escort] p3 linked Scout to settler at 6,12
+[AI Found] p3 founded Golden Crane at 5,12
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p1 chose Settler (Score: 249)
+[AI Escort] p1 linked Scout to settler at 2,12
+[AI Escort] p1 linked Scout to settler at 1,13
+[AI Escort] p3 linked Scout to settler at 10,6
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=0 (Current:2/Desired:2) | War=false
+[AI Build] p1 chose SpearGuard (Score: 110.00000000000001)
+[AI Escort] p2 linked Scout to settler at 0,8
+[AI Escort] p1 linked SpearGuard to settler at 1,12
+[AI Escort] p2 linked Scout to settler at 0,7
+[AI Escort] p1 linked SpearGuard to settler at 1,13
+[AI Escort] p2 linked Scout to settler at 0,6
+[AI Escort] p1 linked SpearGuard to settler at 1,12
+[AI Escort] p2 linked Scout to settler at 1,6
+[AI Escort] p1 linked SpearGuard to settler at 1,13
+[AI Escort] p2 linked Scout to settler at 2,6
+[AI Escort] p1 linked SpearGuard to settler at 0,13
+[AI Found] p1 founded Zenthor at -1,13
+[AI Escort] p2 linked Scout to settler at 3,6
+[AI Found] p2 founded Starhollow at 4,6
+[AI Escort] p3 linked BowGuard to settler at 10,9
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=4 (Current:2/Desired:6) | War=true
+[AI Build] p1 chose SpearGuard (Score: 300)
+[AI Escort] p1 linked Scout to settler at 0,12
+[AI Escort] p3 linked BowGuard to settler at 9,10
+[AI Escort] p1 linked Scout to settler at -1,13
+[AI Escort] p3 linked BowGuard to settler at 9,11
+[AI Escort] p3 linked Scout to settler at 7,12
+[AI Escort] p1 linked Scout to settler at 0,13
+[AI Escort] p3 linked BowGuard to settler at 9,12
+[AI Escort] p3 linked Scout to settler at 8,12
+[AI Found] p3 founded Moonlit Shrine at 9,13
+[AI Escort] p1 linked Scout to settler at -1,13
+[AI Escort] p3 linked Scout to settler at 8,11
+[AI Escort] p1 linked Scout to settler at 0,13
+[AI Settler] p3 settler at 5,12 waiting for linked escort (high threat)
+[AI Escort] p1 linked Scout to settler at 0,13
+[AI Settler] p3 settler at 5,12 waiting for linked escort (high threat)
+[AI Escort] p3 linked BowGuard to settler at 5,12
+[AI Escort] p1 linked Scout to settler at 0,13
+[AI Escort] p3 linked BowGuard to settler at 6,12
+[AI Escort] p3 linked BowGuard to settler at 7,12
+[AI Escort] p3 linked BowGuard to settler at 8,12
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=7 (Current:2/Desired:9) | War=true
+[AI Build] p1 chose SpearGuard (Score: 345)
+[AI Escort] p3 linked BowGuard to settler at 8,11
+[AI Escort] p3 linked BowGuard to settler at 7,12
+[AI Escort] p3 linked BowGuard to settler at 7,11
+[AI Escort] p3 linked BowGuard to settler at 7,12
+[AI Escort] p3 linked BowGuard to settler at 8,11
+[AI Escort] p3 linked BowGuard to settler at 8,10
+[AI Escort] p3 linked BowGuard to settler at 8,11
+[AI Escort] p3 linked BowGuard to settler at 8,10
+[AI Escort] p3 linked BowGuard to settler at 9,10
+[AI Escort] p3 linked BowGuard to settler at 10,10
+[AI Escort] p3 linked BowGuard to settler at 11,10
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=13 (Current:2/Desired:15) | War=true
+[AI Build] p1 chose BowGuard (Score: 785)
+[AI Escort] p3 linked BowGuard to settler at 11,9
+[AI Escort] p3 linked BowGuard to settler at 10,9
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=13 (Current:2/Desired:15) | War=true
+[AI Build] p1 chose BowGuard (Score: 785)
+[AI Escort] p3 linked BowGuard to settler at 10,8
+[AI Escort] p3 linked BowGuard to settler at 10,7
+[AI Escort] p3 linked BowGuard to settler at 9,7
+[AI Found] p3 founded Pearlfold at 8,8
+[AI Escort] p3 linked BowGuard to settler at 9,6
+[AI Escort] p3 linked Scout to settler at 9,5
+[AI Build] AetherianVanguard (p1) Army Check: Deficit=10 (Current:2/Desired:12) | War=true
+[AI Build] p1 chose SpearGuard (Score: 390)
+[AI Build] p3 chose Observatory (Score: 240)
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+[AI ACTION FAILED] Attack: Garrisoned units cannot attack
+
+============================================================
+ALL SIMULATIONS COMPLETE!
+============================================================
+Total simulations: 1
+Total time: 3s (3.3s per simulation)
+✓ Results written to /tmp/comprehensive-simulation-results.json
+File size: 0.0 MB

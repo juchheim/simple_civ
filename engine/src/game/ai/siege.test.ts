@@ -66,6 +66,7 @@ describe('AI Siege Logic', () => {
         // Set up war
         state.diplomacy['p1'] = { 'p2': DiplomacyState.War };
         state.diplomacy['p2'] = { 'p1': DiplomacyState.War };
+        state.aiSystem = "Legacy";
     });
 
     it('should capture a city when having overwhelming force', () => {

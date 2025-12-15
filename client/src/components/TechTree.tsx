@@ -1,5 +1,5 @@
 import React from "react";
-import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType } from "@simple-civ/engine";
+import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType, ProjectId } from "@simple-civ/engine";
 import { CIV_OPTIONS } from "../data/civs";
 import { formatName } from "../utils/strings";
 import "./TechTree.css";
@@ -14,6 +14,9 @@ interface TechTreeProps {
 export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChooseTech, onClose }) => {
     const player = gameState.players.find(p => p.id === playerId);
     const civData = player ? CIV_OPTIONS.find(c => c.id === player.civName) : null;
+
+    // Tooltip state - tracks what to show and where
+    const [tooltip, setTooltip] = React.useState<{ content: string; x: number; y: number } | null>(null);
 
     if (!player) return null;
 
@@ -82,21 +85,150 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         return result;
     };
 
+    // Get civ-specific unique item for a tech (for tooltip display)
+    const getCivUniqueForTech = (techId: TechId): string | null => {
+        if (!player) return null;
+        const civName = player.civName;
+
+        // Unique buildings
+        if (civName === "JadeCovenant" && techId === TechId.Fieldcraft) {
+            return `⭐ Unique: Jade Granary • ${renderBuildingStats(BuildingType.JadeGranary)}`;
+        }
+        if (civName === "AetherianVanguard" && techId === TechId.SteamForges) {
+            return `⭐ Unique: Titan's Core • ${renderBuildingStats(BuildingType.TitansCore)}`;
+        }
+        if (civName === "StarborneSeekers" && techId === TechId.StarCharts) {
+            return `⭐ Unique: Spirit Observatory • ${renderBuildingStats(BuildingType.SpiritObservatory)}`;
+        }
+
+        // Bulwark Building for defensive civs
+        if ((civName === "ScholarKingdoms" || civName === "StarborneSeekers") && techId === TechId.StoneworkHalls) {
+            return `⭐ Unique: Building: Bulwark • ${renderBuildingStats(BuildingType.Bulwark)}`;
+        }
+
+        return null;
+    };
+
+    // Get a description for a unit type
+    const getUnitDescription = (unitType: UnitType): string => {
+        switch (unitType) {
+            case UnitType.Settler:
+                return "Founds new cities. Cannot attack.";
+            case UnitType.Scout:
+                return "Fast explorer with low combat stats. Great for scouting terrain.";
+            case UnitType.SpearGuard:
+                return "Reliable melee infantry. Can capture cities.";
+            case UnitType.BowGuard:
+                return "Ranged attacker. Strikes from 2 tiles away but cannot capture cities.";
+            case UnitType.Riders:
+                return "Fast cavalry. High mobility and can capture cities.";
+            case UnitType.Skiff:
+                return "Naval unit for exploring and controlling coastal waters.";
+
+            case UnitType.Titan:
+                return "Devastating war machine. Extremely powerful in combat.";
+            default:
+                return "";
+        }
+    };
+
+    // Get a description for a building type
+    const getBuildingDescription = (buildingType: BuildingType): string => {
+        switch (buildingType) {
+            case BuildingType.Farmstead:
+                return "Increases food production and speeds city growth.";
+            case BuildingType.StoneWorkshop:
+                return "Boosts production output for faster building and unit creation.";
+            case BuildingType.Scriptorium:
+                return "Increases science output for faster research.";
+            case BuildingType.Reservoir:
+                return "Major food boost, especially effective when working water tiles.";
+            case BuildingType.LumberMill:
+                return "Increases production, with bonus when working forest tiles.";
+            case BuildingType.Academy:
+                return "Advanced research facility providing substantial science.";
+            case BuildingType.CityWard:
+                return "Fortification that increases city defense and bombardment strength.";
+            case BuildingType.Forgeworks:
+                return "Industrial facility for massive production output.";
+            case BuildingType.CitySquare:
+                return "Urban center providing both food and production.";
+            case BuildingType.TitansCore:
+                return "Unique Aetherian facility. Summons The Titan upon completion.";
+            case BuildingType.SpiritObservatory:
+                return "Unique Starborne facility. Grants major science and food bonuses.";
+            case BuildingType.JadeGranary:
+                return "Unique Jade Covenant granary with enhanced food production.";
+            case BuildingType.Bulwark:
+                return "Scholar/Starborne Fortress. +12 Defense, +4 Attack, +1 Science. BLOCKS Military Production.";
+            default:
+                return "";
+        }
+    };
+
+    // Get a description for a project type
+    const getProjectDescription = (projectId: ProjectId): string => {
+        const project = PROJECTS[projectId];
+        if (!project) return "";
+
+        switch (projectId) {
+            case ProjectId.Observatory:
+                return `Milestone project. First step toward Progress Victory. Cost: ${project.cost}P`;
+            case ProjectId.GrandAcademy:
+                return `Second milestone toward Progress Victory. Requires Observatory. Cost: ${project.cost}P`;
+            case ProjectId.GrandExperiment:
+                return `Final milestone. Completing this wins the game via Progress Victory! Cost: ${project.cost}P`;
+            case ProjectId.FormArmy_SpearGuard:
+                return "Upgrades a SpearGuard unit into an elite Army with improved stats.";
+            case ProjectId.FormArmy_BowGuard:
+                return "Upgrades a BowGuard unit into an elite Army with improved stats.";
+            case ProjectId.FormArmy_Riders:
+                return "Upgrades a Riders unit into an elite Army with improved stats.";
+            case ProjectId.HarvestFestival:
+                return `Grants +25 Food. Requires Farmstead. Cost: ${project.cost}P`;
+            case ProjectId.AlchemicalExperiments:
+                return `Grants +25 Science. Requires Scriptorium. Cost: ${project.cost}P`;
+            default:
+                return "";
+        }
+    };
+
+    // Get a description for a passive bonus
+    const getPassiveDescription = (key: string): string => {
+        if (key.includes("+1/+1 to Melee & Ranged")) {
+            return "All melee and ranged units gain +1 Attack and +1 Defense permanently.";
+        }
+        if (key.includes("Enable Form Army")) {
+            return "Unlocks projects to upgrade units into powerful Army formations with +5 HP and improved stats.";
+        }
+        if (key.includes("+1/+1 to Armies")) {
+            return "All Army units gain an additional +1 Attack and +1 Defense.";
+        }
+        if (key.includes("+2 Science per city")) {
+            return "Every city in your empire produces +2 bonus Science per turn.";
+        }
+        return "";
+    };
+
     const renderUnlockLine = (tech: typeof TECHS[TechId]): string => {
         if (tech.unlock.type === "Unit") {
             const unit = UNITS[tech.unlock.id as UnitType];
             if (!unit) return `Unit: ${formatName(tech.unlock.id)}`;
             const stats = `${unit.atk}/${unit.def}/${unit.move}${unit.rng > 1 ? `/${unit.rng}r` : ""}`;
-            return `Unit: ${formatName(tech.unlock.id)} • ${stats} • Cost: ${unit.cost}`;
+            const desc = getUnitDescription(tech.unlock.id as UnitType);
+            return `Unit: ${formatName(tech.unlock.id)} • ${stats} • Cost: ${unit.cost}\n${desc}`;
         }
         if (tech.unlock.type === "Building") {
             const stats = renderBuildingStats(tech.unlock.id as BuildingType);
-            return `Building: ${formatName(tech.unlock.id)} • ${stats}`;
+            const desc = getBuildingDescription(tech.unlock.id as BuildingType);
+            return `Building: ${formatName(tech.unlock.id)} • ${stats}\n${desc}`;
         }
         if (tech.unlock.type === "Passive") {
-            return `Passive: ${tech.unlock.key}`;
+            const desc = getPassiveDescription(tech.unlock.key);
+            return `Passive: ${tech.unlock.key}${desc ? `\n${desc}` : ""}`;
         }
-        return `Project: ${formatName(tech.unlock.id)}`;
+        const desc = getProjectDescription(tech.unlock.id as ProjectId);
+        return `Project: ${formatName(tech.unlock.id)}${desc ? `\n${desc}` : ""}`;
     };
 
     // Check if no research is currently selected
@@ -129,6 +261,30 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         ? allTechs.find(t => getTechState(t) === "available")
         : null;
 
+    // Build tooltip content for a tech
+    const buildTechTooltip = (techId: TechId): string => {
+        const tech = TECHS[techId];
+        const lines: string[] = [];
+
+        // Main unlock line
+        lines.push(renderUnlockLine(tech));
+
+        // Building extras
+        if (tech.unlock.type === "Building") {
+            const extras = getBuildingExtras(tech.unlock.id as BuildingType);
+            if (extras.conditional) lines.push(extras.conditional);
+            if (extras.projects) lines.push(extras.projects);
+        }
+
+        // Civ-Specific Uniques (now consolidated via getCivUniqueForTech)
+        const civUnique = getCivUniqueForTech(techId);
+        if (civUnique) {
+            lines.push(civUnique);
+        }
+
+        return lines.join("\n");
+    };
+
     const renderTechCard = (techId: TechId) => {
         const tech = TECHS[techId];
         const state = getTechState(techId);
@@ -140,11 +296,6 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                 onChooseTech(techId);
             }
         };
-
-        // Get building extras (conditional, projects) if applicable
-        const buildingExtras = tech.unlock.type === "Building"
-            ? getBuildingExtras(tech.unlock.id as BuildingType)
-            : {};
 
         // Calculate progress percentage for current tech
         const progressPercent = isCurrent && player.currentTech
@@ -160,17 +311,33 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                 transparent 100%)`
         } : {};
 
+        const handleMouseMove = (e: React.MouseEvent) => {
+            setTooltip({
+                content: buildTechTooltip(techId),
+                x: e.clientX,
+                y: e.clientY + 16  // Position below the cursor
+            });
+        };
+
+        const handleMouseLeave = () => {
+            setTooltip(null);
+        };
+
         return (
             <div
                 key={techId}
                 className={`tech-card tech-card--${state}${needsAttention ? ' tech-card--needs-attention' : ''}`}
                 onClick={handleClick}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
                 style={progressStyle}
             >
                 <div className="tech-card-header">
                     <span className="tech-card-name">{formatName(techId)}</span>
                     <span className="tech-card-cost">⚗ {tech.cost}</span>
                 </div>
+
+
 
                 {/* Show prerequisite tech if any */}
                 {tech.prereqTechs.length > 0 && (
@@ -179,30 +346,10 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                     </div>
                 )}
 
-                <div className="tech-card-unlock">{renderUnlockLine(tech)}</div>
-
-                {/* Extra info for buildings */}
-                {buildingExtras.conditional && (
-                    <div className="tech-card-conditional">{buildingExtras.conditional}</div>
-                )}
-                {buildingExtras.projects && (
-                    <div className="tech-card-projects">{buildingExtras.projects}</div>
-                )}
-
-                {/* Civ-Specific Uniques */}
-                {player.civName === "JadeCovenant" && techId === TechId.Fieldcraft && (
-                    <div className="tech-card-unique">
-                        Unique: Jade Granary • {renderBuildingStats(BuildingType.JadeGranary)}
-                    </div>
-                )}
-                {player.civName === "AetherianVanguard" && techId === TechId.SteamForges && (
-                    <div className="tech-card-unique">
-                        Unique: Titan's Core • {renderBuildingStats(BuildingType.TitansCore)}
-                    </div>
-                )}
-                {player.civName === "StarborneSeekers" && techId === TechId.StarCharts && (
-                    <div className="tech-card-unique">
-                        Unique: Spirit Observatory • {renderBuildingStats(BuildingType.SpiritObservatory)}
+                {/* Progress indicator for current tech */}
+                {isCurrent && player.currentTech && (
+                    <div className="tech-card-progress-text">
+                        {player.currentTech.progress}/{player.currentTech.cost}
                     </div>
                 )}
             </div>
@@ -303,6 +450,19 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                     </div>
                 </div>
             </div>
+
+            {/* Mouse-following tooltip */}
+            {tooltip && (
+                <div
+                    className="tech-card-tooltip"
+                    style={{
+                        left: tooltip.x,
+                        top: tooltip.y,
+                    }}
+                >
+                    {tooltip.content}
+                </div>
+            )}
         </div>
     );
 };

@@ -94,20 +94,20 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     ScholarKingdoms: {
         aggression: {
-            // v2.2: True Pacifist - almost never start wars
-            warPowerThreshold: 10.0,  // Only attack if 10x stronger (effectively never)
-            warDistanceMax: 5,       // Only fight immediate neighbors
+            // v5.0: Ultra-defensive - never initiate wars, always accept peace
+            warPowerThreshold: 100.0,  // Effectively never attack
+            warDistanceMax: 3,         // Only retaliate against immediate threats
             peacePowerThreshold: 100.0,  // Always accept peace
         },
         settleBias: {},
-        expansionDesire: 1.1,
-        desiredCities: 3,
+        expansionDesire: 1.0,
+        desiredCities: 4, // v5.0: Increased from 3 to 4 for better base
         techWeights: {
             [TechId.ScriptLore]: 1.2,
             [TechId.ScholarCourts]: 1.2,
-            [TechId.StarCharts]: 1.1,
             [TechId.StoneworkHalls]: 1.5,
-            [TechId.CityWards]: 1.8,
+            [TechId.CityWards]: 2.5,    // v5.0: HIGH priority - unlocks Bulwark
+            [TechId.StarCharts]: 1.5,   // v5.0: Increased - Bulwark awakening
         },
         projectRush: { type: "Project", id: ProjectId.Observatory },
         unitBias: { rangedSafety: 1 },
@@ -129,44 +129,45 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     AetherianVanguard: {
         aggression: {
-            // v1.9: Very aggressive - Titan rarely dies, so attack more
-            warPowerThreshold: 0.75,  // Will attack when weaker - Titan is worth it
-            warPowerThresholdLate: 0.6,  // With Titan built, hyper-aggressive
-            warDistanceMax: 18,  // Titan can travel far
-            peacePowerThreshold: 0.7,  // Only accept peace when losing badly
+            // v2.3: Moderate aggression, spiked by Titan
+            warPowerThreshold: 0.9,
+            warDistanceMax: 15,
+            peacePowerThreshold: 0.7,
             aggressionSpikeTrigger: "TitanBuilt",
         },
         settleBias: {},
-        expansionDesire: 1.4,
-        desiredCities: 5,
+        expansionDesire: 1.5,
+        desiredCities: 8,
         techWeights: {
-            // v1.9: Complete Titan rush path - priortize ALL prereqs
-            [TechId.StoneworkHalls]: 2.0, // Step 1: Unlocks TimberMills
-            [TechId.TimberMills]: 2.5,    // Step 2: CRITICAL - unlocks SteamForges
-            [TechId.SteamForges]: 3.0,    // Step 3: Unlocks Titan's Core (highest priority)
-            [TechId.DrilledRanks]: 1.2,   // Lower priority - armies are backup
-            [TechId.ArmyDoctrine]: 1.2,
+            [TechId.SteamForges]: 2.0,
+            [TechId.DrilledRanks]: 2.0, // v2.3: Prioritize Army Formation
+            [TechId.ArmyDoctrine]: 2.5, // v2.3: Prioritize Army Formation
         },
         projectRush: { type: "Building", id: BuildingType.TitansCore },
         unitBias: {},
-        declareAfterContactTurns: 2,
-        earlyRushChance: 0.30,  // v2.0: 30% chance to rush from game start
+        declareAfterContactTurns: 10,
+        armySizeMultiplier: 1.0,
     },
     StarborneSeekers: {
         aggression: {
-            // v2.1: Extremely defensive - almost never start wars
-            warPowerThreshold: 2.5,  // Only attack if 2.5x stronger (almost never)
-            warDistanceMax: 8,       // Very short range - purely defensive
-            peacePowerThreshold: 1.5,  // Very eager to accept peace
+            // v5.0: Ultra-defensive - never attack, always seek peace
+            warPowerThreshold: 100.0,  // Effectively never attack
+            warDistanceMax: 3,         // Only retaliate against immediate threats
+            peacePowerThreshold: 100.0,  // Always accept peace
         },
         settleBias: {},
-        expansionDesire: 1.2,  // Slightly less expansion focus
-        desiredCities: 3,      // Focus on fewer, high-quality cities
-        techWeights: { [TechId.ScriptLore]: 1.2, [TechId.ScholarCourts]: 1.2, [TechId.StarCharts]: 1.5 },
+        expansionDesire: 1.2,
+        desiredCities: 5,
+        techWeights: {
+            [TechId.ScriptLore]: 1.2,
+            [TechId.ScholarCourts]: 1.2,
+            [TechId.CityWards]: 2.5,   // v5.0: HIGH priority - unlocks Bulwark
+            [TechId.StarCharts]: 2.0,  // v5.0: High priority - Bulwark awakening + SpiritObservatory
+        },
         projectRush: { type: "Building", id: BuildingType.SpiritObservatory },
         unitBias: { rangedSafety: 1 },
-        declareAfterContactTurns: 0,  // v1.9: Never force-declare war - purely defensive
-        armySizeMultiplier: 1.25,     // v2.1: 25% more units for defense
+        declareAfterContactTurns: 0,
+        armySizeMultiplier: 1.25,
     },
     JadeCovenant: {
         aggression: {
