@@ -285,10 +285,18 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
         }
     }, [gameState, playerId]);
 
+    const lastAutosavedTurnRef = useRef<number | null>(null);
+
     // Autosave every 5th turn
     useEffect(() => {
         if (!gameState) return;
+
+        // Only autosave on specific turns, and only ONCE per turn (when we haven't saved this turn yet)
         if (gameState.turn > 0 && gameState.turn % 5 === 0 && gameState.currentPlayerId === playerId) {
+            if (lastAutosavedTurnRef.current === gameState.turn) {
+                return;
+            }
+
             const rawCivName = gameState.players.find(p => p.id === gameState.currentPlayerId)?.civName;
             const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
 
@@ -301,6 +309,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
             try {
                 localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
                 console.log("Autosave created at turn", gameState.turn);
+                lastAutosavedTurnRef.current = gameState.turn;
             } catch (e) {
                 console.warn("Failed to autosave", e);
             }

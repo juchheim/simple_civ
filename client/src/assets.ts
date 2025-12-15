@@ -58,6 +58,10 @@ export const terrainImages: Record<string, string> = {
     ClearedSettlement: "/terrain/ClearedSettlement.png",
 };
 
+export const overlayImages: Record<string, string> = {
+    Bulwark: "/overlays/Bulwark.png",
+};
+
 export const cityImages: Record<number, string> = {
     1: "/cities/city_1.png",
     2: "/cities/city_2.png",

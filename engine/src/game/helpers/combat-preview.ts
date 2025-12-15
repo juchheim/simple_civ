@@ -13,6 +13,7 @@ import {
     CIV6_DAMAGE_RANDOM_MAX,
     CIV6_DAMAGE_MIN,
     CIV6_DAMAGE_MAX,
+    BUILDINGS,
 } from "../../core/constants.js";
 import { hexEquals, hexToString } from "../../core/hex.js";
 import { getEffectiveUnitStats } from "./combat.js";
@@ -187,6 +188,12 @@ export function getCombatPreviewUnitVsCity(
     if (city.buildings.includes(BuildingType.CityWard)) {
         defenderMods.push({ label: "City Ward", value: CITY_WARD_DEFENSE_BONUS });
         cityDefense += CITY_WARD_DEFENSE_BONUS;
+    }
+
+    if (city.buildings.includes(BuildingType.Bulwark)) {
+        const bonus = BUILDINGS[BuildingType.Bulwark].defenseBonus || 0;
+        defenderMods.push({ label: "Bulwark", value: bonus });
+        cityDefense += bonus;
     }
 
     // Garrison bonus

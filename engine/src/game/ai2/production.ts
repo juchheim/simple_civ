@@ -314,8 +314,26 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
             }
 
             if (isDefensiveCiv(profile.civName)) {
+                // v5.3: Bulwark Production Cap
+                // Bulwarks disable unit production, so we MUST reserve cities for military.
+                // Rule: Reserve 50% of cities (rounded up) for pure military production.
+                // 1 City -> 1 Reserved -> 0 Bulwarks (unless we want to risk it? No, 1 city must be factory).
+                // 2 Cities -> 1 Reserved -> 1 Bulwark.
+                // 3 Cities -> 2 Reserved -> 1 Bulwark.
+                // 4 Cities -> 2 Reserved -> 2 Bulwarks.
+                const reservedForMilitary = Math.ceil(myCities.length / 2);
+                const currentBulwarks = myCities.filter(c =>
+                    c.buildings.includes(BuildingType.Bulwark) ||
+                    (c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.Bulwark)
+                ).length;
+
+                if (currentBulwarks >= myCities.length - reservedForMilitary) {
+                    return Number.NEGATIVE_INFINITY;
+                }
+
                 base += 200;  // Core defensive unit
-                // Extra boost if this city has no Bulwark
+                // Extra boost if this city has no Bulwark (though alreadyHasOne check above handles this,
+                // this is for emphasis if we removed that check, but we didn't).
                 base += 100;
             } else {
                 // Other civs: don't really need Bulwarks

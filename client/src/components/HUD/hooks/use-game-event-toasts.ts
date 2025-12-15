@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { GameState, HistoryEventType, BuildingType, ProjectId, EraId } from "@simple-civ/engine";
+import { GameState, HistoryEventType, BuildingType, ProjectId } from "@simple-civ/engine";
 import { Toast } from "../../Toast";
 
 /**
@@ -26,70 +26,64 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
         completedSpiritObservatory: boolean;
         completedJadeGranary: boolean;
     }>>({});
-    const prevErasRef = useRef<Record<string, EraId>>({});
     const capitalCountsRef = useRef<Record<string, number>>({});
     const prevEliminatedRef = useRef<Record<string, boolean>>({});
-    const isFirstRunRef = useRef(true);
-    const hydratedRef = useRef(false);
+    const lastGameIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        // Initialize tracking
-        if (isFirstRunRef.current) {
-            isFirstRunRef.current = false;
-            if (gameState) {
-                gameState.players.forEach(p => {
-                    prevErasRef.current[p.id] = p.currentEra;
-                    prevBuildingStatesRef.current[p.id] = {
-                        buildingTitansCore: gameState.cities.some(
-                            c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.TitansCore
-                        ),
-                        buildingSpiritObservatory: gameState.cities.some(
-                            c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.SpiritObservatory
-                        ),
-                        buildingJadeGranary: gameState.cities.some(
-                            c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.JadeGranary
-                        ),
-                        completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
-                        completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
-                        completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
-                    };
-                    // Count initial capitals owned by each civ
-                    capitalCountsRef.current[p.id] = gameState.cities.filter(c =>
-                        c.ownerId === p.id && c.isCapital
-                    ).length;
-                    // Track elimination status
-                    prevEliminatedRef.current[p.id] = p.isEliminated;
-                });
-                // Track initial history events
-                if (gameState.history?.events) {
-                    gameState.history.events.forEach(e => {
-                        prevHistoryEventsRef.current.add(`${e.turn}-${e.type}-${e.playerId}-${JSON.stringify(e.data)}`);
-                    });
-                }
-            }
-            return;
-        }
+        // DO NOT REMOVE: This reset logic is crucial for preventing notification floods when loading saves.
+        // We use lastGameIdRef to detect when the game instance has changed (e.g. loading a save or starting new game).
+        // When this happens, we must re-hydrate our tracking refs with the *current* state of the new game
+        // so that we don't treat existing history as "new" events.
+        if (gameState && gameState.id !== lastGameIdRef.current) {
+            lastGameIdRef.current = gameState.id;
+            setToasts([]); // Clear any existing toasts from previous game state
 
-        const newToasts: Toast[] = [];
+            // Re-initialize all tracking for the new game state
+            gameState.players.forEach(p => {
+                prevBuildingStatesRef.current[p.id] = {
+                    buildingTitansCore: gameState.cities.some(
+                        c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.TitansCore
+                    ),
+                    buildingSpiritObservatory: gameState.cities.some(
+                        c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.SpiritObservatory
+                    ),
+                    buildingJadeGranary: gameState.cities.some(
+                        c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.JadeGranary
+                    ),
+                    completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
+                    completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
+                    completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
+                };
+                // Count initial capitals owned by each civ
+                capitalCountsRef.current[p.id] = gameState.cities.filter(c =>
+                    c.ownerId === p.id && c.isCapital
+                ).length;
+                // Track elimination status
+                prevEliminatedRef.current[p.id] = p.isEliminated;
+            });
 
-        if (!gameState) return;
-
-        // If we just hydrated (e.g., load/refresh), record current history/events and bail once
-        if (!hydratedRef.current) {
+            // Reset and track history events
+            prevHistoryEventsRef.current = new Set();
             if (gameState.history?.events) {
                 gameState.history.events.forEach(e => {
                     prevHistoryEventsRef.current.add(`${e.turn}-${e.type}-${e.playerId}-${JSON.stringify(e.data)}`);
                 });
             }
-            hydratedRef.current = true;
+
+            // Return early to skip processing "new" events for this render
             return;
         }
+        if (!gameState) return;
+
+        const newToasts: Toast[] = [];
 
         // 1. Check history events for new occurrences
         if (gameState.history?.events) {
             for (const event of gameState.history.events) {
                 const eventKey = `${event.turn}-${event.type}-${event.playerId}-${JSON.stringify(event.data)}`;
                 if (prevHistoryEventsRef.current.has(eventKey)) continue;
+
                 prevHistoryEventsRef.current.add(eventKey);
 
                 const otherPlayer = gameState.players.find(p => p.id === event.playerId);
@@ -239,29 +233,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
             capitalCountsRef.current[otherPlayer.id] = currentCapitalCount;
         }
 
-        // 3. Check for era transitions (from current state, not just history)
-        for (const otherPlayer of gameState.players) {
-            if (otherPlayer.id === playerId || otherPlayer.isEliminated) continue;
 
-            const prevEra = prevErasRef.current[otherPlayer.id];
-            const currentEra = otherPlayer.currentEra;
-
-            if (prevEra && prevEra !== currentEra) {
-                // Only alert for significant era transitions (Hearth -> Banner, Banner -> Engine)
-                if ((prevEra === EraId.Hearth && currentEra === EraId.Banner) ||
-                    (prevEra === EraId.Banner && currentEra === EraId.Engine)) {
-                    const eraName = currentEra === EraId.Banner ? "Banner" : "Engine";
-                    newToasts.push({
-                        id: `era-transition-${otherPlayer.id}-${currentEra}-${Date.now()}`,
-                        message: `${otherPlayer.civName} entered the ${eraName} Era`,
-                        icon: "📜",
-                        duration: 4000,
-                    });
-                }
-            }
-
-            prevErasRef.current[otherPlayer.id] = currentEra;
-        }
 
         // 4. Check for newly defeated civs
         for (const otherPlayer of gameState.players) {
@@ -285,7 +257,6 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
         if (newToasts.length > 0) {
             setToasts(prev => [...prev, ...newToasts]);
         }
-
     }, [gameState, playerId]);
 
     const dismissToast = useCallback((id: string) => {

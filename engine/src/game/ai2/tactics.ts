@@ -164,7 +164,22 @@ function runFocusSiegeAndCapture(state: GameState, playerId: string): GameState 
 
     const units = next.units
         .filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u))
-        .filter(u => u.type !== UnitType.Titan); // Titan handled separately
+        .filter(u => u.type !== UnitType.Titan) // Titan handled separately
+        .filter(u => {
+            // FIX #7: Do not pull garrisons from Threatened cities.
+            // If unit is on a city tile, and that city is threatened, exclude it from offensive routing.
+            const city = next.cities.find(c => hexEquals(c.coord, u.coord));
+            if (city && city.ownerId === playerId) {
+                // Check for threat
+                const threatened = next.units.some(e =>
+                    enemies.has(e.ownerId) &&
+                    isMilitary(e) &&
+                    hexDistance(e.coord, city.coord) <= 3
+                );
+                if (threatened) return false;
+            }
+            return true;
+        });
 
     const capturers = units.filter(isCapturer);
     const siege = units.filter(isSiege);
@@ -513,7 +528,22 @@ function retreatIfNeeded(state: GameState, playerId: string, unit: Unit): GameSt
     const safeCity = cities.sort((a, b) => hexDistance(a.coord, unit.coord) - hexDistance(b.coord, unit.coord))[0];
     if (!safeCity) return state;
 
-    return moveToward(state, playerId, unit, safeCity.coord);
+    // FIX #6: Force Fortify if already safe.
+    // If we simply "return state", the unit still has moves, and runFocusSiegeAndCapture might grab it.
+    // By forcing Fortify, we consume its moves and lock it down for healing/defense.
+    if (hexEquals(unit.coord, safeCity.coord)) {
+        return tryAction(state, { type: "FortifyUnit", playerId, unitId: unit.id });
+    }
+
+    const next = moveToward(state, playerId, unit, safeCity.coord);
+    // If we arrived at safety after moving, also lock down.
+    if (next !== state) {
+        const movedUnit = next.units.find(u => u.id === unit.id);
+        if (movedUnit && movedUnit.movesLeft > 0 && hexEquals(movedUnit.coord, safeCity.coord)) {
+            return tryAction(next, { type: "FortifyUnit", playerId, unitId: unit.id });
+        }
+    }
+    return next;
 }
 
 function runTitanAgent(state: GameState, playerId: string): GameState {

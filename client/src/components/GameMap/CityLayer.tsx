@@ -1,6 +1,6 @@
 import React from "react";
-import { City } from "@simple-civ/engine";
-import { cityImages } from "../../assets";
+import { City, BuildingType } from "@simple-civ/engine";
+import { cityImages, overlayImages } from "../../assets";
 import { CITY_IMAGE_SIZE, CITY_LABEL_OFFSET } from "./constants";
 
 export type CityOverlayDescriptor = {
@@ -53,6 +53,15 @@ export const CityImageLayer: React.FC<CityLayerProps> = React.memo(({ overlays, 
                             width={CITY_IMAGE_SIZE}
                             height={CITY_IMAGE_SIZE}
                         />
+                        {overlay.city.buildings.includes(BuildingType.Bulwark) && (
+                            <image
+                                href={overlayImages.Bulwark}
+                                x={-imageOffset}
+                                y={-imageOffset}
+                                width={CITY_IMAGE_SIZE}
+                                height={CITY_IMAGE_SIZE}
+                            />
+                        )}
                     </g>
                 );
             })}

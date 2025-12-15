@@ -9,8 +9,19 @@ import { Toast } from "../components/Toast";
 export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
     const [toasts, setToasts] = useState<Toast[]>([]);
     const lastRewardRef = useRef<GoodieHutRewardInfo | undefined>(undefined);
+    const lastGameIdRef = useRef<string | null>(null);
 
     useEffect(() => {
+        // Reset state when loading a new game to prevent re-alerting old rewards
+        // DO NOT REMOVE: This logic ensures initialized state (lastGameId, lastReward) prevents
+        // "recent" notifications from the save file being displayed as new alerts on load.
+        if (gameState && gameState.id !== lastGameIdRef.current) {
+            lastGameIdRef.current = gameState.id;
+            lastRewardRef.current = gameState.lastGoodieHutReward;
+            setToasts([]);
+            return;
+        }
+
         const currentReward = gameState.lastGoodieHutReward;
 
         // Detect new reward (different from last one we processed via timestamp)
