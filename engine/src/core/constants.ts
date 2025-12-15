@@ -11,7 +11,7 @@ import {
     ProjectDefinition,
 } from "./types.js";
 
-export const GAME_VERSION = "1.0";
+export const GAME_VERSION = "1.0.1";
 /** Maximum number of players allowed in a game session. */
 export const MAX_PLAYERS = 6;
 
@@ -49,7 +49,7 @@ export const BASE_UNIT_HP = 10;
 /** Base HP for Army units (formed from projects). */
 export const ARMY_UNIT_HP = 15;
 /** Base HP for a City. */
-export const BASE_CITY_HP = 15;  // Was 20 - easier to capture
+export const BASE_CITY_HP = 25;  // Buffed from 15 to 25 to slow conquest
 /** HP a city resets to after being captured. */
 export const CAPTURED_CITY_HP_RESET = 8;  // Was 10 - proportional reduction
 /** Minimum damage a unit can deal in combat. */
@@ -90,7 +90,7 @@ export const GROWTH_FACTORS = [
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 // v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 0.9;
+export const JADE_COVENANT_GROWTH_MULT = 1.0;
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -101,11 +101,11 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 // NOTE: JadeCovenant extra settler REMOVED - 80% win rate was too strong
 
 // v2.7: Forge Clans "Unleashed" - Start with Riders to begin aggression immediately
-export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [UnitType.Riders];
+export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 // v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8, then to 10
 // At 54 avg pop, this reduces bonus from +6/+6 (at 8) to +5/+5 (at 10)
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 8; // v1.5: Reverted to 8 (was 10)
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 12; // v5.9: Buffed to 12 (was 15)
 
 
 
@@ -116,7 +116,7 @@ export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonu
 export const FORGE_CLANS_HILL_COMBAT_BONUS = 1; // +1 Attack for units from hill cities
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // v2.0: BUFFED - 20% cheaper (was 10%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.85; // v5.7: Buffed to 15% (was 10%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
@@ -129,7 +129,7 @@ export const STARBORNE_CAPITAL_DEFENSE_BONUS = 2; // v2.8: Buffed from +1 to +2
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
-export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 8; // +8 Defense (Was 2)
 
 // Settler
 export const SETTLER_COST = 20;
@@ -137,8 +137,8 @@ export const SETTLER_POP_LOSS_ON_BUILD = 1;
 
 // City Defense
 export const UNIT_BASE_DAMAGE = 6;
-export const CITY_DEFENSE_BASE = 3;
-export const CITY_WARD_DEFENSE_BONUS = 4;
+export const CITY_DEFENSE_BASE = 4; // Buffed from 3
+export const CITY_WARD_DEFENSE_BONUS = 5; // Buffed from 4
 export const CITY_ATTACK_BASE = 3;
 export const FORTIFY_DEFENSE_BONUS = 1;
 export const DAMAGE_BASE = 4;
@@ -259,7 +259,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.Titan]: { atk: 22, def: 5, rng: 1, move: 2, hp: 20, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.Titan]: { atk: 22, def: 6, rng: 1, move: 2, hp: 25, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -280,15 +280,25 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Farmstead]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { F: 1 }, growthMult: 0.9 },
     [BuildingType.StoneWorkshop]: { era: EraId.Hearth, techReq: TechId.StoneworkHalls, cost: 40, yieldFlat: { P: 1 } },
     [BuildingType.Scriptorium]: { era: EraId.Hearth, techReq: TechId.ScriptLore, cost: 40, yieldFlat: { S: 1 } },
-    [BuildingType.Reservoir]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 60, yieldFlat: { F: 1 }, conditional: "+1F more if river city" },
+    [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
     [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, conditional: "+1P more if any Forest worked" },
-    [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 60, yieldFlat: { S: 2 } },
-    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 4, cityAttackBonus: 1 },
-    [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 2 } },
-    [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 1, P: 1 } },
+    [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 } }, // v4.2: S:3, Cost 50
+    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 40, defenseBonus: 4, cityAttackBonus: 1 }, // v4.2: Cost 40
+    [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
+    [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 180, conditional: "Summons The Titan upon completion" }, // v2.6: Nerfed to 180 (was 80) to delay Titan
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 160, yieldFlat: { S: 4, F: 4 }, conditional: "The Revelation: +4 Science, +4 Food, counts as Observatory milestone" }, // v2.6: Cost reduced 220 -> 160
-    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 30, yieldFlat: { P: 1 }, conditional: "The Great Harvest: +1 Pop per city, 15% cheaper growth, +1 Food per city, Spawns Free Settler" }, // v2.3: Added +1P yield
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 160, yieldFlat: { S: 5, F: 4 }, conditional: "The Revelation: +4 Science, +4 Food, counts as Observatory milestone" }, // v4.1: S:5
+    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
+    // v5.5: Bulwark converted to Building (Scholar/Starborne only)
+    [BuildingType.Bulwark]: {
+        era: EraId.Hearth,
+        techReq: TechId.StoneworkHalls,
+        cost: 60,
+        defenseBonus: 12,
+        cityAttackBonus: 4,
+        yieldFlat: { S: 1 },
+        conditional: "Scholar/Starborne Only. City CANNOT build Military Units."
+    },
 };
 
 export type TechData = {
@@ -313,11 +323,12 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.ScholarCourts]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } },
     [TechId.DrilledRanks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } },
     [TechId.CityWards]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.CityWard } },
-    [TechId.SteamForges]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } },
-    [TechId.SignalRelay]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+1 Science per city" } },
-    [TechId.UrbanPlans]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
-    [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } },
-    [TechId.StarCharts]: { era: EraId.Engine, cost: 85, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } },
+    // v5.0: Engine Era tech costs increased (85 -> 100/120), rewards buffed
+    [TechId.SteamForges]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } },
+    [TechId.SignalRelay]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+2 Science per city" } }, // v5.0: Buffed from +1 to +2
+    [TechId.UrbanPlans]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
+    [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } },
+    [TechId.StarCharts]: { era: EraId.Engine, cost: 120, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } }, // v5.0: Gatekeeper tech, also enables Bulwark awakening
 };
 
 
@@ -345,21 +356,21 @@ export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
         onComplete: { type: "Victory", payload: { victory: "Progress" } },
     },
     [ProjectId.FormArmy_SpearGuard]: {
-        cost: 10,
+        cost: 30,
         oncePerCiv: false,
         oneCityAtATime: false,
         scalesWithTurn: true,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.SpearGuard, armyUnit: UnitType.ArmySpearGuard } },
     },
     [ProjectId.FormArmy_BowGuard]: {
-        cost: 10,
+        cost: 30,
         oncePerCiv: false,
         oneCityAtATime: false,
         scalesWithTurn: true,
         onComplete: { type: "Transform", payload: { baseUnit: UnitType.BowGuard, armyUnit: UnitType.ArmyBowGuard } },
     },
     [ProjectId.FormArmy_Riders]: {
-        cost: 10,
+        cost: 30,
         oncePerCiv: false,
         oneCityAtATime: false,
         scalesWithTurn: true,
