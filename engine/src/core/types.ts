@@ -67,9 +67,13 @@ export enum BuildingType {
     TitansCore = "TitansCore",
     SpiritObservatory = "SpiritObservatory",
     JadeGranary = "JadeGranary",
+    Bulwark = "Bulwark",
 }
 
 export type AiVictoryGoal = "Progress" | "Conquest" | "Balanced";
+
+// AI engine selector. Default behavior is Legacy if not specified on GameState.
+export type AiSystem = "Legacy" | "UtilityV2";
 
 export enum TechId {
     // Hearth
@@ -270,6 +274,16 @@ export type GameState = {
     players: Player[];
     currentPlayerId: string;
     phase: PlayerPhase;
+    /**
+     * Optional AI engine selector.
+     * - Omitted/undefined: treated as "Legacy" for backward compatibility with old saves/tests.
+     */
+    aiSystem?: AiSystem;
+    /**
+     * Optional AI memory store (primarily used by UtilityV2 AI).
+     * Keyed by playerId.
+     */
+    aiMemoryV2?: Record<string, unknown>;
     map: {
         width: number;
         height: number;
@@ -317,6 +331,7 @@ export enum HistoryEventType {
     CivContact = "CivContact",
     UnitPromoted = "UnitPromoted",
     VictoryAchieved = "VictoryAchieved",
+    TitanStep = "TitanStep", // v2.3: Track Titan movement and support
 }
 
 export interface HistoryEvent {
