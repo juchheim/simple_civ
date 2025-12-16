@@ -15,11 +15,16 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
         // Reset state when loading a new game to prevent re-alerting old rewards
         // DO NOT REMOVE: This logic ensures initialized state (lastGameId, lastReward) prevents
         // "recent" notifications from the save file being displayed as new alerts on load.
+        // FIX: Only reset if there's actually an existing reward from the save file,
+        // otherwise leave lastRewardRef undefined so the first reward of a new game shows a toast.
         if (gameState && gameState.id !== lastGameIdRef.current) {
             lastGameIdRef.current = gameState.id;
+            // Only skip showing toast for rewards that existed in the save file (old timestamp)
+            // A fresh new game won't have lastGoodieHutReward, so this will be undefined
             lastRewardRef.current = gameState.lastGoodieHutReward;
             setToasts([]);
-            return;
+            // Don't return early - check if there's a NEW reward to show
+            // (This handles edge case where reward happens on the same frame as game load)
         }
 
         const currentReward = gameState.lastGoodieHutReward;
@@ -32,6 +37,7 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
             }
 
             const { message, icon } = formatRewardMessage(currentReward);
+            console.log(`[GoodieHut] Toast created: ${currentReward.type}`, { message, icon, reward: currentReward });
             setToasts(prev => [...prev, {
                 id: `goodie-${currentReward.timestamp}`,
                 message,
@@ -82,5 +88,14 @@ function formatRewardMessage(reward: GoodieHutRewardInfo): { message: string; ic
                 message: "A friendly scout joins your expedition!",
                 icon: "🏃",
             };
+        default: {
+            // Exhaustive check - this should never happen if types are correct
+            const exhaustiveCheck: never = reward.type;
+            console.error("Unknown goodie hut reward type:", exhaustiveCheck);
+            return {
+                message: `Discovered ancient treasure! (${String(reward.type)})`,
+                icon: "🎁",
+            };
+        }
     }
 }

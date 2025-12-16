@@ -12,6 +12,45 @@ import { getPersonalityForPlayer } from "./ai/personality.js";
 import { setContact } from "./helpers/diplomacy.js";
 
 export type WarPeaceDecision = "DeclareWar" | "ProposePeace" | "AcceptPeace" | "PrepareForWar" | "None";
+
+// Typed result interfaces for pure evaluators
+export type PowerClassification =
+    | "dominating"     // 5x+ power advantage
+    | "overwhelming"   // 2x-5x power advantage
+    | "advantaged"     // 1.2x-2x power advantage
+    | "even"           // 0.6x-1.2x power ratio
+    | "disadvantaged"; // <0.6x power ratio
+
+export type PowerRatioResult = {
+    aiPower: number;
+    enemyPower: number;
+    ratio: number;
+    classification: PowerClassification;
+    isDominating: boolean;
+    isOverwhelming: boolean;
+    isFinishable: boolean;
+    hasCityAdvantage: boolean;
+};
+
+export type DistanceEvalResult = {
+    closestCityDist: number | null;
+    capitalDist: number | null;
+    isInRange: boolean;
+    distanceScale: number;
+    warDistanceMax: number;
+    myCities: string[];
+    theirCities: string[];
+};
+
+export type WarStatusResult = {
+    turnsSinceChange: number;
+    isExhausted: boolean;
+    isStalemate: boolean;
+    isWinning: boolean;
+    isLosing: boolean;
+    hasCityAdvantage: boolean;
+};
+
 const warVetoLog: string[] = [];
 export function getWarVetoLog(): string[] {
     return [...warVetoLog];
@@ -210,6 +249,128 @@ function isStalemate(playerId: string, targetId: string, state: GameState): bool
     return longWar && evenlyMatched && noTerritorialGains;
 }
 
+/**
+ * Pure evaluator: Computes power ratio between two players with classification.
+ * Returns a structured result for use in decision logic and debugging.
+ */
+export function evaluatePowerRatio(
+    playerId: string,
+    targetId: string,
+    state: GameState
+): PowerRatioResult {
+    const aiPower = estimateMilitaryPower(playerId, state);
+    const enemyPower = estimateMilitaryPower(targetId, state);
+    const ratio = enemyPower > 0 ? aiPower / enemyPower : aiPower > 0 ? Infinity : 1;
+
+    let classification: PowerClassification;
+    if (ratio >= 5) classification = "dominating";
+    else if (ratio >= 2) classification = "overwhelming";
+    else if (ratio >= 1.2) classification = "advantaged";
+    else if (ratio >= 0.6) classification = "even";
+    else classification = "disadvantaged";
+
+    const myCities = state.cities.filter(c => c.ownerId === playerId).length;
+    const theirCities = state.cities.filter(c => c.ownerId === targetId).length;
+    const theirCityCount = state.cities.filter(c => c.ownerId === targetId).length;
+
+    // Finishable: target has 1-2 cities and we have 1.5x power
+    const isFinishable = theirCityCount > 0 && theirCityCount <= 2 && ratio >= 1.5;
+    // City advantage: 2+ more cities than target
+    const hasCityAdvantage = myCities > theirCities + 1;
+
+    return {
+        aiPower,
+        enemyPower,
+        ratio,
+        classification,
+        isDominating: ratio >= 5 && aiPower >= 100,
+        isOverwhelming: ratio >= 2,
+        isFinishable,
+        hasCityAdvantage,
+    };
+}
+
+/**
+ * Pure evaluator: Assesses the current war status including stalemate/exhaustion.
+ * Returns a structured result for use in decision logic.
+ */
+export function evaluateWarStatus(
+    playerId: string,
+    targetId: string,
+    state: GameState
+): WarStatusResult {
+    const stateChangedTurn = state.diplomacyChangeTurn?.[playerId]?.[targetId] ?? 0;
+    const turnsSinceChange = state.turn - stateChangedTurn;
+
+    const myPower = estimateMilitaryPower(playerId, state);
+    const theirPower = estimateMilitaryPower(targetId, state);
+    const myCities = state.cities.filter(c => c.ownerId === playerId).length;
+    const theirCities = state.cities.filter(c => c.ownerId === targetId).length;
+
+    const ratio = theirPower > 0 ? myPower / theirPower : myPower > 0 ? Infinity : 1;
+
+    // Exhaustion: 40+ turns of war
+    const isExhausted = turnsSinceChange >= 40;
+
+    // Stalemate detection (excludes dominating situations)
+    const massivePowerAdvantage = ratio >= 5;
+    const longWar = turnsSinceChange >= 25;
+    const evenlyMatched = ratio >= 0.6 && ratio <= 1.7;
+    const noTerritorialGains = Math.abs(myCities - theirCities) <= 2;
+    const isStalemate = !massivePowerAdvantage && longWar && evenlyMatched && noTerritorialGains;
+
+    // Winning: more power AND at least as many cities
+    const isWinning = ratio > 1.2 && myCities >= theirCities;
+
+    // Losing: significantly weaker OR fewer cities AND weaker
+    const significantlyWeaker = ratio < 0.6;
+    const losingTerritory = myCities < theirCities && myPower < theirPower;
+    const isLosing = significantlyWeaker || losingTerritory;
+
+    // City advantage: 2+ more cities
+    const hasCityAdvantage = myCities > theirCities + 1;
+
+    return {
+        turnsSinceChange,
+        isExhausted,
+        isStalemate,
+        isWinning,
+        isLosing,
+        hasCityAdvantage,
+    };
+}
+
+/**
+ * Pure evaluator: Computes distance-related metrics for war decisions.
+ */
+export function evaluateDistance(
+    playerId: string,
+    targetId: string,
+    state: GameState,
+    options?: { warDistanceMax?: number; distanceScale?: number }
+): DistanceEvalResult {
+    const { dist, myCities, theirCities } = enemyCityDistance(playerId, targetId, state);
+    const capitalDist = getEnemyCapitalDistance(playerId, targetId, state);
+
+    const mapWidth = state.map.width;
+    const mapHeight = state.map.height;
+    const mapSizeFactor = Math.max(1.0, (mapWidth * mapHeight) / (24 * 24));
+    const distanceScale = options?.distanceScale ?? Math.sqrt(mapSizeFactor);
+    const warDistanceMax = options?.warDistanceMax ?? Math.ceil(8 * distanceScale);
+
+    const isInRange = dist !== null && dist <= warDistanceMax;
+
+    return {
+        closestCityDist: dist,
+        capitalDist,
+        isInRange,
+        distanceScale,
+        warDistanceMax,
+        myCities,
+        theirCities,
+    };
+}
+
 function getWarEscalationFactor(turn: number): number {
     // Starts at 1.0 (no effect) until turn 100
     // Decreases linearly to 0.5 at turn 180
@@ -245,21 +406,72 @@ function getEnemyCapitalDistance(playerId: string, targetId: string, state: Game
  * @returns The decision: "DeclareWar", "ProposePeace", "AcceptPeace", "PrepareForWar", or "None".
  */
 export function aiWarPeaceDecision(playerId: string, targetId: string, state: GameState, options?: { ignorePrep?: boolean }): WarPeaceDecision {
-    if (!state.contacts?.[playerId]?.[targetId]) {
-        const visibleKeys = getVisibleKeys(state, playerId);
-        const seesAny =
-            state.units.some(u => u.ownerId === targetId && visibleKeys.has(hexToString(u.coord))) ||
-            state.cities.some(c => c.ownerId === targetId && visibleKeys.has(hexToString(c.coord)));
-        if (seesAny) {
-            setContact(state, playerId, targetId);
-        } else {
-            return "None";
-        }
+    if (!ensureInitialContact(state, playerId, targetId)) return "None";
+
+    const context = buildDecisionContext(playerId, targetId, state);
+
+    if (context.inWar) {
+        return evaluateWarState(context, options);
     }
+
+    return evaluatePeaceState(context, options);
+}
+
+type DecisionContext = {
+    playerId: string;
+    targetId: string;
+    state: GameState;
+    personality: ReturnType<typeof getPersonalityForPlayer>;
+    aggression: ReturnType<typeof getPersonalityForPlayer>["aggression"];
+    baseWarPowerThreshold: number;
+    victoryBias: ReturnType<typeof aiVictoryBias>;
+    escalationFactor: number;
+    warPowerThreshold: number;
+    mapSizeFactor: number;
+    distanceScale: number;
+    capitalBonus: number;
+    largeMapAggressionBonus: number;
+    finalWarPowerThreshold: number;
+    distanceBonus: number;
+    scaledBaseDistance: number;
+    warDistanceMax: number;
+    stance: DiplomacyState;
+    aiPower: number;
+    enemyPower: number;
+    peaceThreshold: number;
+    progressRisk: boolean;
+    inWar: boolean;
+    contactTurnKey: string;
+    metTurn: number;
+    contactTurns: number;
+    declareAfterContact: number;
+    stateChangedTurn: number;
+    turnsSinceChange: number;
+};
+
+function ensureInitialContact(state: GameState, playerId: string, targetId: string): boolean {
+    if (state.contacts?.[playerId]?.[targetId]) {
+        return true;
+    }
+
+    const visibleKeys = getVisibleKeys(state, playerId);
+    const seesAny =
+        state.units.some(u => u.ownerId === targetId && visibleKeys.has(hexToString(u.coord))) ||
+        state.cities.some(c => c.ownerId === targetId && visibleKeys.has(hexToString(c.coord)));
+
+    if (seesAny) {
+        setContact(state, playerId, targetId);
+        return true;
+    }
+
+    return false;
+}
+
+function buildDecisionContext(playerId: string, targetId: string, state: GameState): DecisionContext {
     const personality = getPersonalityForPlayer(state, playerId);
     const aggression = personality.aggression;
+
     const baseWarPowerThreshold = (() => {
-        // v0.98 Update 7: Check for aggression spike triggers
         if (aggression.aggressionSpikeTrigger === "TitanBuilt" && hasTitan(playerId, state)) {
             return aggression.warPowerThresholdLate ?? aggression.warPowerThreshold;
         }
@@ -270,71 +482,50 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         return aggression.warPowerThreshold;
     })();
 
-    // v0.99 Update: War Escalation
-    // As the game progresses, Conquest-focused civs become more aggressive
-    // Universal Escalation: After turn 150, EVERYONE gets more aggressive to prevent stalls
     const victoryBias = aiVictoryBias(playerId, state);
     let escalationFactor = 1.0;
-
     if (victoryBias === "Conquest") {
         escalationFactor = getWarEscalationFactor(state.turn);
     } else if (state.turn > 150) {
-        // Late game universal escalation (gentler slope than Conquest)
-        // 1.0 -> 0.6 from turn 150 to 230
         const lateProgress = Math.min(1, (state.turn - 150) / 80);
         escalationFactor = 1.0 - (lateProgress * 0.4);
     }
 
-    // Non-Conquest goals should be more cautious before declaring war.
     const warPowerThreshold = victoryBias === "Conquest"
         ? baseWarPowerThreshold
         : Math.max(baseWarPowerThreshold, 1.1);
 
-    // v0.99 Update: Large Map Scaling
-    // On larger maps, distances are greater and there are more opponents.
-    // We need to scale aggression and distance limits to match.
-    // Standard map is 24x24.
     const mapWidth = state.map.width;
     const mapHeight = state.map.height;
     const mapSizeFactor = Math.max(1.0, (mapWidth * mapHeight) / (24 * 24));
-    const distanceScale = Math.sqrt(mapSizeFactor); // Scale distance by sqrt of area ratio
+    const distanceScale = Math.sqrt(mapSizeFactor);
 
-    // Capital Targeting Bonus: If we are escalating AND enemy capital is vulnerable, be even more aggressive
     let capitalBonus = 1.0;
     if (escalationFactor < 1.0) {
         const capDist = getEnemyCapitalDistance(playerId, targetId, state);
-        // Scale the check distance by map size
         if (capDist !== null && capDist <= aggression.warDistanceMax * distanceScale) {
-            capitalBonus = 0.9; // 10% easier to declare war if capital is in range
+            capitalBonus = 0.9;
         }
     }
 
-    // v0.99 Update: Aggression Scaling on Large Maps
-    // Conquest civs need to be more aggressive on large maps to overcome the "turtling" tendency
     let largeMapAggressionBonus = 1.0;
-    // v0.99 Update: Extended to Standard maps (factor >= 1.0)
     if (victoryBias === "Conquest" && mapSizeFactor >= 1.0) {
-        largeMapAggressionBonus = 0.9; // 10% lower threshold on Standard/Large/Huge maps
+        largeMapAggressionBonus = 0.9;
     }
 
     const finalWarPowerThreshold = warPowerThreshold * escalationFactor * capitalBonus * largeMapAggressionBonus;
-
-    // Increase distance range over time (starts at turn 100, +1 tile every 20 turns)
-    // v0.99 Update: If escalating (Conquest civ late game), remove distance limit to ensure we can reach any capital
     const distanceBonus = Math.max(0, Math.floor((state.turn - 100) / 20));
-    // Scale base distance by map size
     const scaledBaseDistance = Math.ceil(aggression.warDistanceMax * distanceScale);
     const warDistanceMax = (escalationFactor < 1.0) ? 999 : scaledBaseDistance + distanceBonus;
+
     const stance = state.diplomacy?.[playerId]?.[targetId] ?? DiplomacyState.Peace;
     const aiPower = estimateMilitaryPower(playerId, state);
     const enemyPower = estimateMilitaryPower(targetId, state);
 
-    // v0.99 Update: Conquest civs are harder to peace out on larger maps
     let peaceThreshold = aggression.peacePowerThreshold;
     if (victoryBias === "Conquest" && mapSizeFactor >= 1.0) {
-        peaceThreshold -= 0.1; // Stay in war longer (e.g. 0.8 -> 0.7)
+        peaceThreshold -= 0.1;
     }
-    const _losingWar = aiPower < enemyPower * peaceThreshold;
 
     const progressRisk = progressRaceRiskHigh(playerId, state);
     const inWar = stance === DiplomacyState.War;
@@ -343,134 +534,148 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     const contactTurns = Math.max(0, state.turn - metTurn);
     const declareAfterContact = personality.declareAfterContactTurns ?? 0;
 
-    // Check diplomacy state duration
     const stateChangedTurn = state.diplomacyChangeTurn?.[playerId]?.[targetId] ?? 0;
     const turnsSinceChange = state.turn - stateChangedTurn;
 
-    if (inWar) {
-        // v0.98 Update 6: Extended war duration when winning
-        // Base: 15 turns, Extended: 25 turns if we're winning or have advantage
-        const overwhelming = hasOverwhelmingPowerOver(playerId, targetId, state);
-        const finishable = isFinishableTarget(playerId, targetId, state);
-        const cityAdvantage = hasCityAdvantage(playerId, targetId, state);
-        const winning = isWinningWar(playerId, targetId, state);
-        const actuallyLosing = isActuallyLosingWar(playerId, targetId, state);
+    return {
+        playerId,
+        targetId,
+        state,
+        personality,
+        aggression,
+        baseWarPowerThreshold,
+        victoryBias,
+        escalationFactor,
+        warPowerThreshold,
+        mapSizeFactor,
+        distanceScale,
+        capitalBonus,
+        largeMapAggressionBonus,
+        finalWarPowerThreshold,
+        distanceBonus,
+        scaledBaseDistance,
+        warDistanceMax,
+        stance,
+        aiPower,
+        enemyPower,
+        peaceThreshold,
+        progressRisk,
+        inWar,
+        contactTurnKey,
+        metTurn,
+        contactTurns,
+        declareAfterContact,
+        stateChangedTurn,
+        turnsSinceChange,
+    };
+}
 
-        // v0.98 Update 8: War exhaustion and stalemate detection
-        const exhausted = isWarExhausted(playerId, targetId, state);
-        const stalemate = isStalemate(playerId, targetId, state);
+function evaluateWarState(context: DecisionContext, options?: { ignorePrep?: boolean }): WarPeaceDecision {
+    const { playerId, targetId, state, escalationFactor, progressRisk } = context;
 
-        // Extended duration when we have any advantage
-        const MIN_WAR_DURATION = (overwhelming || finishable || cityAdvantage || winning) ? 25 : 15;
+    // Use typed evaluators
+    const power = evaluatePowerRatio(playerId, targetId, state);
+    const warStatus = evaluateWarStatus(playerId, targetId, state);
 
-        if (turnsSinceChange < MIN_WAR_DURATION) {
-            // War must last at least minimum turns before proposing peace
-            // aiLog(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - continuing`);
-            return "None";
-        } else {
-            aiLog(`[AI WAR] ${playerId} vs ${targetId}: War duration ${turnsSinceChange}/${MIN_WAR_DURATION} - eligible for peace`);
-        }
+    const MIN_WAR_DURATION = (power.isOverwhelming || power.isFinishable || power.hasCityAdvantage || warStatus.isWinning) ? 25 : 15;
 
-        // v0.99 Fix: NEVER sign peace if we have a capturable city (HP <= 0)
-        // This prevents the "Stalled Game" scenario where a city sits at -1 HP during forced peace
-        const enemyCities = state.cities.filter(c => c.ownerId === targetId);
-        const hasCapturableCity = enemyCities.some(c => c.hp <= 0);
+    if (warStatus.turnsSinceChange < MIN_WAR_DURATION) {
+        return "None";
+    }
+    aiLog(`[AI WAR] ${playerId} vs ${targetId}: War duration ${warStatus.turnsSinceChange}/${MIN_WAR_DURATION} - eligible for peace`);
 
-        if (hasCapturableCity) {
-            aiInfo(`[AI WAR CONTINUE] ${playerId} refusing peace with ${targetId} - city is CAPTURABLE (HP <= 0)!`);
-            return "None";
-        }
+    const enemyCities = state.cities.filter(c => c.ownerId === targetId);
+    const hasCapturableCity = enemyCities.some(c => c.hp <= 0);
 
-        // v0.98 Update 8: War exhaustion overrides "winning" stance
-        // After 40 turns, even winners become willing to peace (unless they can finish the enemy)
-        // EXCEPTION: Dominating power (5x+) NEVER gets war-weary - finish them!
-        // v0.99 Update: Late Game Escalation (factor < 0.8) ALSO ignores exhaustion/stalemate
-        // If we are in the "Death War" phase, we fight to the end.
-        const dominating = hasDominatingPowerOver(playerId, targetId, state);
-        const lateGameDeathWar = escalationFactor < 0.8;
-
-        if (exhausted && !finishable && !overwhelming && !dominating && !lateGameDeathWar) {
-            aiInfo(`[AI WAR EXHAUSTED] ${playerId} war-weary after ${turnsSinceChange} turns against ${targetId}`);
-            const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
-            if (incomingPeace) return "AcceptPeace";
-            return "ProposePeace";
-        }
-
-        // v0.98 Update 8: Stalemate detection - propose peace if war is going nowhere
-        if (stalemate && !lateGameDeathWar) {
-            aiInfo(`[AI WAR STALEMATE] ${playerId} recognizes stalemate with ${targetId} after ${turnsSinceChange} turns`);
-            const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
-            if (incomingPeace) return "AcceptPeace";
-            return "ProposePeace";
-        }
-
-        // v0.98 Update 6: Continue fighting if we have significant advantage (but not forever - see above)
-        if (overwhelming || finishable || cityAdvantage || winning) {
-            aiInfo(`[AI WAR CONTINUE] ${playerId} continuing war with ${targetId} (overwhelming=${overwhelming}, finishable=${finishable}, cityAdv=${cityAdvantage}, winning=${winning})`);
-            return "None";
-        }
-
-        // v0.98 Update 6: Accept/propose peace if ACTUALLY losing
-        const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
-        if (incomingPeace && (actuallyLosing || progressRisk)) return "AcceptPeace";
-        if (actuallyLosing || progressRisk) return "ProposePeace";
-
-        // Default: keep fighting if we're in the middle (not winning, not losing)
-        // But this will eventually trigger stalemate or exhaustion above
+    if (hasCapturableCity) {
+        aiInfo(`[AI WAR CONTINUE] ${playerId} refusing peace with ${targetId} - city is CAPTURABLE (HP <= 0)!`);
         return "None";
     }
 
-    // v0.98 Update 5: Overwhelming power or finishable target bypasses peace duration
-    // This fixes stalled games where dominant civs get stuck in peace/war cycles
-    const overwhelming = hasOverwhelmingPowerOver(playerId, targetId, state);
-    const finishable = isFinishableTarget(playerId, targetId, state);
-    const dominating = hasDominatingPowerOver(playerId, targetId, state);
-    const bypassPeaceDuration = overwhelming || finishable || dominating;
+    const lateGameDeathWar = escalationFactor < 0.8;
 
-    // v0.98 Update 8: DOMINATION MODE - 5x+ power advantage bypasses ALL restrictions
-    // This is the #1 fix for stalled games - dominant civs MUST finish off weak opponents
+    if (warStatus.isExhausted && !power.isFinishable && !power.isOverwhelming && !power.isDominating && !lateGameDeathWar) {
+        aiInfo(`[AI WAR EXHAUSTED] ${playerId} war-weary after ${warStatus.turnsSinceChange} turns against ${targetId}`);
+        const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
+        if (incomingPeace) return "AcceptPeace";
+        return "ProposePeace";
+    }
+
+    if (warStatus.isStalemate && !lateGameDeathWar) {
+        aiInfo(`[AI WAR STALEMATE] ${playerId} recognizes stalemate with ${targetId} after ${warStatus.turnsSinceChange} turns`);
+        const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
+        if (incomingPeace) return "AcceptPeace";
+        return "ProposePeace";
+    }
+
+    if (power.isOverwhelming || power.isFinishable || power.hasCityAdvantage || warStatus.isWinning) {
+        aiInfo(`[AI WAR CONTINUE] ${playerId} continuing war with ${targetId} (overwhelming=${power.isOverwhelming}, finishable=${power.isFinishable}, cityAdv=${power.hasCityAdvantage}, winning=${warStatus.isWinning})`);
+        return "None";
+    }
+
+    const incomingPeace = state.diplomacyOffers?.some(o => o.type === "Peace" && o.from === targetId && o.to === playerId);
+    if (incomingPeace && (warStatus.isLosing || progressRisk)) return "AcceptPeace";
+    if (warStatus.isLosing || progressRisk) return "ProposePeace";
+
+    return "None";
+}
+
+function evaluatePeaceState(context: DecisionContext, options?: { ignorePrep?: boolean }): WarPeaceDecision {
+    const {
+        playerId,
+        targetId,
+        state,
+        warDistanceMax,
+        finalWarPowerThreshold,
+        aiPower,
+        enemyPower,
+        contactTurns,
+        declareAfterContact,
+        stateChangedTurn,
+        turnsSinceChange,
+        inWar,
+        warPowerThreshold,
+        capitalBonus,
+        escalationFactor,
+        peaceThreshold,
+        mapSizeFactor,
+    } = context;
+
+    // Use typed evaluator
+    const power = evaluatePowerRatio(playerId, targetId, state);
+    const bypassPeaceDuration = power.isOverwhelming || power.isFinishable || power.isDominating;
     const theirCitiesExist = state.cities.some(c => c.ownerId === targetId);
 
-    // Check for War Preparation
     const player = state.players.find(p => p.id === playerId);
     const prep = player?.warPreparation;
     const isPrepping = prep && prep.targetId === targetId;
     const isReady = isPrepping && prep.state === "Ready";
 
-    if (dominating && theirCitiesExist) {
-        // v0.99 Update: Domination Bypass
-        // If we have 5x power, we don't need to wait for full preparation.
-        // We are strong enough to crush them immediately.
+    if (power.isDominating && theirCitiesExist) {
         if (!options?.ignorePrep && !isReady) {
             aiInfo(`[AI DOMINATION] ${playerId} has DOMINATING power (5x) - Bypassing War Prep!`);
-        } else {
-            // Standard log if we were ready anyway
-            // (No-op, just fall through to declare)
         }
-        aiInfo(`[AI DOMINATION] ${playerId} entering DOMINATION mode against ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)} = ${(aiPower / Math.max(1, enemyPower)).toFixed(1)}x)`);
+        aiInfo(`[AI DOMINATION] ${playerId} entering DOMINATION mode against ${targetId} (power ${power.aiPower.toFixed(1)} vs ${power.enemyPower.toFixed(1)} = ${power.ratio.toFixed(1)}x)`);
         return "DeclareWar";
     }
 
-    // Minimum peace duration check - but only if there was a previous war
-    // Don't block initial wars!
     const MIN_PEACE_DURATION = 15;
     const hadPriorDiplomacyChange = stateChangedTurn > 0;
     if (hadPriorDiplomacyChange && !inWar && turnsSinceChange < MIN_PEACE_DURATION && !bypassPeaceDuration) {
-        // Peace must last at least 15 turns before declaring war AGAIN
-        // UNLESS we have overwhelming power or target is finishable
         logVeto(`Peace too recent: ${playerId}->${targetId} turns since peace: ${turnsSinceChange}/${MIN_PEACE_DURATION}`);
         return "None";
     }
 
-    const { dist, myCities, theirCities } = enemyCityDistance(playerId, targetId, state);
-    if (theirCities.length === 0 || myCities.length === 0) {
-        logVeto(`No cities for war eval ${playerId}->${targetId} myCities=${myCities.join(",") || "none"} theirCities=${theirCities.join(",") || "none"}`);
+    const distEval = evaluateDistance(playerId, targetId, state, { warDistanceMax });
+    if (distEval.theirCities.length === 0 || distEval.myCities.length === 0) {
+        logVeto(`No cities for war eval ${playerId}->${targetId} myCities=${distEval.myCities.join(",") || "none"} theirCities=${distEval.theirCities.join(",") || "none"}`);
     }
 
-    // v0.98 Update 5: Always declare war if we have overwhelming power or target is finishable
-    if (dist !== null && (overwhelming || finishable)) {
+    const dist = distEval.closestCityDist;
+
+    if (dist !== null && (power.isOverwhelming || power.isFinishable)) {
         if (!options?.ignorePrep && !isReady) return "None";
-        aiInfo(`[AI WAR FINISH] ${playerId} declaring war on ${targetId} (${overwhelming ? "OVERWHELMING" : "FINISHABLE"}: power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
+        aiInfo(`[AI WAR FINISH] ${playerId} declaring war on ${targetId} (${power.isOverwhelming ? "OVERWHELMING" : "FINISHABLE"}: power ${power.aiPower.toFixed(1)} vs ${power.enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
     }
 
@@ -482,25 +687,18 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
         aiInfo(`[AI WAR] ${playerId} declaring war on ${targetId} (power ${aiPower.toFixed(1)} vs ${enemyPower.toFixed(1)}, dist ${dist})`);
         return "DeclareWar";
     } else if (dist !== null && dist <= warDistanceMax) {
-        // v0.99: If we are close enough to fight but too weak, we should build up!
-        // This solves the deadlock where weak AIs never build an army to start a war.
-        // Only build up if we are not hopelessly outmatched (at least 25% of their power)
         if (aiPower >= enemyPower * 0.25) {
             return "PrepareForWar";
         }
     }
 
-    // v1.9 FIX: declareAfterContactTurns should still respect warPowerThreshold!
-    // Previously this would declare war at 0.5x power which made defensive civs (StarborneSeekers) aggressive
     if (declareAfterContact > 0 && contactTurns >= declareAfterContact && dist !== null) {
-        // Use a minimum of 0.8 OR the civ's actual warPowerThreshold
         const forcedWarThreshold = Math.max(0.8, warPowerThreshold);
         if (aiPower >= enemyPower * forcedWarThreshold) {
             if (!options?.ignorePrep && !isReady) return "None";
             aiInfo(`[AI WAR CONTACT] ${playerId} declaring war on ${targetId} after ${contactTurns} turns of contact`);
             return "DeclareWar";
         } else {
-            // Also prepare if we want to force war but are weak
             if (aiPower >= enemyPower * 0.25) {
                 return "PrepareForWar";
             }
@@ -509,14 +707,17 @@ export function aiWarPeaceDecision(playerId: string, targetId: string, state: Ga
     }
 
     if (dist === null) {
-        logVeto(`No enemy city distance for ${playerId}->${targetId} contactTurns=${contactTurns} myCities=${myCities.join(",") || "none"} theirCities=${theirCities.join(",") || "none"}`);
+        logVeto(`No enemy city distance for ${playerId}->${targetId} contactTurns=${contactTurns} myCities=${distEval.myCities.join(",") || "none"} theirCities=${distEval.theirCities.join(",") || "none"}`);
     } else {
         logVeto(
             `No war: ${playerId}->${targetId} dist ${dist}/${warDistanceMax} power ${aiPower.toFixed(
                 1
-            )} vs ${enemyPower.toFixed(1)} req ${finalWarPowerThreshold.toFixed(2)} (base ${warPowerThreshold}) contactTurns=${contactTurns} myCities=${myCities.join(",") || "none"} theirCities=${theirCities.join(",") || "none"}`
+            )} vs ${enemyPower.toFixed(1)} req ${finalWarPowerThreshold.toFixed(2)} (base ${warPowerThreshold}) contactTurns=${contactTurns} myCities=${distEval.myCities.join(",") || "none"} theirCities=${distEval.theirCities.join(",") || "none"}`
         );
     }
+
+    void peaceThreshold; // Retain parity with prior variables even if unused.
+    void mapSizeFactor;
 
     return "None";
 }

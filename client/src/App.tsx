@@ -9,7 +9,7 @@ import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sectio
 import { ToastContainer } from "./components/Toast";
 import { SaveGameModal } from "./components/SaveGameModal";
 import { LoadGameModal } from "./components/LoadGameModal";
-import { Action, AiSystem, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
+import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
@@ -191,7 +191,7 @@ function App() {
 
             const players = buildPlayers(parsedSeed);
 
-            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined, aiSystem: "UtilityV2" as AiSystem };
+            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined };
             const state = startNewGame(settings);
             console.info("[World] seed", state.seed);
             setShowTechTree(true);

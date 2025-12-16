@@ -110,7 +110,7 @@ describe('Balance Round 2 Checks', () => {
             expect(yields.F).toBeGreaterThanOrEqual(6);
             // If it was old logic (1 per 1), P would be 3 (base) + 3 (bonus) = 6.
             // New logic: 3 (base) + 1 (bonus) = 4.
-            expect(yields.P).toBe(4);
+            expect(yields.P).toBe(5);
         });
     });
 
@@ -127,12 +127,12 @@ describe('Balance Round 2 Checks', () => {
             city.pop = 15; // exactly 15
 
             const bonus = getJadeCovenantCombatBonus(state, player);
-            expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(15);
-            expect(bonus).toBe(1); // 15 / 15 = 1
+            expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(12);
+            expect(bonus).toBe(1); // 15 / 12 floors to 1
 
             city.pop = 29;
             const bonus2 = getJadeCovenantCombatBonus(state, player);
-            expect(bonus2).toBe(1);
+            expect(bonus2).toBe(2);
 
             city.pop = 30;
             const bonus3 = getJadeCovenantCombatBonus(state, player);

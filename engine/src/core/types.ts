@@ -72,8 +72,8 @@ export enum BuildingType {
 
 export type AiVictoryGoal = "Progress" | "Conquest" | "Balanced";
 
-// AI engine selector. Default behavior is Legacy if not specified on GameState.
-export type AiSystem = "Legacy" | "UtilityV2";
+// AI engine selector. UtilityV2 is the sole supported system.
+export type AiSystem = "UtilityV2";
 
 export enum TechId {
     // Hearth
@@ -275,8 +275,7 @@ export type GameState = {
     currentPlayerId: string;
     phase: PlayerPhase;
     /**
-     * Optional AI engine selector.
-     * - Omitted/undefined: treated as "Legacy" for backward compatibility with old saves/tests.
+     * Optional AI engine selector. UtilityV2 is the only supported system.
      */
     aiSystem?: AiSystem;
     /**

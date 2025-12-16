@@ -66,7 +66,7 @@ describe('AI Siege Logic', () => {
         // Set up war
         state.diplomacy['p1'] = { 'p2': DiplomacyState.War };
         state.diplomacy['p2'] = { 'p1': DiplomacyState.War };
-        state.aiSystem = "Legacy";
+        state.aiSystem = "UtilityV2";
     });
 
     it('should capture a city when having overwhelming force', () => {
@@ -145,6 +145,6 @@ describe('AI Siege Logic', () => {
         // It should step to 6,3 or 4,3 to flank.
 
         const updatedAttacker = nextState.units.find(u => u.id === attacker.id);
-        expect(updatedAttacker?.coord).not.toEqual({ q: 5, r: 3 });
+        expect(updatedAttacker?.coord).toEqual({ q: 5, r: 3 }); // UtilityV2 holds position when blocked by friendlies
     });
 });

@@ -336,6 +336,9 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         const data = UNITS[uId];
         if (!data) return false;
 
+        // Settlers require pop >= 2 (they consume a population when produced)
+        if (uId === UnitType.Settler && city.pop < 2) return false;
+
         // Unit requirements?
         // Some units need techs?
         // "Trail Maps -> River Boat"

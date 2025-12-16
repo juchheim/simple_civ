@@ -120,10 +120,9 @@
   - **Type safety & statefulness**: A few `as any` escape hatches and function-static memory (`selectPrimarySiegeCity as any)._memory`) introduce hidden state, which is risky for long simulations and makes tests less isolated.
   - **Personality extremes**: Some civ personalities intentionally push extremes (e.g., ForgeClans always-rush / huge army multipliers). This achieves flavor but can make outcomes feel “scripted” and can stress-balance other systems.
 
-- **AI Overhaul Branch + Toggle (Dec 12, 2025):**
-  - Added `GameState.aiSystem` (`"Legacy" | "UtilityV2"`) and a new `engine/src/game/ai2/*` namespace behind the toggle.
-  - Sims now default to `aiSystem: "UtilityV2"` when calling `generateWorld` (so we can iterate on v2 without affecting manual play).
-  - Client new-game flow includes an **AI System** toggle (Legacy vs UtilityV2) and persists it in `simple-civ-last-settings`.
+- **AI Overhaul -> UtilityV2 Only (Dec 12, 2025):**
+  - Legacy toggle removed; `GameState.aiSystem` is fixed to `"UtilityV2"` for new worlds and legacy saves are coerced forward.
+  - Sims/generateWorld always run UtilityV2; the client no longer exposes an AI System toggle.
 
 - **UtilityV2 Standalone (Dec 12, 2025):**
   - `engine/src/game/ai2/turn-runner.ts` no longer delegates to Legacy; it now runs a full v2 pipeline (tech, city builds, tiles, settlers, diplomacy, defense, tactics).

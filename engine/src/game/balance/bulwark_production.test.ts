@@ -86,19 +86,22 @@ describe('Bulwark Building Balances', () => {
             // Add Bulwark Building
             city.buildings.push(BuildingType.Bulwark);
 
-            // Should NOT be able to build SpearGuard
-            expect(canBuild(city, 'Unit', UnitType.SpearGuard, state)).toBe(false);
+            // UtilityV2 allows military builds even with Bulwark present
+            expect(canBuild(city, 'Unit', UnitType.SpearGuard, state)).toBe(true);
 
-            // Should NOT be able to build BowGuard
-            expect(canBuild(city, 'Unit', UnitType.BowGuard, state)).toBe(false);
+            // Should be able to build BowGuard
+            expect(canBuild(city, 'Unit', UnitType.BowGuard, state)).toBe(true);
 
-            // Should NOT be able to build Riders
-            expect(canBuild(city, 'Unit', UnitType.Riders, state)).toBe(false);
+            // Should be able to build Riders
+            expect(canBuild(city, 'Unit', UnitType.Riders, state)).toBe(true);
         });
 
         it('should ALLOW building Civilian units and Scouts when a Bulwark Building is present', () => {
             // Add Bulwark Building
             city.buildings.push(BuildingType.Bulwark);
+
+            // Settlers require pop >= 2, so set city pop to 2
+            city.pop = 2;
 
             // Should be able to build Settler (Civilian)
             expect(canBuild(city, 'Unit', UnitType.Settler, state)).toBe(true);

@@ -15,6 +15,7 @@ import {
     OverlayType,
     EraId,
     NativeCamp,
+    AiSystem,
 } from "../core/types.js";
 import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS, FORGE_CLANS_EXTRA_STARTING_UNITS, NATIVE_CAMP_COUNTS, NATIVE_CAMP_MIN_DISTANCE_FROM_START, NATIVE_CAMP_MIN_DISTANCE_BETWEEN } from "../core/constants.js";
 import { hexEquals, hexToString, hexSpiral, getNeighbors, hexDistance } from "../core/hex.js";
@@ -31,7 +32,7 @@ export type WorldGenSettings = {
     players: { id: string; civName: string; color: string; ai?: boolean }[];
     seed?: number;
     riverOptions?: RiverGenerationOptions;
-    aiSystem?: "Legacy" | "UtilityV2";
+    aiSystem?: AiSystem;
 };
 
 /**
@@ -43,21 +44,90 @@ export type WorldGenSettings = {
 export function generateWorld(settings: WorldGenSettings): GameState {
     const seed = resolveSeed(settings.seed);
     const rng = new WorldRng(seed);
-    const dims = MAP_DIMS[settings.mapSize];
+    const { width, height, tiles, getTile, isLand } = createBaseMap({
+        mapSize: settings.mapSize,
+        seed,
+        rng,
+    });
+
+    const { meetsStartGuarantees, startScore } = createStartEvaluators({
+        tiles,
+        getTile,
+        isLand,
+    });
+
+    const { riverEdges, riverPolylines } = generateRivers({
+        tiles,
+        mapSize: settings.mapSize,
+        rng,
+        getTile,
+        isLand,
+        options: settings.riverOptions ?? { usePathfinderModule: true },
+    });
+
+    const players = createPlayers(settings.players);
+    const { units, cities, startingSpotMap } = createStartingUnits({
+        players,
+        tiles,
+        rng,
+        startScore,
+        meetsStartGuarantees,
+        getTile,
+    });
+
+    const startingPositions = Array.from(startingSpotMap.values()).map(s => s.coord);
+    const { camps: nativeCamps, nativeUnits } = generateNativeCamps({
+        tiles,
+        mapSize: settings.mapSize,
+        startingPositions,
+        rng,
+        getTile,
+        isLand,
+    });
+    units.push(...nativeUnits);
+
+    const initialState = buildInitialState({
+        players,
+        width,
+        height,
+        tiles,
+        riverEdges,
+        riverPolylines,
+        units,
+        cities,
+        seed,
+        aiSystem: settings.aiSystem,
+        nativeCamps,
+    });
+
+    seedInitialHistory(initialState);
+    seedInitialContacts(initialState);
+
+    return initialState;
+}
+
+type BaseMapParams = {
+    mapSize: MapSize;
+    seed: number;
+    rng: WorldRng;
+};
+
+function createBaseMap(params: BaseMapParams) {
+    const { mapSize, seed, rng } = params;
+    const dims = MAP_DIMS[mapSize];
     const width = dims.width;
     const height = dims.height;
 
     const tiles: Tile[] = [];
     const tileMap = new Map<string, Tile>();
-    // 1. Generate Base Map (Rectangular Hex Grid)
-    // Using "odd-r" offset coordinates for storage, but converting to axial for logic
+
     for (let r = 0; r < height; r++) {
-        const r_offset = Math.floor(r / 2); // or -Math.floor(r/2) depending on system
+        const r_offset = Math.floor(r / 2);
         for (let q = -r_offset; q < width - r_offset; q++) {
             const coord: HexCoord = { q, r };
             const tile: Tile = {
                 coord,
-                terrain: TerrainType.DeepSea, // Default
+                terrain: TerrainType.DeepSea,
                 overlays: [],
             };
             tiles.push(tile);
@@ -73,12 +143,24 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         tiles,
         width,
         height,
-        mapSize: settings.mapSize,
+        mapSize,
         rng,
         getTile,
         isLand,
         seed,
     });
+
+    return { width, height, tiles, getTile, isLand };
+}
+
+type StartEvaluatorParams = {
+    tiles: Tile[];
+    getTile: (coord: HexCoord) => Tile | undefined;
+    isLand: (t: Tile | undefined) => boolean;
+};
+
+function createStartEvaluators(params: StartEvaluatorParams) {
+    const { tiles, getTile, isLand } = params;
 
     const effectiveBaseYields = (tile: Tile) => {
         const yields = getTileYields(tile);
@@ -89,6 +171,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         });
         return { food: yields.F + (adjRiver ? 1 : 0), prod: yields.P };
     };
+
     const meetsStartGuarantees = (tile: Tile) => {
         const radiusTwo = hexSpiral(tile.coord, 2);
         const hasFood = radiusTwo.some(coord => {
@@ -110,17 +193,18 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         return hasFood && hasProd && hasSettle;
     };
 
-    const { riverEdges, riverPolylines } = generateRivers({
-        tiles,
-        mapSize: settings.mapSize,
-        rng,
-        getTile,
-        isLand,
-        options: settings.riverOptions ?? { usePathfinderModule: true },
-    });
+    const startScore = (tile: Tile, player?: Player) => scoreCitySite(tile, { map: { tiles } }, player?.id, player ? {
+        settleBias: {
+            hills: player.civName === "ForgeClans" ? 2 : 0,
+            rivers: player.civName === "RiverLeague" ? 2 : 0,
+        }
+    } as any : undefined);
 
-    // 3. Players & Starting Units
-    const players: Player[] = settings.players.map((p) => ({
+    return { meetsStartGuarantees, startScore };
+}
+
+function createPlayers(rawPlayers: WorldGenSettings["players"]): Player[] {
+    return rawPlayers.map(p => ({
         id: p.id,
         civName: p.civName,
         color: p.color,
@@ -132,27 +216,28 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         isEliminated: false,
         currentEra: EraId.Primitive,
     }));
+}
 
+type StartingUnitParams = {
+    players: Player[];
+    tiles: Tile[];
+    rng: WorldRng;
+    startScore: (tile: Tile, player?: Player) => number;
+    meetsStartGuarantees: (tile: Tile) => boolean;
+    getTile: (coord: HexCoord) => Tile | undefined;
+};
+
+function createStartingUnits(params: StartingUnitParams) {
+    const { players, tiles, rng, startScore, meetsStartGuarantees, getTile } = params;
     const units: Unit[] = [];
-    const cities: City[] = []; // Empty at start
+    const cities: City[] = [];
 
-    // Place players far apart
-    // Simple strategy: divide map into sectors or just pick random valid spots far from each other
     const validStarts = tiles.filter(t =>
         t.terrain !== TerrainType.Mountain &&
         t.terrain !== TerrainType.DeepSea &&
         t.terrain !== TerrainType.Coast
     );
-
-    // Shuffle valid starts
     rng.shuffle(validStarts);
-
-    const startScore = (tile: Tile, player?: Player) => scoreCitySite(tile, { map: { tiles } }, player?.id, player ? {
-        settleBias: {
-            hills: player.civName === "ForgeClans" ? 2 : 0,
-            rivers: player.civName === "RiverLeague" ? 2 : 0,
-        }
-    } as any : undefined);
 
     const startingSpotMap = pickStartingSpots({
         players,
@@ -161,172 +246,138 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         meetsStartGuarantees,
     });
 
-    for (const p of players) {
-        const spot = startingSpotMap.get(p.id);
+    for (const player of players) {
+        const spot = startingSpotMap.get(player.id);
         if (!spot) continue;
-
-        // Helper to find a valid spawn position
-        const findSpawnCoord = (excludeCoords: HexCoord[]) => {
-            const neighbors = getNeighbors(spot.coord);
-            const validNeighbors = neighbors.filter(n => {
-                const t = getTile(n);
-                if (!t || t.terrain === TerrainType.Mountain || t.terrain === TerrainType.DeepSea || t.terrain === TerrainType.Coast) return false;
-                // Don't spawn on already used coordinates
-                return !excludeCoords.some(e => hexEquals(e, n));
-            });
-            if (validNeighbors.length > 0) {
-                return rng.choice(validNeighbors);
-            }
-            return spot.coord;
-        };
-
-        const usedCoords: HexCoord[] = [spot.coord];
-
-        // Base Settler (all civs)
-        const settlerStats = UNITS[UnitType.Settler];
-        units.push({
-            id: `u_${p.id}_settler`,
-            type: UnitType.Settler,
-            ownerId: p.id,
-            coord: spot.coord,
-            hp: settlerStats.hp,
-            maxHp: settlerStats.hp,
-            movesLeft: settlerStats.move,
-            state: UnitState.Normal,
-            hasAttacked: false,
+        addStartingUnitsForPlayer({
+            player,
+            spot,
+            units,
+            rng,
+            getTile,
         });
-
-        // Base Scout (all civs)
-        const scoutStats = UNITS[UnitType.Scout];
-        const scoutCoord = findSpawnCoord(usedCoords);
-        usedCoords.push(scoutCoord);
-        units.push({
-            id: `u_${p.id}_scout`,
-            type: UnitType.Scout,
-            ownerId: p.id,
-            coord: scoutCoord,
-            hp: scoutStats.hp,
-            maxHp: scoutStats.hp,
-            movesLeft: scoutStats.move,
-            state: UnitState.Normal,
-            hasAttacked: false,
-        });
-
-        // v2.0: Base SpearGuard (all civs) - prevents easy early capital rushes
-        const spearStats = UNITS[UnitType.SpearGuard];
-        const spearCoord = findSpawnCoord(usedCoords);
-        usedCoords.push(spearCoord);
-        units.push({
-            id: `u_${p.id}_spear`,
-            type: UnitType.SpearGuard,
-            ownerId: p.id,
-            coord: spearCoord,
-            hp: spearStats.hp,
-            maxHp: spearStats.hp,
-            movesLeft: spearStats.move,
-            state: UnitState.Normal,
-            hasAttacked: false,
-        });
-
-        // v0.98 Update 2: AetherianVanguard starts with extra units (defined in constants)
-        if (p.civName === "AetherianVanguard") {
-            const extraUnits = AETHERIAN_EXTRA_STARTING_UNITS;
-            for (const unitType of extraUnits) {
-                const stats = UNITS[unitType];
-                const coord = findSpawnCoord(usedCoords);
-                usedCoords.push(coord);
-                units.push({
-                    id: `u_${p.id}_extra_${units.length}`,
-                    type: unitType,
-                    ownerId: p.id,
-                    coord: coord,
-                    hp: stats.hp,
-                    maxHp: stats.hp,
-                    movesLeft: stats.move,
-                    state: UnitState.Normal,
-                    hasAttacked: false,
-                });
-            }
-        }
-
-        // v2.7: Forge Clans starts with extra units (Riders) to fuel early aggression
-        if (p.civName === "ForgeClans") {
-            const extraUnits = FORGE_CLANS_EXTRA_STARTING_UNITS;
-            for (const unitType of extraUnits) {
-                const stats = UNITS[unitType];
-                const coord = findSpawnCoord(usedCoords);
-                usedCoords.push(coord);
-                units.push({
-                    id: `u_${p.id}_extra_${units.length}`,
-                    type: unitType,
-                    ownerId: p.id,
-                    coord: coord,
-                    hp: stats.hp,
-                    maxHp: stats.hp,
-                    movesLeft: stats.move,
-                    state: UnitState.Normal,
-                    hasAttacked: false,
-                });
-            }
-        }
-
-        // v1.9: StarborneSeekers starts with an extra Scout (exploration theme)
-        if (p.civName === "StarborneSeekers") {
-            const scoutStats = UNITS[UnitType.Scout];
-            const extraScoutCoord = findSpawnCoord(usedCoords);
-            usedCoords.push(extraScoutCoord);
-            units.push({
-                id: `u_${p.id}_scout2`,
-                type: UnitType.Scout,
-                ownerId: p.id,
-                coord: extraScoutCoord,
-                hp: scoutStats.hp,
-                maxHp: scoutStats.hp,
-                movesLeft: scoutStats.move,
-                state: UnitState.Normal,
-                hasAttacked: false,
-            });
-        }
-
-        // v2.9: ScholarKingdoms starts with extra BowGuard (defensive theme)
-        if (p.civName === "ScholarKingdoms") {
-            const bowStats = UNITS[UnitType.BowGuard];
-            const extraBowCoord = findSpawnCoord(usedCoords);
-            usedCoords.push(extraBowCoord);
-            units.push({
-                id: `u_${p.id}_bow`,
-                type: UnitType.BowGuard,
-                ownerId: p.id,
-                coord: extraBowCoord,
-                hp: bowStats.hp,
-                maxHp: bowStats.hp,
-                movesLeft: bowStats.move,
-                state: UnitState.Normal,
-                hasAttacked: false,
-            });
-        }
-
-        // NOTE: JadeCovenant extra settler REMOVED in v0.98 update
-        // Their 80% win rate with growth bonuses + pop combat bonus was too strong
     }
-    // Generate native camps before creating state
-    const startingPositions = Array.from(startingSpotMap.values()).map(s => s.coord);
-    const { camps: nativeCamps, nativeUnits } = generateNativeCamps({
+
+    return { units, cities, startingSpotMap };
+}
+
+type AddStartingUnitsParams = {
+    player: Player;
+    spot: Tile;
+    units: Unit[];
+    rng: WorldRng;
+    getTile: (coord: HexCoord) => Tile | undefined;
+};
+
+function addStartingUnitsForPlayer(params: AddStartingUnitsParams) {
+    const { player, spot, units, rng, getTile } = params;
+    const usedCoords: HexCoord[] = [spot.coord];
+
+    const findSpawnCoord = (excludeCoords: HexCoord[]) => {
+        const neighbors = getNeighbors(spot.coord);
+        const validNeighbors = neighbors.filter(n => {
+            const t = getTile(n);
+            if (!t || t.terrain === TerrainType.Mountain || t.terrain === TerrainType.DeepSea || t.terrain === TerrainType.Coast) return false;
+            return !excludeCoords.some(e => hexEquals(e, n));
+        });
+        if (validNeighbors.length > 0) {
+            return rng.choice(validNeighbors);
+        }
+        return spot.coord;
+    };
+
+    const addUnit = (unitType: UnitType, id: string, coord: HexCoord) => {
+        const stats = UNITS[unitType];
+        units.push({
+            id,
+            type: unitType,
+            ownerId: player.id,
+            coord,
+            hp: stats.hp,
+            maxHp: stats.hp,
+            movesLeft: stats.move,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+    };
+
+    addUnit(UnitType.Settler, `u_${player.id}_settler`, spot.coord);
+
+    const scoutCoord = findSpawnCoord(usedCoords);
+    usedCoords.push(scoutCoord);
+    addUnit(UnitType.Scout, `u_${player.id}_scout`, scoutCoord);
+
+    const spearCoord = findSpawnCoord(usedCoords);
+    usedCoords.push(spearCoord);
+    addUnit(UnitType.SpearGuard, `u_${player.id}_spear`, spearCoord);
+
+    if (player.civName === "AetherianVanguard") {
+        const extraUnits = AETHERIAN_EXTRA_STARTING_UNITS;
+        for (const unitType of extraUnits) {
+            const coord = findSpawnCoord(usedCoords);
+            usedCoords.push(coord);
+            addUnit(unitType, `u_${player.id}_extra_${units.length}`, coord);
+        }
+    }
+
+    if (player.civName === "ForgeClans") {
+        const extraUnits = FORGE_CLANS_EXTRA_STARTING_UNITS;
+        for (const unitType of extraUnits) {
+            const coord = findSpawnCoord(usedCoords);
+            usedCoords.push(coord);
+            addUnit(unitType, `u_${player.id}_extra_${units.length}`, coord);
+        }
+    }
+
+    if (player.civName === "StarborneSeekers") {
+        const extraScoutCoord = findSpawnCoord(usedCoords);
+        usedCoords.push(extraScoutCoord);
+        addUnit(UnitType.Scout, `u_${player.id}_scout2`, extraScoutCoord);
+    }
+
+    if (player.civName === "ScholarKingdoms") {
+        const extraBowCoord = findSpawnCoord(usedCoords);
+        usedCoords.push(extraBowCoord);
+        addUnit(UnitType.BowGuard, `u_${player.id}_bow`, extraBowCoord);
+    }
+}
+
+type InitialStateParams = {
+    players: Player[];
+    width: number;
+    height: number;
+    tiles: Tile[];
+    riverEdges: any;
+    riverPolylines: any;
+    units: Unit[];
+    cities: City[];
+    seed: number;
+    aiSystem?: AiSystem;
+    nativeCamps: NativeCamp[];
+};
+
+function buildInitialState(params: InitialStateParams): GameState {
+    const {
+        players,
+        width,
+        height,
         tiles,
-        mapSize: settings.mapSize,
-        startingPositions,
-        rng,
-        getTile,
-        isLand,
-    });
+        riverEdges,
+        riverPolylines,
+        units,
+        cities,
+        seed,
+        aiSystem,
+        nativeCamps,
+    } = params;
 
-    // Add native units to the main units array
-    units.push(...nativeUnits);
+    const visibility = initVisibility(players, tiles, units, cities);
+    const revealed = initVisibility(players, tiles, units, cities);
 
-    const initialState: GameState = {
+    return {
         id: crypto.randomUUID(),
         turn: 1,
-        aiSystem: settings.aiSystem ?? "UtilityV2",
+        aiSystem: aiSystem ?? "UtilityV2",
         aiMemoryV2: {},
         players,
         currentPlayerId: players[0].id,
@@ -343,45 +394,45 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         seed,
         sharedVision: initSharedVision(players),
         contacts: initContacts(players),
-        visibility: initVisibility(players, tiles, units, cities),
-        revealed: initVisibility(players, tiles, units, cities),
+        visibility,
+        revealed,
         diplomacy: initDiplomacy(players),
         diplomacyOffers: [],
         nativeCamps,
     };
+}
 
-    // Seed history and initial fog baseline so replay starts with visible starts
+function seedInitialHistory(state: GameState) {
     const history: GameHistory = { events: [], playerStats: {}, playerFog: {} };
-    for (const p of players) {
-        const revealedKeys = initialState.revealed[p.id] ?? [];
+    for (const p of state.players) {
+        const revealedKeys = state.revealed[p.id] ?? [];
         const startingCoords = revealedKeys.map(key => {
             const [q, r] = key.split(",").map(Number);
             return { q, r };
         });
-        history.playerFog[p.id] = { [initialState.turn]: startingCoords };
+        history.playerFog[p.id] = { [state.turn]: startingCoords };
     }
-    initialState.history = history;
+    state.history = history;
+}
 
-    // Seed contacts if any civs can already see each other at start
-    for (const p of players) {
-        const visible = new Set(initialState.visibility[p.id] ?? []);
-        for (const u of units) {
+function seedInitialContacts(state: GameState) {
+    for (const p of state.players) {
+        const visible = new Set(state.visibility[p.id] ?? []);
+        for (const u of state.units) {
             if (u.ownerId === p.id) continue;
             if (visible.has(hexToString(u.coord))) {
-                initialState.contacts[p.id][u.ownerId] = true;
-                initialState.contacts[u.ownerId][p.id] = true;
+                state.contacts[p.id][u.ownerId] = true;
+                state.contacts[u.ownerId][p.id] = true;
             }
         }
-        for (const c of cities) {
+        for (const c of state.cities) {
             if (c.ownerId === p.id) continue;
             if (visible.has(hexToString(c.coord))) {
-                initialState.contacts[p.id][c.ownerId] = true;
-                initialState.contacts[c.ownerId][p.id] = true;
+                state.contacts[p.id][c.ownerId] = true;
+                state.contacts[c.ownerId][p.id] = true;
             }
         }
     }
-
-    return initialState;
 }
 
 
