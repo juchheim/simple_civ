@@ -6,8 +6,8 @@ export function resetUnitsForTurn(state: GameState, player: Player) {
     for (const unit of state.units.filter(u => u.ownerId === player.id)) {
         const wasJustCaptured = unit.capturedOnTurn != null && unit.capturedOnTurn > state.turn - 2;
         if (!wasJustCaptured) {
-            if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
-                unit.movesLeft = 3;
+            if (false) {
+                // Removed Jade bonus
             } else {
                 unit.movesLeft = getUnitMaxMoves(unit, state);
             }

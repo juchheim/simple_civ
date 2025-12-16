@@ -346,12 +346,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // v5.6: Bulwark Building Protocol
         // A city with a Bulwark Building commits to a "Fortress" role and cannot produce offensive armies.
         // It can only build Civilian units (Settler) and Recon units (Scout).
-        if (city.buildings.includes(BuildingType.Bulwark)) {
-            // Exception: Allow Settlers and Scouts
-            if (uId !== UnitType.Settler && uId !== UnitType.Scout) {
-                return false;
-            }
-        }
+
 
         // Armies?
         // "After Army Doctrine, a city may build Form Army..."
@@ -378,12 +373,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // v5.6: Bulwark Building Protocol
         // A city with a Bulwark Building commits to a "Fortress" role and cannot produce offensive armies.
         // It can only build Civilian units (Settler) and Recon units (Scout).
-        if (city.buildings.includes(BuildingType.Bulwark)) {
-            // Exception: Allow Settlers and Scouts
-            if (uId !== UnitType.Settler && uId !== UnitType.Scout) {
-                return false;
-            }
-        }
+
 
         return true;
     }
@@ -413,6 +403,9 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         }
 
         if (pId.startsWith("FormArmy")) {
+            // v5.12: Bulwark cities cannot form armies (they focus on defense/basic units)
+            if (city.buildings.includes(BuildingType.Bulwark)) return false;
+
             if (!player.techs.includes(TechId.DrilledRanks)) return false;
 
             const requiredUnitType = data.onComplete.payload.baseUnit as UnitType;

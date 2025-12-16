@@ -239,8 +239,8 @@ export function createCity(
         ? options.name
         : getCityName(state, player?.civName || "", ownerId);
 
-    // JadeCovenant "Bountiful Harvest" passive: Cities start with +5 stored Food
-    const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 5 : 0);
+    // JadeCovenant "Bountiful Harvest" passive: Cities start with +3 stored Food (Nerfed from 5)
+    const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 3 : 0);
 
     if (player) {
         player.hasFoundedFirstCity = true;

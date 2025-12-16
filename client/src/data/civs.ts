@@ -34,7 +34,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "AetherianVanguard",
         title: "Aetherian Vanguard",
         summary: "Gains strength through the ages and can summon the legendary Titan.",
-        perk: "+1 Prod in Capital • +1 Prod from garrison • +2 HP per era (max +6) • Titan's Core unlocks the Titan",
+        perk: "+1 Prod in Capital • +1 Prod from garrison • Science on kills • +2 HP per era (max +6) • Titan's Core unlocks the Titan",
         color: "#9333ea",
     },
     {
@@ -48,7 +48,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "JadeCovenant",
         title: "Jade Covenant",
         summary: "Masters of growth and population-based power.",
-        perk: "Cities start +5 Food • Settlers: 3 Move, 30% cheaper • +1 Atk/Def per 12 pop • Nature's Wrath: enemies take 1 dmg/turn in your territory",
+        perk: "Cities start +3 Food • +1 Atk/Def per 12 pop • Nature's Wrath: enemies take 1 dmg/turn in your territory",
         color: "#0f9d58",
     },
 ];

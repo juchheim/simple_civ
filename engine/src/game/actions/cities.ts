@@ -204,10 +204,7 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
             cost = Math.floor(cost * FORGE_CLANS_MILITARY_DISCOUNT);
         }
 
-        // v0.98 Update 9: JadeCovenant "Expansionist" - 30% cheaper Settlers
-        if (player?.civName === "JadeCovenant" && unitType === UnitType.Settler) {
-            cost = Math.floor(cost * 0.7);
-        }
+
     }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
     if (action.buildType === "Project") cost = getProjectCost(action.buildId as ProjectId, state.turn);

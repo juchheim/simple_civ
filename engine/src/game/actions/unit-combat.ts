@@ -165,9 +165,10 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     const victimStats = UNITS[defender.type as UnitType];
                     // v1.9: Reworked - Base on combat power (ATK + DEF + HP/2), not cost
                     // v2.7: Nerfed multiplier from 0.5 to 0.2 - Prevent snowballing
-                    // This makes Army units and Titans more valuable targets, but less game-breaking
+                    // v5.14: Buffed to 0.3 (was 0.2) per user request
+                    // This makes Army units and Titans more valuable targets
                     const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.2);
+                    const scienceGain = Math.floor(combatPower * 0.3);
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                         // Track for simulation analysis
@@ -252,12 +253,26 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             }
         }
 
+        // v5.10: Bulwark Return Damage Fix
+        // If city has Bulwark, it acts as a stationary garrison for retaliation purposes.
+        // v5.11: DISABLED per user request (logic kept for potential re-enable)
+        const hasBulwark = false; // city.buildings.includes(BuildingType.Bulwark);
+        if (hasBulwark) {
+            const bulwarkStats = BUILDINGS[BuildingType.Bulwark];
+            // Add Bulwark's cityAttackBonus (4) to the base
+            garrisonAttackBonus += (bulwarkStats.cityAttackBonus || 0);
+            // Ensure range is at least 2 (Bulwark is ranged)
+            garrisonRetaliationRange = Math.max(garrisonRetaliationRange, 2);
+            // Defense bonus is handled in general building loop below, so don't add it here to avoid double counting
+        }
+
         // v2.0: Civ 6-style damage formula for city attacks
         // v5.0: Dynamic defense calculation from all buildings
         let defensePower = CITY_DEFENSE_BASE + Math.floor(city.pop / 2) + garrisonDefenseBonus;
         for (const b of city.buildings) {
             if (BUILDINGS[b].defenseBonus) defensePower += BUILDINGS[b].defenseBonus;
         }
+
 
         // v3.0: Flanking Bonus vs City
         // +1 Attack for each OTHER friendly military unit adjacent to city
@@ -281,8 +296,8 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;
 
-        // City retaliation via garrison
-        if (garrison && dist <= garrisonRetaliationRange && !attacker.retaliatedAgainstThisTurn) {
+        // City retaliation via garrison OR Bulwark
+        if ((garrison || hasBulwark) && dist <= garrisonRetaliationRange && !attacker.retaliatedAgainstThisTurn) {
             // v2.0: Civ 6-style retaliation damage
             const cityAttackPower = CITY_ATTACK_BASE +
                 (city.buildings.includes(BuildingType.CityWard) ? CITY_WARD_ATTACK_BONUS : 0) +

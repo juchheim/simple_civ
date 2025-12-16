@@ -145,6 +145,22 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     const immediateArmy = bestImmediateFormArmyProject(state, playerId, city);
     if (immediateArmy) return { type: "Project", id: immediateArmy };
 
+    // v5.13: Hard Priority for Progress Victory Projects (Scholar/Starborne)
+    // If we can build the game-winning projects, DO IT NOW.
+    if (profile.civName === "ScholarKingdoms" || profile.civName === "StarborneSeekers" || goal === "Progress") {
+        const progressProjects = [ProjectId.GrandAcademy, ProjectId.GrandExperiment];
+        for (const pid of progressProjects) {
+            if (canBuild(city, "Project", pid, state)) {
+                // If it's one of these civs, it's CRITICAL priority.
+                // If it's just "Goal=Progress" (generic), we still do it unless we're about to die (handled via 'immediateArmy' above getting picked first if available).
+                // Actually, let's make it absolute. The 'immediateArmy' check above preserves tactical combining,
+                // but for production, this should beat everything else.
+                aiInfo(`[AI Build] ${profile.civName} (${playerId}) PRIORITY #1: Beelining ${pid}`);
+                return { type: "Project", id: pid };
+            }
+        }
+    }
+
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const myMilitary = countMilitary(state, playerId);
 

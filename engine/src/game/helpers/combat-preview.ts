@@ -211,15 +211,33 @@ export function getCombatPreviewUnitVsCity(
 
     // Return damage from city retaliation
     let returnDamage: { min: number; max: number; avg: number } | null = null;
-    if (garrison) {
-        const garrisonStats = UNITS[garrison.type];
-        const garrisonAtkBonus = garrisonStats.rng >= 2 ? 3 : 1;
-        const garrisonRange = garrisonStats.rng >= 2 ? 2 : 1;
+    // v5.11: DISABLED per user request
+    const hasBulwark = false; // city.buildings.includes(BuildingType.Bulwark);
+
+    if (garrison || hasBulwark) {
+        let garrisonAtkBonus = 0;
+        let garrisonRange = 0;
+
+        if (garrison) {
+            const garrisonStats = UNITS[garrison.type];
+            garrisonAtkBonus = garrisonStats.rng >= 2 ? 3 : 1;
+            garrisonRange = garrisonStats.rng >= 2 ? 2 : 1;
+        }
+
+        if (hasBulwark) {
+            const bulwarkStats = BUILDINGS[BuildingType.Bulwark];
+            garrisonAtkBonus += (bulwarkStats.cityAttackBonus || 0);
+            garrisonRange = Math.max(garrisonRange, 2);
+        }
 
         // City attack power
         let cityAtk = CITY_ATTACK_BASE + garrisonAtkBonus;
         if (city.buildings.includes(BuildingType.CityWard)) {
             cityAtk += CITY_WARD_ATTACK_BONUS;
+        }
+
+        if (city.buildings.includes(BuildingType.Bulwark)) {
+            cityAtk += (BUILDINGS[BuildingType.Bulwark].cityAttackBonus || 0);
         }
 
         // Only show return damage if attacker is in range

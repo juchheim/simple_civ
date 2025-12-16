@@ -50,7 +50,7 @@ export function completeBuild(state: GameState, city: City) {
                 if (unit && unit.type === UnitType.Settler) {
                     unit.maxHp = 10;
                     unit.hp = 10;
-                    unit.movesLeft = 3;
+                    // unit.movesLeft = 3;  // Removed Jade movement bonus
                 }
             }
         }

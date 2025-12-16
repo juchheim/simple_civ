@@ -295,9 +295,9 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
         techReq: TechId.StoneworkHalls,
         cost: 60,
         defenseBonus: 12,
-        cityAttackBonus: 4,
+        cityAttackBonus: 3,
         yieldFlat: { S: 1 },
-        conditional: "Scholar/Starborne Only. City CANNOT build Military Units."
+        conditional: "Scholar/Starborne Only. City CANNOT form Armies."
     },
 };
 
