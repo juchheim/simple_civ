@@ -12,12 +12,23 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
     const lastGameIdRef = useRef<string | null>(null);
 
     useEffect(() => {
+        // DEBUG: Log every time this effect runs
+        console.log('[GoodieHut] Effect running', {
+            hasGameState: !!gameState,
+            gameId: gameState?.id,
+            lastGameIdRef: lastGameIdRef.current,
+            currentReward: gameState?.lastGoodieHutReward,
+            lastRewardRef: lastRewardRef.current,
+            rewardTimestampMatch: gameState?.lastGoodieHutReward?.timestamp === lastRewardRef.current?.timestamp,
+        });
+
         // Reset state when loading a new game to prevent re-alerting old rewards
         // DO NOT REMOVE: This logic ensures initialized state (lastGameId, lastReward) prevents
         // "recent" notifications from the save file being displayed as new alerts on load.
         // FIX: Only reset if there's actually an existing reward from the save file,
         // otherwise leave lastRewardRef undefined so the first reward of a new game shows a toast.
         if (gameState && gameState.id !== lastGameIdRef.current) {
+            console.log('[GoodieHut] New game detected, resetting refs');
             lastGameIdRef.current = gameState.id;
             // Only skip showing toast for rewards that existed in the save file (old timestamp)
             // A fresh new game won't have lastGoodieHutReward, so this will be undefined
@@ -47,7 +58,7 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
         }
 
         lastRewardRef.current = currentReward;
-    }, [gameState.lastGoodieHutReward, playerId]);
+    }, [gameState?.id, gameState?.lastGoodieHutReward, playerId]);
 
     const dismissToast = useCallback((id: string) => {
         setToasts(prev => prev.filter(t => t.id !== id));
