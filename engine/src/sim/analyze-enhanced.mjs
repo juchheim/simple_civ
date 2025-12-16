@@ -395,7 +395,8 @@ function analyzeTitanPerformance(results) {
         totalWinsWithTitan: 0,
         conquestWinsWithTitan: 0,
         avgSupport: 0,
-        supportSamples: 0,
+        totalSupportAtCaptures: 0,
+        totalTitanCaptures: 0,
         byCiv: new Map()
     };
 
@@ -406,14 +407,14 @@ function analyzeTitanPerformance(results) {
             wins: 0,
             conquestWins: 0,
             avgSupport: 0,
-            supportSamples: 0
+            totalSupportAtCaptures: 0,
+            totalTitanCaptures: 0
         });
     });
 
     results.forEach(sim => {
         const titanSpawns = sim.events.filter(e => e.type === "TitanSpawn");
         const titanDeaths = sim.events.filter(e => e.type === "TitanDeath");
-        const titanSteps = sim.events.filter(e => e.type === "TitanStep");
 
         titanSpawns.forEach(spawn => {
             titanStats.totalTitans++;
@@ -427,13 +428,20 @@ function analyzeTitanPerformance(results) {
             if (civStats) civStats.died++;
         });
 
-        titanSteps.forEach(step => {
-            titanStats.avgSupport += step.supportCount;
-            titanStats.supportSamples++;
-            const civStats = titanStats.byCiv.get(sim.finalState.civs.find(c => c.id === step.owner)?.civName);
-            if (civStats) {
-                civStats.avgSupport += step.supportCount;
-                civStats.supportSamples++;
+        // Use player's titanStats for support tracking (captured at city capture moments)
+        sim.finalState?.civs?.forEach(civData => {
+            if (civData.titanStats) {
+                const captures = civData.titanStats.cityCaptures || 0;
+                const support = civData.titanStats.totalSupportAtCaptures || 0;
+
+                titanStats.totalTitanCaptures += captures;
+                titanStats.totalSupportAtCaptures += support;
+
+                const civStats = titanStats.byCiv.get(civData.civName);
+                if (civStats) {
+                    civStats.totalTitanCaptures += captures;
+                    civStats.totalSupportAtCaptures += support;
+                }
             }
         });
 
@@ -456,13 +464,14 @@ function analyzeTitanPerformance(results) {
         }
     });
 
-    if (titanStats.supportSamples > 0) {
-        titanStats.avgSupport /= titanStats.supportSamples;
+    // Calculate average support from captures
+    if (titanStats.totalTitanCaptures > 0) {
+        titanStats.avgSupport = titanStats.totalSupportAtCaptures / titanStats.totalTitanCaptures;
     }
 
     titanStats.byCiv.forEach(stats => {
-        if (stats.supportSamples > 0) {
-            stats.avgSupport /= stats.supportSamples;
+        if (stats.totalTitanCaptures > 0) {
+            stats.avgSupport = stats.totalSupportAtCaptures / stats.totalTitanCaptures;
         }
     });
 

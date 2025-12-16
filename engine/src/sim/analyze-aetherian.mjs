@@ -27,7 +27,7 @@ results.forEach(sim => {
         victoryType: sim.victoryType,
         isEliminated: aetherianCiv.isEliminated,
         scavengerDoctrineStats: aetherianCiv.scavengerDoctrineStats || { kills: 0, scienceGained: 0 },
-        titanStats: aetherianCiv.titanStats || { kills: 0, cityCaptures: 0, deathballCaptures: 0 },
+        titanStats: aetherianCiv.titanStats || { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 },
         finalCities: aetherianCiv.cities,
         finalPop: aetherianCiv.totalPop,
         finalPower: aetherianCiv.militaryPower,

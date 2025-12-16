@@ -602,7 +602,13 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
     const titanHpFrac = titan.maxHp ? titan.hp / titan.maxHp : (titan.hp / UNITS[titan.type].hp);
     const onFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, titan.coord));
 
-
+    // v2.2: Titan healing holdout - after capturing a city, stay to heal until 80% HP.
+    // This prevents the Titan from immediately rushing the next target while damaged.
+    const TITAN_HEAL_THRESHOLD = 0.8;
+    if (onFriendlyCity && titanHpFrac < TITAN_HEAL_THRESHOLD) {
+        aiInfo(`[TITAN LOG] Healing holdout in city (HP: ${Math.round(titanHpFrac * 100)}% < ${TITAN_HEAL_THRESHOLD * 100}% threshold)`);
+        return next; // Stay put and heal
+    }
 
     // Ensure Titan is not linked (prevents stacking violations during capture)
     if (titan.linkedUnitId) {

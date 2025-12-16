@@ -3,6 +3,7 @@ import { City, GameState, HexCoord, Unit, getCityYields, getTileYields, getCityC
 import { hexDistance } from "../../../utils/hex";
 import { getTerrainColor, hexToPixel } from "../../GameMap/geometry";
 import { CityBuildOptions } from "../hooks";
+import { useTutorial } from "../../../contexts/TutorialContext";
 
 const formatBuildId = (id: string) => {
     return id
@@ -111,10 +112,16 @@ export const CityPanel: React.FC<CityPanelProps> = ({
     onClose,
 }) => {
     const [localWorked, setLocalWorked] = React.useState<HexCoord[]>(city.workedTiles);
+    const tutorial = useTutorial();
 
     React.useEffect(() => {
         setLocalWorked(city.workedTiles);
     }, [city.id, city.workedTiles]);
+
+    // Mark milestone when city is selected
+    React.useEffect(() => {
+        tutorial.markComplete("selectedFirstCity");
+    }, [tutorial]);
 
     const ownedTiles = React.useMemo(() => getOwnedTilesForCity(city, gameState.map.tiles), [city, gameState.map.tiles]);
 
@@ -162,6 +169,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                     buildOptions={buildOptions}
                     onBuild={onBuild}
                     turn={gameState.turn}
+                    tutorial={tutorial}
                 />
                 <WorkedTilesSection
                     city={city}
@@ -281,74 +289,110 @@ type ProductionSectionProps = {
     buildOptions: CityBuildOptions;
     onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
     turn: number;
+    tutorial: ReturnType<typeof useTutorial>;
 };
 
-const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, buildOptions, onBuild, turn }) => (
-    <div className="city-panel__section">
-        <h5>Production</h5>
-        {city.currentBuild ? (
-            <>
-                <div className="hud-subtext">Building {formatBuildId(city.currentBuild.id)}</div>
-                <div className="hud-progress" style={{ marginTop: 6 }}>
-                    <div
-                        className="hud-progress-fill"
-                        style={{
-                            width: `${Math.min(100, Math.round((city.buildProgress / city.currentBuild.cost) * 100))}%`,
-                        }}
-                    />
+const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, buildOptions, onBuild, turn, tutorial }) => {
+    const handleBuild = (type: "Unit" | "Building" | "Project", id: string) => {
+        tutorial.markComplete("startedProduction");
+        if (type === "Project") {
+            tutorial.markComplete("startedProject");
+        }
+        if (type === "Unit" && id === "Settler") {
+            tutorial.markComplete("builtFirstSettler");
+        }
+        if (type === "Building") {
+            tutorial.markComplete("builtFirstBuilding");
+        }
+        onBuild(type, id);
+    };
+
+    // Pulse the first available production option if no build is set
+    const shouldPulseProduction = !city.currentBuild && tutorial.shouldPulse("startedProduction");
+    const hasAnyOptions = buildOptions.units.length > 0 || buildOptions.buildings.length > 0 || buildOptions.projects.length > 0;
+
+    return (
+        <div className="city-panel__section">
+            <h5>Production</h5>
+            {city.currentBuild ? (
+                <>
+                    <div className="hud-subtext">Building {formatBuildId(city.currentBuild.id)}</div>
+                    <div className="hud-progress" style={{ marginTop: 6 }}>
+                        <div
+                            className="hud-progress-fill"
+                            style={{
+                                width: `${Math.min(100, Math.round((city.buildProgress / city.currentBuild.cost) * 100))}%`,
+                            }}
+                        />
+                    </div>
+                    <div className="hud-subtext">
+                        Progress: {city.buildProgress}/{city.currentBuild.cost}
+                    </div>
+                </>
+            ) : (
+                <div className="hud-subtext" style={{ marginBottom: 6 }}>Choose what to produce.</div>
+            )}
+            {isMyTurn && (
+                <div className="city-panel__build-grid" style={{ marginTop: 6 }}>
+                    {buildOptions.units.map((unit, idx) => {
+                        const key = `Unit:${unit.id}`;
+                        const saved = city.savedProduction?.[key];
+                        // Pulse first production button OR pulse Settler after grewFirstCity
+                        const isSettler = unit.id === "Settler";
+                        const shouldPulseSettler = isSettler && tutorial.isComplete("grewFirstCity") && tutorial.shouldPulse("builtFirstSettler");
+                        const shouldPulse = (shouldPulseProduction && idx === 0 && hasAnyOptions) || shouldPulseSettler;
+                        return (
+                            <div key={unit.id} className="production-button-wrapper">
+                                <button
+                                    className={`hud-button small ${shouldPulse ? "pulse" : ""}`}
+                                    onClick={() => handleBuild("Unit", unit.id)}
+                                    style={{ width: "100%" }}
+                                    title={shouldPulseSettler ? "Build a Settler to found new cities!" : (shouldPulse ? tutorial.getTooltip("startedProduction") : undefined)}
+                                >
+                                    Train {unit.name}
+                                    {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                </button>
+                                <div className="production-tooltip">{buildUnitTooltip(unit.id as UnitType, turn)}</div>
+                            </div>
+                        );
+                    })}
+                    {buildOptions.buildings.map((building, idx) => {
+                        const key = `Building:${building.id}`;
+                        const saved = city.savedProduction?.[key];
+                        const shouldPulse = shouldPulseProduction && buildOptions.units.length === 0 && idx === 0;
+                        return (
+                            <div key={building.id} className="production-button-wrapper">
+                                <button
+                                    className={`hud-button small ${shouldPulse ? "pulse" : ""}`}
+                                    onClick={() => handleBuild("Building", building.id)}
+                                    style={{ width: "100%" }}
+                                >
+                                    Construct {building.name}
+                                    {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                </button>
+                                <div className="production-tooltip">{buildBuildingTooltip(building.id as BuildingType)}</div>
+                            </div>
+                        );
+                    })}
+                    {buildOptions.projects.map(project => {
+                        const key = `Project:${project.id}`;
+                        const saved = city.savedProduction?.[key];
+                        return (
+                            <div key={project.id} className="production-button-wrapper">
+                                <button className="hud-button small" onClick={() => handleBuild("Project", project.id)} style={{ width: "100%" }}>
+                                    Launch {project.name}
+                                    {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
+                                </button>
+                                <div className="production-tooltip">{buildProjectTooltip(project.id as ProjectId, turn)}</div>
+                            </div>
+                        );
+                    })}
                 </div>
-                <div className="hud-subtext">
-                    Progress: {city.buildProgress}/{city.currentBuild.cost}
-                </div>
-            </>
-        ) : (
-            <div className="hud-subtext" style={{ marginBottom: 6 }}>Choose what to produce.</div>
-        )}
-        {isMyTurn && (
-            <div className="city-panel__build-grid" style={{ marginTop: 6 }}>
-                {buildOptions.units.map(unit => {
-                    const key = `Unit:${unit.id}`;
-                    const saved = city.savedProduction?.[key];
-                    return (
-                        <div key={unit.id} className="production-button-wrapper">
-                            <button className="hud-button small" onClick={() => onBuild("Unit", unit.id)} style={{ width: "100%" }}>
-                                Train {unit.name}
-                                {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                            </button>
-                            <div className="production-tooltip">{buildUnitTooltip(unit.id as UnitType, turn)}</div>
-                        </div>
-                    );
-                })}
-                {buildOptions.buildings.map(building => {
-                    const key = `Building:${building.id}`;
-                    const saved = city.savedProduction?.[key];
-                    return (
-                        <div key={building.id} className="production-button-wrapper">
-                            <button className="hud-button small" onClick={() => onBuild("Building", building.id)} style={{ width: "100%" }}>
-                                Construct {building.name}
-                                {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                            </button>
-                            <div className="production-tooltip">{buildBuildingTooltip(building.id as BuildingType)}</div>
-                        </div>
-                    );
-                })}
-                {buildOptions.projects.map(project => {
-                    const key = `Project:${project.id}`;
-                    const saved = city.savedProduction?.[key];
-                    return (
-                        <div key={project.id} className="production-button-wrapper">
-                            <button className="hud-button small" onClick={() => onBuild("Project", project.id)} style={{ width: "100%" }}>
-                                Launch {project.name}
-                                {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
-                            </button>
-                            <div className="production-tooltip">{buildProjectTooltip(project.id as ProjectId, turn)}</div>
-                        </div>
-                    );
-                })}
-            </div>
-        )}
-    </div>
-);
+            )}
+        </div>
+    );
+};
+
 
 type WorkedTilesSectionProps = {
     city: City;
@@ -375,7 +419,7 @@ const WorkedTilesSection: React.FC<WorkedTilesSectionProps> = ({
             <span className="hud-chip">Assigned {workedCount}/{city.pop}</span>
         </div>
         <div className="hud-subtext" style={{ marginTop: 0 }}>
-            Tap owned hexes to focus citizens; the layout scales as {city.name} claims more land.
+            Once a city has 2 or more population, tap owned hexes to unassign/reassign citizens.
         </div>
         <WorkedTilesMap
             city={city}

@@ -183,10 +183,20 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
         const player = state.players.find(p => p.id === playerId);
         if (player && player.civName === "AetherianVanguard") {
             if (!player.titanStats) {
-                player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
             }
             if (unit.type === UnitType.Titan) {
                 player.titanStats.cityCaptures++;
+
+                // Count support units near the captured city for deathball analysis
+                const supportCount = state.units.filter(u =>
+                    u.ownerId === playerId &&
+                    u.id !== unit.id &&
+                    UNITS[u.type].domain !== UnitDomain.Civilian &&
+                    getNeighbors(cityOnTile.coord).some(n => hexEquals(n, u.coord)) ||
+                    hexEquals(u.coord, cityOnTile.coord)
+                ).length;
+                player.titanStats.totalSupportAtCaptures += supportCount;
             } else {
                 player.titanStats.deathballCaptures++;
             }

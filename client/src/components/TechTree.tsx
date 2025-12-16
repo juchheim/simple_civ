@@ -2,6 +2,7 @@ import React from "react";
 import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType, ProjectId } from "@simple-civ/engine";
 import { CIV_OPTIONS } from "../data/civs";
 import { formatName } from "../utils/strings";
+import { useTutorial } from "../contexts/TutorialContext";
 import "./TechTree.css";
 
 interface TechTreeProps {
@@ -14,6 +15,7 @@ interface TechTreeProps {
 export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChooseTech, onClose }) => {
     const player = gameState.players.find(p => p.id === playerId);
     const civData = player ? CIV_OPTIONS.find(c => c.id === player.civName) : null;
+    const tutorial = useTutorial();
 
     // Tooltip state - tracks what to show and where
     const [tooltip, setTooltip] = React.useState<{ content: string; x: number; y: number } | null>(null);
@@ -293,6 +295,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
 
         const handleClick = () => {
             if (state === "available") {
+                tutorial.markComplete("selectedResearch");
                 onChooseTech(techId);
             }
         };

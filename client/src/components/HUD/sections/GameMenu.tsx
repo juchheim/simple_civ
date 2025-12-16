@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTutorial } from "../../../contexts/TutorialContext";
 
 type GameMenuProps = {
     onSave: () => void;
@@ -29,6 +30,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
 }) => {
     const [showPreferences, setShowPreferences] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const tutorial = useTutorial();
 
     React.useEffect(() => {
         const handleFullscreenChange = () => {
@@ -148,11 +150,22 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                             />
                             Show combat preview
                         </label>
+                        <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 0" }} />
+                        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
+                            <input
+                                type="checkbox"
+                                checked={tutorial.optedOut}
+                                onChange={(e) => tutorial.setOptedOut(e.target.checked)}
+                                style={{ width: 16, height: 16, cursor: "pointer" }}
+                            />
+                            Skip tutorials (I know how to play)
+                        </label>
                     </div>
                 </div>
             </div>
         );
     }
+
 
     return (
         <div>

@@ -4,6 +4,7 @@ import { Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, 
 import { MiniMap } from "./MiniMap";
 import type { AttentionTask, BlockingTask, DiplomacyRow, EmpireYields, HUDLayoutProps, HUDSelectionState } from "./helpers";
 import type { CityBuildOptions } from "./hooks";
+import { useTutorial } from "../../contexts/TutorialContext";
 
 type ToggleCardProps = {
     label: string;
@@ -13,12 +14,18 @@ type ToggleCardProps = {
     children: React.ReactNode;
     cardClassName?: string;
     cardStyle?: React.CSSProperties;
+    pulse?: boolean;
+    tooltip?: string;
 };
 
-export function ToggleCard({ label, isOpen, onOpen, onClose, children, cardClassName = "hud-menu-card", cardStyle }: ToggleCardProps) {
+export function ToggleCard({ label, isOpen, onOpen, onClose, children, cardClassName = "hud-menu-card", cardStyle, pulse, tooltip }: ToggleCardProps) {
     if (!isOpen) {
         return (
-            <button className="hud-tab-trigger" onClick={onOpen}>
+            <button
+                className={`hud-tab-trigger ${pulse ? "pulse" : ""}`}
+                onClick={onOpen}
+                title={tooltip}
+            >
                 {label}
             </button>
         );
@@ -69,46 +76,72 @@ export const TopRow: React.FC<TopRowProps> = ({
     mapView,
     selectedUnitId,
     onNavigateMap,
-}) => (
-    <div className="hud-top-row">
-        <div className="hud-top-row-buttons">
-            <ToggleCard
-                label="Codex"
-                isOpen={showCodex}
-                onOpen={() => onToggleCodex(true)}
-                onClose={() => onToggleCodex(false)}
-                cardStyle={{ width: "500px", maxWidth: "90vw" }}
-            >
-                <Codex />
-            </ToggleCard>
-            {isMyTurn && (
+}) => {
+    const tutorial = useTutorial();
+
+    const handleOpenCodex = () => {
+        tutorial.markComplete("openedCodex");
+        onToggleCodex(true);
+    };
+
+    const handleOpenDiplomacy = () => {
+        tutorial.markComplete("contactedOtherCiv");
+        onToggleDiplomacy(true);
+    };
+
+    // Pulse Codex if never opened
+    const shouldPulseCodex = tutorial.shouldPulse("openedCodex");
+
+    // Pulse Diplomacy if we have contacts and haven't opened it yet
+    const hasContacts = diplomacyRows.length > 0;
+    const shouldPulseDiplomacy = hasContacts && tutorial.shouldPulse("contactedOtherCiv");
+
+    return (
+        <div className="hud-top-row">
+            <div className="hud-top-row-buttons">
                 <ToggleCard
-                    label="Diplomacy"
-                    isOpen={showDiplomacy}
-                    onOpen={() => onToggleDiplomacy(true)}
-                    onClose={() => onToggleDiplomacy(false)}
+                    label="Codex"
+                    isOpen={showCodex}
+                    onOpen={handleOpenCodex}
+                    onClose={() => onToggleCodex(false)}
+                    cardStyle={{ width: "500px", maxWidth: "90vw" }}
+                    pulse={shouldPulseCodex}
+                    tooltip={shouldPulseCodex ? "Browse the game rules and unit stats" : undefined}
                 >
-                    <DiplomacySummary rows={diplomacyRows} playerId={playerId} onAction={onAction} />
+                    <Codex />
                 </ToggleCard>
-            )}
-            <ToggleCard
-                label="Research"
-                isOpen={showResearch}
-                onOpen={() => onToggleResearch(true)}
-                onClose={() => onToggleResearch(false)}
-            >
-                <TechButton player={player} onShowTechTree={onShowTechTree} />
-            </ToggleCard>
+                {isMyTurn && (
+                    <ToggleCard
+                        label="Diplomacy"
+                        isOpen={showDiplomacy}
+                        onOpen={handleOpenDiplomacy}
+                        onClose={() => onToggleDiplomacy(false)}
+                        pulse={shouldPulseDiplomacy}
+                        tooltip={shouldPulseDiplomacy ? "View diplomatic relations with other civilizations" : undefined}
+                    >
+                        <DiplomacySummary rows={diplomacyRows} playerId={playerId} onAction={onAction} />
+                    </ToggleCard>
+                )}
+                <ToggleCard
+                    label="Research"
+                    isOpen={showResearch}
+                    onOpen={() => onToggleResearch(true)}
+                    onClose={() => onToggleResearch(false)}
+                >
+                    <TechButton player={player} onShowTechTree={onShowTechTree} />
+                </ToggleCard>
+            </div>
+            <MiniMap
+                gameState={gameState}
+                playerId={playerId}
+                mapView={mapView}
+                selectedUnitId={selectedUnitId}
+                onNavigate={onNavigateMap}
+            />
         </div>
-        <MiniMap
-            gameState={gameState}
-            playerId={playerId}
-            mapView={mapView}
-            selectedUnitId={selectedUnitId}
-            onNavigate={onNavigateMap}
-        />
-    </div>
-);
+    );
+};
+
 
 type TopLeftMenuProps = {
     showGameMenu: boolean;

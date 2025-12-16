@@ -55,7 +55,7 @@ export type TurnSnapshot = {
         totalScience: number;
         isEliminated: boolean;
         scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
-        titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number }; // Titan performance tracking
+        titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number; totalSupportAtCaptures: number }; // Titan performance tracking
     }[];
     cities: {
         id: string;

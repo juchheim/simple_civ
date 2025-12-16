@@ -1,6 +1,7 @@
 import React from "react";
 import { Unit, UnitType, GameState, getUnitCombatStats, UnitState, UNITS, UnitDomain } from "@simple-civ/engine";
 import { getUnitDisplayName } from "../../../assets";
+import { useTutorial } from "../../../contexts/TutorialContext";
 
 type UnitPanelProps = {
     unit: Unit;
@@ -32,10 +33,18 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
     gameState,
 }) => {
     const stats = React.useMemo(() => getUnitCombatStats(unit, gameState), [unit, gameState]);
+    const tutorial = useTutorial();
 
     const owner = gameState.players.find(p => p.id === unit.ownerId);
     const isFriendly = unit.ownerId === gameState.currentPlayerId;
     const canFortify = isMyTurn && unit.movesLeft > 0 && unit.type !== UnitType.Settler && unit.state !== UnitState.Fortified;
+
+    // Mark milestone when settler is selected
+    React.useEffect(() => {
+        if (unit.type === UnitType.Settler && isFriendly) {
+            tutorial.markComplete("selectedSettler");
+        }
+    }, [unit.type, isFriendly, tutorial]);
 
     return (
         <div style={{ marginTop: 10 }}>
@@ -72,6 +81,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
                     onFoundCity={onFoundCity}
                     onToggleAutoExplore={onToggleAutoExplore}
                     onCancelMovement={onCancelMovement}
+                    tutorial={tutorial}
                 />
             )}
         </div>
@@ -114,6 +124,7 @@ type UnitActionsProps = {
     onToggleAutoExplore: () => void;
     onFortifyUnit: () => void;
     onCancelMovement: () => void;
+    tutorial: ReturnType<typeof useTutorial>;
 };
 
 const UnitActions: React.FC<UnitActionsProps> = ({
@@ -128,36 +139,83 @@ const UnitActions: React.FC<UnitActionsProps> = ({
     onToggleAutoExplore,
     onFortifyUnit,
     onCancelMovement,
-}) => (
-    <>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-            <button className="hud-button small" onClick={onLinkUnits} disabled={!canLinkUnits}>
-                Link
-            </button>
-            <button className="hud-button small ghost" onClick={onUnlinkUnits} disabled={!canUnlinkUnits}>
-                Unlink
-            </button>
-            <button className="hud-button small" onClick={onFortifyUnit} disabled={!canFortify}>
-                Fortify
-            </button>
-        </div>
-        {unit.type === UnitType.Settler && isMyTurn && (
-            <button className="hud-button small primary" style={{ marginTop: 8 }} onClick={onFoundCity}>
-                Found City
-            </button>
-        )}
-        {(unit.type === UnitType.Scout || UNITS[unit.type].domain === UnitDomain.Naval) && isMyTurn && (
-            <button className="hud-button small" style={{ marginTop: 8 }} onClick={onToggleAutoExplore}>
-                {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
-            </button>
-        )}
-        {unit.autoMoveTarget && isMyTurn && (
-            <button className="hud-button small ghost" style={{ marginTop: 8 }} onClick={onCancelMovement}>
-                Cancel Movement
-            </button>
-        )}
-    </>
-);
+    tutorial,
+}) => {
+    const isMilitary = unit.type !== UnitType.Settler && unit.type !== UnitType.Scout;
+
+    // Handle button clicks with milestone tracking
+    const handleFoundCity = () => {
+        tutorial.markComplete("foundedFirstCity");
+        onFoundCity();
+    };
+
+    const handleFortify = () => {
+        tutorial.markComplete("fortifiedUnit");
+        onFortifyUnit();
+    };
+
+    const handleLink = () => {
+        tutorial.markComplete("linkedUnits");
+        onLinkUnits();
+    };
+
+    const handleAutoExplore = () => {
+        tutorial.markComplete("usedAutoExplore");
+        onToggleAutoExplore();
+    };
+
+    return (
+        <>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                <button
+                    className={`hud-button small ${canLinkUnits && tutorial.shouldPulse("linkedUnits") ? "pulse" : ""}`}
+                    onClick={handleLink}
+                    disabled={!canLinkUnits}
+                    title={tutorial.getTooltip("linkedUnits")}
+                >
+                    Link
+                </button>
+                <button className="hud-button small ghost" onClick={onUnlinkUnits} disabled={!canUnlinkUnits}>
+                    Unlink
+                </button>
+                <button
+                    className={`hud-button small ${canFortify && isMilitary && tutorial.shouldPulse("fortifiedUnit") ? "pulse" : ""}`}
+                    onClick={handleFortify}
+                    disabled={!canFortify}
+                    title={tutorial.getTooltip("fortifiedUnit")}
+                >
+                    Fortify
+                </button>
+            </div>
+            {unit.type === UnitType.Settler && isMyTurn && (
+                <button
+                    className={`hud-button small primary ${tutorial.shouldPulse("foundedFirstCity") ? "pulse" : ""}`}
+                    style={{ marginTop: 8 }}
+                    onClick={handleFoundCity}
+                    title={tutorial.getTooltip("selectedSettler")}
+                >
+                    Found City
+                </button>
+            )}
+            {(unit.type === UnitType.Scout || UNITS[unit.type].domain === UnitDomain.Naval) && isMyTurn && (
+                <button
+                    className={`hud-button small ${tutorial.shouldPulse("usedAutoExplore") ? "pulse" : ""}`}
+                    style={{ marginTop: 8 }}
+                    onClick={handleAutoExplore}
+                    title={tutorial.getTooltip("usedAutoExplore")}
+                >
+                    {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
+                </button>
+            )}
+            {unit.autoMoveTarget && isMyTurn && (
+                <button className="hud-button small ghost" style={{ marginTop: 8 }} onClick={onCancelMovement}>
+                    Cancel Movement
+                </button>
+            )}
+        </>
+    );
+};
+
 
 
 

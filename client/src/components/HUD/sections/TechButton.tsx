@@ -1,6 +1,7 @@
 import React from "react";
 import { Player } from "@simple-civ/engine";
 import { formatName } from "../../../utils/strings";
+import { useTutorial } from "../../../contexts/TutorialContext";
 
 type TechButtonProps = {
     player: Player | undefined;
@@ -10,6 +11,15 @@ type TechButtonProps = {
 export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }) => {
     const tech = player?.currentTech;
     const progress = tech ? Math.min(100, Math.round((tech.progress / tech.cost) * 100)) : 0;
+    const tutorial = useTutorial();
+
+    const handleShowTechTree = () => {
+        tutorial.markComplete("viewedTechTree");
+        onShowTechTree();
+    };
+
+    // Pulse the button if no research selected and haven't viewed tech tree yet
+    const shouldPulse = !tech && tutorial.shouldPulse("viewedTechTree");
 
     return (
         <div>
@@ -24,13 +34,14 @@ export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }
                     </p>
                 </div>
                 <button
-                    className="hud-button"
+                    className={`hud-button ${shouldPulse ? "pulse" : ""}`}
                     style={{
                         background: "var(--color-highlight-strong)",
                         color: "var(--color-bg-main)",
                         borderColor: "var(--color-highlight-strong)"
                     }}
-                    onClick={onShowTechTree}
+                    onClick={handleShowTechTree}
+                    title={tutorial.getTooltip("viewedTechTree")}
                 >
                     Tech Tree
                 </button>
@@ -48,6 +59,7 @@ export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }
         </div>
     );
 };
+
 
 
 

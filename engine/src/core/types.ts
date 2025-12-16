@@ -194,7 +194,7 @@ export type Player = {
     hasFoundedFirstCity?: boolean;
     currentEra: EraId;
     scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
-    titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number }; // Titan performance tracking
+    titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number; totalSupportAtCaptures: number }; // Titan performance tracking
 };
 
 export type ProjectDefinition = {

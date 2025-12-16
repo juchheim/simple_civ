@@ -183,7 +183,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 // Track Titan kills for AetherianVanguard analysis
                 if (attacker.type === UnitType.Titan && player) {
                     if (!player.titanStats) {
-                        player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                        player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
                     }
                     player.titanStats.kills++;
                 }
@@ -339,9 +339,18 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     const player = state.players.find(p => p.id === action.playerId);
                     if (player) {
                         if (!player.titanStats) {
-                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
                         }
                         player.titanStats.cityCaptures++;
+
+                        // Count support units near the captured city for deathball analysis
+                        const supportCount = state.units.filter(u =>
+                            u.ownerId === action.playerId &&
+                            u.id !== attacker.id &&
+                            UNITS[u.type].domain !== "Civilian" &&
+                            hexDistance(u.coord, city.coord) <= 3
+                        ).length;
+                        player.titanStats.totalSupportAtCaptures += supportCount;
                     }
                 } else {
                     // Track deathball captures (non-Titan city captures by AetherianVanguard)
@@ -350,7 +359,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
 
                     if (player && player.civName === "AetherianVanguard" && hasTitan) {
                         if (!player.titanStats) {
-                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0 };
+                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
                         }
                         player.titanStats.deathballCaptures++;
                     }

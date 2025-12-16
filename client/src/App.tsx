@@ -16,6 +16,7 @@ import { useInteractionController } from "./hooks/useInteractionController";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { useGoodieHutAlerts } from "./hooks/useGoodieHutAlerts";
 import { useGameEventToasts } from "./components/HUD/hooks/use-game-event-toasts";
+import { useTutorialToasts } from "./components/HUD/hooks/use-tutorial-toasts";
 
 /**
  * The main application component.
@@ -160,11 +161,18 @@ function App() {
         playerId
     );
 
+    // Tutorial toasts (city growth, native discovery)
+    const { toasts: tutorialToasts, dismissToast: dismissTutorialToast } = useTutorialToasts(
+        gameState,
+        playerId
+    );
+
     // Combine all toasts
-    const allToasts = [...goodieHutToasts, ...gameEventToasts];
+    const allToasts = [...goodieHutToasts, ...gameEventToasts, ...tutorialToasts];
     const dismissToast = (id: string) => {
         dismissGoodieHutToast(id);
         dismissGameEventToast(id);
+        dismissTutorialToast(id);
     };
 
     const buildPlayers = useCallback((parsedSeed?: number): Array<{ id: string; civName: CivId; color: string; ai?: boolean }> => {
