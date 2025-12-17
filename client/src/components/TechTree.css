@@ -62,25 +62,41 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
-    background: linear-gradient(180deg, rgba(10, 0, 0, 0.8), transparent);
+    padding: 16px 32px;
+    background: linear-gradient(180deg, rgba(20, 10, 5, 0.98), rgba(30, 15, 10, 0.9));
+    border-bottom: 1px solid rgba(140, 100, 60, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     position: relative;
     z-index: 10;
     flex-shrink: 0;
+    backdrop-filter: blur(10px);
+}
+
+.tech-tree-title-section {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 26px;
 }
 
 .tech-tree-title-section h2 {
     margin: 0;
-    font-size: 28px;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
     color: var(--color-text-main);
-    text-shadow: 0 2px 20px rgba(205, 138, 54, 0.4);
 }
 
 .tech-tree-civ-perk {
-    font-size: 15px;
+    font-size: 13px;
     color: var(--color-highlight);
-    margin-top: 6px;
+    background: rgba(205, 138, 54, 0.1);
+    border: 1px solid rgba(205, 138, 54, 0.2);
+    padding: 4px 12px;
+    border-radius: 12px;
+    display: inline-block;
+    font-weight: 500;
 }
 
 .tech-tree-close-btn {
@@ -164,6 +180,8 @@
     scrollbar-width: thin;
     scrollbar-color: var(--color-highlight) var(--color-bg-deep);
     min-height: 0;
+    display: flex;
+    /* Flex container for centering */
 }
 
 .tech-tree-scroll::-webkit-scrollbar {
@@ -182,17 +200,20 @@
 
 .tech-tree-eras {
     display: flex;
-    gap: 28px;
+    gap: 16px;
     min-width: max-content;
-    padding: 0 32px;
+    padding: 24px;
+    margin: auto;
+    /* Center horizontally & vertically */
     align-items: stretch;
+    flex-wrap: nowrap;
 }
 
 /* Era Sections */
 .tech-tree-era {
-    min-width: 240px;
-    max-width: 280px;
-    padding: 18px 22px;
+    min-width: 250px;
+    max-width: 290px;
+    padding: 14px 18px;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -210,6 +231,10 @@
 
 .tech-tree-era:nth-child(5) {
     animation-delay: 0.3s;
+}
+
+.tech-tree-era:nth-child(7) {
+    animation-delay: 0.4s;
 }
 
 @keyframes slideUp {
@@ -234,18 +259,66 @@
 }
 
 .tech-tree-era--hearth::before {
-    background: linear-gradient(180deg, rgba(139, 90, 43, 0.18), rgba(80, 45, 20, 0.1));
-    border: 1px solid rgba(170, 130, 80, 0.25);
+    /* Hearth: Light Parchment / Sand */
+    background: linear-gradient(180deg, rgba(160, 140, 110, 0.45), rgba(120, 100, 80, 0.35));
+    border: 1px solid rgba(180, 160, 130, 0.35);
 }
 
 .tech-tree-era--banner::before {
-    background: linear-gradient(180deg, rgba(170, 130, 80, 0.18), rgba(100, 70, 30, 0.1));
-    border: 1px solid rgba(205, 138, 54, 0.3);
+    /* Banner: Tanned Leather / Bronze */
+    background: linear-gradient(180deg, rgba(140, 100, 70, 0.45), rgba(90, 60, 40, 0.35));
+    border: 1px solid rgba(160, 120, 90, 0.35);
 }
 
 .tech-tree-era--engine::before {
-    background: linear-gradient(180deg, rgba(205, 138, 54, 0.18), rgba(120, 80, 40, 0.1));
-    border: 1px solid rgba(205, 138, 54, 0.35);
+    /* Engine: Dark Copper / Rust */
+    background: linear-gradient(180deg, rgba(110, 60, 40, 0.45), rgba(70, 30, 20, 0.35));
+    border: 1px solid rgba(140, 80, 60, 0.35);
+}
+
+.tech-tree-era--aether::before {
+    /* Aether: Deep Mahogany / Obsidian */
+    background: linear-gradient(180deg, rgba(70, 35, 35, 0.5), rgba(35, 15, 15, 0.4));
+    border: 1px solid rgba(100, 50, 50, 0.4);
+}
+
+/* Active Era States - Higher Saturation & Opacity */
+.tech-tree-era--active.tech-tree-era--hearth::before {
+    background: linear-gradient(180deg, rgba(190, 160, 100, 0.55), rgba(140, 110, 70, 0.45));
+    border: 1px solid rgba(210, 180, 120, 0.6);
+    box-shadow: 0 0 15px rgba(180, 140, 80, 0.2);
+}
+
+.tech-tree-era--active.tech-tree-era--banner::before {
+    background: linear-gradient(180deg, rgba(180, 120, 80, 0.55), rgba(120, 80, 50, 0.45));
+    border: 1px solid rgba(200, 140, 100, 0.6);
+    box-shadow: 0 0 15px rgba(160, 100, 70, 0.2);
+}
+
+.tech-tree-era--active.tech-tree-era--engine::before {
+    background: linear-gradient(180deg, rgba(160, 80, 50, 0.55), rgba(100, 40, 30, 0.45));
+    border: 1px solid rgba(190, 100, 70, 0.6);
+    box-shadow: 0 0 15px rgba(140, 80, 50, 0.2);
+}
+
+.tech-tree-era--active.tech-tree-era--aether::before {
+    background: linear-gradient(180deg, rgba(100, 40, 40, 0.6), rgba(60, 20, 20, 0.5));
+    border: 1px solid rgba(140, 60, 60, 0.6);
+    box-shadow: 0 0 20px rgba(100, 40, 40, 0.3);
+}
+
+/* Active Arrows */
+.tech-tree-arrow--active .tech-tree-arrow-head {
+    color: #eab308;
+    /* Yellow-500 */
+    text-shadow: 0 0 10px rgba(234, 179, 8, 0.5);
+}
+
+.tech-tree-arrow--active .tech-tree-arrow-line {
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.1),
+            rgba(234, 179, 8, 0.5),
+            rgba(255, 255, 255, 0.1));
 }
 
 .tech-tree-era-header {
@@ -258,9 +331,11 @@
 .tech-tree-era-title {
     font-size: 22px;
     font-weight: 700;
-    color: var(--color-text-main);
+    color: rgba(255, 255, 255, 0.9);
+    /* Brighter base color */
     margin: 0 0 6px 0;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    /* Stronger shadow for legibility */
     letter-spacing: 0.5px;
 }
 
@@ -279,7 +354,7 @@
 .tech-tree-cards {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     position: relative;
     z-index: 2;
     flex: 1;
@@ -287,9 +362,9 @@
 
 /* Individual Tech Card */
 .tech-card {
-    padding: 10px 12px;
-    min-height: 50px;
-    background: rgba(30, 10, 0, 0.7);
+    padding: 12px 14px;
+    min-height: 80px;
+    background: rgba(30, 10, 0, 0.85);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     backdrop-filter: blur(12px);
@@ -339,6 +414,7 @@
     transform: translateY(-4px) scale(1.02);
     border-color: var(--color-highlight-strong);
     box-shadow: 0 8px 32px rgba(205, 138, 54, 0.4);
+    background: rgba(30, 10, 0, 0.95);
 }
 
 .tech-card--current {
@@ -352,7 +428,7 @@
 }
 
 .tech-card--researched {
-    background: rgba(40, 20, 10, 0.6);
+    background: rgba(40, 20, 10, 0.85);
     border-color: rgba(80, 50, 30, 0.5);
     opacity: 0.9;
 }
@@ -389,31 +465,14 @@
     }
 }
 
-/* Subtle attention indicator for first available tech when no research selected */
-.tech-card--needs-attention {
-    animation: needsAttention 2s ease-in-out infinite;
-}
 
-@keyframes needsAttention {
-
-    0%,
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 20px rgba(170, 130, 80, 0.3);
-    }
-
-    50% {
-        transform: scale(1.02);
-        box-shadow: 0 0 35px rgba(205, 138, 54, 0.5), 0 0 60px rgba(205, 138, 54, 0.2);
-    }
-}
 
 /* Card Content */
 .tech-card-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
 }
 
 .tech-card-name {
@@ -439,24 +498,41 @@
 }
 
 .tech-card-unlock {
-    font-size: 13px;
+    font-size: 11px;
     color: var(--color-highlight);
-    line-height: 1.4;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+.tech-card-unlock-type {
+    opacity: 0.8;
+}
+
+.tech-card-unlock-stats {
+    display: block;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    margin-top: 1px;
 }
 
 .tech-card--current .tech-card-unlock {
     color: white;
 }
 
+.tech-card--current .tech-card-unlock-stats {
+    color: rgba(255, 255, 255, 0.8);
+}
+
 .tech-card-prereq {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 4px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 0px;
+    margin-bottom: 2px;
     font-style: italic;
 }
 
 .tech-card--current .tech-card-prereq {
-    color: white;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .tech-card-conditional {
@@ -481,14 +557,25 @@
 }
 
 .tech-card-unique {
-    font-size: 13px;
+    font-size: 10px;
     color: var(--color-highlight-strong);
     font-weight: 600;
-    margin-top: 8px;
-    line-height: 1.4;
+    margin-top: 3px;
+    line-height: 1.3;
 }
 
 .tech-card--current .tech-card-unique {
+    color: white;
+}
+
+.tech-card-victory {
+    font-size: 10px;
+    color: #fbbf24;
+    font-weight: 600;
+    margin-top: 3px;
+}
+
+.tech-card--current .tech-card-victory {
     color: white;
 }
 
@@ -519,40 +606,69 @@
 }
 
 /* Era Arrow Connectors */
+/* Era Arrow Connectors - "Bridge" Style */
 .tech-tree-arrow {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 12px;
+    width: 60px;
+    /* Specific width for the bridge */
+    position: relative;
     align-self: center;
-    min-height: 120px;
+    height: 100%;
+    /* Match era height roughly or just ensure visible */
+    min-height: 100px;
+    /* Ensure space */
+}
+
+/* The Line connecting eras */
+.tech-tree-arrow::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    /* Overlap slightly */
+    right: -10px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    /* Dull "inactive" pipe */
+    border-radius: 2px;
+    z-index: 1;
+}
+
+/* The Central Node - Diamond */
+.tech-tree-arrow-head {
+    width: 14px;
+    height: 14px;
+    background: rgba(20, 10, 5, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    /* Dull border */
+    transform: rotate(45deg);
+    /* Diamond shape */
+    z-index: 2;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    transition: all 0.5s ease;
 }
 
 .tech-tree-arrow-line {
     display: none;
+    /* Removed the old line element */
 }
 
-.tech-tree-arrow-head {
-    font-size: 36px;
-    color: var(--color-highlight-strong);
-    text-shadow: 0 0 20px rgba(205, 138, 54, 0.8), 0 0 40px rgba(205, 138, 54, 0.4);
-    animation: arrowBounce 1.5s ease-in-out infinite;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+/* Active Arrow State */
+.tech-tree-arrow--active::before {
+    background: linear-gradient(90deg,
+            rgba(234, 179, 8, 0.2),
+            rgba(234, 179, 8, 0.6),
+            rgba(234, 179, 8, 0.2));
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);
 }
 
-@keyframes arrowBounce {
-
-    0%,
-    100% {
-        transform: translateX(0);
-        opacity: 0.8;
-    }
-
-    50% {
-        transform: translateX(6px);
-        opacity: 1;
-    }
+.tech-tree-arrow--active .tech-tree-arrow-head {
+    border-color: #eab308;
+    background: #eab308;
+    box-shadow: 0 0 15px rgba(234, 179, 8, 0.6);
+    transform: rotate(45deg) scale(1.2);
 }
 
 /* Responsive */
@@ -575,22 +691,4 @@
         min-width: 300px;
         padding: 16px;
     }
-}
-
-/* Tech Card Tooltip - mouse-following style */
-.tech-card-tooltip {
-    position: fixed;
-    background: var(--color-bg-deep);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 12px;
-    color: var(--color-text-main);
-    white-space: pre-line;
-    z-index: 2000;
-    pointer-events: none;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-    min-width: 220px;
-    max-width: 320px;
-    line-height: 1.5;
 }

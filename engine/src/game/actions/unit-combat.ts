@@ -1,4 +1,4 @@
-import { GameState, UnitState, UnitType, BuildingType, HistoryEventType } from "../../core/types.js";
+import { GameState, UnitState, UnitType, BuildingType, HistoryEventType, UnitDomain } from "../../core/types.js";
 import { logEvent } from "../history.js";
 import {
     BUILDINGS,
@@ -33,6 +33,14 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
     }
 
     const attackerStats = getEffectiveUnitStats(attacker, state);
+
+    // v6.0: Early check for untargetable units (Air Domain)
+    if (action.targetType === "Unit") {
+        const targetUnit = state.units.find(u => u.id === action.targetId);
+        if (targetUnit && UNITS[targetUnit.type].domain === UnitDomain.Air) {
+            throw new Error("Cannot attack air units");
+        }
+    }
 
     const targetOwner = action.targetType === "Unit"
         ? state.units.find(u => u.id === action.targetId)?.ownerId
@@ -291,7 +299,20 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus, defensePower, state.seed);
         state.seed = newSeed;
 
-        city.hp = Math.max(0, city.hp - damage);
+        let appliedDamage = damage;
+
+        // v6.0: Shield Absorption
+        if (city.shield && city.shield > 0) {
+            if (appliedDamage <= city.shield) {
+                city.shield -= appliedDamage;
+                appliedDamage = 0;
+            } else {
+                appliedDamage -= city.shield;
+                city.shield = 0;
+            }
+        }
+
+        city.hp = Math.max(0, city.hp - appliedDamage);
         city.lastDamagedOnTurn = state.turn;
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;

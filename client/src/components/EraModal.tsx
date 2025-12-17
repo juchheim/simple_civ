@@ -31,6 +31,11 @@ const ERA_CONFIG: Record<EraId, { title: string; description: string; image: str
         description: "Steam and steel drive us forward into a new dawn.",
         image: engineBg,
     },
+    [EraId.Aether]: {
+        title: "The Aether Age",
+        description: "We have unlocked the secrets of the cosmos itself.",
+        image: engineBg, // Placeholder
+    },
 };
 
 export const EraModal: React.FC<EraModalProps> = ({ era, isOpen, onClose }) => {

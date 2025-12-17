@@ -39,12 +39,16 @@ export enum UnitType {
     // Native units (non-player controlled)
     NativeChampion = "NativeChampion",
     NativeArcher = "NativeArcher",
+    // v6.0: Aether Era Units
+    Airship = "Airship",
+    Landship = "Landship",
 }
 
 export enum UnitDomain {
     Land = "Land",
     Naval = "Naval",
     Civilian = "Civilian",
+    Air = "Air",
 }
 
 export enum UnitState {
@@ -68,6 +72,9 @@ export enum BuildingType {
     SpiritObservatory = "SpiritObservatory",
     JadeGranary = "JadeGranary",
     Bulwark = "Bulwark",
+    // v6.0: Aether Era
+    AetherReactor = "AetherReactor",
+    ShieldGenerator = "ShieldGenerator",
 }
 
 export type AiVictoryGoal = "Progress" | "Conquest" | "Balanced";
@@ -94,6 +101,12 @@ export enum TechId {
     UrbanPlans = "UrbanPlans",
     ArmyDoctrine = "ArmyDoctrine",
     StarCharts = "StarCharts",
+    // v6.0: Aether Era
+    Aerodynamics = "Aerodynamics",
+    ZeroPointEnergy = "ZeroPointEnergy",
+    CompositeArmor = "CompositeArmor",
+    DimensionalGate = "DimensionalGate",
+    PlasmaShields = "PlasmaShields",
 }
 
 export enum EraId {
@@ -101,6 +114,7 @@ export enum EraId {
     Hearth = "Hearth",
     Banner = "Banner",
     Engine = "Engine",
+    Aether = "Aether",
 }
 
 export enum ProjectId {
@@ -171,6 +185,8 @@ export type City = {
     buildProgress: number;
     hp: number;
     maxHp: number;
+    shield?: number;     // v6.0: Aether Era Shield
+    maxShield?: number;  // v6.0: Aether Era Shield Capacity
     isCapital: boolean;
     hasFiredThisTurn: boolean;
     milestones: ProjectId[];

@@ -1,4 +1,4 @@
-import { DiplomacyState, GameState, Unit, UnitType, BuildingType } from "../../core/types.js";
+import { DiplomacyState, GameState, Unit, UnitType, BuildingType, TechId } from "../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { findPath } from "../helpers/pathfinding.js";
@@ -638,9 +638,9 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
     ).length;
     const isAetherian = profile.civName === "AetherianVanguard";
 
-    // UNLEASH THE TITAN: Aetherian Titan still needs a Deathball!
-    // FIX: Don't send it in alone. Require support to ensure survival.
-    const requiredSupport = isAetherian ? 3 : (titanHpFrac < 0.55 ? 2 : 1);
+    // v2.3: TITAN WANT BIGGER DEATHBALL!
+    // Increased support requirements to ensure Titan has proper escort before pushing.
+    const requiredSupport = isAetherian ? 5 : (titanHpFrac < 0.55 ? 4 : 3);
     const allowDeepPush = supportCount >= requiredSupport;
 
     if (!allowDeepPush) {
@@ -815,20 +815,23 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
     // This avoids conflicts where pre-attack movement wastes moves or positions units suboptimally
 
     // Titan Core pre-spawn detection: detect city building Titan's Core and rally army early
+    // v2.4: Also rally when RESEARCHING SteamForges (the tech that unlocks Titan's Core) for earlier prep
     const preTitanMemory = getAiMemoryV2(next, playerId);
     const myCities = next.cities.filter(c => c.ownerId === playerId);
     const hasTitan = next.units.some(u => u.ownerId === playerId && u.type === UnitType.Titan);
+    const player = next.players.find(p => p.id === playerId);
+    const researchingSteamForges = player?.currentTech?.id === TechId.SteamForges;
 
     // Clear stale titanCoreCityId if:
     // 1. Titan already exists (rally complete)
     // 2. Rally city no longer owned by player
-    // 3. Rally city no longer building Titan's Core
+    // 3. Rally city no longer building Titan's Core (AND not researching SteamForges)
     if (preTitanMemory.titanCoreCityId) {
         const rallyCity = next.cities.find(c => c.id === preTitanMemory.titanCoreCityId);
+        const buildingCore = rallyCity?.currentBuild?.type === "Building" && rallyCity?.currentBuild?.id === BuildingType.TitansCore;
         const stillValid = rallyCity &&
             rallyCity.ownerId === playerId &&
-            rallyCity.currentBuild?.type === "Building" &&
-            rallyCity.currentBuild?.id === BuildingType.TitansCore &&
+            (buildingCore || researchingSteamForges) &&
             !hasTitan;
 
         if (!stillValid) {
@@ -836,30 +839,68 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
         }
     }
 
-    // Detect new Titan Core being built
+    // Detect new Titan Core being built OR pick a rally city when researching SteamForges
     const titanCoreCity = myCities.find(c =>
         c.currentBuild?.type === "Building" && c.currentBuild?.id === BuildingType.TitansCore
     );
+    // If researching SteamForges but not building yet, pick capital or highest-production city as rally point
+    const potentialRallyCity = titanCoreCity || (researchingSteamForges && !hasTitan
+        ? myCities.find(c => c.isCapital) || myCities[0]
+        : undefined
+    );
+
     const currentMemory = getAiMemoryV2(next, playerId);
-    if (titanCoreCity && !hasTitan && currentMemory.titanCoreCityId !== titanCoreCity.id) {
-        next = setAiMemoryV2(next, playerId, { ...currentMemory, titanCoreCityId: titanCoreCity.id });
+    if (potentialRallyCity && !hasTitan && currentMemory.titanCoreCityId !== potentialRallyCity.id) {
+        next = setAiMemoryV2(next, playerId, { ...currentMemory, titanCoreCityId: potentialRallyCity.id });
     }
 
-    // Pre-spawn deathball rally: if building Titan's Core and no Titan yet, rally units toward that city
+    // v2.3: TITAN WANT ALL DEATHBALL READY WHEN SPAWN!
+    // Pre-spawn deathball rally: aggressively rally military units toward the Titan Core city
+    // BUT keep at least one garrison per city for defense
     const updatedMemory = getAiMemoryV2(next, playerId);
     if (updatedMemory.titanCoreCityId && !hasTitan) {
         const rallyCity = next.cities.find(c => c.id === updatedMemory.titanCoreCityId);
         if (rallyCity) {
+            // Build a set of city coords that need to keep a garrison
+            const cityCoords = new Set(
+                myCities.filter(c => c.id !== rallyCity.id).map(c => hexToString(c.coord))
+            );
+
+            // For each non-rally city, mark one military unit to stay as garrison
+            const garrisonIds = new Set<string>();
+            for (const city of myCities) {
+                if (city.id === rallyCity.id) continue; // Rally city doesn't need garrison - Titan will spawn there
+                const garrison = next.units.find(u =>
+                    u.ownerId === playerId &&
+                    isMilitary(u) &&
+                    hexEquals(u.coord, city.coord)
+                );
+                if (garrison) {
+                    garrisonIds.add(garrison.id);
+                }
+            }
+
+            // Rally ALL military units EXCEPT designated garrisons
             const militaryToRally = next.units.filter(u =>
                 u.ownerId === playerId &&
                 u.movesLeft > 0 &&
                 isMilitary(u) &&
                 u.type !== UnitType.Titan &&
-                hexDistance(u.coord, rallyCity.coord) > 3
+                !garrisonIds.has(u.id) && // Don't pull designated garrisons
+                hexDistance(u.coord, rallyCity.coord) > 1 // Rally anyone not already adjacent
+            ).sort((a, b) =>
+                // Prioritize closest units to get the deathball assembled quickly
+                hexDistance(a.coord, rallyCity.coord) - hexDistance(b.coord, rallyCity.coord)
             );
-            for (const unit of militaryToRally.slice(0, 4)) { // Rally up to 4 units per turn
-                next = moveToward(next, playerId, unit, rallyCity.coord);
+
+            // Rally units
+            for (const unit of militaryToRally) {
+                const liveUnit = next.units.find(u => u.id === unit.id);
+                if (!liveUnit || liveUnit.movesLeft <= 0) continue;
+                next = moveToward(next, playerId, liveUnit, rallyCity.coord);
             }
+
+            aiInfo(`[DEATHBALL RALLY] ${playerId} rallying ${militaryToRally.length} units to Titan Core city (${garrisonIds.size} garrisons held back)`);
         }
     }
 

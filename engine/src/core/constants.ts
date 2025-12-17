@@ -12,6 +12,13 @@ import {
 } from "./types.js";
 
 export const GAME_VERSION = "1.0.1";
+// v6.0: Aether Era Flag - Enabled by default, or controlled via env var in Node
+// Check if process is defined (Node) to avoid ReferenceError in browser
+const isNode = typeof process !== "undefined" && process.env;
+export const ENABLE_AETHER_ERA = isNode && process.env.ENABLE_AETHER_ERA === "false"
+    ? false
+    : (isNode && process.env.ENABLE_AETHER_ERA === "true" ? true : true);
+
 /** Maximum number of players allowed in a game session. */
 export const MAX_PLAYERS = 6;
 
@@ -263,6 +270,11 @@ export const UNITS: Record<UnitType, UnitStats> = {
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    // v6.0: Aether Era Units
+    // Airship: Untargetable support unit. High vision.
+    [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 120, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 },
+    // Landship: Late game siege breaker.
+    [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 300, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
 };
 
 export type BuildingData = {
@@ -299,6 +311,9 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
         yieldFlat: { S: 1 },
         conditional: "Scholar/Starborne Only. City CANNOT form Armies."
     },
+    // v6.0: Aether Era
+    [BuildingType.AetherReactor]: { era: EraId.Aether, techReq: TechId.ZeroPointEnergy, cost: 200, yieldFlat: { F: 5, P: 5, S: 5 } },
+    [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, defenseBonus: 20, conditional: "Grants 50 Shield HP (regenerating)" },
 };
 
 export type TechData = {
@@ -329,6 +344,14 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.UrbanPlans]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
     [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } },
     [TechId.StarCharts]: { era: EraId.Engine, cost: 120, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } }, // v5.0: Gatekeeper tech, also enables Bulwark awakening
+
+    // v6.0: Aether Era
+    // High costs (200) representing end-game investment
+    [TechId.Aerodynamics]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.SteamForges], unlock: { type: "Unit", id: UnitType.Airship } },
+    [TechId.ZeroPointEnergy]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.UrbanPlans], unlock: { type: "Building", id: BuildingType.AetherReactor } },
+    [TechId.CompositeArmor]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.ArmyDoctrine], unlock: { type: "Unit", id: UnitType.Landship } },
+    [TechId.PlasmaShields]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.SignalRelay], unlock: { type: "Building", id: BuildingType.ShieldGenerator } },
+    [TechId.DimensionalGate]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.StarCharts], unlock: { type: "Passive", key: "Global Mobility: +1 Move to all units" } },
 };
 
 

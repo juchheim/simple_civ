@@ -131,6 +131,7 @@ function processResearch(state: GameState, player: Player) {
                     [EraId.Hearth]: 1,
                     [EraId.Banner]: 2,
                     [EraId.Engine]: 3,
+                    [EraId.Aether]: 4,
                 };
                 if (eraOrder[techData.era] > eraOrder[player.currentEra]) {
                     player.currentEra = techData.era;
@@ -195,6 +196,13 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
         if (!city.maxHp) city.maxHp = maxHp;
     } else if (city.hp <= 0) {
         gameLog(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
+    }
+
+    // v6.0: Shield Regeneration
+    if (city.maxShield && city.maxShield > 0 && city.shield !== undefined) {
+        if (city.shield < city.maxShield) {
+            city.shield = Math.min(city.maxShield, city.shield + 5);
+        }
     }
 
     city.storedFood += yields.F;

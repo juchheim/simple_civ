@@ -40,6 +40,11 @@ export function ensureTerrainEntry(unitStats: UnitStats, targetTile: Tile, unitT
     if (unitStats.domain === UnitDomain.Naval && (targetTile.terrain !== TerrainType.Coast && targetTile.terrain !== TerrainType.DeepSea)) {
         throw new Error("Naval units cannot enter land");
     }
+    // v6.0: Air Domain - can go anywhere, but respecting map borders implicitly by valid tiles
+    if (unitStats.domain === UnitDomain.Air) {
+        return; // Valid everywhere
+    }
+
     // Skiff is restricted to Coast only (no DeepSea)
     if (unitType === UnitType.Skiff && targetTile.terrain === TerrainType.DeepSea) {
         throw new Error("Skiff can only traverse coastal waters");
@@ -58,6 +63,8 @@ export function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Ti
         cost = terrainData.moveCostLand ?? 999;
     } else if (unitStats.domain === UnitDomain.Naval) {
         cost = terrainData.moveCostNaval ?? 999;
+    } else if (unitStats.domain === UnitDomain.Air) {
+        cost = 1; // Air units ignore terrain cost
     }
 
     // v1.1 Nerf: Titans no longer ignore terrain costs -> REVERTED: Titans ignore terrain costs again

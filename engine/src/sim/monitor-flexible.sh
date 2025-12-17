@@ -18,7 +18,9 @@ echo ""
 # Start simulation in background using parallel analysis (90% of CPU cores)
 cd /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv
 # Enable DEBUG_AI_LOGS=true for Titan logging
-DEBUG_AI_LOGS=false SIM_QUIET=true SIM_SEEDS_COUNT=$COUNT node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
+# Enable DEBUG_AI_LOGS=true for Titan logging
+# v6.0: Pass ENABLE_AETHER_ERA if set in environment (defaulting to existing env or false if unset, though constants.ts handles default)
+DEBUG_AI_LOGS=false SIM_QUIET=true SIM_SEEDS_COUNT=$COUNT ENABLE_AETHER_ERA=${ENABLE_AETHER_ERA:-test} node engine/dist/sim/parallel-analysis.js > "$LOG_FILE" 2>&1 &
 SIM_PID=$!
 echo "Simulation started with PID: $SIM_PID (parallel - 90% CPUs)"
 echo "Logging to: $LOG_FILE"
@@ -85,6 +87,10 @@ echo "Running ScholarKingdoms analysis..."
 node engine/src/sim/analyze-scholar.mjs
 
 echo ""
+echo "Running Aether Era analysis..."
+node engine/src/sim/analyze-aether.mjs
+
+echo ""
 echo "Extracting Titan Action Logs..."
 titan_log="/tmp/titan-actions.log"
 grep "TITAN LOG" "$LOG_FILE" > "$titan_log"
@@ -98,6 +104,7 @@ cp /tmp/enhanced-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/comprehensive-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/aetherian-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/scholar-kingdoms-analysis.md docs/analysis/ 2>/dev/null
+cp /tmp/aether-analysis-report.md docs/analysis/ 2>/dev/null
 cp "$titan_log" docs/analysis/titan-actions.log 2>/dev/null
 
 echo ""

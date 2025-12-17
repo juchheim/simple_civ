@@ -1,4 +1,4 @@
-import { BUILDINGS, TECHS } from "../../core/constants.js";
+import { BUILDINGS, TECHS, ENABLE_AETHER_ERA } from "../../core/constants.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { AiVictoryGoal, BuildingType, GameState, ProjectId, TechId } from "../../core/types.js";
 import { getAiProfileV2 } from "./rules.js";
@@ -19,8 +19,12 @@ function canResearch(playerTechs: TechId[], techId: TechId): boolean {
     return data.prereqTechs.every(t => playerTechs.includes(t)) && meetsEraGate(playerTechs, techId);
 }
 
+
 function availableTechs(playerTechs: TechId[]): TechId[] {
-    return Object.values(TechId).filter(t => !playerTechs.includes(t) && canResearch(playerTechs, t));
+    return Object.values(TechId).filter(t => {
+        if (!ENABLE_AETHER_ERA && TECHS[t].era === "Aether") return false;
+        return !playerTechs.includes(t) && canResearch(playerTechs, t);
+    });
 }
 
 function goalPathScore(goal: AiVictoryGoal, techId: TechId, path: TechId[] | undefined): number {
@@ -88,7 +92,21 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
         // Cheapness tie-breaker
         const cost = TECHS[t].cost;
         const cheap = -cost * 0.05;
-        return { item: t, score: weight + pathS + unique + cheap };
+
+        let score = weight + pathS + unique + cheap;
+
+        // v6.0: Aether Era Randomization
+        // If it's an Aether tech, randomize the score heavily to diversify endgame
+        // v6.0: Aether Era Randomization
+        // If it's an Aether tech, randomize the score heavily to diversify endgame
+        if (TECHS[t].era === "Aether") {
+            score += 80; // Baseline weight to compete with other options (otherwise might default to 0 weight from profile)
+            // Add a random buffer of +/- 30 to make choice unpredictable
+            const randomFactor = (state.seed * 997 + cost) % 60 - 30;
+            score += randomFactor;
+        }
+
+        return { item: t, score };
     });
 
     scored.sort((a, b) => b.score - a.score);

@@ -59,6 +59,11 @@ export function completeBuild(state: GameState, city: City) {
             city.buildings.push(build.id as BuildingType);
         }
 
+        if (build.id === BuildingType.ShieldGenerator) {
+            city.maxShield = 50;
+            city.shield = 50;
+        }
+
         if (build.id === BuildingType.TitansCore) {
             logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
 

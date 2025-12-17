@@ -14,7 +14,10 @@ const ALL_UNIT_OPTIONS: UnitType[] = [
     UnitType.SpearGuard,
     UnitType.BowGuard,
     UnitType.Riders,
+    UnitType.Riders,
     UnitType.Skiff,
+    UnitType.Airship,
+    UnitType.Landship,
 
 ];
 
@@ -32,6 +35,7 @@ const ALL_BUILDING_OPTIONS: BuildingType[] = [
     BuildingType.SpiritObservatory,
     BuildingType.JadeGranary,
     BuildingType.Bulwark,
+    BuildingType.AetherReactor,
 ];
 
 const ALL_PROJECT_OPTIONS: ProjectId[] = [
@@ -161,7 +165,31 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         }
     }
 
+    // v2.3: TITAN WANT ALL DEATHBALL READY WHEN SPAWN!
+    // Emergency military production: prep for Titan early - when researching SteamForges or building Titan's Core
     const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const titanCoreBeingBuilt = myCities.some(c =>
+        c.currentBuild?.type === "Building" && c.currentBuild?.id === BuildingType.TitansCore
+    );
+    const researchingSteamForges = player.currentTech?.id === TechId.SteamForges;
+    const hasTitan = state.units.some(u => u.ownerId === playerId && u.type === UnitType.Titan);
+
+    // Start deathball production when researching SteamForges OR building Titan's Core
+    const preppingForTitan = (titanCoreBeingBuilt || researchingSteamForges) && !hasTitan;
+
+    if (preppingForTitan && city.currentBuild === null) {
+        // This city has no current build - produce military for the deathball
+        // Prioritize Riders (2 move + canCapture - same speed as Titan!), then BowGuard (siege support)
+        if (canBuild(city, "Unit", UnitType.Riders, state)) {
+            aiInfo(`[DEATHBALL PRODUCTION] ${playerId} city producing Riders for Titan support (2 move, captures)`);
+            return { type: "Unit", id: UnitType.Riders };
+        }
+        if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+            aiInfo(`[DEATHBALL PRODUCTION] ${playerId} city producing BowGuard for Titan support`);
+            return { type: "Unit", id: UnitType.BowGuard };
+        }
+    }
+
     const myMilitary = countMilitary(state, playerId);
 
     // DYNAMIC ARMY SIZING (matching Legacy AI logic)
@@ -375,6 +403,23 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
 
             // Always convert immediately when possible (early-return above). Keep a huge score anyway as a guardrail.
             base += 2000;
+        }
+
+        // v6.0: Aether Era Prioritization
+        // Aether Reactor: High priority stats
+        if (opt.type === "Building" && opt.id === BuildingType.AetherReactor) base += 220;
+
+        // Airship: Game usage is mostly for scouting/support, but good to have 1-2
+        if (opt.type === "Unit" && opt.id === UnitType.Airship) {
+            const currentAirships = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Airship).length;
+            if (currentAirships < 2) base += 180;
+            else base += 50;
+        }
+
+        // Landship: Powerful siege breaker, prioritize heavily if at war or military deficit
+        if (opt.type === "Unit" && opt.id === UnitType.Landship) {
+            base += 200; // Good base
+            if (atWar || armyDeficit > 0) base += 150;
         }
 
         return base;

@@ -99,6 +99,30 @@ export const CityLabelLayer: React.FC<CityLayerProps> = React.memo(({ overlays }
                             />
                         </g>
 
+                        {/* Aether Shield Bar */}
+                        {overlay.city.maxShield && overlay.city.maxShield > 0 && (
+                            <g transform={`translate(0, ${-CITY_LABEL_OFFSET - 62})`}>
+                                {/* Background */}
+                                <rect
+                                    x={-20}
+                                    y={0}
+                                    width={40}
+                                    height={4}
+                                    fill="#222"
+                                    stroke="black"
+                                    strokeWidth={1}
+                                />
+                                {/* Shield */}
+                                <rect
+                                    x={-19}
+                                    y={0.5}
+                                    width={Math.max(0, (38 * (overlay.city.shield || 0)) / overlay.city.maxShield)}
+                                    height={3}
+                                    fill="#3b82f6" // Blue-500
+                                />
+                            </g>
+                        )}
+
                         {/* Capital Star */}
                         {overlay.city.isCapital && (
                             <text
