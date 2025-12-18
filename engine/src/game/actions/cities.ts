@@ -204,7 +204,10 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
             cost = Math.floor(cost * FORGE_CLANS_MILITARY_DISCOUNT);
         }
 
-
+        // v1.7: JadeCovenant "Swift Settlers" - 30% cheaper settlers
+        if (player?.civName === "JadeCovenant" && unitType === UnitType.Settler) {
+            cost = Math.floor(cost * 0.70);
+        }
     }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
     if (action.buildType === "Project") cost = getProjectCost(action.buildId as ProjectId, state.turn);

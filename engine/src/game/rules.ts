@@ -173,9 +173,11 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         ).length;
         total.S += cityWardCount * 1; // v2.9: Nerfed to +1 (was +3)
     } else if (trait === "RiverLeague") {
-        // v2.3: BUFF - +1 Prod per 1 river tile (was per 2) - doubled efficiency
-        total.F += riverAdjacencyCount(state.map, workedTiles);
-        total.P += Math.floor(riverAdjacencyCount(state.map, workedTiles) / 3);
+        // v2.3: River bonuses - multiple river tiles boost yields
+        const riverCount = riverAdjacencyCount(state.map, workedTiles);
+        total.F += riverCount; // +1 Food per river tile
+        total.P += Math.floor(riverCount / 2); // v1.6: Buffed from /3 to /2 - +1 Prod per 2 river tiles
+        // v1.6: Removed Science bonus - made them Progress-only
     } else if (trait === "StarborneSeekers") {
         // v1.9: "Peaceful Meditation" - +2 Science when not at war (Buffed from +1)
         // Fits their defensive identity - they avoid wars to pursue Progress

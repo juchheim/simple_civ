@@ -7,6 +7,7 @@ import {
     FORGE_CLANS_HILL_COMBAT_THRESHOLD,
     FORGE_CLANS_HILL_COMBAT_BONUS,
     FORGE_CLANS_ENGINE_ATTACK_BONUS,
+    FORGE_CLANS_FLAT_ATTACK_BONUS,
     STARBORNE_CAPITAL_DEFENSE_RADIUS,
     STARBORNE_CAPITAL_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_BONUS,
@@ -222,6 +223,9 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     // We approximate this by checking if ANY city has 2+ hills (since we don't track origin city perfectly yet)
     // Only applies to military units
     if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
+        // v1.7: "Forge Hardened" - flat +1 Attack for all military
+        boosted.atk += FORGE_CLANS_FLAT_ATTACK_BONUS;
+
         const forgeBonus = getForgeClansCombatBonus(state, player);
         boosted.atk += forgeBonus;
 
@@ -242,12 +246,12 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
         boosted.def += 2;
     }
 
-    // v1.3: River League "River Guardians" - +1 Atk/Def near rivers
-    // v1.7: NERFED - Reduced from +1/+2 to +1/+1 to reduce Conquest dominance
+    // v1.3: River League "River Guardians" - +2 Atk/Def near rivers
+    // v1.6: BUFFED from +1/+1 to +2/+2 to improve conquest competitiveness
     if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
         if (isTileAdjacentToRiver(state.map, unit.coord)) {
-            boosted.atk += 1;
-            boosted.def += 1;
+            boosted.atk += 2;
+            boosted.def += 2;
         }
     }
 
@@ -301,6 +305,14 @@ export function getUnitMaxMoves(unit: Unit, state: GameState): number {
             if (hasTitansCore) {
                 moves += 1;
             }
+        }
+    }
+
+    // v1.7: JadeCovenant "Swift Settlers" - Settlers have 3 movement
+    if (unit.type === UnitType.Settler) {
+        const player = state.players.find(p => p.id === unit.ownerId);
+        if (player?.civName === "JadeCovenant") {
+            moves = 3; // Override to 3 movement
         }
     }
 

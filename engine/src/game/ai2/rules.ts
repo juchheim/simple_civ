@@ -270,15 +270,15 @@ const profiles: Record<string, CivAiProfileV2> = {
     ScholarKingdoms: mergeProfile(baseProfile, {
         civName: "ScholarKingdoms",
         diplomacy: {
-            // v5.0: Ultra-defensive - never initiate wars
-            warPowerRatio: 100.0,  // Effectively never attack
-            warDistanceMax: 3,
-            peaceIfBelowRatio: 100.0,  // Always accept peace
-            minWarTurn: 9999,
-            maxConcurrentWars: 0,
-            maxInitiatedWarsPer50Turns: 0,
-            canInitiateWars: false,
-            targetPreference: "Nearest",
+            // v1.8: Enable wars but stay defensive-focused
+            warPowerRatio: 1.35,  // v1.8b: Attack only when 35% stronger (conservative)
+            warDistanceMax: 14,  // Good reach
+            peaceIfBelowRatio: 0.8,  // v1.8b: Accept peace earlier
+            minWarTurn: 20,  // v1.8b: Late game only (was 14)
+            maxConcurrentWars: 1,  // One war at a time
+            maxInitiatedWarsPer50Turns: 2,  // v1.8b: Conservative (was 3)
+            canInitiateWars: true,  // ENABLED
+            targetPreference: "Finishable",  // v1.8: Finish weak enemies
         },
         tech: {
             weights: {
@@ -323,45 +323,48 @@ const profiles: Record<string, CivAiProfileV2> = {
     RiverLeague: mergeProfile(baseProfile, {
         civName: "RiverLeague",
         diplomacy: {
-            warPowerRatio: 1.2,
-            warDistanceMax: 16,
-            peaceIfBelowRatio: 0.8,
-            minWarTurn: 14,
-            maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 3,
+            warPowerRatio: 0.85, // v1.8: Even more aggressive (was 0.95) - attack weaker enemies
+            warDistanceMax: 18, // Rivers extend reach
+            peaceIfBelowRatio: 0.55, // v1.8: Fight harder (was 0.65)
+            minWarTurn: 8, // v1.8: Start wars earlier (was 10)
+            maxConcurrentWars: 2,
+            maxInitiatedWarsPer50Turns: 6, // v1.8: More wars (was 5)
             canInitiateWars: true,
-            targetPreference: "Finishable",
+            targetPreference: "Finishable", // v1.8: Pick off civs close to elimination
         },
         tech: {
             weights: {
-                [TechId.TrailMaps]: 1.3,
+                [TechId.FormationTraining]: 1.4, // v1.7: Military focus
+                [TechId.DrilledRanks]: 1.4, // v1.7: Buffed for conquest
+                [TechId.ArmyDoctrine]: 1.3, // v1.7: Late-game armies
+                [TechId.TrailMaps]: 1.2,
                 [TechId.Wellworks]: 1.15,
-                [TechId.DrilledRanks]: 1.25,
-                // Secondary Progress Path
-                [TechId.ScriptLore]: 1.1,
-                [TechId.ScholarCourts]: 1.1,
-                [TechId.SignalRelay]: 1.1,
-                [TechId.StarCharts]: 1.1,
-                [TechId.Aerodynamics]: 1.2, // v6.4: Enable Airship research
+                [TechId.CompositeArmor]: 1.3, // v1.7: Landships for conquest
+                // Reduced Progress focus
+                [TechId.ScriptLore]: 1.0,
+                [TechId.ScholarCourts]: 1.0,
+                [TechId.SignalRelay]: 0.9, // v1.7: Lower priority
+                [TechId.StarCharts]: 0.9, // v1.7: Lower priority - conquest focus
             }
         },
         build: {
-            armyPerCity: 1.25,
-            settlerCap: 3,
-            desiredCities: 6,
+            armyPerCity: 1.5, // v1.7: Increased for conquest (was 1.2)
+            settlerCap: 4,
+            desiredCities: 7,
             weights: {
-                unit: { [UnitType.Skiff]: 1.2, [UnitType.Settler]: 1.2 },
-                building: { [BuildingType.Reservoir]: 1.1 },
-                // Secondary Progress Projects
+                unit: { [UnitType.Skiff]: 1.2, [UnitType.Settler]: 1.2, [UnitType.SpearGuard]: 1.3, [UnitType.BowGuard]: 1.2 }, // v1.7: Military focus
+                building: { [BuildingType.Reservoir]: 1.2 },
                 project: {
-                    [ProjectId.Observatory]: 1.2,
-                    [ProjectId.GrandAcademy]: 1.2,
-                    [ProjectId.GrandExperiment]: 1.2,
+                    [ProjectId.FormArmy_SpearGuard]: 1.3, // v1.7: Army formation for conquest
+                    [ProjectId.FormArmy_BowGuard]: 1.3,
+                    [ProjectId.Observatory]: 1.0, // v1.7: Reduced from 1.3
+                    [ProjectId.GrandAcademy]: 1.0,
+                    [ProjectId.GrandExperiment]: 1.0,
                 },
             },
         },
-        tactics: { riskTolerance: 0.35, forceConcentration: 0.6, siegeCommitment: 0.55, retreatHpFrac: 0.5, rangedCaution: 0.7 },
-        titan: { capitalHunt: 0.6, finisher: 0.7, momentum: 0.7 },
+        tactics: { riskTolerance: 0.55, forceConcentration: 0.75, siegeCommitment: 0.75, retreatHpFrac: 0.35, rangedCaution: 0.6 }, // v1.7: Much more aggressive
+        titan: { capitalHunt: 0.75, finisher: 0.9, momentum: 0.85 }, // v1.7: Close out games
     }),
 
     AetherianVanguard: mergeProfile(baseProfile, {
@@ -423,15 +426,15 @@ const profiles: Record<string, CivAiProfileV2> = {
     StarborneSeekers: mergeProfile(baseProfile, {
         civName: "StarborneSeekers",
         diplomacy: {
-            // v5.0: Ultra-defensive - never initiate wars
-            warPowerRatio: 100.0,  // Effectively never attack
-            warDistanceMax: 3,
-            peaceIfBelowRatio: 100.0,  // Always accept peace
-            minWarTurn: 9999,
-            maxConcurrentWars: 0,
-            maxInitiatedWarsPer50Turns: 0,
-            canInitiateWars: false,
-            targetPreference: "Finishable",
+            // v1.8: Enable wars but stay defensive-focused
+            warPowerRatio: 1.35,  // v1.8b: Attack only when 35% stronger (conservative)
+            warDistanceMax: 14,  // Good reach
+            peaceIfBelowRatio: 0.8,  // v1.8b: Accept peace earlier
+            minWarTurn: 20,  // v1.8b: Late game only (was 14)
+            maxConcurrentWars: 1,  // One war at a time
+            maxInitiatedWarsPer50Turns: 2,  // v1.8b: Conservative (was 3)
+            canInitiateWars: true,  // ENABLED
+            targetPreference: "Finishable",  // v1.8: Finish weak enemies
         },
         tech: {
             weights: {
@@ -470,12 +473,12 @@ const profiles: Record<string, CivAiProfileV2> = {
     JadeCovenant: mergeProfile(baseProfile, {
         civName: "JadeCovenant",
         diplomacy: {
-            warPowerRatio: 1.1, // v6.4: Fight more readily (was 1.2)
-            warDistanceMax: 14,
-            peaceIfBelowRatio: 0.85,
-            minWarTurn: 12, // v6.4: Start wars earlier (was 14)
-            maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 3,
+            warPowerRatio: 0.9, // v1.6: Attack even when slightly weaker (was 1.1) - use pop advantage
+            warDistanceMax: 16, // v1.6: Increased from 14 - willing to travel
+            peaceIfBelowRatio: 0.7, // v1.6: Don't give up easily (was 0.85)
+            minWarTurn: 12,
+            maxConcurrentWars: 2, // v1.6: Can handle 2 wars with large empire
+            maxInitiatedWarsPer50Turns: 4, // v1.6: More aggressive late-game (was 3)
             canInitiateWars: true,
             targetPreference: "Finishable",
         },
@@ -484,32 +487,34 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.Wellworks]: 1.7,
                 [TechId.Fieldcraft]: 1.3,
                 [TechId.UrbanPlans]: 1.2,
-                [TechId.DrilledRanks]: 1.2,
-                [TechId.ScriptLore]: 1.1,
-                [TechId.ScholarCourts]: 1.1,
-                [TechId.SignalRelay]: 1.1,
-                [TechId.StarCharts]: 1.1,
-                [TechId.Aerodynamics]: 1.2, // v6.4: Enable Airship research
+                [TechId.DrilledRanks]: 1.3, // v1.6: Increased for military
+                [TechId.ArmyDoctrine]: 1.3, // v1.6: Added for late-game armies
+                [TechId.ScriptLore]: 1.2, // v1.6: Slightly higher for Progress path
+                [TechId.ScholarCourts]: 1.2,
+                [TechId.SignalRelay]: 1.2,
+                [TechId.StarCharts]: 1.3, // v1.6: Higher priority for Progress backup
+                [TechId.Aerodynamics]: 1.2,
+                [TechId.CompositeArmor]: 1.2, // v1.6: Landships for late-game conquest
             }
         },
         build: {
-            armyPerCity: 1.35,
-            settlerCap: 3,
-            desiredCities: 8,
+            armyPerCity: 1.3, // v1.6: Increased from 1.2 - need more military late-game
+            settlerCap: 5,
+            desiredCities: 10,
             weights: {
-                building: { [BuildingType.JadeGranary]: 2.0, [BuildingType.Farmstead]: 1.2 },
-                unit: { [UnitType.Settler]: 1.4, [UnitType.SpearGuard]: 1.2, [UnitType.BowGuard]: 1.2 },
+                building: { [BuildingType.JadeGranary]: 2.0, [BuildingType.Farmstead]: 1.3 },
+                unit: { [UnitType.Settler]: 1.5, [UnitType.SpearGuard]: 1.2, [UnitType.BowGuard]: 1.2 }, // v1.6: More military
                 project: {
-                    [ProjectId.Observatory]: 1.2,
-                    [ProjectId.GrandAcademy]: 1.2,
-                    [ProjectId.GrandExperiment]: 1.2,
-                    [ProjectId.FormArmy_SpearGuard]: 1.1,
-                    [ProjectId.FormArmy_BowGuard]: 1.1,
+                    [ProjectId.Observatory]: 1.4, // v1.6: Higher for Progress path
+                    [ProjectId.GrandAcademy]: 1.4,
+                    [ProjectId.GrandExperiment]: 1.4,
+                    [ProjectId.FormArmy_SpearGuard]: 1.2, // v1.6: Needed for conquest
+                    [ProjectId.FormArmy_BowGuard]: 1.2,
                 },
             },
         },
-        tactics: { riskTolerance: 0.35, forceConcentration: 0.6, siegeCommitment: 0.55, retreatHpFrac: 0.5, rangedCaution: 0.7 },
-        titan: { capitalHunt: 0.6, finisher: 0.7, momentum: 0.7 },
+        tactics: { riskTolerance: 0.45, forceConcentration: 0.7, siegeCommitment: 0.65, retreatHpFrac: 0.4, rangedCaution: 0.6 }, // v1.6: More aggressive
+        titan: { capitalHunt: 0.7, finisher: 0.85, momentum: 0.8 }, // v1.6: Close out games
     }),
 };
 

@@ -296,7 +296,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             if (friend) cityFlankingBonus += 1;
         }
 
-        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus, defensePower, state.seed);
+        // v1.8: RiverLeague "River Siege" - +1 Attack when attacking cities
+        const player = state.players.find(p => p.id === action.playerId);
+        const riverSiegeBonus = player?.civName === "RiverLeague" ? 1 : 0;
+
+        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus + riverSiegeBonus, defensePower, state.seed);
         state.seed = newSeed;
 
         let appliedDamage = damage;

@@ -88,16 +88,16 @@ export const BASECOST_POP2 = 30;
  * @property f - Multiplier applied to the previous level's cost.
  */
 export const GROWTH_FACTORS = [
-    { min: 2, max: 4, f: 1.30 },
-    { min: 5, max: 6, f: 1.40 },
-    { min: 7, max: 8, f: 1.80 },  // Increased from 1.58 to slow growth for pop 7-8
-    { min: 9, max: 10, f: 2.00 }, // Increased from 1.68 to slow growth for pop 9-10
-    { min: 11, max: 999, f: 2.50 }, // Increased from 2.00 to align pop 10+ cities with turn 188 average victory
+    { min: 2, max: 4, f: 1.35 },   // v1.6: Reverted from 1.45 to 1.35 (midpoint)
+    { min: 5, max: 6, f: 1.45 },   // v1.6: Reverted from 1.55 to 1.45 (midpoint)
+    { min: 7, max: 8, f: 1.85 },   // v1.6: Reverted from 2.00 to 1.85 (midpoint)
+    { min: 9, max: 10, f: 2.10 },  // v1.6: Slightly reduced from 2.20 to 2.10
+    { min: 11, max: 999, f: 2.60 }, // v1.6: Slightly reduced - target pop 10 at turn ~195
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
-// v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 0.85; // Buffed to 15% discount (was 0.9)
+// v0.97 balance: JadeCovenant passive "Verdant Growth" - faster growth globally
+export const JADE_COVENANT_GROWTH_MULT = 0.80; // v1.5: Buffed to 20% discount (was 0.85 = 15%)
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -110,9 +110,12 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 // v2.7: Forge Clans "Unleashed" - Start with Riders to begin aggression immediately
 export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
-// v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8, then to 10
-// At 54 avg pop, this reduces bonus from +6/+6 (at 8) to +5/+5 (at 10)
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 6; // v5.9: Buffed to 6 (was 8)
+// v0.98 Update 5: JadeCovenant Population Power - Combat bonus based on city population
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 4; // v1.7: Buffed to 4 (was 5) - more frequent bonuses
+
+// v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
+export const JADE_COVENANT_SETTLER_DISCOUNT = 0.70; // 30% cheaper settlers
+export const JADE_COVENANT_SETTLER_MOVEMENT = 3; // Settlers have 3 movement (normal = 2)
 
 
 
@@ -129,14 +132,20 @@ export const FORGE_CLANS_MILITARY_DISCOUNT = 0.75; // v5.7: Buffed to 25% (was 1
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
 export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (max +5)
 
+// v1.7: ForgeClans "Forge Hardened" - flat attack bonus for all military units
+export const FORGE_CLANS_FLAT_ATTACK_BONUS = 1; // +1 Attack for all military units
+
+// v1.8: RiverLeague "River Siege" - bonus when attacking cities
+export const RIVER_LEAGUE_SIEGE_BONUS = 1; // +1 Attack when attacking cities
+
 // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
 // v2.6: Starborne Buff - increased defense radius (3 -> 4)
 export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 4; // Tiles from capital
-export const STARBORNE_CAPITAL_DEFENSE_BONUS = 2; // v2.8: Buffed from +1 to +2
+export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // v1.7: Nerfed from +2 to +1 for balance
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
-export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 8; // +8 Defense (Was 2)
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 6; // v1.7: Nerfed to +6 (was +8) for better Conquest balance
 
 // Settler
 export const SETTLER_COST = 20;
@@ -298,8 +307,8 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 40, defenseBonus: 3, cityAttackBonus: 1 }, // v6.1: Nerfed Defense 4->3
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
-    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 180, conditional: "Summons The Titan upon completion" }, // v2.6: Nerfed to 180 (was 80) to delay Titan
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 160, yieldFlat: { S: 5, F: 4 }, conditional: "The Revelation: +4 Science, +4 Food, counts as Observatory milestone" }, // v4.1: S:5
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 220, conditional: "Summons The Titan upon completion" }, // v1.7: Nerfed to 220 (was 180) to delay Titan
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 220, yieldFlat: { S: 5, F: 4 }, conditional: "The Revelation: +4 Science, +4 Food, counts as Observatory milestone" }, // v1.5: cost 160→220 (matches Observatory)
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
     // v5.5: Bulwark converted to Building (Scholar/Starborne only)
     [BuildingType.Bulwark]: {
@@ -358,21 +367,21 @@ export const TECHS: Record<TechId, TechData> = {
 
 export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     [ProjectId.Observatory]: {
-        cost: 180,  // v1.4: Reduced from 220 to enable Progress victory before turn 300
+        cost: 250,  // v1.7: Increased from 220 to slow Progress (target: 45% Conquest / 55% Progress)
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 220,  // v1.4: Reduced from 265
+        cost: 320,  // v1.7: Increased from 280
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 280,  // v1.4: Reduced from 350
+        cost: 400,  // v1.7: Increased from 350
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

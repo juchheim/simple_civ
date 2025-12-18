@@ -175,7 +175,12 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
         if (!context.stats.canCaptureCity) throw new Error("Unit cannot capture cities");
 
         // Remove any enemy units (garrison) that might still be there
-        const enemyUnits = state.units.filter(u => hexEquals(u.coord, destination) && u.ownerId !== playerId);
+        // v1.8: Exclude Air domain units - they float above the battle
+        const enemyUnits = state.units.filter(u =>
+            hexEquals(u.coord, destination) &&
+            u.ownerId !== playerId &&
+            UNITS[u.type].domain !== UnitDomain.Air
+        );
         for (const enemy of enemyUnits) {
             unlinkPair(enemy, resolveLinkedPartner(state, enemy));
             state.units = state.units.filter(u => u.id !== enemy.id);

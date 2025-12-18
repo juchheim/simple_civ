@@ -21,7 +21,7 @@
 .tech-tree-background {
     position: absolute;
     inset: 0;
-    background-image: url('/ui/tech_tree_bg.png');
+    background-image: url('/ui/tech_tree_bg.webp');
     background-size: cover;
     background-position: center;
     opacity: 0.4;
