@@ -31,7 +31,7 @@ while kill -0 "$SIM_PID" 2>/dev/null; do
     sleep 10 # Update more frequently (10s) for better feedback
     
     # Get current progress from completed count (parallel-analysis uses "Completed" log pattern)
-    COMPLETED=$(grep -c "Completed" "$LOG_FILE" 2>/dev/null | tr -d '\n' || echo "0")
+    COMPLETED=$(grep -c "Completed [A-Za-z]* (Seed" "$LOG_FILE" 2>/dev/null | tr -d '\n' || echo "0")
     # Sanitize to ensure it's a number
     COMPLETED=${COMPLETED:-0}
     
@@ -91,6 +91,10 @@ echo "Running Aether Era analysis..."
 node engine/src/sim/analyze-aether.mjs
 
 echo ""
+echo "Running Tech Path analysis..."
+node engine/src/sim/analyze-tech-paths.mjs
+
+echo ""
 echo "Extracting Titan Action Logs..."
 titan_log="/tmp/titan-actions.log"
 grep "TITAN LOG" "$LOG_FILE" > "$titan_log"
@@ -105,6 +109,7 @@ cp /tmp/comprehensive-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/aetherian-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/scholar-kingdoms-analysis.md docs/analysis/ 2>/dev/null
 cp /tmp/aether-analysis-report.md docs/analysis/ 2>/dev/null
+cp /tmp/tech-path-analysis-report.md docs/analysis/ 2>/dev/null
 cp "$titan_log" docs/analysis/titan-actions.log 2>/dev/null
 
 echo ""

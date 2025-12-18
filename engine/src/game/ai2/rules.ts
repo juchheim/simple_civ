@@ -219,6 +219,8 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.DrilledRanks]: 1.4,
                 [TechId.ArmyDoctrine]: 1.5,
                 [TechId.SteamForges]: 1.2,
+                [TechId.CompositeArmor]: 2.0,
+                [TechId.Aerodynamics]: 1.5, // v6.4: Enable Airship research
                 // Secondary Progress Path
                 [TechId.ScriptLore]: 1.1,
                 [TechId.ScholarCourts]: 1.1,
@@ -226,7 +228,7 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.StarCharts]: 1.1,
             },
             pathsByGoal: {
-                Conquest: [TechId.FormationTraining, TechId.DrilledRanks, TechId.ArmyDoctrine, TechId.SteamForges],
+                Conquest: [TechId.FormationTraining, TechId.DrilledRanks, TechId.ArmyDoctrine, TechId.SteamForges, TechId.CompositeArmor],
             },
         },
         build: {
@@ -256,10 +258,10 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         tactics: {
-            riskTolerance: 0.35,
+            riskTolerance: 0.55, // v6.4: Fight harder (was 0.35)
             forceConcentration: 0.9,
             siegeCommitment: 0.85,
-            retreatHpFrac: 0.45,
+            retreatHpFrac: 0.25, // v6.4: Stay in the fight (was 0.45)
             rangedCaution: 0.7,
         },
         titan: { capitalHunt: 0.5, finisher: 0.7, momentum: 0.9 },
@@ -340,6 +342,7 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.ScholarCourts]: 1.1,
                 [TechId.SignalRelay]: 1.1,
                 [TechId.StarCharts]: 1.1,
+                [TechId.Aerodynamics]: 1.2, // v6.4: Enable Airship research
             }
         },
         build: {
@@ -379,15 +382,17 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.TimberMills]: 1.6,
                 [TechId.SteamForges]: 1.8,
                 [TechId.DrilledRanks]: 1.1,
+                [TechId.CompositeArmor]: 1.8,
                 // NEW: Science priorities to reach Engine Era faster (Titan rush)
                 [TechId.ScriptLore]: 1.4,
                 [TechId.ScholarCourts]: 1.3,
                 // Secondary Progress Path
                 [TechId.SignalRelay]: 1.2,
                 [TechId.StarCharts]: 1.2,
+                [TechId.Aerodynamics]: 1.8, // v6.4: Airship support for Titan
             },
             pathsByGoal: {
-                Conquest: [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore, TechId.DrilledRanks, TechId.TimberMills, TechId.ScholarCourts, TechId.SteamForges],
+                Conquest: [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore, TechId.DrilledRanks, TechId.TimberMills, TechId.ScholarCourts, TechId.SteamForges, TechId.CompositeArmor],
             },
         },
         build: {
@@ -465,13 +470,13 @@ const profiles: Record<string, CivAiProfileV2> = {
     JadeCovenant: mergeProfile(baseProfile, {
         civName: "JadeCovenant",
         diplomacy: {
-            warPowerRatio: 2.0,
-            warDistanceMax: 10,
-            peaceIfBelowRatio: 1.1,
-            minWarTurn: 30,
-            maxConcurrentWars: 0,
-            maxInitiatedWarsPer50Turns: 1,
-            canInitiateWars: false,
+            warPowerRatio: 1.1, // v6.4: Fight more readily (was 1.2)
+            warDistanceMax: 14,
+            peaceIfBelowRatio: 0.85,
+            minWarTurn: 12, // v6.4: Start wars earlier (was 14)
+            maxConcurrentWars: 1,
+            maxInitiatedWarsPer50Turns: 3,
+            canInitiateWars: true,
             targetPreference: "Finishable",
         },
         tech: {
@@ -484,6 +489,7 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.ScholarCourts]: 1.1,
                 [TechId.SignalRelay]: 1.1,
                 [TechId.StarCharts]: 1.1,
+                [TechId.Aerodynamics]: 1.2, // v6.4: Enable Airship research
             }
         },
         build: {
@@ -512,5 +518,3 @@ export function getAiProfileV2(state: GameState, playerId: string): CivAiProfile
     const civ = player?.civName ?? "Default";
     return profiles[civ] ?? mergeProfile(baseProfile, { civName: civ });
 }
-
-

@@ -9,6 +9,7 @@ import {
     UnitType,
 } from "../core/types.js";
 import { getPersonalityForPlayer } from "./ai/personality.js";
+import { getAiProfileV2 } from "./ai2/rules.js"; // v6.2: Added for Forge Clans check
 import { setContact } from "./helpers/diplomacy.js";
 
 export type WarPeaceDecision = "DeclareWar" | "ProposePeace" | "AcceptPeace" | "PrepareForWar" | "None";
@@ -469,6 +470,7 @@ function ensureInitialContact(state: GameState, playerId: string, targetId: stri
 
 function buildDecisionContext(playerId: string, targetId: string, state: GameState): DecisionContext {
     const personality = getPersonalityForPlayer(state, playerId);
+    const profile = getAiProfileV2(state, playerId); // v6.2: Get profile for civ checks
     const aggression = personality.aggression;
 
     const baseWarPowerThreshold = (() => {
@@ -484,14 +486,17 @@ function buildDecisionContext(playerId: string, targetId: string, state: GameSta
 
     const victoryBias = aiVictoryBias(playerId, state);
     let escalationFactor = 1.0;
-    if (victoryBias === "Conquest") {
+    if (victoryBias === "Conquest" || profile.civName === "ForgeClans") {
         escalationFactor = getWarEscalationFactor(state.turn);
+        // Forge Clans get extra 15% aggression ramp
+        if (profile.civName === "ForgeClans") escalationFactor *= 0.85;
     } else if (state.turn > 150) {
-        const lateProgress = Math.min(1, (state.turn - 150) / 80);
-        escalationFactor = 1.0 - (lateProgress * 0.4);
+        // Late Game Total War: All civs become aggressive to prevent stalls
+        const lateProgress = Math.min(1, (state.turn - 150) / 40); // 40 turn ramp to chaos
+        escalationFactor = 1.0 - (lateProgress * 0.5); // Down to 0.5 factor
     }
 
-    const warPowerThreshold = victoryBias === "Conquest"
+    const warPowerThreshold = (victoryBias === "Conquest" || profile.civName === "ForgeClans")
         ? baseWarPowerThreshold
         : Math.max(baseWarPowerThreshold, 1.1);
 
@@ -501,10 +506,12 @@ function buildDecisionContext(playerId: string, targetId: string, state: GameSta
     const distanceScale = Math.sqrt(mapSizeFactor);
 
     let capitalBonus = 1.0;
-    if (escalationFactor < 1.0) {
+    // Late game: ignore capital distance penalty, just kill
+    if (escalationFactor < 1.0 || (profile.civName === "ForgeClans" && state.turn > 100)) {
+        capitalBonus = 0.9;
         const capDist = getEnemyCapitalDistance(playerId, targetId, state);
         if (capDist !== null && capDist <= aggression.warDistanceMax * distanceScale) {
-            capitalBonus = 0.9;
+            capitalBonus = 0.8; // More aggressive near capitals
         }
     }
 

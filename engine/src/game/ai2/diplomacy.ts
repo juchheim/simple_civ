@@ -124,6 +124,47 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
     const warsNow = currentWarCount(next, playerId);
     let warsPlanned = warsNow;
 
+    // =========================================================================
+    // FORCED PEACE-BREAKING: At turn 180+ with no wars, target weakest civ
+    // =========================================================================
+    // This breaks multi-civ stalemates where everyone is at peace and turtling
+    // v4: Reverted to turn 180, 70% power - less aggressive to avoid mutual destruction
+    // Use player ID hash for randomness so civs don't all trigger on same turn
+    const forcedWarTurnOffset = (playerId.charCodeAt(0) + (next.seed ?? 0)) % 25; // 0-24 turn offset
+    const forcedWarTriggerTurn = 180 + forcedWarTurnOffset;
+
+    // ALL civs participate in forced peace-breaking
+    if (next.turn >= forcedWarTriggerTurn && warsNow === 0) {
+        // Find weakest visible enemy
+        let weakestId: string | null = null;
+        let weakestPower = Infinity;
+
+        for (const other of next.players) {
+            if (other.id === playerId || other.isEliminated) continue;
+            const theirCities = next.cities.filter(c => c.ownerId === other.id);
+            if (theirCities.length === 0) continue;
+
+            const theirPower = estimateMilitaryPower(other.id, next);
+            if (theirPower < weakestPower) {
+                weakestPower = theirPower;
+                weakestId = other.id;
+            }
+        }
+
+        // v4: Attack when at 70% power or more (was 50%)
+        if (weakestId && myPower >= weakestPower * 0.7) {
+            aiInfo(`[AI Diplo] ${playerId} FORCED WAR at turn ${next.turn} against weakest target ${weakestId}`);
+            const mem2 = getAiMemoryV2(next, playerId);
+            next = setAiMemoryV2(next, playerId, {
+                ...mem2,
+                lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [weakestId]: next.turn },
+                warInitiationTurns: [...(mem2.warInitiationTurns ?? []), next.turn]
+            });
+            actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: weakestId, state: DiplomacyState.War });
+            warsPlanned = 1;
+        }
+    }
+
     for (const other of next.players) {
         if (other.id === playerId || other.isEliminated) continue;
 

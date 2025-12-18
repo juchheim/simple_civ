@@ -1,14 +1,24 @@
-import { BUILDINGS, TECHS, ENABLE_AETHER_ERA } from "../../core/constants.js";
+/**
+ * tech.ts - Goal-Driven Tech Selection
+ * 
+ * REFACTORED: Uses capability chains from strategic-plan.ts
+ * Removed: Weight scoring, Aether bonuses, hardcoded civ paths
+ */
+
+import { TECHS, ENABLE_AETHER_ERA } from "../../core/constants.js";
 import { aiInfo } from "../ai/debug-logging.js";
-import { AiVictoryGoal, BuildingType, GameState, ProjectId, TechId } from "../../core/types.js";
+import { AiVictoryGoal, GameState, TechId } from "../../core/types.js";
 import { getAiProfileV2 } from "./rules.js";
-import { pickBest } from "./util.js";
+import { getGoalRequirements, getNextTechInChain, getGamePhase } from "./strategic-plan.js";
+
+// =============================================================================
+// TECH AVAILABILITY
+// =============================================================================
 
 function meetsEraGate(playerTechs: TechId[], techId: TechId): boolean {
     const data = TECHS[techId];
     const hearthCount = playerTechs.filter(t => TECHS[t].era === "Hearth").length;
     const bannerCount = playerTechs.filter(t => TECHS[t].era === "Banner").length;
-    // Match current global pacing: Banner requires 3 Hearth, Engine requires 2 Banner.
     if (data.era === "Banner" && hearthCount < 3) return false;
     if (data.era === "Engine" && bannerCount < 2) return false;
     return true;
@@ -19,7 +29,6 @@ function canResearch(playerTechs: TechId[], techId: TechId): boolean {
     return data.prereqTechs.every(t => playerTechs.includes(t)) && meetsEraGate(playerTechs, techId);
 }
 
-
 function availableTechs(playerTechs: TechId[]): TechId[] {
     return Object.values(TechId).filter(t => {
         if (!ENABLE_AETHER_ERA && TECHS[t].era === "Aether") return false;
@@ -27,101 +36,87 @@ function availableTechs(playerTechs: TechId[]): TechId[] {
     });
 }
 
-function goalPathScore(goal: AiVictoryGoal, techId: TechId, path: TechId[] | undefined): number {
-    if (!path || path.length === 0) return 0;
-    const idx = path.indexOf(techId);
-    if (idx < 0) return 0;
-    // Earlier in the path is higher.
-    return 120 - idx * 10;
-}
-
-function uniqueRushScore(state: GameState, playerId: string, techId: TechId): number {
-    const player = state.players.find(p => p.id === playerId);
-    if (!player) return 0;
-    const civ = player.civName;
-
-    // If civ has a unique building to rush, boost its tech prereq chain.
-    const uniqueBuilding = civ === "AetherianVanguard"
-        ? BuildingType.TitansCore
-        : civ === "StarborneSeekers"
-            ? BuildingType.SpiritObservatory
-            : civ === "JadeCovenant"
-                ? BuildingType.JadeGranary
-                : null;
-
-    if (!uniqueBuilding) return 0;
-    const req = BUILDINGS[uniqueBuilding]?.techReq;
-    if (!req) return 0;
-
-    if (techId === req) return 140;
-
-    // Small boost for prerequisites of the unique tech (one hop).
-    const reqData = TECHS[req];
-    if (reqData.prereqTechs.includes(techId)) return 60;
-    return 0;
-}
+// =============================================================================
+// MAIN TECH SELECTION
+// =============================================================================
 
 export function chooseTechV2(state: GameState, playerId: string, goal: AiVictoryGoal): TechId | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player || player.currentTech) return null;
     const profile = getAiProfileV2(state, playerId);
+    const phase = getGamePhase(state);
 
     const avail = availableTechs(player.techs);
     if (avail.length === 0) return null;
 
-    // v2.1: Force AetherianVanguard custom path (Titan Rush)
-    if (profile.civName === "AetherianVanguard") {
-        const titanPath = [
-            TechId.FormationTraining,  // Hearth #1 - Military first
-            TechId.ScriptLore,         // Hearth #2 - Science boost
-            TechId.StoneworkHalls,     // Hearth #3 - Titan prereq (Completion of Era Gate)
-            TechId.DrilledRanks,       // Banner #1 - Enables Form Army
-            TechId.TimberMills,        // Banner #2 - Unlocks Engine era
-            TechId.SteamForges,        // Engine - Unlocks Titan's Core
-        ];
-        for (const t of titanPath) {
-            if (!player.techs.includes(t) && avail.includes(t)) return t;
+    // Get goal-driven requirements
+    const requirements = getGoalRequirements(goal, profile.civName, phase);
+
+    // PRIORITY 1: Follow the tech chain for our goal target
+    const chainTech = getNextTechInChain(player.techs, requirements.techTarget);
+    if (chainTech && avail.includes(chainTech)) {
+        aiInfo(`[AI Tech] ${profile.civName} following ${requirements.techTarget} chain: ${chainTech}`);
+        return chainTech;
+    }
+
+    // PRIORITY 1.1: HYBRID VICTORY - Late game StarCharts backup for ALL civs
+    // If we're past turn 180 and don't have StarCharts, prioritize getting it
+    // This enables the hybrid production logic (backup Progress victory path)
+    const hasStarCharts = player.techs.includes(TechId.StarCharts);
+    if (state.turn >= 180 && !hasStarCharts) {
+        // Need SignalRelay first
+        if (!player.techs.includes(TechId.SignalRelay) && avail.includes(TechId.SignalRelay)) {
+            aiInfo(`[AI Tech] ${profile.civName} HYBRID: SignalRelay (backup victory path)`);
+            return TechId.SignalRelay;
+        }
+        // Then StarCharts
+        if (avail.includes(TechId.StarCharts)) {
+            aiInfo(`[AI Tech] ${profile.civName} HYBRID: StarCharts (backup victory path)`);
+            return TechId.StarCharts;
         }
     }
 
-    const path = profile.tech.pathsByGoal[goal] ?? [];
-    const scored = avail.map(t => {
-        const weight = (profile.tech.weights[t] ?? 0) * 100;
-        const pathS = goalPathScore(goal, t, path);
-        const unique = uniqueRushScore(state, playerId, t);
-        // Cheapness tie-breaker
-        const cost = TECHS[t].cost;
-        const cheap = -cost * 0.05;
+    // PRIORITY 2: If chain tech not available, pick standard progression by era
+    // This ensures we don't stall waiting for prereqs
+    const byEra = {
+        Hearth: avail.filter(t => TECHS[t].era === "Hearth"),
+        Banner: avail.filter(t => TECHS[t].era === "Banner"),
+        Engine: avail.filter(t => TECHS[t].era === "Engine"),
+        Aether: avail.filter(t => TECHS[t].era === "Aether"),
+    };
 
-        let score = weight + pathS + unique + cheap;
-
-        // v6.0: Aether Era Randomization
-        // If it's an Aether tech, randomize the score heavily to diversify endgame
-        // v6.0: Aether Era Randomization
-        // If it's an Aether tech, randomize the score heavily to diversify endgame
-        if (TECHS[t].era === "Aether") {
-            score += 80; // Baseline weight to compete with other options (otherwise might default to 0 weight from profile)
-            // Add a random buffer of +/- 30 to make choice unpredictable
-            const randomFactor = (state.seed * 997 + cost) % 60 - 30;
-            score += randomFactor;
+    // Phase-appropriate fallback
+    let fallback: TechId | null = null;
+    if (phase === "Expand") {
+        // Hearth priority: ScriptLore (science), FormationTraining (military), StoneworkHalls (production)
+        fallback = byEra.Hearth.find(t => t === TechId.ScriptLore)
+            ?? byEra.Hearth.find(t => t === TechId.FormationTraining)
+            ?? byEra.Hearth[0];
+    } else if (phase === "Develop") {
+        // Banner/Engine priority
+        fallback = byEra.Banner[0] ?? byEra.Engine[0] ?? byEra.Hearth[0];
+    } else {
+        // Execute phase: Aether for military punch
+        if (goal === "Conquest") {
+            fallback = byEra.Aether.find(t => t === TechId.CompositeArmor)
+                ?? byEra.Aether.find(t => t === TechId.Aerodynamics)
+                ?? byEra.Aether[0]
+                ?? byEra.Engine[0];
+        } else {
+            fallback = byEra.Aether.find(t => t === TechId.PlasmaShields)
+                ?? byEra.Aether.find(t => t === TechId.ZeroPointEnergy)
+                ?? byEra.Aether[0]
+                ?? byEra.Engine[0];
         }
-
-        return { item: t, score };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    const pick = scored[0];
-
-    // Log top 3 choices for debugging progress stalls
-    if (true) {
-        const top3 = scored.slice(0, 3).map(s => `${s.item} (${s.score.toFixed(1)})`).join(", ");
-        aiInfo(`[AI Tech] ${playerId} choosing tech. Top 3: ${top3}. EraGate Banner: ${player.techs.filter(t => TECHS[t].era === "Banner").length}, Hearth: ${player.techs.filter(t => TECHS[t].era === "Hearth").length}`);
     }
 
-    return pick?.item ?? null;
+    if (fallback) {
+        aiInfo(`[AI Tech] ${profile.civName} fallback (${phase}): ${fallback}`);
+        return fallback;
+    }
+
+    // Last resort: cheapest available
+    const cheapest = avail.sort((a, b) => TECHS[a].cost - TECHS[b].cost)[0];
+    aiInfo(`[AI Tech] ${profile.civName} cheapest fallback: ${cheapest}`);
+    return cheapest ?? null;
 }
-
-
-
-
-

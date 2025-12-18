@@ -175,7 +175,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
     } else if (trait === "RiverLeague") {
         // v2.3: BUFF - +1 Prod per 1 river tile (was per 2) - doubled efficiency
         total.F += riverAdjacencyCount(state.map, workedTiles);
-        total.P += Math.ceil(riverAdjacencyCount(state.map, workedTiles) / 2);
+        total.P += Math.floor(riverAdjacencyCount(state.map, workedTiles) / 3);
     } else if (trait === "StarborneSeekers") {
         // v1.9: "Peaceful Meditation" - +2 Science when not at war (Buffed from +1)
         // Fits their defensive identity - they avoid wars to pursue Progress
@@ -387,22 +387,32 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (!data) return false;
 
         // Tech req
-        if (data.prereqTechs && !data.prereqTechs.every(t => player.techs.includes(t))) return false;
+        if (data.prereqTechs && !data.prereqTechs.every(t => player.techs.includes(t))) {
+            return false;
+        }
 
         // Milestone req
-        if (data.prereqMilestone && !player.completedProjects.includes(data.prereqMilestone)) return false;
+        if (data.prereqMilestone && !player.completedProjects.includes(data.prereqMilestone)) {
+            return false;
+        }
 
         // Building req
-        if (data.prereqBuilding && !city.buildings.includes(data.prereqBuilding)) return false;
+        if (data.prereqBuilding && !city.buildings.includes(data.prereqBuilding)) {
+            return false;
+        }
 
         // Once per civ
-        if (data.oncePerCiv && player.completedProjects.includes(pId)) return false;
+        if (data.oncePerCiv && player.completedProjects.includes(pId)) {
+            return false;
+        }
 
         // One city at a time
         if (data.oneCityAtATime) {
             // Check if any other city is building it
             const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === pId);
-            if (isBuilding) return false;
+            if (isBuilding) {
+                return false;
+            }
         }
 
         if (pId.startsWith("FormArmy")) {

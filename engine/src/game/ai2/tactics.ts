@@ -170,13 +170,12 @@ function runFocusSiegeAndCapture(state: GameState, playerId: string): GameState 
             // If unit is on a city tile, and that city is threatened, exclude it from offensive routing.
             const city = next.cities.find(c => hexEquals(c.coord, u.coord));
             if (city && city.ownerId === playerId) {
-                // Check for threat
-                const threatened = next.units.some(e =>
-                    enemies.has(e.ownerId) &&
-                    isMilitary(e) &&
-                    hexDistance(e.coord, city.coord) <= 3
-                );
-                if (threatened) return false;
+                // FIX #7: Garrisoned units cannot attack. Do not use them for offensive grouping logic
+                // if they are likely to try interacting aggressively.
+                // Actually, simpler: if they are in a city, they count as defenders/garrisons.
+                // EXCLUDE them from the offensive 'units' pool entirely so runFocusSiegeAndCapture
+                // doesn't try to path them around or order them to attack.
+                return false;
             }
             return true;
         });
@@ -353,6 +352,17 @@ function attackScoreVsCity(state: GameState, playerId: string, attacker: Unit, c
 }
 
 function bestAttackForUnit(state: GameState, playerId: string, unit: Unit): { action: any; score: number } | null {
+    // v5.13 FIX: Garrisoned units cannot attack (engine rule).
+    // Validate this early to prevent "Action Failed" loops and pathing stalls.
+    // (Settlers are exempt from this rule in the engine, but they don't attack anyway)
+    // v5.13 FIX: Garrisoned units cannot attack (engine rule).
+    // Validate this early to prevent "Action Failed" loops and pathing stalls.
+    // (Settlers are exempt from this rule in the engine, but they don't attack anyway)
+    const cityAtLoc = state.cities.find(c => hexEquals(c.coord, unit.coord));
+    if (cityAtLoc && cityAtLoc.ownerId === playerId && unit.type !== UnitType.Settler) {
+        return null; // Strict block
+    }
+
     const enemies = warEnemyIds(state, playerId);
     if (enemies.size === 0) return null;
     const rng = UNITS[unit.type].rng;
@@ -726,8 +736,7 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
                     const blocker =
                         next.units.find(u => u.ownerId !== playerId && hexEquals(u.coord, step)) ??
                         next.units.find(u => u.ownerId !== playerId && hexDistance(u.coord, live.coord) <= UNITS[live.type].rng);
-                    if (blocker) {
-
+                    if (blocker && !onFriendlyCity) {
                         const attacked = tryAction(next, { type: "Attack", playerId, attackerId: live.id, targetType: "Unit", targetId: blocker.id });
                         if (attacked !== next) {
                             next = attacked;
@@ -743,7 +752,7 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
                 if (!live.hasAttacked) {
 
                     const blocker = next.units.find(u => u.ownerId !== playerId && hexDistance(u.coord, live.coord) <= UNITS[live.type].rng);
-                    if (blocker) {
+                    if (blocker && !onFriendlyCity) {
                         const attacked = tryAction(next, { type: "Attack", playerId, attackerId: live.id, targetType: "Unit", targetId: blocker.id });
                         if (attacked !== next) {
                             next = attacked;
@@ -765,7 +774,7 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
             const dmg = preview.estimatedDamage.avg;
             const wouldCapture = (cityNow.hp - dmg) <= 0 && dist === 1;
 
-            if (wouldCapture || !wouldDie || profile.tactics.riskTolerance >= 0.8) {
+            if ((wouldCapture || !wouldDie || profile.tactics.riskTolerance >= 0.8) && !onFriendlyCity) {
                 const attacked = tryAction(next, { type: "Attack", playerId, attackerId: live.id, targetType: "City", targetId: cityNow.id });
                 if (attacked !== next) {
                     next = attacked;

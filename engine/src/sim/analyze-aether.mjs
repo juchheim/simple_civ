@@ -8,7 +8,8 @@ const AETHER_TECHS = [
     "Aerodynamics",
     "ZeroPointEnergy",
     "CompositeArmor",
-    "DimensionalGate"
+    "DimensionalGate",
+    "PlasmaShields"
 ];
 
 const AETHER_UNITS = [
@@ -17,7 +18,8 @@ const AETHER_UNITS = [
 ];
 
 const AETHER_BUILDINGS = [
-    "AetherReactor"
+    "AetherReactor",
+    "ShieldGenerator"
 ];
 
 // Load Results

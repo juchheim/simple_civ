@@ -97,7 +97,7 @@ export const GROWTH_FACTORS = [
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 // v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 1.0;
+export const JADE_COVENANT_GROWTH_MULT = 0.85; // Buffed to 15% discount (was 0.9)
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -112,7 +112,7 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 // v0.98 Update 5: JadeCovenant Population Power - NERFED from 5 to 8, then to 10
 // At 54 avg pop, this reduces bonus from +6/+6 (at 8) to +5/+5 (at 10)
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 12; // v5.9: Buffed to 12 (was 15)
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 6; // v5.9: Buffed to 6 (was 8)
 
 
 
@@ -120,10 +120,10 @@ export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 12; // v5.9: Buffed to 12 (was
 
 // v0.98 Update 5: ForgeClans "Forged Arms" - combat bonus for hill production
 export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonus
-export const FORGE_CLANS_HILL_COMBAT_BONUS = 1; // +1 Attack for units from hill cities
+export const FORGE_CLANS_HILL_COMBAT_BONUS = 2; // +2 Attack for units from hill cities (Buffed from 1)
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.85; // v5.7: Buffed to 15% (was 10%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.75; // v5.7: Buffed to 25% (was 15%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
@@ -144,8 +144,8 @@ export const SETTLER_POP_LOSS_ON_BUILD = 1;
 
 // City Defense
 export const UNIT_BASE_DAMAGE = 6;
-export const CITY_DEFENSE_BASE = 4; // Buffed from 3
-export const CITY_WARD_DEFENSE_BONUS = 5; // Buffed from 4
+export const CITY_DEFENSE_BASE = 3; // Nerfed from 4 to 3 (Reduce stalls)
+export const CITY_WARD_DEFENSE_BONUS = 3; // Nerfed from 5 to 3
 export const CITY_ATTACK_BASE = 3;
 export const FORTIFY_DEFENSE_BONUS = 1;
 export const DAMAGE_BASE = 4;
@@ -295,7 +295,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
     [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, conditional: "+1P more if any Forest worked" },
     [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 } }, // v4.2: S:3, Cost 50
-    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 40, defenseBonus: 4, cityAttackBonus: 1 }, // v4.2: Cost 40
+    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 40, defenseBonus: 3, cityAttackBonus: 1 }, // v6.1: Nerfed Defense 4->3
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 180, conditional: "Summons The Titan upon completion" }, // v2.6: Nerfed to 180 (was 80) to delay Titan
@@ -306,14 +306,14 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
         era: EraId.Hearth,
         techReq: TechId.StoneworkHalls,
         cost: 60,
-        defenseBonus: 12,
+        defenseBonus: 8, // v6.1: Nerfed Defense 12->8
         cityAttackBonus: 3,
         yieldFlat: { S: 1 },
         conditional: "Scholar/Starborne Only. City CANNOT form Armies."
     },
     // v6.0: Aether Era
     [BuildingType.AetherReactor]: { era: EraId.Aether, techReq: TechId.ZeroPointEnergy, cost: 200, yieldFlat: { F: 5, P: 5, S: 5 } },
-    [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, defenseBonus: 20, conditional: "Grants 50 Shield HP (regenerating)" },
+    [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, defenseBonus: 15, conditional: "Grants 50 Shield HP (regenerating)" },
 };
 
 export type TechData = {
@@ -358,21 +358,21 @@ export const TECHS: Record<TechId, TechData> = {
 
 export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     [ProjectId.Observatory]: {
-        cost: 220,  // v1.3: Increased from 190
+        cost: 180,  // v1.4: Reduced from 220 to enable Progress victory before turn 300
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 265,
+        cost: 220,  // v1.4: Reduced from 265
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 350,
+        cost: 280,  // v1.4: Reduced from 350
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

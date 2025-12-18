@@ -53,6 +53,11 @@ export function chooseVictoryGoalV2(state: GameState, playerId: string): AiVicto
         (profile.build.weights.project[ProjectId.GrandExperiment] ?? 0);
 
     if (hasStarCharts && (progressAffinity >= 2.5 || profile.tactics.riskTolerance < 0.3)) {
+        const conquestFirstCivs = ["ForgeClans", "AetherianVanguard"];
+        if (conquestFirstCivs.includes(profile.civName)) {
+            // Stay on Conquest but can still build Progress projects concurrently.
+            return "Conquest";
+        }
         return "Progress";
     }
 
@@ -198,5 +203,4 @@ export function selectFocusCityAgainstTarget(state: GameState, playerId: string,
 
     return pickBest(scored, s => s.score)?.item?.c;
 }
-
 

@@ -95,8 +95,10 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
 function processResearch(state: GameState, player: Player) {
     const totalScience = getSciencePerTurn(state, player.id);
     if (player.currentTech) {
+        if (true) console.log(`[ResearchDebug] Turn ${state.turn} Player ${player.id}: Tech ${player.currentTech.id} Progress ${player.currentTech.progress}/${player.currentTech.cost} + Science ${totalScience}`);
         player.currentTech.progress += totalScience;
         if (player.currentTech.progress >= player.currentTech.cost) {
+            if (true) console.log(`[ResearchDebug] Turn ${state.turn} Player ${player.id}: Tech ${player.currentTech.id} COMPLETED`);
             const techId = player.currentTech.id;
             player.techs.push(techId);
             player.currentTech = null;

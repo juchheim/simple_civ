@@ -57,6 +57,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 
         // Capture snapshot BEFORE turn
         const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, hp: u.hp }]));
+        if (state.currentPlayerId === state.players[0].id) {
+            console.log(`--- TURN ${state.turn} ---`);
+        }
         const beforeCities = new Map(state.cities.map(c => [c.id, { ownerId: c.ownerId, pop: c.pop, buildings: [...c.buildings] }]));
         const beforeDiplomacy = new Map<string, Map<string, DiplomacyState>>();
         const beforeTechs = new Map(state.players.map(p => [p.id, new Set(p.techs)]));
@@ -574,7 +577,7 @@ if (isMainThread) {
     const start = Date.now();
 
     try {
-        const result = runComprehensiveSimulation(seed, config.size, 250, config.maxCivs);
+        const result = runComprehensiveSimulation(seed, config.size, 300, config.maxCivs);
         const duration = Date.now() - start;
         parentPort?.postMessage({ ...result, duration });
     } catch (err) {

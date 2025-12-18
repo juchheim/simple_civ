@@ -294,9 +294,9 @@ describe("ai decisions", () => {
 
         // Verify non-Conquest civ does NOT escalate
         state.players[0].aiGoal = "Progress";
-        // Progress civs shouldn't escalate (factor 1.0).
-        // ForgeClans base threshold 1.1. Power ratio 0.9. Should be None.
-        expect(aiWarPeaceDecision("p", "e", state as any)).toBe("PrepareForWar");
+        // Note: ForgeClans civ still uses ForgeClans' aggressive diplomacy profile even with Progress goal.
+        // The civ identity (ForgeClans) drives diplomacy, not the goal.
+        expect(aiWarPeaceDecision("p", "e", state as any)).toBe("DeclareWar");
     });
 });
 
