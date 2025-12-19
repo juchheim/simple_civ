@@ -20,7 +20,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "ScholarKingdoms",
         title: "Scholar Kingdoms",
         summary: "Science-focused with defensive bonuses near their learning centers.",
-        perk: "Starts with BowGuard • +1 Science in Capital • +1 Science/CityWard • +6 Defense (split across cities)",
+        perk: "Starts with BowGuard • +1 Science in Capital • +1 Science/CityWard • +8 Defense (split across cities)",
         color: "#0ea5e9",
     },
     {
@@ -32,9 +32,9 @@ export const CIV_OPTIONS: CivOption[] = [
     },
     {
         id: "AetherianVanguard",
-        title: "Aetherian Vanguard",
+        title: "AetherianVanguard",
         summary: "Gains strength through the ages and can summon the legendary Titan.",
-        perk: "+1 Prod in Capital • +1 Prod w/ garrison • Science on kills • +2 HP/era (max +6) • Titan's Core",
+        perk: "+1 Prod w/ garrison • Science on kills • +2 HP/era (max +6) • Titan's Core",
         color: "#9333ea",
     },
     {
@@ -48,7 +48,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "JadeCovenant",
         title: "Jade Covenant",
         summary: "Masters of growth and population-based power.",
-        perk: "Cities start +5 Food • 20% faster growth • 30% cheaper settlers (3 move) • +1 Atk/Def per 4 pop",
+        perk: "Cities start +5 Food • 20% faster growth • 30% cheaper settlers (3 move) • +1 Atk/Def per 4 pop • Nature's Wrath: enemy units take 1 damage in their territory",
         color: "#0f9d58",
     },
 ];

@@ -192,9 +192,9 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)
-        if (city.isCapital) {
-            total.P += 1;
-        }
+        // if (city.isCapital) {
+        //    total.P += 1;
+        // }
         // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
         // This bridges their weak early game to the Titan
         const cityKey = hexToString(city.coord);

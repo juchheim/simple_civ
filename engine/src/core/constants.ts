@@ -145,7 +145,7 @@ export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // v1.7: Nerfed from +2 to +1 
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
-export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 6; // v1.7: Nerfed to +6 (was +8) for better Conquest balance
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 8; // v1.7: Reverted to +8 to match code logic
 
 // Settler
 export const SETTLER_COST = 20;

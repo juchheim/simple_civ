@@ -179,7 +179,7 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
             // v2.9: Scaling bonus - 8 total distributed across cities (Buffed from 6)
             // Math.floor(8 / cityCount): 1 city = +8, 2 = +4, 3 = +2, 4 = +2, 5 = +1, 6 = +1
             // Using Math.max to ensure minimum of +1
-            return Math.max(1, Math.floor(8 / cities.length));
+            return Math.max(1, Math.floor(SCHOLAR_KINGDOMS_DEFENSE_BONUS / cities.length));
         }
     }
 
