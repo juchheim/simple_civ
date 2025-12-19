@@ -11,6 +11,7 @@ import {
     STARBORNE_CAPITAL_DEFENSE_RADIUS,
     STARBORNE_CAPITAL_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_BONUS,
+    LOREKEEPER_TERRITORY_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_RADIUS,
     FORTIFY_DEFENSE_BONUS,
     CIV6_DAMAGE_BASE,
@@ -192,7 +193,13 @@ import { isTileAdjacentToRiver } from "../../map/rivers.js";
 
 // ... existing imports ...
 
-export function getEffectiveUnitStats(unit: Unit, state: GameState) {
+/**
+ * Get effective unit stats with all bonuses applied.
+ * @param unit The unit to get stats for
+ * @param state Current game state
+ * @param attacker Optional - if provided, enables context-aware bonuses (e.g., Lorekeeper anti-Army)
+ */
+export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: Unit) {
     const base = UNITS[unit.type];
     const boosted = { ...base };
 
@@ -267,6 +274,28 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState) {
     if (player.civName === "ScholarKingdoms" && UNITS[unit.type].domain !== "Civilian") {
         const scholarBonus = getScholarKingdomsDefenseBonus(state, player, unit);
         boosted.def += scholarBonus;
+    }
+
+    // v7.0: Lorekeeper "Fortified Knowledge" - +3 DEF in friendly territory or on own city
+    // Also grants +50% DEF vs Army units when in territory
+    if (unit.type === UnitType.Lorekeeper) {
+        // Check if on own city
+        const onOwnCity = state.cities.some(c =>
+            c.ownerId === unit.ownerId && hexEquals(c.coord, unit.coord)
+        );
+        // Check if in friendly territory (within working distance of own city)
+        const inFriendlyTerritory = state.cities.some(c =>
+            c.ownerId === unit.ownerId && hexDistance(c.coord, unit.coord) <= 2
+        );
+        if (onOwnCity || inFriendlyTerritory) {
+            boosted.def += LOREKEEPER_TERRITORY_DEFENSE_BONUS;
+
+            // v7.0: Anti-Army bonus - +50% DEF when attacked by Army units IN TERRITORY
+            // Lorekeepers are excellent home defenders but vulnerable when away
+            if (attacker && attacker.type.startsWith("Army")) {
+                boosted.def = Math.floor(boosted.def * 1.5);
+            }
+        }
     }
 
     return boosted;

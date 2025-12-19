@@ -10,7 +10,10 @@
 
 import { AiVictoryGoal, GameState, TechId, UnitType, ProjectId } from "../../core/types.js";
 import { UNITS } from "../../core/constants.js";
+import { hexDistance } from "../../core/hex.js";
 import { UNIT_ROLES, TECH_CHAINS, getUnitsWithRole, UnitRole } from "./capabilities.js";
+
+// ... existing code ...
 
 // =============================================================================
 // GAME PHASES
@@ -57,10 +60,10 @@ export function assessCapabilities(state: GameState, playerId: string): Capabili
     // Count garrisoned cities
     let garrison = 0;
     for (const city of myCities) {
+        // v2.1: Relaxed garrison check - count as garrisoned if unit is ON or ADJACENT to city
+        // This prevents expansion stalls when units are defending from the field (especially Lorekeepers)
         const hasDefender = myUnits.some(u =>
-            u.coord.q === city.coord.q &&
-            u.coord.r === city.coord.r &&
-            UNIT_ROLES[u.type] !== "civilian"
+            UNIT_ROLES[u.type] !== "civilian" && hexDistance(u.coord, city.coord) <= 1
         );
         if (hasDefender) garrison++;
     }
@@ -90,7 +93,7 @@ export type GoalRequirements = {
     attackThreshold: number; // Power ratio needed to attack
 };
 
-export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase): GoalRequirements {
+export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, numCities: number = 1): GoalRequirements {
     // Phase multipliers - scale up military requirements as game progresses
     // v2: Reduced Execute from 1.5x to 1.2x to prevent over-building stalls
     const phaseMultiplier = phase === "Expand" ? 0.5 : phase === "Develop" ? 1.0 : 1.2;

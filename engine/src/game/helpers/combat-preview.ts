@@ -82,7 +82,7 @@ export function getCombatPreviewUnitVsUnit(
     defender: Unit
 ): CombatPreview {
     const attackerStats = getEffectiveUnitStats(attacker, state);
-    const defenderStats = getEffectiveUnitStats(defender, state);
+    const defenderStats = getEffectiveUnitStats(defender, state, attacker);
 
     // Attacker modifiers
     const attackerMods: CombatModifier[] = [];

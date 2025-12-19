@@ -87,6 +87,10 @@ echo "Running ScholarKingdoms analysis..."
 node engine/src/sim/analyze-scholar.mjs
 
 echo ""
+echo "Running StarborneSeekers analysis..."
+node engine/src/sim/analyze-starborne.mjs
+
+echo ""
 echo "Running Aether Era analysis..."
 node engine/src/sim/analyze-aether.mjs
 
@@ -108,6 +112,7 @@ cp /tmp/enhanced-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/comprehensive-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/aetherian-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/scholar-kingdoms-analysis.md docs/analysis/ 2>/dev/null
+cp /tmp/starborne-seekers-analysis.md docs/analysis/ 2>/dev/null
 cp /tmp/aether-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/tech-path-analysis-report.md docs/analysis/ 2>/dev/null
 cp "$titan_log" docs/analysis/titan-actions.log 2>/dev/null

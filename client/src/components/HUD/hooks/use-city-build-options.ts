@@ -17,6 +17,10 @@ const UNIT_OPTIONS: BuildOption<UnitType>[] = [
     { id: UnitType.SpearGuard, name: "Spear Guard" },
     { id: UnitType.BowGuard, name: "Bow Guard" },
     { id: UnitType.Riders, name: "Riders" },
+    { id: UnitType.ArmySpearGuard, name: "Army Spear Guard" },
+    { id: UnitType.ArmyBowGuard, name: "Army Bow Guard" },
+    { id: UnitType.ArmyRiders, name: "Army Riders" },
+    { id: UnitType.Lorekeeper, name: "Lorekeeper" },
     { id: UnitType.Skiff, name: "Skiff" },
     { id: UnitType.Settler, name: "Settler" },
 ];
@@ -40,9 +44,6 @@ const PROJECT_OPTIONS: BuildOption<ProjectId>[] = [
     { id: ProjectId.Observatory, name: "Observatory" },
     { id: ProjectId.GrandAcademy, name: "Grand Academy" },
     { id: ProjectId.GrandExperiment, name: "Grand Experiment" },
-    { id: ProjectId.FormArmy_SpearGuard, name: "Form Army (Spear)" },
-    { id: ProjectId.FormArmy_BowGuard, name: "Form Army (Bow)" },
-    { id: ProjectId.FormArmy_Riders, name: "Form Army (Riders)" },
     { id: ProjectId.HarvestFestival, name: "Harvest Festival" },
     { id: ProjectId.AlchemicalExperiments, name: "Alchemical Experiments" },
 ];

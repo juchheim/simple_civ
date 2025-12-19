@@ -116,9 +116,9 @@ const personalities: Record<CivName, AiPersonality> = {
     },
     RiverLeague: {
         aggression: {
-            warPowerThreshold: 1.15,  // Opportunistic but needs advantage
+            warPowerThreshold: 1.25,  // Opportunistic but needs advantage
             warDistanceMax: 14,
-            peacePowerThreshold: 0.9,
+            peacePowerThreshold: 1.1,
         },
         settleBias: { rivers: 0.75 },
         expansionDesire: 1.55,

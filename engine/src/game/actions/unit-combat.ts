@@ -97,7 +97,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         }
 
         // Calculate defender's effective defense with terrain and fortification
-        const defenderStats = getEffectiveUnitStats(defender, state);
+        const defenderStats = getEffectiveUnitStats(defender, state, attacker);
         let defensePower = defenderStats.def;
         const tile = tileLookup.get(hexToString(defender.coord));
         if (tile) {

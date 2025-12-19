@@ -42,6 +42,8 @@ export enum UnitType {
     // v6.0: Aether Era Units
     Airship = "Airship",
     Landship = "Landship",
+    // v7.0: Defensive civ-exclusive units
+    Lorekeeper = "Lorekeeper",
 }
 
 export enum UnitDomain {
@@ -121,9 +123,6 @@ export enum ProjectId {
     Observatory = "Observatory",
     GrandAcademy = "GrandAcademy",
     GrandExperiment = "GrandExperiment",
-    FormArmy_SpearGuard = "FormArmy_SpearGuard",
-    FormArmy_BowGuard = "FormArmy_BowGuard",
-    FormArmy_Riders = "FormArmy_Riders",
     // Filler Projects
     HarvestFestival = "HarvestFestival",
     AlchemicalExperiments = "AlchemicalExperiments",

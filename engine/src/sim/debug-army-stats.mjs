@@ -10,7 +10,7 @@ data.forEach(sim => {
     sim.events.forEach(e => {
         if (e.type === "UnitDeath" || e.type === "UnitProduction") {
             allUnitTypes.set(e.unitType, (allUnitTypes.get(e.unitType) || 0) + 1);
-            if (e.unitType?.includes("Army")) {
+            if (e.unitType?.startsWith("Army")) {
                 armyUnitTypes.add(e.unitType);
             }
         }
@@ -26,14 +26,14 @@ Array.from(allUnitTypes.entries())
 
 console.log('\nArmy unit types found:', Array.from(armyUnitTypes));
 
-// Check army formations vs deaths
-let formations = 0;
+// Check army productions vs deaths
+let armyProductions = 0;
 let armyDeaths = 0;
 
 data.forEach(sim => {
     sim.events.forEach(e => {
-        if (e.type === "ProjectComplete" && e.project?.startsWith("FormArmy_")) {
-            formations++;
+        if (e.type === "UnitProduction" && e.unitType?.startsWith("Army")) {
+            armyProductions++;
         }
         if (e.type === "UnitDeath" && e.unitType?.startsWith("Army")) {
             armyDeaths++;
@@ -41,6 +41,6 @@ data.forEach(sim => {
     });
 });
 
-console.log('\nArmy Formations (projects):', formations);
+console.log('\nArmy Units Produced:', armyProductions);
 console.log('Army Deaths:', armyDeaths);
-
+console.log('Survival Rate:', armyProductions > 0 ? (((armyProductions - armyDeaths) / armyProductions) * 100).toFixed(1) + '%' : 'N/A');

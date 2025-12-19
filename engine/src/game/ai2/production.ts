@@ -61,18 +61,29 @@ function getUnlockedUnits(playerTechs: TechId[]): UnitType[] {
     // Base units always available
     const unlocked: UnitType[] = [UnitType.Scout, UnitType.Settler];
 
+    const hasDrilledRanks = playerTechs.includes(TechId.DrilledRanks);
+    const hasArmyDoctrine = playerTechs.includes(TechId.ArmyDoctrine);
+
     if (playerTechs.includes(TechId.FormationTraining)) {
-        unlocked.push(UnitType.SpearGuard, UnitType.BowGuard);
+        // Unit obsolescence: SpearGuard/BowGuard become obsolete once DrilledRanks is researched
+        // AI should build Army versions instead (stronger, better survival)
+        if (!hasDrilledRanks) {
+            unlocked.push(UnitType.SpearGuard, UnitType.BowGuard);
+        }
     }
     if (playerTechs.includes(TechId.TrailMaps)) {
-        unlocked.push(UnitType.Riders);
+        // Unit obsolescence: Riders become obsolete once ArmyDoctrine is researched
+        if (!hasArmyDoctrine) {
+            unlocked.push(UnitType.Riders);
+        }
     }
-    if (playerTechs.includes(TechId.DrilledRanks)) {
+    if (hasDrilledRanks) {
         unlocked.push(UnitType.ArmySpearGuard, UnitType.ArmyBowGuard);
     }
-    if (playerTechs.includes(TechId.ArmyDoctrine)) {
+    if (hasArmyDoctrine) {
         unlocked.push(UnitType.ArmyRiders);
     }
+    // Landship and Airship are NOT obsoleted - they are unique advanced units
     if (playerTechs.includes(TechId.CompositeArmor)) {
         unlocked.push(UnitType.Landship);
     }
@@ -83,22 +94,6 @@ function getUnlockedUnits(playerTechs: TechId[]): UnitType[] {
         // CityWards unlocks Bulwark building (not a unit)
     }
     return unlocked;
-}
-
-function hasNearbyHealthyUnit(state: GameState, playerId: string, unitType: UnitType, city: City, distMax: number): boolean {
-    return state.units.some(u =>
-        u.ownerId === playerId &&
-        u.type === unitType &&
-        u.hp === u.maxHp &&
-        hexDistance(u.coord, city.coord) <= distMax
-    );
-}
-
-function formArmyBaseUnit(projectId: ProjectId): UnitType | null {
-    if (projectId === ProjectId.FormArmy_SpearGuard) return UnitType.SpearGuard;
-    if (projectId === ProjectId.FormArmy_BowGuard) return UnitType.BowGuard;
-    if (projectId === ProjectId.FormArmy_Riders) return UnitType.Riders;
-    return null;
 }
 
 // =============================================================================
@@ -114,7 +109,7 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     const phase = getGamePhase(state);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const unlockedUnits = getUnlockedUnits(player.techs);
-    const requirements = getGoalRequirements(goal, profile.civName, phase);
+    const requirements = getGoalRequirements(goal, profile.civName, phase, myCities.length);
     const capabilities = assessCapabilities(state, playerId);
     const gaps = findCapabilityGaps(capabilities, requirements);
 
@@ -156,6 +151,90 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         for (const unit of militaryOptions) {
             if (canBuild(city, "Unit", unit, state)) {
                 return { type: "Unit", id: unit };
+            }
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 0.5: Early Military for Defensive Civs (before CityWards)
+    // =========================================================================
+    // Defensive civs get attacked as early as turn 19-30, before they can build Lorekeepers.
+    // Build 2-3 early military units to survive early aggression.
+    // Note: SpearGuard/BowGuard are available from turn 1, no tech required.
+    if (isDefensiveCiv(profile.civName) && state.turn > 20) {
+        if (!player.techs.includes(TechId.CityWards)) {
+            // Before CityWards: build some basic military to survive
+            const currentMilitary = state.units.filter(u =>
+                u.ownerId === playerId &&
+                UNITS[u.type].domain !== "Civilian" &&
+                u.type !== UnitType.Scout
+            ).length;
+            // Target: 2-3 units to deter early aggression
+            const earlyMilitaryTarget = Math.max(2, myCities.length);
+
+            if (currentMilitary < earlyMilitaryTarget) {
+                // Prefer ranged for defense
+                if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                    aiInfo(`[AI Build] ${profile.civName} EARLY DEFENSE: BowGuard (${currentMilitary}/${earlyMilitaryTarget})`);
+                    return { type: "Unit", id: UnitType.BowGuard };
+                }
+                if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+                    aiInfo(`[AI Build] ${profile.civName} EARLY DEFENSE: SpearGuard (${currentMilitary}/${earlyMilitaryTarget})`);
+                    return { type: "Unit", id: UnitType.SpearGuard };
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 0.8: Lorekeeper for Defensive Civs (non-Bulwark cities only)
+    // =========================================================================
+    // ScholarKingdoms/StarborneSeekers get Lorekeeper as their main defensive unit
+    // IMPORTANT: Only non-Bulwark cities build Lorekeepers
+    // Bulwark cities focus on Victory projects (Priority 1)
+    if (isDefensiveCiv(profile.civName) && player.techs.includes(TechId.CityWards)) {
+        // Only non-Bulwark cities should build Lorekeepers
+        if (!city.buildings.includes(BuildingType.Bulwark)) {
+            const currentLorekeepers = state.units.filter(u =>
+                u.ownerId === playerId && u.type === UnitType.Lorekeeper
+            ).length;
+            // Target: 1.5 per city (1 garrison + 0.5 field defender), min 3
+            // This provides garrison coverage plus mobile defenders
+            const desiredLorekeepers = Math.max(3, Math.floor(myCities.length * 1.5));
+
+            if (currentLorekeepers < desiredLorekeepers) {
+                if (canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
+                    aiInfo(`[AI Build] ${profile.civName} LOREKEEPER: (${currentLorekeepers}/${desiredLorekeepers})`);
+                    return { type: "Unit", id: UnitType.Lorekeeper };
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 0.9: Army Units for Defensive Civs (non-Bulwark cities)
+    // =========================================================================
+    // For ScholarKingdoms/StarborneSeekers: non-Bulwark cities should build Army
+    // units while Bulwark cities focus on Victory projects
+    if (isDefensiveCiv(profile.civName) && player.techs.includes(TechId.DrilledRanks)) {
+        if (!city.buildings.includes(BuildingType.Bulwark)) {
+            // Non-Bulwark city: prioritize Army units over Victory projects
+            const currentArmyUnits = state.units.filter(u =>
+                u.ownerId === playerId &&
+                (u.type === UnitType.ArmySpearGuard || u.type === UnitType.ArmyBowGuard || u.type === UnitType.ArmyRiders)
+            ).length;
+            const nonBulwarkCities = myCities.filter(c => !c.buildings.includes(BuildingType.Bulwark)).length;
+            const desiredArmyUnits = Math.max(4, nonBulwarkCities * 2); // At least 4 Army units
+
+            if (currentArmyUnits < desiredArmyUnits) {
+                if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                    aiInfo(`[AI Build] ${profile.civName} ARMY (pre-project): ArmyBowGuard (${currentArmyUnits}/${desiredArmyUnits})`);
+                    return { type: "Unit", id: UnitType.ArmyBowGuard };
+                }
+                if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+                    aiInfo(`[AI Build] ${profile.civName} ARMY (pre-project): ArmySpearGuard (${currentArmyUnits}/${desiredArmyUnits})`);
+                    return { type: "Unit", id: UnitType.ArmySpearGuard };
+                }
             }
         }
     }
@@ -261,20 +340,7 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
-    // PRIORITY 3: Form Army (Immediate conversion)
-    // =========================================================================
-    const formArmyProjects = [ProjectId.FormArmy_SpearGuard, ProjectId.FormArmy_BowGuard, ProjectId.FormArmy_Riders];
-    for (const pr of formArmyProjects) {
-        if (!canBuild(city, "Project", pr, state)) continue;
-        const baseUnit = formArmyBaseUnit(pr);
-        if (baseUnit && hasNearbyHealthyUnit(state, playerId, baseUnit, city, 2)) {
-            aiInfo(`[AI Build] ${profile.civName} PRIORITY: ${pr} (Army Formation)`);
-            return { type: "Project", id: pr };
-        }
-    }
-
-    // =========================================================================
-    // PRIORITY 4: Garrison Undefended Cities
+    // PRIORITY 3: Garrison Undefended Cities
     // =========================================================================
     if (!cityHasGarrison(state, city)) {
         // This city needs a garrison - build capture or defense unit
@@ -347,7 +413,9 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     // =========================================================================
     // PRIORITY 6: Expansion (Settlers) - Only when safe
     // =========================================================================
-    if (phase === "Expand" && !atWar) {
+    // v2.2: Removed !atWar check. Priority 5 (Capability Gaps) already ensures we build units if we need them.
+    // Blocking expansion just because we are at war (even if winning/defended) causes defensive civs to turtle and die.
+    if (phase === "Expand") {
         const settlerCap = profile.build.settlerCap;
         const desiredCities = profile.build.desiredCities;
 

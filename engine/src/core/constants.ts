@@ -161,6 +161,9 @@ export const DAMAGE_BASE = 4;
 export const CITY_WARD_ATTACK_BONUS = 1;
 export const CITY_ATTACK_RANGE = 2;
 
+// v7.0: Lorekeeper "Fortified Knowledge" - +3 DEF in friendly territory or on city
+export const LOREKEEPER_TERRITORY_DEFENSE_BONUS = 3;
+
 // v1.0: Garrison System Redesign
 // Garrisons provide combat bonuses rather than being attackable HP barriers
 export const GARRISON_MELEE_DEFENSE_BONUS = 2;  // SpearGuard, Riders
@@ -271,10 +274,10 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.BowGuard]: { atk: 2, def: 1, rng: 2, move: 1, hp: 10, cost: 27, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 32, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.Skiff]: { atk: 2, def: 2, rng: 1, move: 3, hp: 10, cost: 32, domain: UnitDomain.Naval, canCaptureCity: false, vision: 2 },
-    [UnitType.ArmyScout]: { atk: 3, def: 3, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
-    [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
-    [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.ArmyScout]: { atk: 3, def: 3, rng: 1, move: 2, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
+    [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 80, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 75, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 95, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.Titan]: { atk: 22, def: 6, rng: 1, move: 2, hp: 25, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -284,6 +287,8 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 120, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 },
     // Landship: Late game siege breaker.
     [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 300, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    // v7.0: Lorekeeper - Defensive ranged unit for ScholarKingdoms/StarborneSeekers
+    [UnitType.Lorekeeper]: { atk: 4, def: 6, rng: 2, move: 1, hp: 12, cost: 55, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
 };
 
 export type BuildingData = {
@@ -386,27 +391,6 @@ export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Victory", payload: { victory: "Progress" } },
-    },
-    [ProjectId.FormArmy_SpearGuard]: {
-        cost: 30,
-        oncePerCiv: false,
-        oneCityAtATime: false,
-        scalesWithTurn: true,
-        onComplete: { type: "Transform", payload: { baseUnit: UnitType.SpearGuard, armyUnit: UnitType.ArmySpearGuard } },
-    },
-    [ProjectId.FormArmy_BowGuard]: {
-        cost: 30,
-        oncePerCiv: false,
-        oneCityAtATime: false,
-        scalesWithTurn: true,
-        onComplete: { type: "Transform", payload: { baseUnit: UnitType.BowGuard, armyUnit: UnitType.ArmyBowGuard } },
-    },
-    [ProjectId.FormArmy_Riders]: {
-        cost: 30,
-        oncePerCiv: false,
-        oneCityAtATime: false,
-        scalesWithTurn: true,
-        onComplete: { type: "Transform", payload: { baseUnit: UnitType.Riders, armyUnit: UnitType.ArmyRiders } },
     },
     // Marker project for tracking Jade Granary completion (not buildable directly)
     [ProjectId.JadeGranaryComplete]: {

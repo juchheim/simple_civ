@@ -353,10 +353,17 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         // It can only build Civilian units (Settler) and Recon units (Scout).
 
 
-        // Armies?
-        // "After Army Doctrine, a city may build Form Army..."
-        // Those are Projects, not Units directly.
-        if (uId.startsWith("Army")) return false; // Cannot build Army units directly
+        // Army units require DrilledRanks tech and cannot be built in Bulwark cities
+        if (uId.startsWith("Army")) {
+            if (!player.techs.includes(TechId.DrilledRanks)) return false;
+            if (city.buildings.includes(BuildingType.Bulwark)) return false;
+        }
+
+        // v7.0: Lorekeeper - Defensive unit exclusive to Scholar/Starborne civs
+        if (uId === UnitType.Lorekeeper) {
+            if (!player.techs.includes(TechId.CityWards)) return false;
+            if (player.civName !== "ScholarKingdoms" && player.civName !== "StarborneSeekers") return false;
+        }
 
         // Naval units require city to be adjacent to water (Coast or DeepSea)
         if (data.domain === UnitDomain.Naval) {
@@ -374,11 +381,6 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
                 if (!hasWaterAccess) return false;
             }
         }
-
-        // v5.6: Bulwark Building Protocol
-        // A city with a Bulwark Building commits to a "Fortress" role and cannot produce offensive armies.
-        // It can only build Civilian units (Settler) and Recon units (Scout).
-
 
         return true;
     }
@@ -415,22 +417,6 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             if (isBuilding) {
                 return false;
             }
-        }
-
-        if (pId.startsWith("FormArmy")) {
-            // v5.12: Bulwark cities cannot form armies (they focus on defense/basic units)
-            if (city.buildings.includes(BuildingType.Bulwark)) return false;
-
-            if (!player.techs.includes(TechId.DrilledRanks)) return false;
-
-            const requiredUnitType = data.onComplete.payload.baseUnit as UnitType;
-            const hasUnit = state.units.some(u =>
-                u.ownerId === player.id &&
-                u.type === requiredUnitType &&
-                u.hp === u.maxHp &&
-                state.map && hexDistance(u.coord, city.coord) <= CITY_WORK_RADIUS_RINGS
-            );
-            if (!hasUnit) return false;
         }
 
         return true;

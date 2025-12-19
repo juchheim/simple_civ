@@ -131,9 +131,6 @@ const baseProfile: CivAiProfileV2 = {
                 [ProjectId.Observatory]: 0.6,
                 [ProjectId.GrandAcademy]: 0.4,
                 [ProjectId.GrandExperiment]: 0.3,
-                [ProjectId.FormArmy_SpearGuard]: 0.5,
-                [ProjectId.FormArmy_BowGuard]: 0.5,
-                [ProjectId.FormArmy_Riders]: 0.45,
                 [ProjectId.HarvestFestival]: 0.2,
                 [ProjectId.AlchemicalExperiments]: 0.2,
             },
@@ -248,8 +245,6 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [BuildingType.CityWard]: 0.35,
                 },
                 project: {
-                    [ProjectId.FormArmy_BowGuard]: 1.2,
-                    [ProjectId.FormArmy_SpearGuard]: 1.05,
                     // Secondary Progress Projects
                     [ProjectId.Observatory]: 1.2,
                     [ProjectId.GrandAcademy]: 1.2,
@@ -299,7 +294,10 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.SpearGuard]: 1.4,
                     [UnitType.BowGuard]: 1.2,
                     [UnitType.Settler]: 1.2,
-
+                    // Army units - defensive civ benefits from ranged army
+                    [UnitType.ArmyBowGuard]: 1.5,  // Priority ranged for defense
+                    [UnitType.ArmySpearGuard]: 1.2,
+                    [UnitType.ArmyRiders]: 0.8,  // Lower priority - not in character
                 },
                 building: {
                     [BuildingType.Bulwark]: 2.5,  // v5.0: HIGH priority - core defense
@@ -311,8 +309,6 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [ProjectId.Observatory]: 1.2,
                     [ProjectId.GrandAcademy]: 1.1,
                     [ProjectId.GrandExperiment]: 1.0,
-                    [ProjectId.FormArmy_SpearGuard]: 1.2,
-                    [ProjectId.FormArmy_BowGuard]: 1.2,
                 },
             },
         },
@@ -355,8 +351,6 @@ const profiles: Record<string, CivAiProfileV2> = {
                 unit: { [UnitType.Skiff]: 1.2, [UnitType.Settler]: 1.2, [UnitType.SpearGuard]: 1.3, [UnitType.BowGuard]: 1.2 }, // v1.7: Military focus
                 building: { [BuildingType.Reservoir]: 1.2 },
                 project: {
-                    [ProjectId.FormArmy_SpearGuard]: 1.3, // v1.7: Army formation for conquest
-                    [ProjectId.FormArmy_BowGuard]: 1.3,
                     [ProjectId.Observatory]: 1.0, // v1.7: Reduced from 1.3
                     [ProjectId.GrandAcademy]: 1.0,
                     [ProjectId.GrandExperiment]: 1.0,
@@ -452,7 +446,10 @@ const profiles: Record<string, CivAiProfileV2> = {
             desiredCities: 4,
             weights: {
                 unit: {
-
+                    // Army units - defensive civ benefits from ranged army
+                    [UnitType.ArmyBowGuard]: 1.5,  // Priority ranged for defense
+                    [UnitType.ArmySpearGuard]: 1.2,
+                    [UnitType.ArmyRiders]: 0.8,  // Lower priority - not in character
                 },
                 building: {
                     [BuildingType.Bulwark]: 2.5,  // v5.0: HIGH priority - core defense
@@ -508,8 +505,6 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [ProjectId.Observatory]: 1.4, // v1.6: Higher for Progress path
                     [ProjectId.GrandAcademy]: 1.4,
                     [ProjectId.GrandExperiment]: 1.4,
-                    [ProjectId.FormArmy_SpearGuard]: 1.2, // v1.6: Needed for conquest
-                    [ProjectId.FormArmy_BowGuard]: 1.2,
                 },
             },
         },

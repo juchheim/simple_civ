@@ -96,9 +96,6 @@ function summarizeProjects(p: Player) {
         ProjectId.Observatory,
         ProjectId.GrandAcademy,
         ProjectId.GrandExperiment,
-        ProjectId.FormArmy_SpearGuard,
-        ProjectId.FormArmy_BowGuard,
-        ProjectId.FormArmy_Riders,
         ProjectId.JadeGranaryComplete,
     ];
     return keyProjects.filter(pr => p.completedProjects.includes(pr));
@@ -233,13 +230,13 @@ function runSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, de
 
     const debugPlayers = debug
         ? state.players.map(p => ({
-              id: p.id,
-              civ: p.civName,
-              techs: p.techs,
-              currentTech: p.currentTech,
-              completedProjects: p.completedProjects,
-              cities: state.cities.filter(c => c.ownerId === p.id).map(c => ({ id: c.id, pop: c.pop })),
-          }))
+            id: p.id,
+            civ: p.civName,
+            techs: p.techs,
+            currentTech: p.currentTech,
+            completedProjects: p.completedProjects,
+            cities: state.cities.filter(c => c.ownerId === p.id).map(c => ({ id: c.id, pop: c.pop })),
+        }))
         : undefined;
 
     return {

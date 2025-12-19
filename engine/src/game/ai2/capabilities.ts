@@ -28,7 +28,8 @@ export const UNIT_ROLES: Record<UnitType, UnitRole> = {
     [UnitType.Landship]: "capture",
     [UnitType.Titan]: "capture",
 
-    // Defense: Buildings handle defense (Bulwark is a Building, not Unit)
+    // Defense: Defensive units (Lorekeeper for Scholar/Starborne civs)
+    [UnitType.Lorekeeper]: "defense",
 
     // Vision: Scout enemy positions
     [UnitType.Scout]: "vision",

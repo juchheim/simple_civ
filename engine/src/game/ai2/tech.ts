@@ -50,7 +50,8 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
     if (avail.length === 0) return null;
 
     // Get goal-driven requirements
-    const requirements = getGoalRequirements(goal, profile.civName, phase);
+    const numCities = state.cities.filter(c => c.ownerId === playerId).length;
+    const requirements = getGoalRequirements(goal, profile.civName, phase, numCities);
 
     // PRIORITY 1: Follow the tech chain for our goal target
     const chainTech = getNextTechInChain(player.techs, requirements.techTarget);

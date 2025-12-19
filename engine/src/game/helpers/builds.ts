@@ -122,23 +122,7 @@ export function completeBuild(state: GameState, city: City) {
         if (pId === ProjectId.GrandAcademy && player && !player.completedProjects.includes(ProjectId.GrandAcademy)) {
             city.milestones.push(pId);
         }
-        if (pId.startsWith("FormArmy")) {
-            const payload = PROJECTS[pId].onComplete.payload;
-            const baseType = payload.baseUnit as UnitType;
-            const armyType = payload.armyUnit as UnitType;
-            const candidate = state.units.find(u =>
-                u.ownerId === city.ownerId &&
-                u.type === baseType &&
-                u.hp === u.maxHp &&
-                hexDistance(u.coord, city.coord) <= CITY_WORK_RADIUS_RINGS
-            );
-            if (candidate) {
-                candidate.type = armyType;
-                candidate.maxHp = UNITS[armyType].hp;
-                candidate.hp = candidate.maxHp;
-                candidate.movesLeft = UNITS[armyType].move;
-            }
-        } else if (PROJECTS[pId].onComplete.type === "GrantYield") {
+        if (PROJECTS[pId].onComplete.type === "GrantYield") {
             const payload = PROJECTS[pId].onComplete.payload;
             if (payload.F) {
                 city.storedFood += payload.F;

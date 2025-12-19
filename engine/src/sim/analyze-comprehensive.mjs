@@ -357,9 +357,8 @@ function analyzeProjects(results) {
     const projectsByCiv = new Map();
     const projectTiming = new Map();
 
-    // NEW: Break down by project category
+    // Break down by project category
     const progressChainCompletions = []; // Observatory, GrandAcademy, GrandExperiment
-    const formArmyCompletions = [];
     const uniqueBuildingCompletions = []; // JadeGranaryComplete, etc.
 
     results.forEach(sim => {
@@ -384,8 +383,6 @@ function analyzeProjects(results) {
                 // Categorize
                 if (["Observatory", "GrandAcademy", "GrandExperiment"].includes(e.project)) {
                     progressChainCompletions.push({ turn: e.turn, civ: civName, project: e.project, mapSize: sim.mapSize });
-                } else if (e.project.startsWith("FormArmy")) {
-                    formArmyCompletions.push({ turn: e.turn, civ: civName, project: e.project, mapSize: sim.mapSize });
                 } else {
                     uniqueBuildingCompletions.push({ turn: e.turn, civ: civName, project: e.project, mapSize: sim.mapSize });
                 }
@@ -393,7 +390,7 @@ function analyzeProjects(results) {
         });
     });
 
-    return { projectCompletions, projectsByCiv, projectTiming, progressChainCompletions, formArmyCompletions, uniqueBuildingCompletions };
+    return { projectCompletions, projectsByCiv, projectTiming, progressChainCompletions, uniqueBuildingCompletions };
 }
 
 function analyzeBuildings(results) {
@@ -784,7 +781,6 @@ report += `- **Average per Game:** ${(projectAnalysis.projectCompletions.length 
 
 report += `### Project Breakdown\n`;
 report += `- **Progress Chain (Observatory/Academy/Experiment):** ${projectAnalysis.progressChainCompletions.length}\n`;
-report += `- **Form Army Projects:** ${projectAnalysis.formArmyCompletions.length}\n`;
 report += `- **Unique Building Markers:** ${projectAnalysis.uniqueBuildingCompletions.length}\n\n`;
 
 report += `### Progress Chain Timing\n`;
@@ -797,11 +793,18 @@ report += `### Progress Chain Timing\n`;
 });
 report += `\n`;
 
-report += `### Form Army Usage by Type\n`;
-["FormArmy_SpearGuard", "FormArmy_BowGuard", "FormArmy_Riders"].forEach(project => {
-    const count = projectAnalysis.formArmyCompletions.filter(p => p.project === project).length;
-    report += `- **${project}:** ${count}\n`;
+// Army Unit Production Stats
+const armyUnits = ["ArmySpearGuard", "ArmyBowGuard", "ArmyRiders"];
+const armyProduced = armyUnits.reduce((sum, type) => sum + (unitAnalysis.productionByType.get(type) || 0), 0);
+const armyDeaths = armyUnits.reduce((sum, type) => sum + (unitAnalysis.deathsByType.get(type) || 0), 0);
+report += `### Army Unit Production\n`;
+armyUnits.forEach(unitType => {
+    const produced = unitAnalysis.productionByType.get(unitType) || 0;
+    const deaths = unitAnalysis.deathsByType.get(unitType) || 0;
+    const survivalRate = produced > 0 ? (((produced - deaths) / produced) * 100).toFixed(1) : 'N/A';
+    report += `- **${unitType}:** ${produced} produced, ${deaths} killed (${survivalRate}% survival)\n`;
 });
+report += `- **Total Army Units:** ${armyProduced} produced, ${armyDeaths} killed\n`;
 report += `\n`;
 
 // Building Analysis
@@ -913,16 +916,6 @@ const settlerSurvival = settlerProduced > 0 ? ((settlerProduced - settlerDeaths)
 report += `- Settlers Produced: ${settlerProduced}\n`;
 report += `- Settlers Killed: ${settlerDeaths}\n`;
 report += `- **Settler Survival Rate:** ${settlerSurvival}%\n\n`;
-
-report += `### Army Unit Usage\n`;
-const armyProduced = ["ArmySpearGuard", "ArmyBowGuard", "ArmyRiders", "ArmyScout"]
-    .reduce((s, t) => s + (unitAnalysis.productionByType.get(t) || 0), 0);
-const armyDeaths = ["ArmySpearGuard", "ArmyBowGuard", "ArmyRiders", "ArmyScout"]
-    .reduce((s, t) => s + (unitAnalysis.deathsByType.get(t) || 0), 0);
-const formArmyProjects = projectAnalysis.formArmyCompletions.length;
-report += `- Form Army Projects Completed: ${formArmyProjects}\n`;
-report += `- Army Units in Final States: ${armyProduced}\n`;
-report += `- Army Unit Deaths: ${armyDeaths}\n\n`;
 
 writeFileSync('/tmp/comprehensive-analysis-report.md', report);
 console.log("Analysis complete!");

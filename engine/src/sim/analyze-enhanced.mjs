@@ -271,12 +271,11 @@ function analyzeSettlerStats(results) {
 // ============================================================================
 
 function analyzeArmyUsage(results) {
-    const armyFormations = [];
     const armyDeaths = [];
     const armyProductions = [];
     const byCiv = new Map();
     CIVS.forEach(civ => {
-        byCiv.set(civ, { formations: 0, deaths: 0, productions: 0 });
+        byCiv.set(civ, { deaths: 0, productions: 0 });
     });
 
     results.forEach(sim => {
@@ -287,20 +286,7 @@ function analyzeArmyUsage(results) {
         });
 
         sim.events.forEach(e => {
-            if (e.type === "ProjectComplete" && e.project?.startsWith("FormArmy_")) {
-                // e.civ is the player ID (e.g., "p1"), look up the civ name
-                const civName = playerIdToCivName.get(e.civ);
-                armyFormations.push({
-                    turn: e.turn,
-                    civ: civName || e.civ,
-                    project: e.project,
-                    mapSize: sim.mapSize,
-                });
-                if (civName) {
-                    const stats = byCiv.get(civName);
-                    if (stats) stats.formations++;
-                }
-            } else if (e.type === "UnitDeath" && (e.unitType?.includes("Army") || e.unitType === "ArmyScout" || e.unitType === "ArmySpearGuard" || e.unitType === "ArmyBowGuard" || e.unitType === "ArmyRiders")) {
+            if (e.type === "UnitDeath" && (e.unitType?.startsWith("Army") || e.unitType === "ArmySpearGuard" || e.unitType === "ArmyBowGuard" || e.unitType === "ArmyRiders")) {
                 armyDeaths.push({
                     turn: e.turn,
                     owner: e.owner,
@@ -312,7 +298,7 @@ function analyzeArmyUsage(results) {
                     const stats = byCiv.get(civName);
                     if (stats) stats.deaths++;
                 }
-            } else if (e.type === "UnitProduction" && (e.unitType?.includes("Army") || e.unitType === "ArmyScout" || e.unitType === "ArmySpearGuard" || e.unitType === "ArmyBowGuard" || e.unitType === "ArmyRiders")) {
+            } else if (e.type === "UnitProduction" && (e.unitType?.startsWith("Army") || e.unitType === "ArmySpearGuard" || e.unitType === "ArmyBowGuard" || e.unitType === "ArmyRiders")) {
                 armyProductions.push({
                     turn: e.turn,
                     owner: e.owner,
@@ -328,7 +314,7 @@ function analyzeArmyUsage(results) {
         });
     });
 
-    return { armyFormations, armyDeaths, armyProductions, byCiv };
+    return { armyDeaths, armyProductions, byCiv };
 }
 
 // ============================================================================
@@ -620,14 +606,14 @@ report += `\n`;
 // QUESTION 5: Army Usage
 report += `## 5. Army Usage Patterns\n\n`;
 report += `### Overall Statistics\n`;
-report += `- **Army Formations (via projects):** ${armyUsage.armyFormations.length}\n`;
+report += `- **Army Units Produced:** ${armyUsage.armyProductions.length}\n`;
 report += `- **Army Units Killed:** ${armyUsage.armyDeaths.length}\n`;
-report += `- **Average Deaths per Formation:** ${armyUsage.armyFormations.length > 0 ? (armyUsage.armyDeaths.length / armyUsage.armyFormations.length).toFixed(1) : 'N/A'}\n\n`;
+report += `- **Survival Rate:** ${armyUsage.armyProductions.length > 0 ? (((armyUsage.armyProductions.length - armyUsage.armyDeaths.length) / armyUsage.armyProductions.length) * 100).toFixed(1) : 'N/A'}%\n\n`;
 
 report += `### By Civilization\n`;
 Array.from(armyUsage.byCiv.entries()).forEach(([civ, stats]) => {
-    if (stats.formations > 0 || stats.deaths > 0) {
-        report += `- **${civ}:** ${stats.formations} formed, ${stats.deaths} killed\n`;
+    if (stats.productions > 0 || stats.deaths > 0) {
+        report += `- **${civ}:** ${stats.productions} produced, ${stats.deaths} killed\n`;
     }
 });
 report += `\n`;

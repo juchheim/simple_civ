@@ -276,30 +276,16 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         return [...victoryPath, ...normalPriorities];
     }
 
-    // v0.96 balance: Check for army formation opportunities even when not at war
-    const hasFormArmyTech = player?.techs.includes(TechId.DrilledRanks) ?? false;
+    // v0.96 balance: Check for army unit production opportunities (direct build when DrilledRanks unlocked)
+    const hasArmyTech = player?.techs.includes(TechId.DrilledRanks) ?? false;
 
-    // Count unit types to determine which armies we can form
-    const units = state.units.filter(u => u.ownerId === playerId);
-    const spearCount = units.filter(u => u.type === UnitType.SpearGuard).length;
-    const bowCount = units.filter(u => u.type === UnitType.BowGuard).length;
-    const ridersCount = units.filter(u => u.type === UnitType.Riders).length;
-
-    // Build army formation priorities based on available units
+    // Build army priorities based on DrilledRanks unlock
     const armyPriorities: BuildOption[] = [];
-    if (hasFormArmyTech) {
-        // Prioritize forming armies when we have 2+ of a unit type
-        // v0.99: If Conquest goal, prioritize armies even more aggressively (1+ unit is enough if we want to upgrade)
-        // Actually, Form Army transforms a single unit into an Army unit. It doesn't combine two units.
-        // Wait, let's check constants.ts ProjectData.
-        // "onComplete: { type: "Transform", payload: { baseUnit: UnitType.SpearGuard, armyUnit: UnitType.ArmySpearGuard } }"
-        // And rules.ts: "const hasUnit = state.units.some(u => ... u.type === requiredUnitType ...)"
-        // So it transforms ONE unit.
-        // So we just need 1 unit of that type.
-
-        if (spearCount >= 1) armyPriorities.push({ type: "Project" as const, id: ProjectId.FormArmy_SpearGuard });
-        if (bowCount >= 1) armyPriorities.push({ type: "Project" as const, id: ProjectId.FormArmy_BowGuard });
-        if (ridersCount >= 1) armyPriorities.push({ type: "Project" as const, id: ProjectId.FormArmy_Riders });
+    if (hasArmyTech) {
+        // Prioritize Army units when we have the tech
+        armyPriorities.push({ type: "Unit" as const, id: UnitType.ArmySpearGuard });
+        armyPriorities.push({ type: "Unit" as const, id: UnitType.ArmyBowGuard });
+        armyPriorities.push({ type: "Unit" as const, id: UnitType.ArmyRiders });
     }
 
     // When at war, heavily prioritize military production
@@ -309,20 +295,16 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         // If actually at war, we MUST build forces
         // If Conquest goal, we ALWAYS want strongest units
 
-        if (hasFormArmyTech) {
-            // Prioritize army formation over individual units
-            // v0.96: Put army formations first, then units based on what we lack
+        if (hasArmyTech) {
+            // Prioritize Army units over individual units
             const allArmyOptions: BuildOption[] = [
-                { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
-                { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
-                { type: "Project" as const, id: ProjectId.FormArmy_Riders },
+                { type: "Unit" as const, id: UnitType.ArmyBowGuard },
+                { type: "Unit" as const, id: UnitType.ArmySpearGuard },
+                { type: "Unit" as const, id: UnitType.ArmyRiders },
             ];
 
-            // Put armies we can actually form first
-            const prioritizedArmies = [
-                ...armyPriorities,
-                ...allArmyOptions.filter(a => !armyPriorities.some(p => p.id === a.id))
-            ];
+            // Put armies we can actually build first
+            const prioritizedArmies = allArmyOptions;
 
             // v2.1: Always include progress projects as fallback
             const progressFallback = getNextProgressProject(player);
@@ -330,9 +312,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
                 ...(rushItem ? [rushItem] : []),
                 ...prioritizedArmies,
                 { type: "Unit" as const, id: UnitType.Settler }, // Still allow settlers if safe
-                { type: "Unit" as const, id: UnitType.BowGuard },
-                { type: "Unit" as const, id: UnitType.SpearGuard },
-                { type: "Unit" as const, id: UnitType.Riders },
+                // Army units replace base units - no more SpearGuard/BowGuard/Riders fallback
                 { type: "Building" as const, id: BuildingType.StoneWorkshop },
                 { type: "Building" as const, id: BuildingType.Farmstead },
                 ...(progressFallback ? [progressFallback] : []),
@@ -340,6 +320,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         } else {
             // No armies yet, build varied individual units
             // Check current army composition to balance melee/ranged
+            const units = state.units.filter(u => u.ownerId === playerId);
             const rangedCount = units.filter(u => u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard).length;
             const meleeCount = units.filter(u =>
                 u.type === UnitType.SpearGuard || u.type === UnitType.Riders ||
@@ -351,25 +332,30 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
             const hasBow = units.some(u => u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard);
             const hasRider = units.some(u => u.type === UnitType.Riders || u.type === UnitType.ArmyRiders);
 
+            // Use Army units if DrilledRanks is available (obsoletes base units)
+            const spearUnit = hasArmyTech ? UnitType.ArmySpearGuard : UnitType.SpearGuard;
+            const bowUnit = hasArmyTech ? UnitType.ArmyBowGuard : UnitType.BowGuard;
+            const riderUnit = (player?.techs.includes(TechId.ArmyDoctrine)) ? UnitType.ArmyRiders : UnitType.Riders;
+
             const meleeFirst: BuildOption[] = [
                 { type: "Unit" as const, id: UnitType.Settler },
-                { type: "Unit" as const, id: UnitType.SpearGuard },
-                { type: "Unit" as const, id: UnitType.Riders },
-                { type: "Unit" as const, id: UnitType.BowGuard },
+                { type: "Unit" as const, id: spearUnit },
+                { type: "Unit" as const, id: riderUnit },
+                { type: "Unit" as const, id: bowUnit },
             ];
 
             const rangedFirst: BuildOption[] = [
                 { type: "Unit" as const, id: UnitType.Settler },
-                { type: "Unit" as const, id: UnitType.BowGuard },
-                { type: "Unit" as const, id: UnitType.SpearGuard },
-                { type: "Unit" as const, id: UnitType.Riders },
+                { type: "Unit" as const, id: bowUnit },
+                { type: "Unit" as const, id: spearUnit },
+                { type: "Unit" as const, id: riderUnit },
             ];
 
             // If we are missing a specific type, prioritize it
             let unitPriority: BuildOption[] = [];
-            if (!hasSpear) unitPriority.push({ type: "Unit" as const, id: UnitType.SpearGuard });
-            if (!hasBow) unitPriority.push({ type: "Unit" as const, id: UnitType.BowGuard });
-            if (!hasRider) unitPriority.push({ type: "Unit" as const, id: UnitType.Riders });
+            if (!hasSpear) unitPriority.push({ type: "Unit" as const, id: spearUnit });
+            if (!hasBow) unitPriority.push({ type: "Unit" as const, id: bowUnit });
+            if (!hasRider) unitPriority.push({ type: "Unit" as const, id: riderUnit });
 
             // Then fill with balanced approach
             if (rangedCount > meleeCount) {
@@ -432,11 +418,11 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         // Prioritize Armies heavily, then strongest units
         const warPrepPriorities: BuildOption[] = [];
 
-        if (hasFormArmyTech) {
+        if (hasArmyTech) {
             warPrepPriorities.push(
-                { type: "Project" as const, id: ProjectId.FormArmy_Riders }, // Riders prioritized for Deathball speed (v2.2)
-                { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
-                { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
+                { type: "Unit" as const, id: UnitType.ArmyRiders }, // Riders prioritized for Deathball speed (v2.2)
+                { type: "Unit" as const, id: UnitType.ArmyBowGuard },
+                { type: "Unit" as const, id: UnitType.ArmySpearGuard },
             );
         }
 
@@ -498,9 +484,9 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Unit" as const, id: UnitType.Riders },
         { type: "Unit" as const, id: UnitType.BowGuard },
         { type: "Building" as const, id: BuildingType.TitansCore },        // Unique - Prioritize heavily for Aetherian
-        { type: "Project" as const, id: ProjectId.FormArmy_SpearGuard },
-        { type: "Project" as const, id: ProjectId.FormArmy_Riders },
-        { type: "Project" as const, id: ProjectId.FormArmy_BowGuard },
+        { type: "Unit" as const, id: UnitType.ArmySpearGuard },
+        { type: "Unit" as const, id: UnitType.ArmyRiders },
+        { type: "Unit" as const, id: UnitType.ArmyBowGuard },
         { type: "Building" as const, id: BuildingType.Forgeworks },
         { type: "Building" as const, id: BuildingType.Forgeworks },
         { type: "Building" as const, id: BuildingType.JadeGranary },       // Unique (Jade Covenant needs this for growth even in Conquest)
