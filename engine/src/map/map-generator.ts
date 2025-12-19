@@ -33,6 +33,7 @@ export type WorldGenSettings = {
     seed?: number;
     riverOptions?: RiverGenerationOptions;
     aiSystem?: AiSystem;
+    difficulty?: "Easy" | "Normal" | "Hard" | "Expert";
 };
 
 /**
@@ -98,6 +99,7 @@ export function generateWorld(settings: WorldGenSettings): GameState {
         seed,
         aiSystem: settings.aiSystem,
         nativeCamps,
+        difficulty: settings.difficulty,
     });
 
     seedInitialHistory(initialState);
@@ -354,6 +356,7 @@ type InitialStateParams = {
     seed: number;
     aiSystem?: AiSystem;
     nativeCamps: NativeCamp[];
+    difficulty?: "Easy" | "Normal" | "Hard" | "Expert";
 };
 
 function buildInitialState(params: InitialStateParams): GameState {
@@ -369,6 +372,7 @@ function buildInitialState(params: InitialStateParams): GameState {
         seed,
         aiSystem,
         nativeCamps,
+        difficulty,
     } = params;
 
     const visibility = initVisibility(players, tiles, units, cities);
@@ -378,6 +382,7 @@ function buildInitialState(params: InitialStateParams): GameState {
         id: crypto.randomUUID(),
         turn: 1,
         aiSystem: aiSystem ?? "UtilityV2",
+        difficulty,
         aiMemoryV2: {},
         players,
         currentPlayerId: players[0].id,

@@ -25,6 +25,18 @@ export type AiPlayerMemoryV2 = {
     warPrepStartTurn?: Record<string, number>;
     /** City ID currently building Titan's Core (for pre-spawn deathball rally) */
     titanCoreCityId?: string;
+
+    // Level 4: Army Phase State Machine
+    /** Current army phase: scattered -> rallying -> staged -> attacking */
+    armyPhase?: 'scattered' | 'rallying' | 'staged' | 'attacking';
+    /** Rally point coordinate for army staging */
+    armyRallyPoint?: { q: number; r: number };
+    /** Turn when staged condition was first met (for timeout) */
+    armyReadyTurn?: number;
+
+    // Level 2: Focus Fire
+    /** Current tactical unit focus for concentrated attacks */
+    tacticalFocusUnitId?: string;
 };
 
 export function getAiMemoryV2(state: GameState, playerId: string): AiPlayerMemoryV2 {

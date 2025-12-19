@@ -291,6 +291,10 @@ export type GameState = {
     currentPlayerId: string;
     phase: PlayerPhase;
     /**
+     * Difficulty level for AI bonuses. Set at game creation, cannot be changed.
+     */
+    difficulty?: "Easy" | "Normal" | "Hard" | "Expert";
+    /**
      * Optional AI engine selector. UtilityV2 is the only supported system.
      */
     aiSystem?: AiSystem;

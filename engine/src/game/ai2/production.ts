@@ -125,6 +125,42 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     );
 
     // =========================================================================
+    // EMERGENCY: Enemy Titan Detection
+    // =========================================================================
+    // If we're at war with someone who has a Titan AND we're under-militarized, prioritize military
+    const enemyTitan = state.units.find(u =>
+        u.type === UnitType.Titan &&
+        u.ownerId !== playerId &&
+        state.diplomacy?.[playerId]?.[u.ownerId] === "War"
+    );
+
+    const TITAN_RESPONSE_MILITARY_THRESHOLD = 8;  // Stop emergency production once we have this many
+    const myMilitary = countMilitary(state, playerId);
+
+    if (enemyTitan && myMilitary < TITAN_RESPONSE_MILITARY_THRESHOLD) {
+        aiInfo(`[AI Build] ${profile.civName} TITAN EMERGENCY: Enemy Titan detected! Military: ${myMilitary}/${TITAN_RESPONSE_MILITARY_THRESHOLD}`);
+
+        // Try Landship first (best counter)
+        if (canBuild(city, "Unit", UnitType.Landship, state)) {
+            return { type: "Unit", id: UnitType.Landship };
+        }
+        // Then ranged (can chip away safely)
+        const rangedOptions = [UnitType.ArmyBowGuard, UnitType.BowGuard];
+        for (const unit of rangedOptions) {
+            if (canBuild(city, "Unit", unit, state)) {
+                return { type: "Unit", id: unit };
+            }
+        }
+        // Fallback: any military
+        const militaryOptions = [UnitType.ArmySpearGuard, UnitType.SpearGuard, UnitType.Riders];
+        for (const unit of militaryOptions) {
+            if (canBuild(city, "Unit", unit, state)) {
+                return { type: "Unit", id: unit };
+            }
+        }
+    }
+
+    // =========================================================================
     // PRIORITY 1: Victory Projects (Progress goal)
     // =========================================================================
     if (goal === "Progress" || profile.civName === "ScholarKingdoms" || profile.civName === "StarborneSeekers") {

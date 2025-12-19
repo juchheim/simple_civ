@@ -179,6 +179,17 @@ export function applyCityProduction(state: GameState, city: City, player: Player
     effectiveProd += city.storedProduction;
     city.storedProduction = 0; // Consume it
 
+    // Difficulty bonus for AI players
+    if (player.isAI && state.difficulty) {
+        const difficultyMultipliers: Record<string, number> = {
+            Easy: 0.8,
+            Normal: 1.0,
+            Hard: 1.25,
+            Expert: 1.5
+        };
+        effectiveProd = Math.floor(effectiveProd * (difficultyMultipliers[state.difficulty] ?? 1.0));
+    }
+
     city.buildProgress += effectiveProd;
     if (city.currentBuild && city.buildProgress >= city.currentBuild.cost) {
         completeBuild(state, city);

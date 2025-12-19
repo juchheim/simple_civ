@@ -438,13 +438,27 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     const player = state.players.find(p => p.id === playerId);
     // Build cache once for all city yield calculations (O(1) tile/unit lookups)
     const cache = buildLookupCache(state);
-    const baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state, cache).S, 0);
+    let baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state, cache).S, 0);
     const signalRelayBonus = player?.techs.includes(TechId.SignalRelay) ? cities.length : 0;
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
     // Spirit Observatory grants +2 Science per city (tracked via Observatory milestone in completedProjects)
     // Note: This bonus is part of the base Spirit Observatory effect, separate from the normal Observatory project bonus
     const spiritObservatoryBonus = (player?.completedProjects.includes(ProjectId.Observatory) && player?.civName === "StarborneSeekers") ? cities.length * 1 : 0; // v0.99 Nerf: +1 per city (was +2)
-    return baseScience + signalRelayBonus + grandAcademyBonus + spiritObservatoryBonus;
+
+    let totalScience = baseScience + signalRelayBonus + grandAcademyBonus + spiritObservatoryBonus;
+
+    // Difficulty bonus for AI players
+    if (player?.isAI && state.difficulty) {
+        const difficultyMultipliers: Record<string, number> = {
+            Easy: 0.85,
+            Normal: 1.0,
+            Hard: 1.2,
+            Expert: 1.4
+        };
+        totalScience = Math.floor(totalScience * (difficultyMultipliers[state.difficulty] ?? 1.0));
+    }
+
+    return totalScience;
 }
 
 /**

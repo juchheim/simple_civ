@@ -120,8 +120,20 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         }
 
         // v2.0: Civ 6-style damage formula
-        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + flankingBonus, defensePower, state.seed);
+        let { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + flankingBonus, defensePower, state.seed);
         state.seed = newSeed;
+
+        // Difficulty combat bonus for AI attackers
+        const attackerPlayer = state.players.find(p => p.id === attacker.ownerId);
+        if (attackerPlayer?.isAI && state.difficulty) {
+            const difficultyMultipliers: Record<string, number> = {
+                Easy: 0.9,
+                Normal: 1.0,
+                Hard: 1.1,
+                Expert: 1.2
+            };
+            damage = Math.floor(damage * (difficultyMultipliers[state.difficulty] ?? 1.0));
+        }
 
         defender.hp -= damage;
         defender.lastDamagedOnTurn = state.turn;
@@ -300,8 +312,19 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         const player = state.players.find(p => p.id === action.playerId);
         const riverSiegeBonus = player?.civName === "RiverLeague" ? 1 : 0;
 
-        const { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus + riverSiegeBonus, defensePower, state.seed);
+        let { damage, newSeed } = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus + riverSiegeBonus, defensePower, state.seed);
         state.seed = newSeed;
+
+        // Difficulty combat bonus for AI attackers
+        if (player?.isAI && state.difficulty) {
+            const difficultyMultipliers: Record<string, number> = {
+                Easy: 0.9,
+                Normal: 1.0,
+                Hard: 1.1,
+                Expert: 1.2
+            };
+            damage = Math.floor(damage * (difficultyMultipliers[state.difficulty] ?? 1.0));
+        }
 
         let appliedDamage = damage;
 

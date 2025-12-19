@@ -346,14 +346,41 @@ function forceMovementIfNeeded(unit, allMoveOptions, state):
 
 ### Override 5: Civ Personality
 
+> [!IMPORTANT]
+> **Unified CivAggressionProfile** — All levels should use these consistent values to avoid conflicting aggression behaviors.
+
+```typescript
+// Shared across Levels 1B, 3, and 4
+// Derived from existing forceConcentration (0.55-0.9) and riskTolerance (0.2-0.55) in rules.ts
+type CivAggressionProfile = {
+    exposureMultiplier: number;     // Level 1B: Multiplies calculated exposure
+    waitThresholdMult: number;      // Level 3: Multiplies wait score threshold
+    maxStagingTurns: number;        // Level 4: Max turns to wait in "staged" phase
+    requiredArmyPercent: number;    // Level 4: % of army needed to attack
+};
+
+const CIV_AGGRESSION: Record<string, CivAggressionProfile> = {
+    // Aggressive civs: high riskTolerance (0.55), high forceConcentration (0.75)
+    ForgeClans:         { exposureMultiplier: 0.6,  waitThresholdMult: 0.4, maxStagingTurns: 2, requiredArmyPercent: 0.60 },
+    RiverLeague:        { exposureMultiplier: 0.6,  waitThresholdMult: 0.5, maxStagingTurns: 2, requiredArmyPercent: 0.65 },
+    AetherianVanguard:  { exposureMultiplier: 0.6,  waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.50 },
+    // Balanced civ: moderate riskTolerance (0.45), moderate forceConcentration (0.7)
+    JadeCovenant:       { exposureMultiplier: 0.8,  waitThresholdMult: 0.8, maxStagingTurns: 3, requiredArmyPercent: 0.70 },
+    // Defensive civs: low riskTolerance (0.2), low forceConcentration (0.55)
+    ScholarKingdoms:    { exposureMultiplier: 1.0,  waitThresholdMult: 1.0, maxStagingTurns: 4, requiredArmyPercent: 0.80 },
+    StarborneSeekers:   { exposureMultiplier: 1.0,  waitThresholdMult: 1.0, maxStagingTurns: 4, requiredArmyPercent: 0.80 },
+};
+```
+
+**Usage in each level:**
+- **Level 1B:** `effectiveExposure = rawExposure * profile.exposureMultiplier`
+- **Level 3:** `shouldWait = waitScore > attackScore * profile.waitThresholdMult`
+- **Level 4:** `triggersAttack = turnsStaged >= profile.maxStagingTurns || armyPercent >= profile.requiredArmyPercent`
+
 ```
 function getCivPersonalityMultiplier(state, playerId):
     civ = getPlayerCiv(state, playerId)
-    
-    if civ in ["ForgeClans", "RiverLeague", "AetherianVanguard"]: return 0.7
-    if civ in ["JadeCovenant"]: return 0.85
-    if civ in ["ScholarKingdoms", "StarborneSeekers"]: return 1.0
-    return 0.85
+    return CIV_AGGRESSION[civ]?.exposureMultiplier ?? 0.85
 ```
 
 ### Override 6: Controlled Randomness

@@ -2,8 +2,11 @@
 
 **Status:** Planned  
 **Complexity:** Medium  
-**Prerequisite:** None (can be implemented independently)  
+**Prerequisite:** [Level 4](./level-4-coordination.md) (Level 3 operates *within* Level 4's attack phase)  
 **Related:** [balance-plan.md](./balance-plan.md) | [Level 1](./level-1-attack-order.md)
+
+> [!IMPORTANT]
+> **Hierarchy:** Level 4 (Army Phase) gates **when** the army attacks. Level 3 decides if an **individual unit** within the attack phase should hold back. Level 4 is the primary gate; Level 3 is a secondary filter.
 
 ---
 
@@ -149,10 +152,10 @@ function checkLocalPowerDisadvantage(state, playerId, attacks):
     
     ratio = ourPower / max(theirPower, 1)
     
-    if ratio < 0.7:  # We're at >30% disadvantage
+    if ratio < 0.6:  # We're at >40% disadvantage
         return { shouldWait: true, score: 60, reason: "Outnumbered locally" }
     
-    if ratio < 0.9:  # Slight disadvantage
+    if ratio < 0.8:  # Slight disadvantage
         return { shouldWait: true, score: 30, reason: "Slight disadvantage" }
     
     return { shouldWait: false, score: 0 }
@@ -289,35 +292,54 @@ function executeWaitBehavior(state, playerId, units):
 
 ---
 
-## Integration with Level 1
+## Integration with Level 4 (Primary Gate)
 
-Level 3 runs **before** Level 1:
+Level 4's army phase is the **primary gate**. Level 3 runs **within** the attack phase:
 
 ```
 function runCombatAI(state, playerId):
-    # Step 1: Should we wait?
-    plannedAttacks = planAttackOrderV2(state, playerId)  # Level 1
+    # Step 1: Level 4 - Are we in attack phase?
+    armyPhase = getArmyPhase(state, playerId)
     
-    if shouldWaitInsteadOfAttacking(state, playerId, plannedAttacks):
-        executeWaitBehavior(state, playerId, getAttackingUnits())
-        return state  # Don't execute any attacks
+    if armyPhase !== "attacking":
+        # NOT ATTACKING: Just position units toward rally
+        return executeRallyBehavior(state, playerId)
     
-    # Step 2: Execute attacks (Level 1)
-    return executeAttacks(state, plannedAttacks)
+    # Step 2: Level 1 - Plan optimal attack order
+    plannedAttacks = planAttackOrderV2(state, playerId)
+    
+    # Step 3: Level 3 - Per-unit wait filter (secondary)
+    # Even though army is "attacking", individual units may hold back
+    filteredAttacks = []
+    for attack in plannedAttacks:
+        unitWaitCheck = shouldUnitWait(state, playerId, attack)
+        if !unitWaitCheck.shouldWait:
+            filteredAttacks.push(attack)
+        else:
+            # This unit waits - reposition instead
+            executeRepositioning(state, attack.attacker)
+    
+    # Step 4: Execute filtered attacks
+    return executeAttacks(state, filteredAttacks)
 ```
+
+**Key insight:** Level 3 is NOT "should the army wait?" — that's Level 4. Level 3 is "given the army is attacking, should THIS SPECIFIC UNIT hold back?"
 
 ---
 
 ## Civ Personality Influence
 
+> [!NOTE]
+> Uses unified `CivAggressionProfile.waitThresholdMult` — see [Level 1B](./level-1-attack-order.md#override-5-civ-personality) for full table.
+
 | Civ | Wait Threshold Multiplier |
 |-----|--------------------------|
-| ForgeClans | 0.5× (rarely waits) |
-| RiverLeague | 0.6× |
-| AetherianVanguard | 0.7× |
-| JadeCovenant | 1.0× |
-| ScholarKingdoms | 1.3× (more cautious) |
-| StarborneSeekers | 1.2× |
+| ForgeClans | 0.4× (rarely waits) |
+| RiverLeague | 0.5× |
+| AetherianVanguard | 0.5× |
+| JadeCovenant | 0.8× |
+| ScholarKingdoms | 1.0× (baseline) |
+| StarborneSeekers | 1.0× |
 
 **Effect:** Aggressive civs need a much higher wait score to actually wait.
 

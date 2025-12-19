@@ -17,6 +17,12 @@ import { getThreatLevel } from "../ai/units/unit-helpers.js";
 import { identifyBattleGroups, coordinateGroupAttack } from "../ai/units/battle-groups.js";
 // Aid vulnerable units and post-attack repositioning from Legacy
 import { aidVulnerableUnits, repositionRanged } from "../ai/units/defense.js";
+// Level 4: Army Phase State Machine
+import { updateArmyPhase, allowOpportunityKill } from "./army-phase.js";
+// Level 1A/1B: Attack Order Optimization and Move-Then-Attack
+import { planAttackOrderV2, executeAttack, updateTacticalFocus, planMoveAndAttack, executeMoveAttack } from "./attack-order.js";
+// Level 3: Wait Decision Filter
+import { filterAttacksWithWaitDecision } from "./wait-decision.js";
 
 function isMilitary(u: Unit): boolean {
     return UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Scout && u.type !== UnitType.ArmyScout;
@@ -916,20 +922,80 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
     // Aid vulnerable units: send reinforcements to isolated allies before attacking
     next = aidVulnerableUnits(next, playerId);
 
+    // Level 4: Update army phase state machine
+    const armyPhaseResult = updateArmyPhase(next, playerId);
+    next = armyPhaseResult.state;
+    const currentArmyPhase = armyPhaseResult.phase;
+    aiInfo(`[ARMY PHASE] ${playerId} is in phase: ${currentArmyPhase}`);
+
     // Battle group coordination: identify clusters of units engaged with enemies and coordinate focus-fire
     const battleGroups = identifyBattleGroups(next, playerId);
     for (const group of battleGroups) {
         next = coordinateGroupAttack(next, playerId, group);
     }
 
-    // Attack pass for remaining units not in battle groups (exclude Titan: Titan is a dedicated agent)
-    const attackers = next.units.filter(u => u.ownerId === playerId && !u.hasAttacked && isMilitary(u) && u.type !== UnitType.Titan);
-    for (const unit of attackers) {
-        const live = next.units.find(u => u.id === unit.id);
-        if (!live || live.hasAttacked) continue;
-        const best = bestAttackForUnit(next, playerId, live);
-        if (best && best.score > 0) {
-            next = tryAction(next, best.action);
+    // Level 2: Update tactical focus target before attack planning
+    next = updateTacticalFocus(next, playerId);
+
+    // Level 1A: Optimized attack ordering with simulated HP tracking
+    // This replaces the per-unit bestAttackForUnit loop with a coordinated approach
+    // that considers kill sequencing and prevents spread damage
+    if (currentArmyPhase === 'attacking') {
+        let plannedAttacks = planAttackOrderV2(next, playerId);
+
+        // Level 3: Filter out attacks where the unit should wait
+        const originalCount = plannedAttacks.length;
+        plannedAttacks = filterAttacksWithWaitDecision(next, playerId, plannedAttacks);
+        const filteredCount = originalCount - plannedAttacks.length;
+
+        aiInfo(`[ATTACK ORDER] ${playerId} planned ${plannedAttacks.length} attacks (${plannedAttacks.filter(a => a.wouldKill).length} kills, ${filteredCount} waiting)`);
+
+        for (const attack of plannedAttacks) {
+            // Verify attacker still valid
+            const liveAttacker = next.units.find(u => u.id === attack.attacker.id);
+            if (!liveAttacker || liveAttacker.hasAttacked || liveAttacker.movesLeft <= 0) continue;
+
+            // Overkill prevention: verify target still alive
+            if (attack.targetType === "Unit") {
+                const target = next.units.find(u => u.id === attack.targetId);
+                if (!target || target.hp <= 0) continue;
+            }
+
+            next = executeAttack(next, playerId, attack);
+        }
+    } else {
+        // Not in attack phase - only allow opportunity kills
+        const attackers = next.units.filter(u => u.ownerId === playerId && !u.hasAttacked && isMilitary(u) && u.type !== UnitType.Titan);
+        for (const unit of attackers) {
+            const live = next.units.find(u => u.id === unit.id);
+            if (!live || live.hasAttacked) continue;
+            const best = bestAttackForUnit(next, playerId, live);
+            if (best && best.score > 0) {
+                const preview = getCombatPreviewUnitVsUnit(next, live,
+                    next.units.find(u => u.id === best.action.targetId) ?? live);
+                const wouldKill = best.action.targetType === "Unit"
+                    ? preview.estimatedDamage.avg >= (next.units.find(u => u.id === best.action.targetId)?.hp ?? 0)
+                    : false;
+
+                if (allowOpportunityKill(wouldKill, best.score, currentArmyPhase)) {
+                    next = tryAction(next, best.action);
+                } else {
+                    aiInfo(`[ARMY PHASE] ${playerId} unit ${live.id} waiting (phase: ${currentArmyPhase})`);
+                }
+            }
+        }
+    }
+
+    // Level 1B: Move-Then-Attack for units not in immediate attack range
+    if (currentArmyPhase === 'attacking') {
+        const moveAttackPlans = planMoveAndAttack(next, playerId);
+        aiInfo(`[MOVE-ATTACK] ${playerId} planned ${moveAttackPlans.length} move-attack combos`);
+
+        for (const plan of moveAttackPlans) {
+            const liveUnit = next.units.find(u => u.id === plan.unit.id);
+            if (!liveUnit || liveUnit.hasAttacked || liveUnit.movesLeft <= 0) continue;
+
+            next = executeMoveAttack(next, playerId, plan);
         }
     }
 

@@ -9,7 +9,7 @@ import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sectio
 import { ToastContainer } from "./components/Toast";
 import { SaveGameModal } from "./components/SaveGameModal";
 import { LoadGameModal } from "./components/LoadGameModal";
-import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState } from "@simple-civ/engine";
+import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState, DifficultyLevel } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
@@ -47,9 +47,9 @@ function App() {
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
     const [selectedCiv, setSelectedCiv] = useState<CivId>(CIV_OPTIONS[0].id);
-    const [selectedMapSize, setSelectedMapSize] = useState<MapSize>("Small");
-    const [numCivs, setNumCivs] = useState(2);
-    const [seedInput, setSeedInput] = useState("");
+    const [selectedMapSize, setSelectedMapSize] = useState<MapSize>("Standard");
+    const [numCivs, setNumCivs] = useState(4);
+    const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>("Normal");
 
     const [showTitleScreen, setShowTitleScreen] = useState(true);
     const [cityToCenter, setCityToCenter] = useState<HexCoord | null>(null);
@@ -194,12 +194,9 @@ function App() {
 
     const handleStartNewGame = () => {
         try {
-            const rawSeed = seedInput.trim() === "" ? undefined : Number(seedInput);
-            const parsedSeed = rawSeed != null && !Number.isNaN(rawSeed) ? rawSeed : undefined;
+            const players = buildPlayers(undefined);
 
-            const players = buildPlayers(parsedSeed);
-
-            const settings = { mapSize: selectedMapSize, players, seed: parsedSeed, startWithRandomSeed: parsedSeed === undefined };
+            const settings = { mapSize: selectedMapSize, players, difficulty: selectedDifficulty };
             const state = startNewGame(settings);
             console.info("[World] seed", state.seed);
             setShowTechTree(true);
@@ -336,21 +333,20 @@ function App() {
                     {/* Settings & Buttons */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: "auto", flexShrink: 0 }}>
 
-                        {/* Settings Row */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                            <div style={{ display: "flex", gap: 32, alignItems: "flex-end", width: "100%" }}>
+                            <div style={{ display: "flex", gap: 19, alignItems: "flex-end", width: "100%" }}>
                                 {/* Map Size */}
                                 <div>
-                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Map Size</label>
-                                    <div style={{ display: "flex", gap: 8 }}>
+                                    <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 6 }}>Map Size</label>
+                                    <div style={{ display: "flex", gap: 4 }}>
                                         {(Object.keys(MAP_DIMS) as MapSize[]).map((size) => (
                                             <button
                                                 key={size}
                                                 onClick={() => setSelectedMapSize(size)}
                                                 style={{
-                                                    padding: "8px 12px",
-                                                    fontSize: 14,
-                                                    borderRadius: 8,
+                                                    padding: "6px 10px",
+                                                    fontSize: 13,
+                                                    borderRadius: 6,
                                                     border: size === selectedMapSize ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
                                                     background: size === selectedMapSize ? "var(--color-bg-deep)" : "transparent",
                                                     color: "var(--color-text-main)",
@@ -365,8 +361,8 @@ function App() {
 
                                 {/* Number of Civs */}
                                 <div>
-                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Civilizations</label>
-                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))", gap: 3, maxWidth: 240 }}>
+                                    <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 6 }}>Civs</label>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(32px, 1fr))", gap: 3, maxWidth: 180 }}>
                                         {Array.from({ length: maxCivsGlobal - 1 }, (_, i) => i + 2).map(count => {
                                             const allowedForMap = MAX_CIVS_BY_MAP_SIZE[selectedMapSize] ?? 4;
                                             const allowed = count <= allowedForMap && count <= CIV_OPTIONS.length;
@@ -379,13 +375,14 @@ function App() {
                                                     }}
                                                     disabled={!allowed}
                                                     style={{
-                                                        width: 40,
-                                                        height: 40,
-                                                        borderRadius: 8,
+                                                        width: 32,
+                                                        height: 32,
+                                                        borderRadius: 6,
                                                         border: count === numCivs ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
                                                         background: count === numCivs ? "var(--color-bg-deep)" : "transparent",
                                                         color: "var(--color-text-main)",
                                                         fontWeight: 600,
+                                                        fontSize: 13,
                                                         cursor: allowed ? "pointer" : "not-allowed",
                                                         opacity: allowed ? 1 : 0.5
                                                     }}
@@ -397,16 +394,29 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Seed Input */}
-                                <div style={{ minWidth: 40, maxWidth: 60 }}>
-                                    <label style={{ display: "block", fontSize: 14, color: "var(--color-text-muted)", marginBottom: 8 }}>Seed</label>
-                                    <input
-                                        type="text"
-                                        value={seedInput}
-                                        onChange={(e) => setSeedInput(e.target.value)}
-                                        placeholder="Random"
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg-deep)", color: "var(--color-text-main)" }}
-                                    />
+                                {/* Difficulty Selector */}
+                                <div>
+                                    <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 6 }}>Difficulty</label>
+                                    <div style={{ display: "flex", gap: 4 }}>
+                                        {(["Easy", "Normal", "Hard", "Expert"] as DifficultyLevel[]).map((level) => (
+                                            <button
+                                                key={level}
+                                                onClick={() => setSelectedDifficulty(level)}
+                                                style={{
+                                                    padding: "6px 10px",
+                                                    fontSize: 13,
+                                                    borderRadius: 6,
+                                                    border: level === selectedDifficulty ? "2px solid var(--color-highlight)" : "1px solid var(--color-border)",
+                                                    background: level === selectedDifficulty ? "var(--color-bg-deep)" : "transparent",
+                                                    color: level === "Expert" ? "var(--color-text-danger)" : (level === "Hard" ? "var(--color-text-warning)" : "var(--color-text-main)"),
+                                                    cursor: "pointer",
+                                                    fontWeight: level === selectedDifficulty ? 700 : 400
+                                                }}
+                                            >
+                                                {level}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                             {/* Buttons */}

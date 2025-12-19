@@ -105,21 +105,24 @@ killBonus = wouldKill ? 150 : 0
 
 ### Concept
 
-Add an explicit **Combat Focus Target** that persists across the attack planning phase:
+Add an explicit **Tactical Focus Target** that persists across the attack planning phase:
+
+> [!NOTE]
+> This is `tacticalFocusUnitId` (unit to kill), distinct from existing `focusCityId` (city to siege) and `focusTargetPlayerId` (player to attack).
 
 ```
-function getOrSetCombatFocusTarget(state, playerId, engagedEnemies):
+function getOrSetTacticalFocusTarget(state, playerId, engagedEnemies):
     memory = getAiMemory(state, playerId)
     
     # Check if current focus is still valid
-    if memory.combatFocusTargetId:
-        focusUnit = state.units.find(u => u.id === memory.combatFocusTargetId)
+    if memory.tacticalFocusUnitId:
+        focusUnit = state.units.find(u => u.id === memory.tacticalFocusUnitId)
         if focusUnit && focusUnit.hp > 0 && isEngaged(focusUnit, state, playerId):
             return focusUnit  # Keep current focus
     
     # Need new focus target
     newFocus = pickBestFocusTarget(engagedEnemies, state, playerId)
-    memory.combatFocusTargetId = newFocus?.id
+    memory.tacticalFocusUnitId = newFocus?.id
     return newFocus
 ```
 
@@ -241,7 +244,7 @@ This ensures that if we can't kill anything, we at least set up a kill for next 
 
 **Modified files:**
 - `engine/src/game/ai2/attack-order.ts` (add focus bonus to scoring)
-- `engine/src/game/ai2/memory.ts` (add `combatFocusTargetId`)
+- `engine/src/game/ai2/memory.ts` (add `tacticalFocusUnitId`)
 - May retire or modify `battle-groups.ts` logic to avoid conflicts
 
 **Key insight:** Level 2 is largely an **enhancement** to Level 1, not a separate system. The focus bonus nudges Level 1's greedy algorithm toward consistent targeting.

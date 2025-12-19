@@ -10,7 +10,7 @@ import {
 import { CIV_OPTIONS } from "../data/civs";
 
 type PlayerSetup = { id: string; civName: string; color: string; ai?: boolean };
-type GameSetup = { mapSize: MapSize; players: PlayerSetup[]; seed?: number; startWithRandomSeed?: boolean };
+type GameSetup = { mapSize: MapSize; players: PlayerSetup[]; seed?: number; startWithRandomSeed?: boolean; difficulty?: "Easy" | "Normal" | "Hard" | "Expert" };
 type SavedGame = { timestamp: number; gameState: GameState; turn: number; civName: string };
 
 const SAVE_KEY = "simple-civ-save";

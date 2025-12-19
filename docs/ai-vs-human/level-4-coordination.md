@@ -166,12 +166,12 @@ function checkRallyingToStaged(state, playerId, rallyPoint):
 function checkStagedToAttack(state, playerId, readyTurn):
     profile = getAiProfile(state, playerId)
     
-    # Option 1: All units have arrived
+    # Option 1: Most units have arrived
     totalMilitary = countMilitaryUnits(state, playerId)
     nearRally = countUnitsNear(state, playerId, rallyPoint, radius: 3)
     
-    if nearRally >= totalMilitary * 0.85:
-        return "attacking"  # 85%+ of army staged = GO
+    if nearRally >= totalMilitary * 0.75:
+        return "attacking"  # 75%+ of army staged = GO
     
     # Option 2: Been staged for too long (anti-stall)
     turnsStaged = state.turn - readyTurn
@@ -304,13 +304,16 @@ function titanOverride(state, playerId):
 
 ## Civ Personality Influence
 
+> [!NOTE]
+> Uses unified `CivAggressionProfile.maxStagingTurns` and `requiredArmyPercent` — see [Level 1B](./level-1-attack-order.md#override-5-civ-personality) for full table.
+
 | Civ | Staging Patience | Required Force % |
 |-----|-----------------|------------------|
 | ForgeClans | 2 turns max | 60% of army |
 | RiverLeague | 2 turns max | 65% of army |
 | AetherianVanguard | 1 turn (Titan rushes) | 50% of army |
-| JadeCovenant | 3 turns max | 75% of army |
-| ScholarKingdoms | 4 turns max | 85% of army |
+| JadeCovenant | 3 turns max | 70% of army |
+| ScholarKingdoms | 4 turns max | 80% of army |
 | StarborneSeekers | 4 turns max | 80% of army |
 
 Aggressive civs tolerate smaller armies and shorter staging windows.
@@ -353,8 +356,8 @@ Aggressive civs tolerate smaller armies and shorter staging windows.
 - Must handle all edge cases (enemy attack, opportunity kills, titan override)
 - Must integrate with existing staging logic (don't break what works)
 
-**Relationship to `shouldStage`:**  
-Level 4 subsumes `shouldStage`. The explicit phase machine replaces the ad-hoc staging check.
+> [!WARNING]
+> **Replaces existing systems:** Level 4 **subsumes** the current `shouldStage` logic in `tactics.ts`. The explicit phase machine replaces the ad-hoc staging check. Remove or deprecate `shouldStage` after Level 4 is implemented.
 
 ---
 
