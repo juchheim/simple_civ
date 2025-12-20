@@ -111,11 +111,11 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 // v0.98 Update 5: JadeCovenant Population Power - Combat bonus based on city population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 4; // v1.7: Buffed to 4 (was 5) - more frequent bonuses
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 6; // v6.6n: Nerfed to 6 (was 4) - less frequent bonuses
 
 // v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
-export const JADE_COVENANT_SETTLER_DISCOUNT = 0.70; // 30% cheaper settlers
-export const JADE_COVENANT_SETTLER_MOVEMENT = 3; // Settlers have 3 movement (normal = 2)
+export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90; // v6.6n: Nerfed to 10% (was 30%)
+export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
 
 
 
@@ -126,7 +126,7 @@ export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonu
 export const FORGE_CLANS_HILL_COMBAT_BONUS = 2; // +2 Attack for units from hill cities (Buffed from 1)
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.75; // v5.7: Buffed to 25% (was 15%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // v6.6n: Nerfed to 20% (was 25%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
@@ -136,7 +136,8 @@ export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (
 export const FORGE_CLANS_FLAT_ATTACK_BONUS = 1; // +1 Attack for all military units
 
 // v1.8: RiverLeague "River Siege" - bonus when attacking cities
-export const RIVER_LEAGUE_SIEGE_BONUS = 1; // +1 Attack when attacking cities
+// v6.6k: Buffed from +1 to +2 to help RiverLeague win rate (was 18.1%)
+export const RIVER_LEAGUE_SIEGE_BONUS = 2; // +2 Attack when attacking cities
 
 // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
 // v2.6: Starborne Buff - increased defense radius (3 -> 4)

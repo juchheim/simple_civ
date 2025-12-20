@@ -203,6 +203,33 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
+    // PRIORITY 0.4: RiverLeague Early Military Boost
+    // =========================================================================
+    // v6.6m: RiverLeague declined to 16.7% win rate after balance changes.
+    // Give them an early military advantage - build extra BowGuard before expansion.
+    if (profile.civName === "RiverLeague" && state.turn < 25) {
+        const currentMilitary = state.units.filter(u =>
+            u.ownerId === playerId &&
+            UNITS[u.type].domain !== "Civilian" &&
+            u.type !== UnitType.Scout
+        ).length;
+
+        // RiverLeague wants 3 military early (1 more than standard civs)
+        const RIVER_LEAGUE_EARLY_MILITARY_TARGET = 3;
+
+        if (currentMilitary < RIVER_LEAGUE_EARLY_MILITARY_TARGET) {
+            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                aiInfo(`[AI Build] RiverLeague EARLY BOOST: BowGuard (${currentMilitary}/${RIVER_LEAGUE_EARLY_MILITARY_TARGET})`);
+                return { type: "Unit", id: UnitType.BowGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+                aiInfo(`[AI Build] RiverLeague EARLY BOOST: SpearGuard (${currentMilitary}/${RIVER_LEAGUE_EARLY_MILITARY_TARGET})`);
+                return { type: "Unit", id: UnitType.SpearGuard };
+            }
+        }
+    }
+
+    // =========================================================================
     // PRIORITY 0.5: Early Military for Defensive Civs (before CityWards)
     // =========================================================================
     // v6.6: FIXED - Previous logic blocked expansion entirely until 4 military.

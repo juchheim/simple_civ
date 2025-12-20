@@ -186,9 +186,10 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     // v1.9: Reworked - Base on combat power (ATK + DEF + HP/2), not cost
                     // v2.7: Nerfed multiplier from 0.5 to 0.2 - Prevent snowballing
                     // v5.14: Buffed to 0.3 (was 0.2) per user request
-                    // This makes Army units and Titans more valuable targets
+                    // v6.6k: Buffed to 0.5 to help Aetherian win rate (was 16.9%)
+                    // v6.6m: Buffed to 0.7 to further help Aetherian (was 16.4%)
                     const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.3);
+                    const scienceGain = Math.floor(combatPower * 0.7);
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                         // Track for simulation analysis

@@ -255,7 +255,11 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
 
     // v1.3: River League "River Guardians" - +2 Atk/Def near rivers
     // v1.6: BUFFED from +1/+1 to +2/+2 to improve conquest competitiveness
+    // v6.6m: "Trade Militia" - flat +1 Attack for all military units
     if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
+        // Flat attack bonus for early-game presence
+        boosted.atk += 1;
+        
         if (isTileAdjacentToRiver(state.map, unit.coord)) {
             boosted.atk += 2;
             boosted.def += 2;

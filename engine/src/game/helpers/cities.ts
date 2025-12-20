@@ -241,7 +241,7 @@ export function createCity(
 
     // JadeCovenant "Bountiful Harvest" passive: Cities start with +3 stored Food
     // v6.6: Nerfed from 5 to 3 (was contributing to 40% win rate dominance)
-    const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 3 : 0);
+    const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 2 : 0);
 
     if (player) {
         player.hasFoundedFirstCity = true;
