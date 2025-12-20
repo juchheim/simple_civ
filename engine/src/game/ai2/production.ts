@@ -25,6 +25,7 @@ import {
     getGamePhase
 } from "./strategic-plan.js";
 import { UNIT_ROLES, getUnitsWithRole } from "./capabilities.js";
+import { getAiMemoryV2 } from "./memory.js";
 
 export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
@@ -120,6 +121,26 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     );
 
     // =========================================================================
+    // v6.6h: GARRISON REPLENISHMENT when Titan pulls escorts
+    // =========================================================================
+    // When our Titan exists and is pulling units, undefended cities should
+    // immediately start building replacement military units
+    const ourTitan = state.units.find(u => u.type === UnitType.Titan && u.ownerId === playerId);
+    const thisCityHasGarrison = cityHasGarrison(state, city);
+
+    if (ourTitan && !thisCityHasGarrison) {
+        aiInfo(`[AI Build] ${profile.civName} GARRISON REPLENISHMENT: City ${city.name} is undefended (Titan escort pulled units)`);
+
+        // Build fast military unit to replace pulled garrison
+        const garrisonOptions = [UnitType.SpearGuard, UnitType.ArmySpearGuard, UnitType.BowGuard];
+        for (const unit of garrisonOptions) {
+            if (canBuild(city, "Unit", unit, state)) {
+                return { type: "Unit", id: unit };
+            }
+        }
+    }
+
+    // =========================================================================
     // EMERGENCY: Enemy Titan Detection
     // =========================================================================
     // If we're at war with someone who has a Titan AND we're under-militarized, prioritize military
@@ -156,36 +177,90 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
+    // EMERGENCY: Defensive Civs Under Attack
+    // =========================================================================
+    // v6.5: Scholar/Starborne have 38%/33% elimination rates. When at war,
+    // they need to immediately prioritize military production.
+    const WAR_EMERGENCY_THRESHOLD = 6;  // Need at least 6 military to survive
+    if (isDefensiveCiv(profile.civName) && atWar && myMilitary < WAR_EMERGENCY_THRESHOLD) {
+        aiInfo(`[AI Build] ${profile.civName} WAR EMERGENCY: Under attack! Military: ${myMilitary}/${WAR_EMERGENCY_THRESHOLD}`);
+
+        // BowGuard is best for defense (ranged, no retaliation)
+        if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+            return { type: "Unit", id: UnitType.BowGuard };
+        }
+        // SpearGuard as fallback
+        if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+            return { type: "Unit", id: UnitType.SpearGuard };
+        }
+        // Army units if available
+        if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+            return { type: "Unit", id: UnitType.ArmyBowGuard };
+        }
+        if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+            return { type: "Unit", id: UnitType.ArmySpearGuard };
+        }
+    }
+
+    // =========================================================================
     // PRIORITY 0.5: Early Military for Defensive Civs (before CityWards)
     // =========================================================================
-    // Defensive civs get attacked as early as turn 19-30, before they can build Lorekeepers.
-    // Build 2-3 early military units to survive early aggression.
-    // Note: SpearGuard/BowGuard are available from turn 1, no tech required.
-    if (isDefensiveCiv(profile.civName) && state.turn > 20) {
+    // v6.6: FIXED - Previous logic blocked expansion entirely until 4 military.
+    // ScholarKingdoms was stuck with 1 city building military forever.
+    // NEW: Require only 2 military before allowing settlers, then INTERLEAVE.
+    if (isDefensiveCiv(profile.civName) && state.turn > 10) {
         if (!player.techs.includes(TechId.CityWards)) {
-            // Before CityWards: build some basic military to survive
             const currentMilitary = state.units.filter(u =>
                 u.ownerId === playerId &&
                 UNITS[u.type].domain !== "Civilian" &&
                 u.type !== UnitType.Scout
             ).length;
-            // Target: 2-3 units to deter early aggression
-            const earlyMilitaryTarget = Math.max(2, myCities.length);
 
-            if (currentMilitary < earlyMilitaryTarget) {
-                // Prefer ranged for defense
+            // v6.6: Lower threshold to START expanding - only need 2 military
+            // This prevents the "stuck on 1 city" problem
+            const MIN_MILITARY_TO_EXPAND = 2;
+
+            if (currentMilitary < MIN_MILITARY_TO_EXPAND) {
+                // Must have at least 2 military before any expansion
                 if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
-                    aiInfo(`[AI Build] ${profile.civName} EARLY DEFENSE: BowGuard (${currentMilitary}/${earlyMilitaryTarget})`);
+                    aiInfo(`[AI Build] ${profile.civName} EARLY DEFENSE: BowGuard (${currentMilitary}/${MIN_MILITARY_TO_EXPAND} min)`);
                     return { type: "Unit", id: UnitType.BowGuard };
                 }
                 if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
-                    aiInfo(`[AI Build] ${profile.civName} EARLY DEFENSE: SpearGuard (${currentMilitary}/${earlyMilitaryTarget})`);
+                    aiInfo(`[AI Build] ${profile.civName} EARLY DEFENSE: SpearGuard (${currentMilitary}/${MIN_MILITARY_TO_EXPAND} min)`);
                     return { type: "Unit", id: UnitType.SpearGuard };
                 }
             }
+            // v6.6: Once we have 2+ military, INTERLEAVE settlers and military
+            // Don't block expansion entirely
         }
     }
 
+    // =========================================================================
+    // PRIORITY 0.7: Early Expansion (Aggressive Land Grab)
+    // =========================================================================
+    // v6.6: Defensive civs MUST expand early to survive. This is CRITICAL.
+    // ScholarKingdoms was ending games with 1.4 avg cities (should be 4).
+    if (isDefensiveCiv(profile.civName) && (state.turn < 80 || phase === "Expand")) {
+        const settlerCap = profile.build.settlerCap;
+        const desiredCities = profile.build.desiredCities;
+
+        // If we have room to grow and capacity to build
+        if (myCities.length < desiredCities && settlersInFlight(state, playerId) < settlerCap) {
+            // v6.6: Lower military check - only 2 needed (was implicit 4)
+            const currentMilitary = state.units.filter(u =>
+                u.ownerId === playerId &&
+                UNITS[u.type].domain !== "Civilian" &&
+                u.type !== UnitType.Scout
+            ).length;
+
+            // Allow expansion once we have 2 military (down from 4)
+            if (currentMilitary >= 2 && canBuild(city, "Unit", UnitType.Settler, state)) {
+                aiInfo(`[AI Build] ${profile.civName} EARLY EXPANSION: Settler (${myCities.length}/${desiredCities} cities)`);
+                return { type: "Unit", id: UnitType.Settler };
+            }
+        }
+    }
     // =========================================================================
     // PRIORITY 0.8: Lorekeeper for Defensive Civs (non-Bulwark cities only)
     // =========================================================================
@@ -279,7 +354,23 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     // Late game trigger: if turn > 200 and we have StarCharts, start Progress as backup
     const lateGameProgressTrigger = state.turn > 200 && hasStarCharts && !hasInvestedInProgress;
 
-    if (hasStarCharts && (hasInvestedInProgress || lateGameProgressTrigger)) {
+    // v6.1: Monster Trigger (e.g., Jade Covenant with 10 cities)
+    // If we are huge, we can afford to pursue Progress in parallel with Conquest.
+    const hasMonsterEmpire = myCities.length >= 8 && hasStarCharts;
+
+    // v6.5: STALL PREVENTION - If tech tree is complete, FORCE Progress chain completion
+    // Analysis showed games stalling at turn 300 with 20 techs but no Victory
+    // If you have 20 techs and Observatory, you MUST continue to Grand Academy/Experiment
+    const FULL_TECH_TREE_SIZE = 20;
+    const techTreeComplete = player.techs.length >= FULL_TECH_TREE_SIZE;
+    const hasIncompleteProgressChain = hasObservatory && !player.completedProjects.includes(ProjectId.GrandExperiment);
+    const forceProgressFinish = techTreeComplete && hasIncompleteProgressChain;
+
+    // v6.6: Very late game - always pursue Progress as backup
+    // Lowered from 200 to 150 to reduce 14.2% stall rate
+    const veryLateGamePush = state.turn >= 150 && hasStarCharts;
+
+    if (hasStarCharts && (hasInvestedInProgress || lateGameProgressTrigger || hasMonsterEmpire || forceProgressFinish || veryLateGamePush)) {
         // Check if ANY of our cities is currently building a Progress project
         const anyBuildingProgress = myCities.some(c =>
             c.currentBuild?.type === "Project" &&
@@ -287,11 +378,15 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         );
 
         // Only assign ONE city to Progress at a time (other cities can do military)
-        if (!anyBuildingProgress) {
+        // EXCEPTION: forceProgressFinish allows multiple cities to work on it
+        const allowMultipleCities = forceProgressFinish || veryLateGamePush;
+        if (!anyBuildingProgress || allowMultipleCities) {
             const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
             for (const pid of progressProjects) {
                 if (canBuild(city, "Project", pid, state)) {
-                    aiInfo(`[AI Build] ${profile.civName} HYBRID: ${pid} (backup victory path)`);
+                    const reason = forceProgressFinish ? "STALL PREVENTION" :
+                        veryLateGamePush ? "VERY LATE GAME" : "backup victory path";
+                    aiInfo(`[AI Build] ${profile.civName} HYBRID: ${pid} (${reason})`);
                     return { type: "Project", id: pid };
                 }
             }
@@ -304,23 +399,28 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     // =========================================================================
 
     // Landship FIRST: If we researched CompositeArmor and at war/Execute phase
+    // v6.1: Landship is CORE late game unit. Increase cap to 8.
     if (player.techs.includes(TechId.CompositeArmor) && (atWar || phase === "Execute")) {
         const currentLandships = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Landship).length;
-        if (currentLandships < 4 && canBuild(city, "Unit", UnitType.Landship, state)) {
-            aiInfo(`[AI Build] ${profile.civName} TECH UNLOCK: Landship (${currentLandships}/4)`);
+        if (currentLandships < 8 && canBuild(city, "Unit", UnitType.Landship, state)) {
+            aiInfo(`[AI Build] ${profile.civName} TECH UNLOCK: Landship (${currentLandships}/8)`);
             return { type: "Unit", id: UnitType.Landship };
         }
     }
 
-    // Airship SECOND: Only if we have some offensive units AND need vision
-    // v2: Reduced priority - only after offense is established
+    // Airship SECOND: Niche support unit
+    // v6.1: ONLY build if we already have Landships (Core). Don't build Airships in isolation.
     if (player.techs.includes(TechId.Aerodynamics)) {
+        const currentLandships = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Landship).length;
         const currentAirships = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Airship).length;
-        const hasOffense = capabilities.siege >= 2 && capabilities.capture >= 2;
-        const airshipCap = Math.min(2, myCities.length); // Max 1 per city, cap at 2
-        if (hasOffense && currentAirships < airshipCap && canBuild(city, "Unit", UnitType.Airship, state)) {
-            aiInfo(`[AI Build] ${profile.civName} TECH UNLOCK: Airship (${currentAirships}/${airshipCap})`);
-            return { type: "Unit", id: UnitType.Airship };
+
+        // Strict Condition: Must have 2+ Landships first
+        if (currentLandships >= 2) {
+            const airshipCap = Math.min(2, myCities.length); // Max 1 per city, cap at 2
+            if (currentAirships < airshipCap && canBuild(city, "Unit", UnitType.Airship, state)) {
+                aiInfo(`[AI Build] ${profile.civName} TECH UNLOCK: Airship (${currentAirships}/${airshipCap}) - Have Landships`);
+                return { type: "Unit", id: UnitType.Airship };
+            }
         }
     }
 
@@ -335,6 +435,34 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
             if (canBuild(city, "Building", BuildingType.TitansCore, state)) {
                 aiInfo(`[AI Build] AetherianVanguard PRIORITY: TitansCore (Win Condition)`);
                 return { type: "Building", id: BuildingType.TitansCore };
+            }
+        }
+
+        // =====================================================================
+        // PRIORITY 2.5: Titan Escort Production (ArmyRiders ONLY)
+        // =====================================================================
+        // Build ArmyRiders as Titan escorts - they have 2 movement to match Titan's 2 move.
+        // Triggers when: SteamForges researched AND (titanCoreCityId set OR core building)
+        // Target: 5-6 ArmyRiders before Titan spawns
+        const memory = getAiMemoryV2(state, playerId);
+        const isBuildingCore = myCities.some(c =>
+            c.currentBuild?.type === "Building" && c.currentBuild?.id === BuildingType.TitansCore
+        );
+        const isPrepForTitan = player.techs.includes(TechId.SteamForges) &&
+            (memory.titanCoreCityId || isBuildingCore) &&
+            !hasTitan;
+
+        if (isPrepForTitan && player.techs.includes(TechId.ArmyDoctrine)) {
+            const currentRiders = state.units.filter(u =>
+                u.ownerId === playerId && u.type === UnitType.ArmyRiders
+            ).length;
+            const TITAN_ESCORT_TARGET = 6; // Target 6 ArmyRiders for proper deathball
+
+            if (currentRiders < TITAN_ESCORT_TARGET) {
+                if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
+                    aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: ArmyRiders (${currentRiders}/${TITAN_ESCORT_TARGET})`);
+                    return { type: "Unit", id: UnitType.ArmyRiders };
+                }
             }
         }
     }

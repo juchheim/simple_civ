@@ -203,7 +203,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 // Track Titan kills for AetherianVanguard analysis
                 if (attacker.type === UnitType.Titan && player) {
                     if (!player.titanStats) {
-                        player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
+                        player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0, escortsMarkedTotal: 0, escortsAtCaptureTotal: 0, totalMilitaryAtCaptures: 0, supportByCapture: [] };
                     }
                     player.titanStats.kills++;
                 }
@@ -387,18 +387,25 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     const player = state.players.find(p => p.id === action.playerId);
                     if (player) {
                         if (!player.titanStats) {
-                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
+                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0, escortsMarkedTotal: 0, escortsAtCaptureTotal: 0, totalMilitaryAtCaptures: 0, supportByCapture: [] };
                         }
                         player.titanStats.cityCaptures++;
 
                         // Count support units near the captured city for deathball analysis
-                        const supportCount = state.units.filter(u =>
+                        // v6.6i: Range 4 to match safe staging distance (escorts at 2-4)
+                        const nearbyMilitary = state.units.filter(u =>
                             u.ownerId === action.playerId &&
                             u.id !== attacker.id &&
                             UNITS[u.type].domain !== "Civilian" &&
-                            hexDistance(u.coord, city.coord) <= 3
-                        ).length;
+                            hexDistance(u.coord, city.coord) <= 4
+                        );
+                        const supportCount = nearbyMilitary.length;
+                        const escortCount = nearbyMilitary.filter(u => u.isTitanEscort).length;
+
                         player.titanStats.totalSupportAtCaptures += supportCount;
+                        player.titanStats.escortsAtCaptureTotal += escortCount;
+                        player.titanStats.totalMilitaryAtCaptures += supportCount + 1; // +1 for Titan
+                        player.titanStats.supportByCapture.push(supportCount); // v6.6j: Track per-capture
                     }
                 } else {
                     // Track deathball captures (non-Titan city captures by AetherianVanguard)
@@ -407,7 +414,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
 
                     if (player && player.civName === "AetherianVanguard" && hasTitan) {
                         if (!player.titanStats) {
-                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
+                            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0, escortsMarkedTotal: 0, escortsAtCaptureTotal: 0, totalMilitaryAtCaptures: 0, supportByCapture: [] };
                         }
                         player.titanStats.deathballCaptures++;
                     }

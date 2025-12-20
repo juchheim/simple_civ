@@ -166,6 +166,7 @@ export type Unit = {
     autoExploreHistory?: string[]; // Recent coordinates (hex keys) for loop detection
     statusEffects?: string[]; // Active status effects (e.g. "NaturesWrath")
     campId?: string; // Links native unit to its home camp
+    isTitanEscort?: boolean; // v6.6h: Reserved for Titan escort duty - skip in other combat logic
 };
 
 export type City = {
@@ -209,7 +210,18 @@ export type Player = {
     hasFoundedFirstCity?: boolean;
     currentEra: EraId;
     scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
-    titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number; totalSupportAtCaptures: number }; // Titan performance tracking
+    titanStats?: {
+        kills: number;
+        cityCaptures: number;
+        deathballCaptures: number;
+        totalSupportAtCaptures: number;
+        // v6.6h diagnostic fields
+        escortsMarkedTotal: number;      // Total escorts marked across all turns
+        escortsAtCaptureTotal: number;   // Escorts (marked) within range 4 at capture
+        totalMilitaryAtCaptures: number; // All military units within range 4 at capture
+        // v6.6j: Per-capture breakdown
+        supportByCapture: number[];      // Support count at 1st, 2nd, 3rd... city capture
+    };
 };
 
 export type ProjectDefinition = {

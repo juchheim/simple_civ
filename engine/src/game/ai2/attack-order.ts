@@ -128,6 +128,7 @@ export function planAttackOrderV2(state: GameState, playerId: string): PlannedAt
         u.movesLeft > 0 &&
         !u.hasAttacked &&
         !isGarrisoned(u, state, playerId) && // Garrisoned units can't attack
+        !u.isTitanEscort && // v6.6h: Reserved escorts don't attack - stay with Titan
         isMilitary(u)
     );
 
@@ -563,6 +564,7 @@ export function planMoveAndAttack(state: GameState, playerId: string): MoveAttac
         u.movesLeft > 0 &&
         !u.hasAttacked &&
         !isGarrisoned(u, state, playerId) &&
+        !u.isTitanEscort && // v6.6h: Reserved escorts don't attack - stay with Titan
         isMilitary(u) &&
         !hasAnyTargetInRange(state, u, enemies)
     );

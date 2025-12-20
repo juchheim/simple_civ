@@ -383,6 +383,13 @@ function analyzeTitanPerformance(results) {
         avgSupport: 0,
         totalSupportAtCaptures: 0,
         totalTitanCaptures: 0,
+        // v6.6h diagnostic fields
+        escortsMarkedTotal: 0,
+        escortsAtCaptureTotal: 0,
+        totalMilitaryAtCaptures: 0,
+        // v6.6j: Per-capture breakdown (aggregated across all games)
+        supportByCapture: [], // [sum1stCapture, sum2ndCapture, ...] 
+        captureCountByIndex: [], // [count1stCaptures, count2ndCaptures, ...]
         byCiv: new Map()
     };
 
@@ -394,7 +401,10 @@ function analyzeTitanPerformance(results) {
             conquestWins: 0,
             avgSupport: 0,
             totalSupportAtCaptures: 0,
-            totalTitanCaptures: 0
+            totalTitanCaptures: 0,
+            escortsMarkedTotal: 0,
+            escortsAtCaptureTotal: 0,
+            totalMilitaryAtCaptures: 0
         });
     });
 
@@ -419,14 +429,34 @@ function analyzeTitanPerformance(results) {
             if (civData.titanStats) {
                 const captures = civData.titanStats.cityCaptures || 0;
                 const support = civData.titanStats.totalSupportAtCaptures || 0;
+                const escortsMarked = civData.titanStats.escortsMarkedTotal || 0;
+                const escortsAtCapture = civData.titanStats.escortsAtCaptureTotal || 0;
+                const totalMilitary = civData.titanStats.totalMilitaryAtCaptures || 0;
+                const perCapture = civData.titanStats.supportByCapture || [];
 
                 titanStats.totalTitanCaptures += captures;
                 titanStats.totalSupportAtCaptures += support;
+                titanStats.escortsMarkedTotal += escortsMarked;
+                titanStats.escortsAtCaptureTotal += escortsAtCapture;
+                titanStats.totalMilitaryAtCaptures += totalMilitary;
+
+                // v6.6j: Aggregate per-capture support
+                perCapture.forEach((supportAtCapture, index) => {
+                    while (titanStats.supportByCapture.length <= index) {
+                        titanStats.supportByCapture.push(0);
+                        titanStats.captureCountByIndex.push(0);
+                    }
+                    titanStats.supportByCapture[index] += supportAtCapture;
+                    titanStats.captureCountByIndex[index]++;
+                });
 
                 const civStats = titanStats.byCiv.get(civData.civName);
                 if (civStats) {
                     civStats.totalTitanCaptures += captures;
                     civStats.totalSupportAtCaptures += support;
+                    civStats.escortsMarkedTotal += escortsMarked;
+                    civStats.escortsAtCaptureTotal += escortsAtCapture;
+                    civStats.totalMilitaryAtCaptures += totalMilitary;
                 }
             }
         });
@@ -453,11 +483,16 @@ function analyzeTitanPerformance(results) {
     // Calculate average support from captures
     if (titanStats.totalTitanCaptures > 0) {
         titanStats.avgSupport = titanStats.totalSupportAtCaptures / titanStats.totalTitanCaptures;
+        titanStats.avgEscortsMarked = titanStats.escortsMarkedTotal / results.length; // Per game with Titan
+        titanStats.avgEscortsAtCapture = titanStats.escortsAtCaptureTotal / titanStats.totalTitanCaptures;
+        titanStats.avgMilitaryAtCapture = titanStats.totalMilitaryAtCaptures / titanStats.totalTitanCaptures;
     }
 
     titanStats.byCiv.forEach(stats => {
         if (stats.totalTitanCaptures > 0) {
             stats.avgSupport = stats.totalSupportAtCaptures / stats.totalTitanCaptures;
+            stats.avgEscortsAtCapture = stats.escortsAtCaptureTotal / stats.totalTitanCaptures;
+            stats.avgMilitaryAtCapture = stats.totalMilitaryAtCaptures / stats.totalTitanCaptures;
         }
     });
 
@@ -667,7 +702,30 @@ report += `- **Total Titans Spawned:** ${tStats.totalTitans}\n`;
 report += `- **Total Titan Deaths:** ${tStats.totalDeaths} (Survival Rate: ${survivalRate}%)\n`;
 report += `- **Wins with Titan:** ${tStats.totalWinsWithTitan} (${winRateWithTitan}% of Titans resulted in victory)\n`;
 report += `- **Conquest Wins with Titan:** ${tStats.conquestWinsWithTitan}\n`;
-report += `- **Average "Deathball" Support:** ${tStats.avgSupport.toFixed(1)} units nearby\n\n`;
+report += `- **Average "Deathball" Support:** ${tStats.avgSupport.toFixed(1)} units nearby\n`;
+
+// v6.6h diagnostic output
+if (tStats.avgEscortsMarked !== undefined) {
+    report += `\n### Escort Diagnostics (v6.6h)\n`;
+    report += `- **Avg Escorts Marked Per Game:** ${(tStats.avgEscortsMarked || 0).toFixed(1)}\n`;
+    report += `- **Avg Escorts at Capture:** ${(tStats.avgEscortsAtCapture || 0).toFixed(1)}\n`;
+    report += `- **Avg Total Military at Capture:** ${(tStats.avgMilitaryAtCapture || 0).toFixed(1)}\n`;
+    report += `- **Escorts Marked Total:** ${tStats.escortsMarkedTotal}\n`;
+    report += `- **Escorts at Capture Total:** ${tStats.escortsAtCaptureTotal}\n`;
+}
+
+// v6.6j: Per-capture support breakdown
+if (tStats.supportByCapture.length > 0) {
+    report += `\n### Support by Capture Order (v6.6j)\n`;
+    tStats.supportByCapture.forEach((totalSupport, index) => {
+        const count = tStats.captureCountByIndex[index] || 1;
+        const avg = totalSupport / count;
+        const captureNum = index + 1;
+        const suffix = captureNum === 1 ? 'st' : captureNum === 2 ? 'nd' : captureNum === 3 ? 'rd' : 'th';
+        report += `- **${captureNum}${suffix} City Capture:** ${avg.toFixed(1)} avg support (${count} samples)\n`;
+    });
+}
+report += `\n`;
 
 report += `### By Civilization\n`;
 tStats.byCiv.forEach((stats, civ) => {

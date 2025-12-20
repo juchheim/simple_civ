@@ -2,7 +2,7 @@ import { aiLog, aiInfo } from "../ai/debug-logging.js";
 import { GameState, HexCoord, OverlayType, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";
-import { hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
+import { hexEquals, getNeighbors, hexToString, hexDistance } from "../../core/hex.js";
 import { captureCity } from "./cities.js";
 import { ensureWar } from "./diplomacy.js";
 import { buildTileLookup, getUnitMaxMoves } from "./combat.js";
@@ -195,20 +195,26 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
         const player = state.players.find(p => p.id === playerId);
         if (player && player.civName === "AetherianVanguard") {
             if (!player.titanStats) {
-                player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0 };
+                player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0, escortsMarkedTotal: 0, escortsAtCaptureTotal: 0, totalMilitaryAtCaptures: 0, supportByCapture: [] };
             }
             if (unit.type === UnitType.Titan) {
                 player.titanStats.cityCaptures++;
 
                 // Count support units near the captured city for deathball analysis
-                const supportCount = state.units.filter(u =>
+                // v6.6i: Range 4 to match safe staging distance (escorts at 2-4)
+                const nearbyMilitary = state.units.filter(u =>
                     u.ownerId === playerId &&
                     u.id !== unit.id &&
                     UNITS[u.type].domain !== UnitDomain.Civilian &&
-                    getNeighbors(cityOnTile.coord).some(n => hexEquals(n, u.coord)) ||
-                    hexEquals(u.coord, cityOnTile.coord)
-                ).length;
+                    hexDistance(u.coord, cityOnTile.coord) <= 4
+                );
+                const supportCount = nearbyMilitary.length;
+                const escortCount = nearbyMilitary.filter(u => u.isTitanEscort).length;
+
                 player.titanStats.totalSupportAtCaptures += supportCount;
+                player.titanStats.escortsAtCaptureTotal += escortCount;
+                player.titanStats.totalMilitaryAtCaptures += supportCount + 1; // +1 for Titan
+                player.titanStats.supportByCapture.push(supportCount); // v6.6j: Track per-capture
             } else {
                 player.titanStats.deathballCaptures++;
             }

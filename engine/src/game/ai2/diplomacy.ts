@@ -165,6 +165,39 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         }
     }
 
+    // =========================================================================
+    // v6.6: TECH-COMPLETE WAR FORCING - Break stalemates between 20-tech civs
+    // =========================================================================
+    // Analysis showed 14.2% stall rate, many involving multiple civs with completed
+    // tech trees (20 techs) at peace with each other. Force war between them.
+    const player = next.players.find(p => p.id === playerId);
+    const techTreeComplete = (player?.techs?.length ?? 0) >= 20;
+
+    if (techTreeComplete && warsNow === 0) {
+        // Find another 20-tech civ to fight
+        for (const other of next.players) {
+            if (other.id === playerId || other.isEliminated) continue;
+            const theirTechs = other.techs?.length ?? 0;
+
+            // Both have 20 techs = stalemate risk, force war
+            if (theirTechs >= 20) {
+                const theirCities = next.cities.filter(c => c.ownerId === other.id).length;
+                if (theirCities === 0) continue; // Can't fight eliminated civs
+
+                aiInfo(`[AI Diplo] ${playerId} TECH STALEMATE WAR at turn ${next.turn} - both have 20 techs, forcing war against ${other.id}`);
+                const mem2 = getAiMemoryV2(next, playerId);
+                next = setAiMemoryV2(next, playerId, {
+                    ...mem2,
+                    lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
+                    warInitiationTurns: [...(mem2.warInitiationTurns ?? []), next.turn]
+                });
+                actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
+                warsPlanned = 1;
+                break; // Only declare one war at a time
+            }
+        }
+    }
+
     for (const other of next.players) {
         if (other.id === playerId || other.isEliminated) continue;
 
@@ -281,7 +314,12 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             }
 
             if (!stanceDurationOk(next, playerId, other.id, profile.diplomacy.minStanceTurns, memory)) continue;
-            const wantsPeace = ratio < profile.diplomacy.peaceIfBelowRatio;
+
+            // v6.1: Use peacePowerThreshold. 
+            // If ratio < threshold, we accept peace.
+            // Low threshold (0.9) means we only accept peace if we are losing.
+            // High threshold (1.1) means we accept peace even if slightly winning.
+            const wantsPeace = ratio < profile.diplomacy.peacePowerThreshold;
             const enemyCitiesNow = next.cities.filter(c => c.ownerId === other.id).length;
             // Stalemate heuristic: if we aren't decisively winning, and the war has dragged, propose peace.
 

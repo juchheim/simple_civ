@@ -16,6 +16,8 @@ export type AiDiplomacyProfileV2 = {
     warDistanceMax: number;
     /** If losing below this ratio, prefer peace */
     peaceIfBelowRatio: number;
+    /** Ratio needed to accept peace (higher = harder) */
+    peacePowerThreshold: number;
     /** Minimum turns between switching Peace <-> War (prevents thrash) */
     minStanceTurns: number;
     /** Don't start wars before this turn unless already at war. */
@@ -90,9 +92,10 @@ const baseProfile: CivAiProfileV2 = {
     civName: "Default",
     diplomacy: {
         warPowerRatio: 1.15,
-        warDistanceMax: 14,
-        peaceIfBelowRatio: 0.85,
-        minStanceTurns: 12,
+        warDistanceMax: 15,
+        peaceIfBelowRatio: 0.8,
+        peacePowerThreshold: 1.1, // Default: slightly stronger to accept peace
+        minStanceTurns: 10,
         minWarTurn: 20,
         maxConcurrentWars: 1,
         maxInitiatedWarsPer50Turns: 2,
@@ -203,11 +206,14 @@ const profiles: Record<string, CivAiProfileV2> = {
     ForgeClans: mergeProfile(baseProfile, {
         civName: "ForgeClans",
         diplomacy: {
-            warPowerRatio: 1.05, // leverage production to press advantages, but not suicide
+            warPowerRatio: 1.2, // Must outproduce to war
             peaceIfBelowRatio: 0.75,
-            minWarTurn: 12,
+            peacePowerThreshold: 0.9, // v6.1: Harder to appease (was 1.1)
+            minStanceTurns: 12,
+            minWarTurn: 20,
             maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 3,
+            maxInitiatedWarsPer50Turns: 2,
+            canInitiateWars: true,
             targetPreference: "Nearest",
             earlyRushChance: 0.7, // 70% chance to attempt early rush - leverages production advantage
         },
@@ -225,13 +231,13 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.StarCharts]: 1.1,
             },
             pathsByGoal: {
-                Conquest: [TechId.FormationTraining, TechId.DrilledRanks, TechId.ArmyDoctrine, TechId.SteamForges, TechId.CompositeArmor],
+                Conquest: [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore, TechId.DrilledRanks, TechId.TimberMills, TechId.ScholarCourts, TechId.SteamForges, TechId.CompositeArmor],
             },
         },
         build: {
-            armyPerCity: 1.6, // Re-Buffed (was 1.5)
+            armyPerCity: 2.0,
             settlerCap: 2,
-            desiredCities: 5,
+            desiredCities: 8, // v6.1: Wider industrial base (was 5)
             weights: {
                 unit: {
                     [UnitType.SpearGuard]: 1.5, // Buffed: Need frontline
@@ -241,8 +247,9 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
                 building: {
                     [BuildingType.Forgeworks]: 1.6,
-                    [BuildingType.StoneWorkshop]: 1.5,
+                    [BuildingType.StoneWorkshop]: 1.2,
                     [BuildingType.CityWard]: 0.35,
+                    [BuildingType.TitansCore]: 2.0,
                 },
                 project: {
                     // Secondary Progress Projects
@@ -265,54 +272,55 @@ const profiles: Record<string, CivAiProfileV2> = {
     ScholarKingdoms: mergeProfile(baseProfile, {
         civName: "ScholarKingdoms",
         diplomacy: {
-            // v1.8: Enable wars but stay defensive-focused
-            warPowerRatio: 1.35,  // v1.8b: Attack only when 35% stronger (conservative)
-            warDistanceMax: 14,  // Good reach
-            peaceIfBelowRatio: 0.8,  // v1.8b: Accept peace earlier
-            minWarTurn: 20,  // v1.8b: Late game only (was 14)
-            maxConcurrentWars: 1,  // One war at a time
-            maxInitiatedWarsPer50Turns: 2,  // v1.8b: Conservative (was 3)
-            canInitiateWars: true,  // ENABLED
-            targetPreference: "Finishable",  // v1.8: Finish weak enemies
+            // v6.5: ScholarKingdoms = "Moderate Tall" - fewer cities, higher quality
+            // Slightly more willing to fight than Starborne (they need to protect core cities)
+            warPowerRatio: 1.25,  // v6.5: Attack when 25% stronger (less conservative than Starborne)
+            warDistanceMax: 12,  // v6.5: Shorter reach - protect core territory
+            peaceIfBelowRatio: 0.8,
+            minWarTurn: 18,  // v6.5: Slightly earlier than Starborne
+            maxConcurrentWars: 1,
+            maxInitiatedWarsPer50Turns: 2,
+            canInitiateWars: true,
+            targetPreference: "Finishable",
         },
         tech: {
             weights: {
-                [TechId.ScriptLore]: 1.4,
-                [TechId.ScholarCourts]: 1.4,
+                [TechId.ScriptLore]: 1.5,  // v6.5: High priority - core identity
+                [TechId.ScholarCourts]: 1.5,  // v6.5: Buffed - Academy unlocks
                 [TechId.SignalRelay]: 1.4,
                 [TechId.StarCharts]: 1.5,
-                [TechId.CityWards]: 2.0,   // v5.0: HIGH priority - unlocks Bulwark
-                [TechId.DrilledRanks]: 1.15,
+                [TechId.CityWards]: 2.0,  // HIGH priority - unlocks Bulwark
+                [TechId.StoneworkHalls]: 1.3,  // v6.5: Earlier Bulwark access
+                [TechId.DrilledRanks]: 1.2,  // v6.5: Slightly higher - need armies
             },
         },
         build: {
-            armyPerCity: 2.0,
-            settlerCap: 2,
-            desiredCities: 4,
+            armyPerCity: 2.5,  // v6.5: HIGH - fewer cities means more units per city
+            settlerCap: 2,  // v6.5: MODERATE TALL - only 2 settlers at a time
+            desiredCities: 4,  // v6.5: MODERATE TALL - 4 high-quality cities
             weights: {
                 unit: {
                     [UnitType.SpearGuard]: 1.4,
                     [UnitType.BowGuard]: 1.2,
-                    [UnitType.Settler]: 1.2,
-                    // Army units - defensive civ benefits from ranged army
-                    [UnitType.ArmyBowGuard]: 1.5,  // Priority ranged for defense
-                    [UnitType.ArmySpearGuard]: 1.2,
-                    [UnitType.ArmyRiders]: 0.8,  // Lower priority - not in character
+                    [UnitType.Settler]: 0.9,  // v6.5: Lower priority - we want fewer cities
+                    [UnitType.ArmyBowGuard]: 1.6,  // v6.5: HIGH - ranged army is core
+                    [UnitType.ArmySpearGuard]: 1.3,
+                    [UnitType.ArmyRiders]: 0.8,
                 },
                 building: {
-                    [BuildingType.Bulwark]: 2.5,  // v5.0: HIGH priority - core defense
-                    [BuildingType.CityWard]: 1.8,  // v5.0: Buffed - enables Bulwark
-                    [BuildingType.Scriptorium]: 1.3,
-                    [BuildingType.Academy]: 1.3,
+                    [BuildingType.Bulwark]: 2.5,  // Core defense
+                    [BuildingType.CityWard]: 1.8,
+                    [BuildingType.Scriptorium]: 1.5,  // v6.5: Higher - science focus
+                    [BuildingType.Academy]: 1.5,  // v6.5: Higher - science focus
                 },
                 project: {
-                    [ProjectId.Observatory]: 1.2,
-                    [ProjectId.GrandAcademy]: 1.1,
-                    [ProjectId.GrandExperiment]: 1.0,
+                    [ProjectId.Observatory]: 1.3,  // v6.5: Higher - Progress focus
+                    [ProjectId.GrandAcademy]: 1.3,
+                    [ProjectId.GrandExperiment]: 1.2,
                 },
             },
         },
-        tactics: { riskTolerance: 0.2, forceConcentration: 0.55, siegeCommitment: 0.45, retreatHpFrac: 0.55, rangedCaution: 0.85 },
+        tactics: { riskTolerance: 0.25, forceConcentration: 0.6, siegeCommitment: 0.5, retreatHpFrac: 0.5, rangedCaution: 0.85 },
         titan: { capitalHunt: 0.7, finisher: 0.7, momentum: 0.5 },
     }),
 
@@ -420,51 +428,52 @@ const profiles: Record<string, CivAiProfileV2> = {
     StarborneSeekers: mergeProfile(baseProfile, {
         civName: "StarborneSeekers",
         diplomacy: {
-            // v1.8: Enable wars but stay defensive-focused
-            warPowerRatio: 1.35,  // v1.8b: Attack only when 35% stronger (conservative)
-            warDistanceMax: 14,  // Good reach
-            peaceIfBelowRatio: 0.8,  // v1.8b: Accept peace earlier
-            minWarTurn: 20,  // v1.8b: Late game only (was 14)
-            maxConcurrentWars: 1,  // One war at a time
-            maxInitiatedWarsPer50Turns: 2,  // v1.8b: Conservative (was 3)
-            canInitiateWars: true,  // ENABLED
-            targetPreference: "Finishable",  // v1.8: Finish weak enemies
+            // v6.5: StarborneSeekers = "Wide Awakening" - more cities, SpiritObservatory spread
+            // Ultra-defensive: avoid wars, turtle behind SpiritObservatories
+            warPowerRatio: 1.5,  // v6.5: Very conservative - only attack when dominant
+            warDistanceMax: 16,  // v6.5: Longer reach - SpiritObservatory cities spread
+            peaceIfBelowRatio: 0.85,  // v6.5: Quick to peace - don't get distracted
+            minWarTurn: 25,  // v6.5: Very late - focus on expansion first
+            maxConcurrentWars: 1,
+            maxInitiatedWarsPer50Turns: 1,  // v6.5: Very conservative
+            canInitiateWars: true,
+            targetPreference: "Finishable",
         },
         tech: {
             weights: {
                 [TechId.ScriptLore]: 1.4,
-                [TechId.ScholarCourts]: 1.4,
+                [TechId.ScholarCourts]: 1.3,
                 [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 2.0,  // v5.0: High priority - awakening + SpiritObservatory
-                [TechId.CityWards]: 2.0,   // v5.0: HIGH priority - unlocks Bulwark
-                [TechId.DrilledRanks]: 1.15,
+                [TechId.StarCharts]: 2.5,  // v6.5: HIGHEST - SpiritObservatory unlock
+                [TechId.CityWards]: 1.8,  // v6.5: Lower than Scholar - less Bulwark focus
+                [TechId.DrilledRanks]: 1.0,  // v6.5: Lower - less military focus
             },
         },
         build: {
-            armyPerCity: 1.8,
-            settlerCap: 1,
-            desiredCities: 4,
+            armyPerCity: 1.5,  // v6.5: Lower than Scholar - spread focus
+            settlerCap: 4,  // v6.5: HIGH - wide expansion
+            desiredCities: 7,  // v6.5: WIDE - more cities for SpiritObservatory spread
             weights: {
                 unit: {
-                    // Army units - defensive civ benefits from ranged army
-                    [UnitType.ArmyBowGuard]: 1.5,  // Priority ranged for defense
-                    [UnitType.ArmySpearGuard]: 1.2,
-                    [UnitType.ArmyRiders]: 0.8,  // Lower priority - not in character
+                    [UnitType.Settler]: 1.4,  // v6.5: HIGH - expansion focus
+                    [UnitType.ArmyBowGuard]: 1.4,
+                    [UnitType.ArmySpearGuard]: 1.1,
+                    [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    [BuildingType.Bulwark]: 2.5,  // v5.0: HIGH priority - core defense
-                    [BuildingType.SpiritObservatory]: 2.0,
-                    [BuildingType.CityWard]: 1.8,  // v5.0: Buffed - enables Bulwark
+                    [BuildingType.SpiritObservatory]: 2.5,  // v6.5: HIGHEST - core identity
+                    [BuildingType.Bulwark]: 2.0,  // v6.5: Lower than Scholar
+                    [BuildingType.CityWard]: 1.6,
                 },
                 project: {
-                    [ProjectId.Observatory]: 1.2,
-                    [ProjectId.GrandAcademy]: 1.1,
-                    [ProjectId.GrandExperiment]: 1.0,
+                    [ProjectId.Observatory]: 1.0,  // v6.5: Lower - SpiritObservatory replaces
+                    [ProjectId.GrandAcademy]: 1.2,
+                    [ProjectId.GrandExperiment]: 1.2,
                 },
             },
         },
-        tactics: { riskTolerance: 0.2, forceConcentration: 0.55, siegeCommitment: 0.5, retreatHpFrac: 0.6, rangedCaution: 0.9 },
-        titan: { capitalHunt: 0.6, finisher: 0.7, momentum: 0.6 },
+        tactics: { riskTolerance: 0.15, forceConcentration: 0.5, siegeCommitment: 0.4, retreatHpFrac: 0.6, rangedCaution: 0.9 },
+        titan: { capitalHunt: 0.5, finisher: 0.6, momentum: 0.5 },
     }),
 
     JadeCovenant: mergeProfile(baseProfile, {

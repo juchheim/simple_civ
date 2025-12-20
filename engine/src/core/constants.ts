@@ -208,13 +208,13 @@ export const NATIVE_CAMP_COUNTS: Record<string, [number, number]> = {
 };
 
 // Map Dimensions (Width x Height)
-// v2.1: Increased all sizes by 10% for more room for coastal features
+// v2.1: Increased all sizes by ~20-30% area for "Healthy Turtle" experiment
 export const MAP_DIMS = {
-    Tiny: { width: 17, height: 12 },     // Was 15x11 -> +13%
-    Small: { width: 21, height: 17 },    // Was 19x15 -> +16%
-    Standard: { width: 25, height: 19 }, // Was 23x17 -> +14%
-    Large: { width: 28, height: 21 },    // Was 25x19 -> +16%
-    Huge: { width: 37, height: 28 },     // Was 34x25 -> +15%
+    Tiny: { width: 20, height: 15 },     // Was 17x12
+    Small: { width: 25, height: 20 },    // Was 21x17
+    Standard: { width: 30, height: 22 }, // Was 25x19
+    Large: { width: 35, height: 25 },    // Was 28x21
+    Huge: { width: 40, height: 30 },     // Was 37x28
 };
 
 // Data Tables
@@ -284,9 +284,9 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     // v6.0: Aether Era Units
     // Airship: Untargetable support unit. High vision.
-    [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 120, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 },
+    [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 150, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 }, // v6.1: Cost 120 -> 150
     // Landship: Late game siege breaker.
-    [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 300, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 220, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.1: Cost 300 -> 220 (Core unit)
     // v7.0: Lorekeeper - Defensive ranged unit for ScholarKingdoms/StarborneSeekers
     [UnitType.Lorekeeper]: { atk: 4, def: 6, rng: 2, move: 1, hp: 12, cost: 55, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
 };

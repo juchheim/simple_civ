@@ -171,6 +171,7 @@ function runFocusSiegeAndCapture(state: GameState, playerId: string): GameState 
     const units = next.units
         .filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u))
         .filter(u => u.type !== UnitType.Titan) // Titan handled separately
+        .filter(u => !u.isTitanEscort) // v6.6h: Reserved escorts stay with Titan
         .filter(u => {
             // FIX #7: Do not pull garrisons from Threatened cities.
             // If unit is on a city tile, and that city is threatened, exclude it from offensive routing.
@@ -562,6 +563,133 @@ function retreatIfNeeded(state: GameState, playerId: string, unit: Unit): GameSt
     return next;
 }
 
+/**
+ * v6.6f: Complete rewrite of escort logic.
+ * 
+ * Previous issues:
+ * - v6.6e read titanFocusCityId but it wasn't set yet (runTitanAgent sets it later)
+ * - Only moved 5 escorts per turn (8.2 units at creation on average)
+ * 
+ * Fix:
+ * - Compute target city using same logic as runTitanAgent
+ * - Move ALL available escorts toward target (no cap)
+ * - Run before all other unit actions so escorts have moves
+ */
+function followTitan(state: GameState, playerId: string): GameState {
+    let next = state;
+    const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
+    if (!titan) return next;
+
+    // Find enemy cities (same logic as runTitanAgent)
+    const enemies = warEnemyIds(next, playerId);
+    if (enemies.size === 0) return next;
+
+    const enemyCities = next.cities.filter(c => enemies.has(c.ownerId));
+    if (enemyCities.length === 0) return next;
+
+    // Pick target city using same scoring as runTitanAgent
+    const profile = getAiProfileV2(next, playerId);
+    const targetCity = pickBest(enemyCities, c => {
+        const dist = hexDistance(titan.coord, c.coord);
+        const capital = c.isCapital ? 1 : 0;
+        const finish = c.hp <= 0 ? 1 : 0;
+        const hpFrac = c.maxHp ? c.hp / c.maxHp : 1;
+        const momentum = -dist * (1.2 + profile.titan.momentum);
+        return (capital * 25 * profile.titan.capitalHunt) + (finish * 30 * profile.titan.finisher) + ((1 - hpFrac) * 18) + momentum;
+    })?.item;
+    // v6.6i: Rally point is at SAFE DISTANCE (range 3) from target city
+    // City attack range is 2, so staging at 3 keeps escorts alive
+    // The Titan goes in alone to attack/capture, escorts provide support fire
+    const rallyPoint = targetCity?.coord ?? titan.coord;
+    const SAFE_STAGING_DISTANCE = 3;
+
+    // Find ALL military units that could escort (no range limit, no count limit!)
+    // v6.6g: REMOVED garrison exclusion - when Titan exists, ALL units join deathball!
+    const potentialEscorts = next.units.filter(u => {
+        if (u.ownerId !== playerId) return false;
+        if (!isMilitary(u)) return false;
+        if (u.type === UnitType.Titan) return false;
+        if (u.movesLeft <= 0) return false;
+        if (u.hasAttacked) return false;
+
+        // v6.6i: Already at safe staging distance - don't move closer!
+        const distToTarget = hexDistance(u.coord, rallyPoint);
+        if (distToTarget <= SAFE_STAGING_DISTANCE && distToTarget >= 2) return false;
+
+        // v6.6g: NO garrison exclusion - deathball is priority!
+        return true;
+    }).sort((a, b) => {
+        // Prioritize ArmyRiders (they have 2 move like Titan)
+        const aRider = a.type === UnitType.ArmyRiders ? 0 : 1;
+        const bRider = b.type === UnitType.ArmyRiders ? 0 : 1;
+        if (aRider !== bRider) return aRider - bRider;
+        // Then by distance to target (closest first for faster convergence)
+        return hexDistance(a.coord, rallyPoint) - hexDistance(b.coord, rallyPoint);
+    });
+
+    // v6.6h: Clear escort flag from all player units first (reset each turn)
+    next.units.filter(u => u.ownerId === playerId).forEach(u => {
+        u.isTitanEscort = false;
+    });
+
+    // Move escorts toward staging position and MARK them as reserved
+    // v6.6i: Escorts stop at SAFE_STAGING_DISTANCE, don't get too close to city
+    let escortsMoved = 0;
+    for (const escort of potentialEscorts) {
+        const liveEscort = next.units.find(u => u.id === escort.id);
+        if (!liveEscort || liveEscort.movesLeft <= 0) continue;
+
+        // Check if already at safe staging distance
+        const currentDist = hexDistance(liveEscort.coord, rallyPoint);
+        if (currentDist >= 2 && currentDist <= SAFE_STAGING_DISTANCE) {
+            // Already at safe staging position - just mark as escort
+            liveEscort.isTitanEscort = true;
+            escortsMoved++;
+            continue;
+        }
+
+        const before = next;
+        next = moveToward(next, playerId, liveEscort, rallyPoint);
+        if (next !== before) {
+            // v6.6h: Mark as escort so other combat logic skips this unit
+            const movedUnit = next.units.find(u => u.id === escort.id);
+            if (movedUnit) {
+                movedUnit.isTitanEscort = true;
+            }
+            escortsMoved++;
+        }
+    }
+
+    // Mark units in safe staging zone as escorts (range 2-4 from target)
+    let escortsMarked = 0;
+    next.units.filter(u =>
+        u.ownerId === playerId &&
+        isMilitary(u) &&
+        u.type !== UnitType.Titan &&
+        hexDistance(u.coord, rallyPoint) >= 2 &&
+        hexDistance(u.coord, rallyPoint) <= 4
+    ).forEach(u => {
+        u.isTitanEscort = true;
+        escortsMarked++;
+    });
+
+    // Track total escorts marked for diagnostics
+    const player = next.players.find(p => p.id === playerId);
+    if (player) {
+        if (!player.titanStats) {
+            player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0, escortsMarkedTotal: 0, escortsAtCaptureTotal: 0, totalMilitaryAtCaptures: 0, supportByCapture: [] };
+        }
+        player.titanStats.escortsMarkedTotal += escortsMarked + escortsMoved;
+    }
+
+    if (escortsMoved > 0 || escortsMarked > 0) {
+        const targetLabel = targetCity ? `city ${targetCity.name}` : `Titan`;
+        aiInfo(`[TITAN ESCORT] ${escortsMoved} moved, ${escortsMarked} already nearby -> ${escortsMoved + escortsMarked} total escorts marked for ${targetLabel}`);
+    }
+
+    return next;
+}
+
 function runTitanAgent(state: GameState, playerId: string): GameState {
     let next = state;
     const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
@@ -819,7 +947,8 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
     next = focused.state;
 
     // Retreat pass.
-    const unitsForRetreat = next.units.filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u) && u.type !== UnitType.Titan);
+    // v6.6h: Escorts skip retreat - they stay with Titan
+    const unitsForRetreat = next.units.filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u) && u.type !== UnitType.Titan && !u.isTitanEscort);
     for (const unit of unitsForRetreat) {
         const live = next.units.find(u => u.id === unit.id);
         if (!live || live.movesLeft <= 0) continue;
@@ -919,6 +1048,10 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
         }
     }
 
+    // v6.6d: CRITICAL FIX - followTitan must run EARLY, before other units use their moves!
+    // Previously ran at line 1092 AFTER attacks/repositioning exhausted all movesLeft.
+    next = followTitan(next, playerId);
+
     // Aid vulnerable units: send reinforcements to isolated allies before attacking
     next = aidVulnerableUnits(next, playerId);
 
@@ -965,7 +1098,8 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
         }
     } else {
         // Not in attack phase - only allow opportunity kills
-        const attackers = next.units.filter(u => u.ownerId === playerId && !u.hasAttacked && isMilitary(u) && u.type !== UnitType.Titan);
+        // v6.6h: Escorts skip opportunity attacks - they stay with Titan
+        const attackers = next.units.filter(u => u.ownerId === playerId && !u.hasAttacked && isMilitary(u) && u.type !== UnitType.Titan && !u.isTitanEscort);
         for (const unit of attackers) {
             const live = next.units.find(u => u.id === unit.id);
             if (!live || live.hasAttacked) continue;
@@ -1008,6 +1142,7 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
 
     // Titan agent (separate so it doesn't get blocked by generic movement/attacks).
     next = runTitanAgent(next, playerId);
+    // v6.6d: followTitan moved to run EARLY (before attacks) so escorts have moves available
 
     // Main siege/capture behavior: coordinate a real combined-arms push on the focused city.
     next = runFocusSiegeAndCapture(next, playerId);
