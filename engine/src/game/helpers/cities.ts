@@ -262,6 +262,7 @@ export function createCity(
         hp: 20,
         maxHp: 20,
         isCapital: playerCities.length === 0,
+        originalOwnerId: ownerId, // v6.7: Track original founder for capital recapture AI
         hasFiredThisTurn: false,
         milestones: [],
         savedProduction: {},

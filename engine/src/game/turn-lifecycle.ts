@@ -273,34 +273,29 @@ function checkProgressVictory(state: GameState): string | null {
 function checkConquestVictory(state: GameState): string | null {
     const alivePlayers = state.players.filter(p => !p.isEliminated);
     // If this is a multi-player game and only one player remains alive, they win by conquest.
-    // (This fixes “stalled None games” where everyone else is eliminated but no victory is awarded.)
+    // (This fixes "stalled None games" where everyone else is eliminated but no victory is awarded.)
     if (state.players.length > 1 && alivePlayers.length === 1) return alivePlayers[0]!.id;
     // Avoid premature victory in single-player or setup states.
     if (alivePlayers.length <= 1) return null;
 
+    // v6.7: CAPITAL MAJORITY VICTORY
+    // Control more than half of all capitals to win by Conquest.
+    // This makes Conquest viable on Large/Huge maps where eliminating everyone is impractical.
+    const capitals = state.cities.filter(c => c.isCapital);
+    if (capitals.length === 0) return null;
+
+    // Total capitals = number of players who have founded a city (their capital)
+    // We count eliminated players' capitals too since they can be captured
+    const totalCapitals = state.players.filter(p => p.hasFoundedFirstCity).length;
+    if (totalCapitals < 2) return null; // Not enough players to have a capital majority contest
+
+    const needed = Math.floor(totalCapitals / 2) + 1; // >50% threshold
+
     for (const p of alivePlayers) {
-        // Condition 1: Owns all capitals
-        const capitals = state.cities.filter(c => c.isCapital);
-        // If there are no capitals yet (rare/impossible if cities exist?), no one wins conquest.
-        if (capitals.length === 0) continue;
-
-        const ownsAllCapitals = capitals.every(c => c.ownerId === p.id);
-
-        if (ownsAllCapitals) {
-            // Check if any OTHER alive player blocks victory
-            const blockers = alivePlayers.filter(other => {
-                if (other.id === p.id) return false; // I don't block myself
-
-                const hasCapital = capitals.some(c => c.ownerId === other.id);
-                if (hasCapital) return true; // They have a capital, so I haven't conquered them yet
-
-                // They have NO capital.
-                // If they haven't founded yet, they block victory (running around).
-                // If they HAVE founded, they don't block (they lost their capital).
-                return !other.hasFoundedFirstCity;
-            });
-
-            if (blockers.length === 0) return p.id;
+        const ownedCapitals = capitals.filter(c => c.ownerId === p.id).length;
+        if (ownedCapitals >= needed) {
+            // Player controls majority of capitals - they win!
+            return p.id;
         }
     }
     return null;

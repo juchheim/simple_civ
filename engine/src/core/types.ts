@@ -192,6 +192,7 @@ export type City = {
     milestones: ProjectId[];
     lastDamagedOnTurn?: number; // Turn when city was last damaged (for healing prevention)
     savedProduction?: Record<string, number>; // Key: "Type:Id", Value: progress
+    originalOwnerId?: string; // v6.7: Original founder for capital recapture AI logic
 };
 
 export type Player = {

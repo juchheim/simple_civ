@@ -13,7 +13,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "ForgeClans",
         title: "Forge Clans",
         summary: "Industrial powerhouse with strong production and late-game military.",
-        perk: "+1 Prod/Hill (Capital) • 25% cheaper military • +1 Attack (all) • +1 Attack/Engine tech",
+        perk: "+1 Prod/Hill (Capital) • 20% cheaper military • +1 Attack (all) • +1 Attack/Engine tech",
         color: "#f97316",
     },
     {
@@ -48,7 +48,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "JadeCovenant",
         title: "Jade Covenant",
         summary: "Masters of growth and population-based power.",
-        perk: "20% faster growth • 30% cheaper Settlers (3 move) • +1 Atk/Def per 4 pop • Nature's Wrath: enemies take 1 damage in your territory",
+        perk: "15% faster growth • 10% cheaper Settlers • +1 Atk/Def per 6 pop • Nature's Wrath: enemies take 1 damage in your territory",
         color: "#0f9d58",
     },
 ];

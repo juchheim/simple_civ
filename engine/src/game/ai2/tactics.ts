@@ -277,6 +277,13 @@ function warEnemyIds(state: GameState, playerId: string): Set<string> {
 function cityValue(state: GameState, playerId: string, city: any): number {
     const profile = getAiProfileV2(state, playerId);
     let v = 20;
+
+    // v6.7: CRITICAL PRIORITY - Recapture OUR lost capital!
+    // originalOwnerId tracks who founded the city, so if it was ours and someone else owns it, we NEED it back
+    if (city.originalOwnerId === playerId && city.ownerId !== playerId) {
+        v += 500; // Highest priority - this was OUR capital, recapture it!
+    }
+
     if (city.isCapital) v += 35 * profile.titan.capitalHunt;
     const hpFrac = city.maxHp ? city.hp / city.maxHp : 1;
     v += (1 - hpFrac) * 18 * profile.titan.finisher;
