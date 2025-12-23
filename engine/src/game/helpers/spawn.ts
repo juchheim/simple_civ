@@ -17,11 +17,14 @@ export function generateUnitId(state: GameState, ownerId: string, label?: string
 }
 
 export function findSpawnCoord(state: GameState, city: City, unitType: UnitType, maxRing = 2): HexCoord {
-    let spawnCoord = city.coord;
+    let spawnCoord = city.coord; // Fallback if no valid tile is found
     const area = hexSpiral(city.coord, maxRing);
     const stats = UNITS[unitType];
 
     for (const coord of area) {
+        // Skip the city center tile - units should spawn adjacent to the city
+        if (hexEquals(coord, city.coord)) continue;
+
         const tile = state.map.tiles.find(t => hexEquals(t.coord, coord));
         if (!tile) continue;
 

@@ -295,14 +295,14 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 2.5,  // v6.5: HIGH - fewer cities means more units per city
-            settlerCap: 2,  // v6.5: MODERATE TALL - only 2 settlers at a time
-            desiredCities: 4,  // v6.5: MODERATE TALL - 4 high-quality cities
+            armyPerCity: 2.0,  // v7.3: Reduced from 2.5 - more cities means we can't afford huge standing armies everywhere
+            settlerCap: 3,  // v7.3: Increased from 2 - allow steady expansion
+            desiredCities: 6,  // v7.3: Increased from 4 - less "tall", more "compact wide"
             weights: {
                 unit: {
                     [UnitType.SpearGuard]: 1.4,
                     [UnitType.BowGuard]: 1.2,
-                    [UnitType.Settler]: 0.9,  // v6.5: Lower priority - we want fewer cities
+                    [UnitType.Settler]: 1.1,  // v7.3: Increased from 0.9 - need to reach desired cities
                     [UnitType.ArmyBowGuard]: 1.6,  // v6.5: HIGH - ranged army is core
                     [UnitType.ArmySpearGuard]: 1.3,
                     [UnitType.ArmyRiders]: 0.8,

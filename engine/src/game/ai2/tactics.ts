@@ -81,8 +81,14 @@ function routeCityCapturesV2(state: GameState, playerId: string): GameState {
     const capturable = next.cities.filter(c => c.ownerId !== playerId && c.hp <= 0);
     if (capturable.length === 0) return next;
 
+    // v1.1: Build set of city coordinates for garrison protection
+    const myCityCoords = new Set(
+        next.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`)
+    );
+
     const captureUnits = next.units
-        .filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u) && UNITS[u.type].canCaptureCity)
+        .filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u) && UNITS[u.type].canCaptureCity &&
+            !myCityCoords.has(`${u.coord.q},${u.coord.r}`)) // Don't pull garrisoned units
         .sort((a, b) => (b.type === UnitType.Titan ? 1 : 0) - (a.type === UnitType.Titan ? 1 : 0)); // prefer non-Titan first
 
     const assigned = new Set<string>();
@@ -278,10 +284,18 @@ function cityValue(state: GameState, playerId: string, city: any): number {
     const profile = getAiProfileV2(state, playerId);
     let v = 20;
 
-    // v6.7: CRITICAL PRIORITY - Recapture OUR lost capital!
-    // originalOwnerId tracks who founded the city, so if it was ours and someone else owns it, we NEED it back
+    // v7.2: RECAPTURE PRIORITY (Item 4)
+    // originalOwnerId tracks who founded the city. If it was ours and someone else owns it, we NEED it back.
     if (city.originalOwnerId === playerId && city.ownerId !== playerId) {
-        v += 500; // Highest priority - this was OUR capital, recapture it!
+        v += 500; // High priority - recapture lost cities
+        // Capital loss should trigger URGENT recapture priority
+        if (city.isCapital) v += 1000;
+    }
+
+    // v7.2: CAPTURED CAPITAL PRIORITY (Item 5)
+    // If we own an enemy capital, prioritize its development/defense (higher value)
+    if (city.isCapital && city.ownerId === playerId && city.originalOwnerId !== playerId) {
+        v += 100; // Value enemy capitals highly
     }
 
     if (city.isCapital) v += 35 * profile.titan.capitalHunt;
@@ -611,19 +625,25 @@ function followTitan(state: GameState, playerId: string): GameState {
     const SAFE_STAGING_DISTANCE = 3;
 
     // Find ALL military units that could escort (no range limit, no count limit!)
-    // v6.6g: REMOVED garrison exclusion - when Titan exists, ALL units join deathball!
+    // v7.2: Garrisons stay in cities - don't pull defenders for deathball
+    // v7.1: Home defenders stay in friendly territory
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
     const potentialEscorts = next.units.filter(u => {
         if (u.ownerId !== playerId) return false;
         if (!isMilitary(u)) return false;
         if (u.type === UnitType.Titan) return false;
         if (u.movesLeft <= 0) return false;
         if (u.hasAttacked) return false;
+        if (u.isHomeDefender) return false; // v7.1: Home defenders don't join deathball
+
+        // v7.2: Garrisons stay in cities - don't pull defenders
+        const isGarrisoned = myCities.some(c => hexEquals(c.coord, u.coord));
+        if (isGarrisoned) return false;
 
         // v6.6i: Already at safe staging distance - don't move closer!
         const distToTarget = hexDistance(u.coord, rallyPoint);
         if (distToTarget <= SAFE_STAGING_DISTANCE && distToTarget >= 2) return false;
 
-        // v6.6g: NO garrison exclusion - deathball is priority!
         return true;
     }).sort((a, b) => {
         // Prioritize ArmyRiders (they have 2 move like Titan)
@@ -1017,27 +1037,28 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
                 myCities.filter(c => c.id !== rallyCity.id).map(c => hexToString(c.coord))
             );
 
-            // For each non-rally city, mark one military unit to stay as garrison
+            // v7.2: Mark ALL units in each city as garrisons, not just one
+            // This prevents oscillation where garrisons get pulled to another city
             const garrisonIds = new Set<string>();
             for (const city of myCities) {
                 if (city.id === rallyCity.id) continue; // Rally city doesn't need garrison - Titan will spawn there
-                const garrison = next.units.find(u =>
+                const garrisons = next.units.filter(u =>
                     u.ownerId === playerId &&
                     isMilitary(u) &&
                     hexEquals(u.coord, city.coord)
                 );
-                if (garrison) {
-                    garrisonIds.add(garrison.id);
-                }
+                garrisons.forEach(g => garrisonIds.add(g.id));
             }
 
-            // Rally ALL military units EXCEPT designated garrisons
+            // Rally ALL military units EXCEPT designated garrisons and home defenders
+            // v7.1: Home defenders stay in territory
             const militaryToRally = next.units.filter(u =>
                 u.ownerId === playerId &&
                 u.movesLeft > 0 &&
                 isMilitary(u) &&
                 u.type !== UnitType.Titan &&
                 !garrisonIds.has(u.id) && // Don't pull designated garrisons
+                !u.isHomeDefender && // v7.1: Home defenders don't join rally
                 hexDistance(u.coord, rallyCity.coord) > 1 // Rally anyone not already adjacent
             ).sort((a, b) =>
                 // Prioritize closest units to get the deathball assembled quickly
@@ -1058,6 +1079,7 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
     // v6.6d: CRITICAL FIX - followTitan must run EARLY, before other units use their moves!
     // Previously ran at line 1092 AFTER attacks/repositioning exhausted all movesLeft.
     next = followTitan(next, playerId);
+
 
     // Aid vulnerable units: send reinforcements to isolated allies before attacking
     next = aidVulnerableUnits(next, playerId);
@@ -1210,6 +1232,7 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
             u.movesLeft > 0 &&
             isMilitary(u) &&
             u.type !== UnitType.Titan &&
+            !u.isHomeDefender && // v7.1: Home defenders stay in territory
             !cityTiles.has(`${u.coord.q},${u.coord.r}`) // don't pull garrisons off cities
         )
         .sort((a, b) => hexDistance(a.coord, focusCity.coord) - hexDistance(b.coord, focusCity.coord));

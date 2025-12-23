@@ -173,7 +173,7 @@ export function handleFoundCity(state: GameState, action: { type: "FoundCity"; p
     return state;
 }
 
-export function handleSetCityBuild(state: GameState, action: { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string }): GameState {
+export function handleSetCityBuild(state: GameState, action: { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string; markAsHomeDefender?: boolean }): GameState {
     const city = state.cities.find(c => c.id === action.cityId);
     if (!city) throw new Error("City not found");
     if (city.ownerId !== action.playerId) throw new Error("Not your city");
@@ -224,6 +224,7 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
         type: action.buildType,
         id: action.buildId,
         cost,
+        markAsHomeDefender: action.markAsHomeDefender,
     };
     city.buildProgress = savedProgress;
 

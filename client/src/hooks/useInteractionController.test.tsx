@@ -77,6 +77,48 @@ describe("useInteractionController", () => {
         }));
     });
 
+    it("queues war declaration when moving into enemy territory at peace", () => {
+        const dispatchAction = vi.fn();
+        const runActions = vi.fn();
+        const gameState = makeState({
+            diplomacy: {
+                "p1": { "p2": DiplomacyState.Peace },
+                "p2": { "p1": DiplomacyState.Peace },
+            },
+            units: [
+                { id: "u1", ownerId: "p1", type: UnitType.SpearGuard, coord: { q: 0, r: 0 }, movesLeft: 1, hp: 100, maxHp: 100, state: UnitState.Normal, hasAttacked: false },
+            ],
+            map: {
+                width: 5,
+                height: 5,
+                tiles: [
+                    { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [] },
+                    { coord: { q: 0, r: 1 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p2" }, // Enemy territory
+                ],
+            },
+            cities: [], // No city on the tile (cities have separate capture logic)
+            visibility: { "p1": ["0,0", "0,1"] },
+            revealed: { "p1": ["0,0", "0,1"] },
+        });
+
+        const { result } = renderHook(() => useInteractionController({ gameState, playerId: "p1", dispatchAction, runActions }));
+
+        act(() => {
+            result.current.setSelectedUnitId("u1");
+        });
+        act(() => {
+            result.current.handleTileClick({ q: 0, r: 1 } as HexCoord);
+        });
+
+        // Should queue war declaration for move, not dispatch immediately
+        expect(dispatchAction).not.toHaveBeenCalled();
+        expect(result.current.pendingWarAttack).toEqual(expect.objectContaining({
+            targetPlayerId: "p2",
+            action: expect.objectContaining({ type: "MoveUnit", to: { q: 0, r: 1 } }),
+        }));
+    });
+
+
     it("attacks immediately when already at war", () => {
         const dispatchAction = vi.fn();
         const runActions = vi.fn();

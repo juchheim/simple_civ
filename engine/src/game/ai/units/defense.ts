@@ -52,14 +52,16 @@ export function defendCities(state: GameState, playerId: string): GameState {
 
             if (defendersNearby.length < defendersNeeded) {
                 // Pull units from further away
+                // v7.2: Don't pull units from other cities - only pull non-garrisoned units
                 const available = next.units.filter(u =>
                     u.ownerId === playerId &&
                     u.movesLeft > 0 &&
                     !reserved.has(u.id) &&
                     UNITS[u.type].domain !== "Civilian" &&
-                    UNITS[u.type].domain !== "Civilian" &&
                     !isScoutType(u.type) &&
-                    u.type !== UnitType.Titan
+                    u.type !== UnitType.Titan &&
+                    // v7.2: Don't pull units from other cities
+                    !playerCities.some(c => hexEquals(c.coord, u.coord))
                 );
 
                 // Sort by distance to capital
@@ -162,13 +164,16 @@ export function defendCities(state: GameState, playerId: string): GameState {
         );
         if (defendersInRing.length > 0) continue;
 
+        // v7.2: Don't pull units from other cities for intercept
         const remaining = next.units.filter(u =>
             u.ownerId === playerId &&
             u.movesLeft > 0 &&
             !reserved.has(u.id) &&
             UNITS[u.type].domain !== "Civilian" &&
             !isScoutType(u.type) &&
-            u.type !== UnitType.Titan
+            u.type !== UnitType.Titan &&
+            // v7.2: Don't pull units from other cities
+            !playerCities.some(c => hexEquals(c.coord, u.coord))
         );
         if (!remaining.length) continue;
 
@@ -252,6 +257,7 @@ export function rotateGarrisons(state: GameState, playerId: string): GameState {
             hexDistance(u.coord, city.coord) === 1
         );
         if (candidates.length === 0) {
+            // v7.2: Don't pull units from other cities for rotation
             const ring2 = next.units.filter(u =>
                 u.ownerId === playerId &&
                 u.id !== garrison.id &&
@@ -259,7 +265,9 @@ export function rotateGarrisons(state: GameState, playerId: string): GameState {
                 UNITS[u.type].domain !== "Civilian" &&
                 u.movesLeft > 0 &&
                 u.hp > garrison.hp &&
-                hexDistance(u.coord, city.coord) === 2
+                hexDistance(u.coord, city.coord) === 2 &&
+                // v7.2: Don't pull units from other cities
+                !playerCities.some(c => hexEquals(c.coord, u.coord))
             );
             if (ring2.length) {
                 const bringer = ring2.sort((a, b) => b.hp - a.hp)[0];
@@ -270,6 +278,7 @@ export function rotateGarrisons(state: GameState, playerId: string): GameState {
                 continue;
             }
 
+            // v7.2: Don't pull units from other cities for rotation
             const ring3 = next.units.filter(u =>
                 u.ownerId === playerId &&
                 u.id !== garrison.id &&
@@ -277,7 +286,9 @@ export function rotateGarrisons(state: GameState, playerId: string): GameState {
                 UNITS[u.type].domain !== "Civilian" &&
                 u.movesLeft > 0 &&
                 u.hp > garrison.hp &&
-                hexDistance(u.coord, city.coord) === 3
+                hexDistance(u.coord, city.coord) === 3 &&
+                // v7.2: Don't pull units from other cities
+                !playerCities.some(c => hexEquals(c.coord, u.coord))
             );
             if (ring3.length) {
                 const bringer = ring3.sort((a, b) => b.hp - a.hp)[0];
@@ -396,10 +407,12 @@ export function retreatWounded(state: GameState, playerId: string): GameState {
 export function repositionRanged(state: GameState, playerId: string): GameState {
     if (!isAtWar(state, playerId)) return state;
     let next = state;
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
     const rangedUnits = next.units.filter(u =>
         u.ownerId === playerId &&
         UNITS[u.type].rng > 1 &&
-        u.movesLeft > 0
+        u.movesLeft > 0 &&
+        !myCities.some(c => hexEquals(c.coord, u.coord)) // Don't pull garrisoned units
     );
 
     for (const unit of rangedUnits) {
@@ -526,12 +539,14 @@ export function aidVulnerableUnits(state: GameState, playerId: string): GameStat
     if (vulnerableAllies.length === 0) return next;
 
     // Find healthy units that can help
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
     const helpers = next.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
         UNITS[u.type].domain !== "Civilian" &&
         !isScoutType(u.type) &&
         u.type !== UnitType.Titan &&
+        !myCities.some(c => hexEquals(c.coord, u.coord)) && // Don't pull garrisoned units
         u.hp > 5 && // Must be healthy enough to help
         (u.hp / u.maxHp) > 0.6 // At least 60% HP
     );

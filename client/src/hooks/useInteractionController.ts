@@ -32,6 +32,18 @@ export function useInteractionController({
     const { reachablePaths, reachableCoordSet } = useReachablePaths(gameState, playerId, selectedUnitId);
     const diplomacy = gameState?.diplomacy;
 
+    // Helper to detect if a tile is enemy territory at peace (returns owner ID or null)
+    const getEnemyTerritoryOwnerAtPeace = useCallback((coord: HexCoord): string | null => {
+        if (!gameState) return null;
+        const tile = gameState.map.tiles.find(t => hexEquals(t.coord, coord));
+        if (!tile?.ownerId || tile.ownerId === playerId) return null;
+        // Cities are handled separately (for capture logic)
+        const cityOnTile = gameState.cities.find(c => hexEquals(c.coord, coord));
+        if (cityOnTile) return null;
+        const diplomacyState = diplomacy?.[playerId]?.[tile.ownerId] || DiplomacyState.Peace;
+        return diplomacyState === DiplomacyState.Peace ? tile.ownerId : null;
+    }, [gameState, playerId, diplomacy]);
+
     const tryAttackUnit = useCallback((
         unit: Unit,
         targetUnit: Unit,
@@ -136,6 +148,21 @@ export function useInteractionController({
         const plannedPath = plannedInfo?.path;
         if (!plannedPath || plannedPath.length === 0) return false;
 
+        // Check if the first step enters enemy territory at peace
+        const firstStep = plannedPath[0];
+        const enemyOwner = getEnemyTerritoryOwnerAtPeace(firstStep);
+        if (enemyOwner) {
+            // Queue war declaration for the first move into enemy territory
+            const moveAction: Action = {
+                type: "MoveUnit",
+                playerId,
+                unitId: unit.id,
+                to: firstStep,
+            };
+            setPendingWarAttack({ action: moveAction, targetPlayerId: enemyOwner });
+            return true;
+        }
+
         runActions(plannedPath.map((step: HexCoord) => ({
             type: "MoveUnit",
             playerId,
@@ -151,10 +178,23 @@ export function useInteractionController({
             setSelectedUnitId(unit.id);
         }
         return true;
-    }, [playerId, reachablePaths, runActions, setSelectedCoord, setSelectedUnitId]);
+    }, [playerId, reachablePaths, runActions, setSelectedCoord, setSelectedUnitId, getEnemyTerritoryOwnerAtPeace, setPendingWarAttack]);
 
     const tryAdjacentMove = useCallback((unit: any, coord: HexCoord) => {
         if (hexDistance(unit.coord, coord) !== 1 || unit.movesLeft <= 0) return false;
+
+        // Check if entering enemy territory at peace
+        const enemyOwner = getEnemyTerritoryOwnerAtPeace(coord);
+        if (enemyOwner) {
+            const moveAction: Action = {
+                type: "MoveUnit",
+                playerId,
+                unitId: unit.id,
+                to: coord,
+            };
+            setPendingWarAttack({ action: moveAction, targetPlayerId: enemyOwner });
+            return true;
+        }
 
         dispatchAction({
             type: "MoveUnit",
@@ -170,7 +210,7 @@ export function useInteractionController({
             setSelectedUnitId(unit.id);
         }
         return true;
-    }, [dispatchAction, playerId, setSelectedCoord, setSelectedUnitId]);
+    }, [dispatchAction, playerId, setSelectedCoord, setSelectedUnitId, getEnemyTerritoryOwnerAtPeace, setPendingWarAttack]);
 
     const tryAutoMove = useCallback((unit: any, coord: HexCoord) => {
         if (!gameState) return false;
@@ -180,6 +220,22 @@ export function useInteractionController({
             return false;
         }
 
+        // Check if the first step enters enemy territory at peace
+        const firstStep = autoPath[0];
+        if (firstStep && hexDistance(unit.coord, firstStep) === 1 && unit.movesLeft > 0) {
+            const enemyOwner = getEnemyTerritoryOwnerAtPeace(firstStep);
+            if (enemyOwner) {
+                const moveAction: Action = {
+                    type: "MoveUnit",
+                    playerId,
+                    unitId: unit.id,
+                    to: firstStep,
+                };
+                setPendingWarAttack({ action: moveAction, targetPlayerId: enemyOwner });
+                return true;
+            }
+        }
+
         const actions: Action[] = [{
             type: "SetAutoMoveTarget",
             playerId,
@@ -187,7 +243,6 @@ export function useInteractionController({
             target: coord
         }];
 
-        const firstStep = autoPath[0];
         if (firstStep && hexDistance(unit.coord, firstStep) === 1 && unit.movesLeft > 0) {
             actions.push({
                 type: "MoveUnit",
@@ -201,7 +256,7 @@ export function useInteractionController({
         setSelectedCoord(null);
         setSelectedUnitId(null);
         return true;
-    }, [gameState, playerId, runActions, setSelectedCoord, setSelectedUnitId]);
+    }, [gameState, playerId, runActions, setSelectedCoord, setSelectedUnitId, getEnemyTerritoryOwnerAtPeace, setPendingWarAttack]);
 
     const handleTileClick = useCallback((coord: HexCoord) => {
         if (!gameState) return;

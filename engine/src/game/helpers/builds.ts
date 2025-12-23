@@ -17,8 +17,8 @@ export function completeBuild(state: GameState, city: City) {
     if (build.type === "Unit") {
         const uType = build.id as UnitType;
 
-        // v5.2: Bulwark is immobile and must spawn directly on city tile
-        const spawnCoord = city.coord;
+        // Find the nearest available tile adjacent to the city for spawning
+        const spawnCoord = findSpawnCoord(state, city, uType);
 
         const hpBonus = player ? getAetherianHpBonus(player, uType) : 0;
         const unitHp = UNITS[uType].hp + hpBonus;
@@ -35,6 +35,7 @@ export function completeBuild(state: GameState, city: City) {
             movesLeft: getUnitMaxMoves({ type: uType, ownerId: city.ownerId } as any, state),
             state: UnitState.Normal,
             hasAttacked: false,
+            isHomeDefender: build.markAsHomeDefender === true ? true : undefined,
         });
 
         if (uType === UnitType.Settler) {
@@ -74,12 +75,13 @@ export function completeBuild(state: GameState, city: City) {
 
             const titanHpBonus = player ? getAetherianHpBonus(player, UnitType.Titan) : 0;
             const titanHp = UNITS[UnitType.Titan].hp + titanHpBonus;
+            const titanSpawnCoord = findSpawnCoord(state, city, UnitType.Titan);
 
             state.units.push({
                 id: generateUnitId(state, city.ownerId, "titan", Date.now()),
                 type: UnitType.Titan,
                 ownerId: city.ownerId,
-                coord: city.coord,
+                coord: titanSpawnCoord,
                 hp: titanHp,
                 maxHp: titanHp,
                 movesLeft: UNITS[UnitType.Titan].move,

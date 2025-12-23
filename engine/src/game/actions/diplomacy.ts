@@ -1,5 +1,5 @@
 import { DiplomacyState, GameState, HistoryEventType } from "../../core/types.js";
-import { assertCanShareVision, assertContact, disableSharedVision, enableSharedVision } from "../helpers/diplomacy.js";
+import { assertCanShareVision, assertContact, disableSharedVision, enableSharedVision, setContact } from "../helpers/diplomacy.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { logEvent } from "../history.js";
 
@@ -7,7 +7,18 @@ export function handleSetDiplomacy(state: GameState, action: { type: "SetDiploma
     const a = action.playerId;
     const b = action.targetPlayerId;
     if (!state.players.find(p => p.id === b)) throw new Error("Target player not found");
-    assertContact(state, a, b);
+
+    // When declaring war, automatically establish contact if not already made
+    // This makes sense since you can't attack/enter someone's territory without making contact
+    if (action.state === DiplomacyState.War) {
+        if (!state.contacts?.[a]?.[b]) {
+            setContact(state, a, b);
+        }
+    } else {
+        // For non-war diplomacy changes, require prior contact
+        assertContact(state, a, b);
+    }
+
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
 

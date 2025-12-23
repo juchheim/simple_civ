@@ -196,10 +196,13 @@ export function getCombatPreviewUnitVsCity(
         cityDefense += bonus;
     }
 
-    // Garrison bonus
-    const garrison = state.units.find(u =>
+    // v6.7: Find the garrison with the highest range (for best retaliation) when multiple units on city tile
+    const garrisonCandidates = state.units.filter(u =>
         hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler
     );
+    const garrison = garrisonCandidates.length > 0
+        ? garrisonCandidates.reduce((best, u) => UNITS[u.type].rng > UNITS[best.type].rng ? u : best)
+        : undefined;
     if (garrison) {
         const garrisonStats = UNITS[garrison.type];
         const garrisonDefBonus = garrisonStats.rng >= 2 ? 1 : 2;

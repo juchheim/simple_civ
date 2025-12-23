@@ -23,6 +23,9 @@ const UNIT_OPTIONS: BuildOption<UnitType>[] = [
     { id: UnitType.Lorekeeper, name: "Lorekeeper" },
     { id: UnitType.Skiff, name: "Skiff" },
     { id: UnitType.Settler, name: "Settler" },
+    // v6.0: Aether Era units
+    { id: UnitType.Landship, name: "Landship" },
+    { id: UnitType.Airship, name: "Airship" },
 ];
 
 const BUILDING_OPTIONS: BuildOption<BuildingType>[] = [
@@ -38,6 +41,10 @@ const BUILDING_OPTIONS: BuildOption<BuildingType>[] = [
     { id: BuildingType.TitansCore, name: "Titan's Core" },
     { id: BuildingType.SpiritObservatory, name: "Spirit Observatory" },
     { id: BuildingType.JadeGranary, name: "Jade Granary" },
+    { id: BuildingType.Bulwark, name: "Bulwark" },
+    // v6.0: Aether Era buildings
+    { id: BuildingType.AetherReactor, name: "Aether Reactor" },
+    { id: BuildingType.ShieldGenerator, name: "Shield Generator" },
 ];
 
 const PROJECT_OPTIONS: BuildOption<ProjectId>[] = [

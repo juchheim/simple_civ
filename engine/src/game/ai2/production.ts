@@ -11,12 +11,14 @@
  */
 
 import { canBuild } from "../rules.js";
-import { AiVictoryGoal, BuildingType, City, GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
+import { AiVictoryGoal, BuildingType, City, DiplomacyState, GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
 import { getAiProfileV2 } from "./rules.js";
 import { hexDistance } from "../../core/hex.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { isDefensiveCiv } from "../helpers/civ-helpers.js";
-import { UNITS } from "../../core/constants.js";
+import { getThreatLevel } from "../ai/units/unit-helpers.js";
+import { estimateMilitaryPower } from "../ai/goals.js";
+import { UNITS, TERRITORIAL_DEFENDERS_PER_CITY, DEFENSIVE_CIV_DEFENDER_MULTIPLIER } from "../../core/constants.js";
 import {
     assessCapabilities,
     findCapabilityGaps,
@@ -27,7 +29,7 @@ import {
 import { UNIT_ROLES, getUnitsWithRole } from "./capabilities.js";
 import { getAiMemoryV2 } from "./memory.js";
 
-export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
+export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string; markAsHomeDefender?: boolean };
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -56,6 +58,136 @@ function cityHasGarrison(state: GameState, city: City): boolean {
         u.coord.r === city.coord.r &&
         UNIT_ROLES[u.type] !== "civilian"
     );
+}
+
+/**
+ * v7.2: Intelligent Expansion vs Defense Decision
+ * 
+ * Determines whether a city should prioritize building defensive units over settlers.
+ * Uses multiple factors: power ratio, threat level, war status, game phase, and randomness.
+ * 
+ * Returns: "defend" | "expand" | "interleave"
+ * - "defend" = Build defensive unit
+ * - "expand" = Build settler/economy
+ * - "interleave" = Use weighted random (60% expand, 40% defend by default)
+ */
+export function shouldPrioritizeDefense(
+    state: GameState,
+    city: City,
+    playerId: string,
+    phase: "Expand" | "Develop" | "Execute"
+): "defend" | "expand" | "interleave" {
+    const threat = getThreatLevel(state, city, playerId);
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+
+    // Check if at war with anyone
+    const atWar = state.players.some(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+
+    // Calculate power ratio vs nearest enemy
+    const myPower = estimateMilitaryPower(playerId, state);
+    const enemies = state.players.filter(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+
+    let maxEnemyPower = 0;
+    for (const enemy of enemies) {
+        const enemyPower = estimateMilitaryPower(enemy.id, state);
+        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
+    }
+    const powerRatio = maxEnemyPower > 0 ? myPower / maxEnemyPower : Infinity;
+
+    // ==== DECISION LOGIC ====
+
+    // 1. CRITICAL THREAT: Always defend
+    if (threat === "critical") {
+        return "defend";
+    }
+
+    // 1.5. STARCHARTS: Civs with StarCharts should pursue Progress victory
+    // Don't let defense priority block Grand Experiment production
+    const player = state.players.find(p => p.id === playerId);
+    if (player?.techs?.includes(TechId.StarCharts)) {
+        return "expand"; // Let production logic build Observatory/Academy/Experiment
+    }
+
+    // 2. STRONG POSITION + NOT AT WAR: Favor expansion
+    if (powerRatio >= 2.0 && !atWar) {
+        return "expand";
+    }
+
+    // 2.5: COUNTER-ATTACK TRANSITION (Item 6)
+    // If we are significantly stronger than the enemy even during war,
+    // transition to expansion/offense to close out the game.
+    if (atWar && powerRatio >= 1.5) {
+        return "expand";
+    }
+
+    // 3. EARLY GAME: Expansion is critical (need cities first)
+    if (phase === "Expand" && myCities.length < 3 && threat !== "high") {
+        return "expand";
+    }
+
+    // 4. AT WAR + HIGH THREAT: Defend urgently
+    if (atWar && threat === "high") {
+        return "defend";
+    }
+
+    // 5. WEAK POSITION (power ratio < 1.0): Prioritize defense
+    if (powerRatio < 1.0 && atWar) {
+        return "defend";
+    }
+
+    // 6. NO THREAT + PEACE: Expansion friendly
+    if (threat === "none" && !atWar) {
+        return "expand";
+    }
+
+    // 7. UNCERTAIN SITUATIONS: Interleave
+    // Uses weighted random based on power ratio
+    // Higher power = more expansion, lower power = more defense
+    return "interleave";
+}
+
+/**
+ * Execute the interleave decision with weighted randomness
+ * Returns true if should build defender, false if should expand
+ * v7.2: Added cityIndex for per-city random seed (different cities make different decisions)
+ */
+function resolveInterleave(state: GameState, playerId: string, cityIndex: number = 0): boolean {
+    // Calculate defense weight based on power ratio
+    const myPower = estimateMilitaryPower(playerId, state);
+    const enemies = state.players.filter(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+
+    let maxEnemyPower = 0;
+    for (const enemy of enemies) {
+        const enemyPower = estimateMilitaryPower(enemy.id, state);
+        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
+    }
+
+    // Defense weight: 0.3 (strong) to 0.7 (weak)
+    // powerRatio >= 2.0 = 0.3 defense weight (30% chance to defend)
+    // powerRatio <= 0.5 = 0.7 defense weight (70% chance to defend)
+    let defenseWeight = 0.5; // Default 50/50
+    if (maxEnemyPower > 0) {
+        const powerRatio = myPower / maxEnemyPower;
+        defenseWeight = Math.max(0.3, Math.min(0.7, 1.1 - powerRatio * 0.4));
+    }
+
+    // v7.2: Use turn number + cityIndex as pseudo-random seed
+    // This ensures each city makes a different decision, enabling true interleaving
+    const pseudoRandom = ((state.turn * 7 + cityIndex * 13) % 100) / 100;
+
+    return pseudoRandom < defenseWeight;
 }
 
 function getUnlockedUnits(playerTechs: TechId[]): UnitType[] {
@@ -203,6 +335,102 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
+    // PRIORITY 0.3: Intelligent Expansion vs Defense Decision (v7.2)
+    // =========================================================================
+    // Uses shouldPrioritizeDefense() to intelligently choose between expansion
+    // and defense based on power ratio, threat level, war status, and game phase.
+    // Cities COME FIRST - you can't defend what you don't have!
+
+    // v7.2: PROGRESS BYPASS - If we have StarCharts and NO city is building Progress,
+    // skip defense for this city so it can build Progress projects.
+    // This prevents defense from blocking Progress victory in late game stalemates.
+    const hasStarChartsForBypass = player.techs.includes(TechId.StarCharts);
+    const anyBuildingProgressForBypass = myCities.some(c =>
+        c.currentBuild?.type === "Project" &&
+        [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment].includes(c.currentBuild.id as ProjectId)
+    );
+    const progressBypassing = hasStarChartsForBypass && !anyBuildingProgressForBypass;
+
+    const defenseDecision = shouldPrioritizeDefense(state, city, playerId, phase);
+
+    // v7.2: Calculate city index for per-city random seed in interleaving
+    const cityIndex = myCities.findIndex(c => c.id === city.id);
+
+    // Only build defender if decision is "defend" OR "interleave" resolves to defense
+    // UNLESS we're bypassing for Progress
+    const shouldBuildDefender = !progressBypassing && (
+        defenseDecision === "defend" ||
+        (defenseDecision === "interleave" && resolveInterleave(state, playerId, cityIndex))
+    );
+
+    if (shouldBuildDefender) {
+        // Calculate how many defenders this city should have
+        const isCapitalCity = city.isCapital;
+
+        // Check if this is a perimeter city (simplified check - closest to enemies)
+        const enemyPlayers = state.players.filter(p => p.id !== playerId && !p.isEliminated);
+        const enemyCities = state.cities.filter(c => enemyPlayers.some(ep => ep.id === c.ownerId));
+        const enemyUnitsNearby = state.units.filter(u =>
+            enemyPlayers.some(ep => ep.id === u.ownerId) &&
+            UNITS[u.type].domain !== "Civilian"
+        );
+
+        let minEnemyDist = Infinity;
+        for (const ec of enemyCities) {
+            const dist = hexDistance(city.coord, ec.coord);
+            if (dist < minEnemyDist) minEnemyDist = dist;
+        }
+        for (const eu of enemyUnitsNearby) {
+            const dist = hexDistance(city.coord, eu.coord);
+            if (dist < minEnemyDist) minEnemyDist = dist;
+        }
+
+        // If closer than 5 tiles to enemy, consider it perimeter
+        const isPerimeter = minEnemyDist <= 5;
+
+        // Determine desired defenders
+        // v7.2: Use perimeter status for capital too. Safe capital only needs 1 garrison.
+        const desiredTotal = isCapitalCity ? (isPerimeter ? 4 : 1) : (isPerimeter ? 3 : 1);
+
+        // Count current defenders (garrison + ring)
+        const hasGarrison = state.units.some(u =>
+            u.ownerId === playerId &&
+            u.coord.q === city.coord.q &&
+            u.coord.r === city.coord.r &&
+            UNITS[u.type].domain !== "Civilian"
+        ) ? 1 : 0;
+
+        const ringDefenders = state.units.filter(u =>
+            u.ownerId === playerId &&
+            hexDistance(u.coord, city.coord) === 1 &&
+            UNITS[u.type].domain !== "Civilian"
+        ).length;
+
+        const currentTotal = hasGarrison + ringDefenders;
+
+        if (currentTotal < desiredTotal) {
+            aiInfo(`[AI Build] ${profile.civName} DEFENSE PRIORITY (${defenseDecision}): ${city.name} needs defenders (${currentTotal}/${desiredTotal})`);
+
+            // Prefer ranged units for defense (can attack approaching enemies)
+            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                return { type: "Unit", id: UnitType.ArmyBowGuard };
+            }
+            if (unlockedUnits.includes(UnitType.Lorekeeper) && canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
+                return { type: "Unit", id: UnitType.Lorekeeper };
+            }
+            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                return { type: "Unit", id: UnitType.BowGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+                return { type: "Unit", id: UnitType.ArmySpearGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+                return { type: "Unit", id: UnitType.SpearGuard };
+            }
+        }
+    }
+
+    // =========================================================================
     // PRIORITY 0.4: RiverLeague Early Military Boost
     // =========================================================================
     // v6.6m: RiverLeague declined to 16.7% win rate after balance changes.
@@ -281,8 +509,9 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
                 u.type !== UnitType.Scout
             ).length;
 
-            // Allow expansion once we have 2 military (down from 4)
-            if (currentMilitary >= 2 && canBuild(city, "Unit", UnitType.Settler, state)) {
+            // Allow expansion once we have 2 military (down from 4), OR if we're explicitly in expansion mode
+            const expansionSafe = defenseDecision === "expand" || currentMilitary >= 2;
+            if (expansionSafe && canBuild(city, "Unit", UnitType.Settler, state)) {
                 aiInfo(`[AI Build] ${profile.civName} EARLY EXPANSION: Settler (${myCities.length}/${desiredCities} cities)`);
                 return { type: "Unit", id: UnitType.Settler };
             }
@@ -497,7 +726,7 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     // =========================================================================
     // PRIORITY 3: Garrison Undefended Cities
     // =========================================================================
-    if (!cityHasGarrison(state, city)) {
+    if (!cityHasGarrison(state, city) && defenseDecision !== "expand") {
         // This city needs a garrison - build capture or defense unit
         const garrisonUnit = isDefensiveCiv(profile.civName)
             ? getBestUnitForRole("defense", unlockedUnits) ?? getBestUnitForRole("capture", unlockedUnits)
@@ -512,6 +741,80 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
             return { type: "Unit", id: UnitType.SpearGuard };
         }
     }
+
+    // =========================================================================
+    // PRIORITY 3.5: Territorial Defenders (stay in friendly territory)
+    // =========================================================================
+    // All civs should maintain dedicated home defenders in addition to city garrisons.
+    // These units will NOT be pulled to war, ensuring persistent territorial defense.
+    // v7.1b: Also handles upgrades - if we have suboptimal defenders, build better ones.
+
+    const currentDefenders = state.units.filter(u =>
+        u.ownerId === playerId &&
+        u.isHomeDefender === true
+    );
+    const currentDefenderCount = currentDefenders.length;
+
+    const desiredDefenderCount = isDefensiveCiv(profile.civName)
+        ? Math.ceil(myCities.length * DEFENSIVE_CIV_DEFENDER_MULTIPLIER)
+        : myCities.length * TERRITORIAL_DEFENDERS_PER_CITY;
+
+    // Determine the best defender unit we can currently build
+    const bestDefenderUnit = getBestUnitForRole("defense", unlockedUnits)
+        ?? getBestUnitForRole("capture", unlockedUnits);
+
+    // For defensive civs, Lorekeeper is the ultimate defender if available
+    const canBuildLorekeeper = isDefensiveCiv(profile.civName) &&
+        unlockedUnits.includes(UnitType.Lorekeeper) &&
+        canBuild(city, "Unit", UnitType.Lorekeeper, state);
+    const preferredDefender = canBuildLorekeeper ? UnitType.Lorekeeper : bestDefenderUnit;
+
+    // Define what counts as a "suboptimal" defender that should be upgraded
+    const BASE_UNITS = [UnitType.SpearGuard, UnitType.BowGuard, UnitType.Riders];
+    const ARMY_UNITS = [UnitType.ArmySpearGuard, UnitType.ArmyBowGuard, UnitType.ArmyRiders];
+
+    // Count suboptimal defenders (regular units when we can build armies/lorekeepers)
+    const hasArmyTech = player.techs.includes(TechId.DrilledRanks);
+    const suboptimalDefenders = currentDefenders.filter(u => {
+        // Lorekeeper is never suboptimal
+        if (u.type === UnitType.Lorekeeper) return false;
+        // Army units are suboptimal only if we're a defensive civ with Lorekeepers
+        if (ARMY_UNITS.includes(u.type as UnitType)) {
+            return canBuildLorekeeper;
+        }
+        // Base units are suboptimal if we have army tech OR can build lorekeepers
+        if (BASE_UNITS.includes(u.type as UnitType)) {
+            return hasArmyTech || canBuildLorekeeper;
+        }
+        return false;
+    });
+
+    // Priority 1: Replace lost defenders (fill up to quota)
+    if (currentDefenderCount < desiredDefenderCount && defenseDecision !== "expand") {
+        if (preferredDefender && canBuild(city, "Unit", preferredDefender, state)) {
+            aiInfo(`[AI Build] ${profile.civName} TERRITORIAL DEFENDER (REPLACE): ${preferredDefender} (${currentDefenderCount}/${desiredDefenderCount})`);
+            return { type: "Unit", id: preferredDefender, markAsHomeDefender: true };
+        }
+    }
+
+    // Priority 2: Upgrade suboptimal defenders (build better one, release old one)
+    if (suboptimalDefenders.length > 0 && preferredDefender) {
+        if (canBuild(city, "Unit", preferredDefender, state)) {
+            // Find the most suboptimal defender to release
+            const toRelease = suboptimalDefenders[0];
+
+            // Mark old defender for release from home duty (will join regular forces)
+            const unitToRelease = state.units.find(u => u.id === toRelease.id);
+            if (unitToRelease) {
+                unitToRelease.isHomeDefender = false;
+                aiInfo(`[AI Build] ${profile.civName} releasing ${toRelease.type} from home duty for upgrade`);
+            }
+
+            aiInfo(`[AI Build] ${profile.civName} TERRITORIAL DEFENDER (UPGRADE): ${preferredDefender} replacing ${toRelease.type}`);
+            return { type: "Unit", id: preferredDefender, markAsHomeDefender: true };
+        }
+    }
+
 
     // =========================================================================
     // PRIORITY 4.5: ShieldGenerator for Progress/Defensive Civs
@@ -575,7 +878,8 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         const desiredCities = profile.build.desiredCities;
 
         if (myCities.length < desiredCities && settlersInFlight(state, playerId) < settlerCap) {
-            if (capabilities.garrison >= myCities.length) { // All cities defended
+            // v7.2: Allow expansion if all cities defended OR if we're explicitly in expansion mode
+            if (capabilities.garrison >= myCities.length || defenseDecision === "expand") {
                 if (canBuild(city, "Unit", UnitType.Settler, state)) {
                     aiInfo(`[AI Build] ${profile.civName} EXPAND: Settler`);
                     return { type: "Unit", id: UnitType.Settler };

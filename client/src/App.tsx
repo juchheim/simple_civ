@@ -9,6 +9,7 @@ import { WarDeclarationModal, CombatPreviewModal } from "./components/HUD/sectio
 import { ToastContainer } from "./components/Toast";
 import { SaveGameModal } from "./components/SaveGameModal";
 import { LoadGameModal } from "./components/LoadGameModal";
+import { useTutorial } from "./contexts/TutorialContext";
 import { Action, HexCoord, MapSize, TechId, MAP_DIMS, MAX_CIVS_BY_MAP_SIZE, DiplomacyState, DifficultyLevel } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption, pickAiCiv, pickPlayerColor } from "./data/civs";
 import { useGameSession } from "./hooks/useGameSession";
@@ -166,6 +167,12 @@ function App() {
         gameState,
         playerId
     );
+
+    // Sync tutorial progress with current game ID for per-game persistence
+    const tutorial = useTutorial();
+    useEffect(() => {
+        tutorial.setGameId(gameState?.id ?? null);
+    }, [gameState?.id, tutorial]);
 
     // Combine all toasts
     const allToasts = [...goodieHutToasts, ...gameEventToasts, ...tutorialToasts];
@@ -528,15 +535,18 @@ function App() {
             )}
             {pendingWarAttack && (() => {
                 const targetPlayer = gameState.players.find(p => p.id === pendingWarAttack.targetPlayerId);
+                const actionType = pendingWarAttack.action.type === "MoveUnit" ? "move" : "attack";
                 return targetPlayer ? (
                     <WarDeclarationModal
                         targetCivName={targetPlayer.civName}
                         targetColor={targetPlayer.color}
+                        actionType={actionType}
                         onConfirm={() => {
-                            // Declare war first
-                            handleAction({ type: "SetDiplomacy", playerId, targetPlayerId: pendingWarAttack.targetPlayerId, state: DiplomacyState.War });
-                            // Then execute the attack
-                            handleAction(pendingWarAttack.action);
+                            // Run both actions together as a batch so war is declared before move executes
+                            runActions([
+                                { type: "SetDiplomacy", playerId, targetPlayerId: pendingWarAttack.targetPlayerId, state: DiplomacyState.War },
+                                pendingWarAttack.action
+                            ]);
                             setPendingWarAttack(null);
                             clearSelection();
                         }}

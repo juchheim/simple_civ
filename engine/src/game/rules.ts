@@ -365,6 +365,10 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             if (player.civName !== "ScholarKingdoms" && player.civName !== "StarborneSeekers") return false;
         }
 
+        // v6.0: Aether Era units require their respective techs
+        if (uId === UnitType.Landship && !player.techs.includes(TechId.CompositeArmor)) return false;
+        if (uId === UnitType.Airship && !player.techs.includes(TechId.Aerodynamics)) return false;
+
         // Naval units require city to be adjacent to water (Coast or DeepSea)
         if (data.domain === UnitDomain.Naval) {
             const neighbors = state.map.tiles.filter(t => hexDistance(t.coord, city.coord) === 1);

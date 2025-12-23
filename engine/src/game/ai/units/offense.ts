@@ -329,14 +329,15 @@ export function moveUnitsForPreparation(state: GameState, playerId: string): Gam
             continue;
         }
 
-        // If Cautious, protect threatened cities
-        if (isCautious) {
-            const isThreatened = enemiesWithin(next, playerId, city.coord, 4) > 0;
-            if (isThreatened) {
-                const garrison = next.units.find(u => u.ownerId === playerId && hexEquals(u.coord, city.coord));
-                if (garrison) reservedUnitIds.add(garrison.id);
-            }
-        }
+        // v1.1: ALWAYS protect ALL city garrisons, not just capital/threatened
+        // This prevents cities from being left undefended during war preparation
+        const garrison = next.units.find(u =>
+            u.ownerId === playerId &&
+            hexEquals(u.coord, city.coord) &&
+            UNITS[u.type].domain !== "Civilian" &&
+            !isScoutType(u.type)
+        );
+        if (garrison) reservedUnitIds.add(garrison.id);
     }
 
     const units = next.units.filter(u =>
@@ -781,12 +782,18 @@ export function moveUnitsForCampClearing(state: GameState, playerId: string): Ga
     const targetCamp = next.nativeCamps.find(c => c.id === player.campClearingPrep!.targetCampId);
     if (!targetCamp) return next;
 
-    // Get military units that can move toward camp
+    // v1.1: Build set of city coordinates for garrison protection
+    const myCityCoords = new Set(
+        next.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`)
+    );
+
+    // Get military units that can move toward camp (excluding garrisoned units)
     const units = next.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
         !isScoutType(u.type) &&
-        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan
+        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan &&
+        !myCityCoords.has(`${u.coord.q},${u.coord.r}`) // Don't pull garrisoned units
     );
 
     aiInfo(`[AI CAMP MOVE] ${playerId} moving ${units.length} units toward camp (${phase} phase)`);

@@ -3,11 +3,18 @@ import React from "react";
 interface WarDeclarationModalProps {
     targetCivName: string;
     targetColor: string;
+    actionType?: "attack" | "move";
     onConfirm: () => void;
     onCancel: () => void;
 }
 
-export const WarDeclarationModal: React.FC<WarDeclarationModalProps> = ({ targetCivName, targetColor, onConfirm, onCancel }) => {
+export const WarDeclarationModal: React.FC<WarDeclarationModalProps> = ({ targetCivName, targetColor, actionType = "attack", onConfirm, onCancel }) => {
+    const isMove = actionType === "move";
+    const buttonText = isMove ? "Declare War & Enter" : "Declare War & Attack";
+    const descriptionText = isMove
+        ? `Entering the territory of the ${targetCivName} will declare war. Are you sure you want to proceed?`
+        : `This action will declare war on the ${targetCivName}. Are you sure you want to proceed?`;
+
     return (
         <div style={{
             position: "fixed",
@@ -45,7 +52,7 @@ export const WarDeclarationModal: React.FC<WarDeclarationModalProps> = ({ target
                 </div>
 
                 <div className="hud-paragraph" style={{ fontSize: 14 }}>
-                    This action will declare war on the {targetCivName}. Are you sure you want to proceed?
+                    {descriptionText}
                 </div>
 
                 <div className="hud-subtext warn">
@@ -58,7 +65,7 @@ export const WarDeclarationModal: React.FC<WarDeclarationModalProps> = ({ target
                         style={{ flex: 1 }}
                         onClick={onConfirm}
                     >
-                        Declare War & Attack
+                        {buttonText}
                     </button>
                     <button
                         className="hud-button ghost"

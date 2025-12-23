@@ -573,10 +573,8 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
 
         let availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
 
-        if (availableUnits.length === 0 && safety.threatLevel !== "none") {
-            // If threatened, take from garrisons too
-            availableUnits = garrisonUnits.filter(u => !escortAssignments.has(u.id));
-        }
+        // v1.1: REMOVED garrison fallback - never pull garrisons to escort settlers
+        // If no non-garrison units are available, settler must wait
 
         if (availableUnits.length === 0) continue;
 

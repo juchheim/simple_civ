@@ -6,7 +6,7 @@ import { chooseTechV2 } from "./tech.js";
 import { chooseCityBuildV2 } from "./production.js";
 import { assignWorkedTilesV2 } from "./tiles.js";
 import { decideDiplomacyActionsV2 } from "./diplomacy.js";
-import { defendCitiesV2 } from "./defense.js";
+import { defendCitiesV2, runHomeDefenderCombat, coordinateDefensiveFocusFire, positionDefensiveRing, sendMutualDefenseReinforcements } from "./defense.js";
 import { runTacticsV2 } from "./tactics.js";
 import { manageSettlerEscorts, moveSettlersAndFound } from "../ai/units/settlers.js";
 // Scout exploration and camp clearing from Legacy
@@ -37,7 +37,7 @@ export function runAiTurnSequenceV2(initialState: GameState, playerId: string): 
         if (city.currentBuild) continue;
         const opt = chooseCityBuildV2(state, playerId, city, goal);
         if (!opt) continue;
-        state = tryAction(state, { type: "SetCityBuild", playerId, cityId: city.id, buildType: opt.type, buildId: opt.id });
+        state = tryAction(state, { type: "SetCityBuild", playerId, cityId: city.id, buildType: opt.type, buildId: opt.id, markAsHomeDefender: opt.markAsHomeDefender });
     }
 
     // Tiles
@@ -59,6 +59,10 @@ export function runAiTurnSequenceV2(initialState: GameState, playerId: string): 
 
     // Defense + tactics
     state = defendCitiesV2(state, playerId);
+    state = positionDefensiveRing(state, playerId); // v7.2: Position excess defenders in ring around city
+    state = sendMutualDefenseReinforcements(state, playerId); // v7.2: Cities share defenders with threatened neighbors
+    state = runHomeDefenderCombat(state, playerId); // v7.1: Home defenders attack enemies in territory
+    state = coordinateDefensiveFocusFire(state, playerId); // v7.2: Coordinate defenders to kill enemies
     state = runTacticsV2(state, playerId);
 
     // City razing: consider consolidating poorly-situated captured cities

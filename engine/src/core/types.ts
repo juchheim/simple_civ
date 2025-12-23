@@ -167,6 +167,7 @@ export type Unit = {
     statusEffects?: string[]; // Active status effects (e.g. "NaturesWrath")
     campId?: string; // Links native unit to its home camp
     isTitanEscort?: boolean; // v6.6h: Reserved for Titan escort duty - skip in other combat logic
+    isHomeDefender?: boolean; // v7.1: Territorial defender - stays in friendly territory, not sent to war
 };
 
 export type City = {
@@ -181,7 +182,7 @@ export type City = {
     workedTiles: HexCoord[]; // Includes center
     manualWorkedTiles?: HexCoord[]; // Player-pinned choices that override auto-optimization
     manualExcludedTiles?: HexCoord[]; // Player explicitly unselected tiles (skip during auto-fill unless re-selected)
-    currentBuild: { type: "Unit" | "Building" | "Project"; id: string; cost: number } | null;
+    currentBuild: { type: "Unit" | "Building" | "Project"; id: string; cost: number; markAsHomeDefender?: boolean } | null;
     buildProgress: number;
     hp: number;
     maxHp: number;
@@ -401,7 +402,7 @@ export type Action =
     | { type: "UnlinkUnits"; playerId: string; unitId: string; partnerId?: string }
     | { type: "FoundCity"; playerId: string; unitId: string; name: string }
     | { type: "ChooseTech"; playerId: string; techId: TechId }
-    | { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string }
+    | { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string; markAsHomeDefender?: boolean }
     | { type: "RazeCity"; playerId: string; cityId: string }
     // | { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }
     | { type: "SetWorkedTiles"; playerId: string; cityId: string; tiles: HexCoord[] }

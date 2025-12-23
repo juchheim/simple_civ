@@ -256,7 +256,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         if (dist > attackerStats.rng) throw new Error("Target out of range");
         if (!hasClearLineOfSight(state, attacker.coord, city.coord)) throw new Error("Line of sight blocked");
 
-        const garrison = state.units.find(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler);
+        // v6.7: Find the garrison with the highest range (for best retaliation) when multiple units on city tile
+        const garrisonCandidates = state.units.filter(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler);
+        const garrison = garrisonCandidates.length > 0
+            ? garrisonCandidates.reduce((best, u) => UNITS[u.type].rng > UNITS[best.type].rng ? u : best)
+            : undefined;
         let garrisonDefenseBonus = 0;
         let garrisonAttackBonus = 0;
         let garrisonRetaliationRange = 0;

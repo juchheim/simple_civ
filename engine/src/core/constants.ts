@@ -11,7 +11,7 @@ import {
     ProjectDefinition,
 } from "./types.js";
 
-export const GAME_VERSION = "1.0.1";
+export const GAME_VERSION = "1.0.2";
 // v6.0: Aether Era Flag - Enabled by default, or controlled via env var in Node
 // Check if process is defined (Node) to avoid ReferenceError in browser
 const isNode = typeof process !== "undefined" && process.env;
@@ -56,9 +56,9 @@ export const BASE_UNIT_HP = 10;
 /** Base HP for Army units (formed from projects). */
 export const ARMY_UNIT_HP = 15;
 /** Base HP for a City. */
-export const BASE_CITY_HP = 25;  // Buffed from 15 to 25 to slow conquest
+export const BASE_CITY_HP = 35;  // v7.2: Buffed from 25 to 35 to slow conquest
 /** HP a city resets to after being captured. */
-export const CAPTURED_CITY_HP_RESET = 8;  // Was 10 - proportional reduction
+export const CAPTURED_CITY_HP_RESET = 10;  // v7.2: Increased from 8 to 10
 /** Minimum damage a unit can deal in combat. */
 export const DAMAGE_MIN = 1;
 /** Maximum damage a unit can deal in combat. */
@@ -75,7 +75,7 @@ export const ATTACK_RANDOM_BAND = [-1, 0, 1];
 export const FORTIFY_DEF_BONUS = 1;
 export const HEAL_FRIENDLY_TILE = 3;
 export const HEAL_FRIENDLY_CITY = 5;
-export const CITY_HEAL_PER_TURN = 2;  // Restored to 2 for faster city recovery
+export const CITY_HEAL_PER_TURN = 3;  // v7.2: Increased from 2 to 3 for better city recovery
 
 // Growth
 // Growth
@@ -97,7 +97,7 @@ export const GROWTH_FACTORS = [
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 // v0.97 balance: JadeCovenant passive "Verdant Growth" - faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 0.80; // v1.5: Buffed to 20% discount (was 0.85 = 15%)
+export const JADE_COVENANT_GROWTH_MULT = 0.90; // v1.5: Nerfed to 10% discount (was 0.80 = 20%)
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -111,7 +111,7 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 // v0.98 Update 5: JadeCovenant Population Power - Combat bonus based on city population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 6; // v6.6n: Nerfed to 6 (was 4) - less frequent bonuses
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 20; // v7.4: Heavy nerf (was 6) - essentially removes bonus until late game
 
 // v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
 export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90; // v6.6n: Nerfed to 10% (was 30%)
@@ -162,8 +162,12 @@ export const DAMAGE_BASE = 4;
 export const CITY_WARD_ATTACK_BONUS = 1;
 export const CITY_ATTACK_RANGE = 2;
 
-// v7.0: Lorekeeper "Fortified Knowledge" - +3 DEF in friendly territory or on city
-export const LOREKEEPER_TERRITORY_DEFENSE_BONUS = 3;
+// v7.0: Lorekeeper "Fortified Knowledge" - +4 DEF in friendly territory or on city
+export const LOREKEEPER_TERRITORY_DEFENSE_BONUS = 4;
+
+// v7.1: Territorial Defense System - units that stay in friendly territory
+export const TERRITORIAL_DEFENDERS_PER_CITY = 1;       // Base defenders per city (in addition to garrison)
+export const DEFENSIVE_CIV_DEFENDER_MULTIPLIER = 1.5;  // Multiplier for defensive civs
 
 // v1.0: Garrison System Redesign
 // Garrisons provide combat bonuses rather than being attackable HP barriers
@@ -287,9 +291,9 @@ export const UNITS: Record<UnitType, UnitStats> = {
     // Airship: Untargetable support unit. High vision.
     [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 150, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 }, // v6.1: Cost 120 -> 150
     // Landship: Late game siege breaker.
-    [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 220, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.1: Cost 300 -> 220 (Core unit)
+    [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 120, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.2: Cost 220 -> 120 (more attainable)
     // v7.0: Lorekeeper - Defensive ranged unit for ScholarKingdoms/StarborneSeekers
-    [UnitType.Lorekeeper]: { atk: 4, def: 6, rng: 2, move: 1, hp: 12, cost: 55, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.Lorekeeper]: { atk: 4, def: 6, rng: 2, move: 1, hp: 16, cost: 55, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
 };
 
 export type BuildingData = {
@@ -314,7 +318,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 220, conditional: "Summons The Titan upon completion" }, // v1.7: Nerfed to 220 (was 180) to delay Titan
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 220, yieldFlat: { S: 5, F: 4 }, conditional: "The Revelation: +4 Science, +4 Food, counts as Observatory milestone" }, // v1.5: cost 160→220 (matches Observatory)
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 220, yieldFlat: { S: 4, F: 3 }, conditional: "The Revelation: +4 Science, +3 Food, counts as Observatory milestone" }, // v7.3: Nerfed (was S:5 F:4)
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
     // v5.5: Bulwark converted to Building (Scholar/Starborne only)
     [BuildingType.Bulwark]: {
