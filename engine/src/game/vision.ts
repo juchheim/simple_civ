@@ -93,15 +93,18 @@ export function handleContactDiscovery(state: GameState, viewerId: string, visib
     const unitByKey = effectiveCache.unitByCoordKey;
     const cityByKey = effectiveCache.cityByCoordKey;
 
+    // v7.7: Pre-compute valid player IDs to skip native units (ownerId: "natives")
+    const playerIds = new Set(state.players.map(p => p.id));
+
     visibleKeys.forEach(key => {
         // O(1) lookup instead of O(units + cities) per key
         const unit = unitByKey.get(key);
-        if (unit && unit.ownerId !== viewerId) {
+        if (unit && unit.ownerId !== viewerId && playerIds.has(unit.ownerId)) {
             setContact(state, viewerId, unit.ownerId);
             return;
         }
         const city = cityByKey.get(key);
-        if (city && city.ownerId !== viewerId) {
+        if (city && city.ownerId !== viewerId && playerIds.has(city.ownerId)) {
             setContact(state, viewerId, city.ownerId);
         }
     });

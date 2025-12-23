@@ -682,11 +682,12 @@ export function positionDefensiveRing(state: GameState, playerId: string): GameS
     }
 
     for (const city of myCities) {
-        // Skip capital - handled separately with 4 defenders
-        if (city.isCapital) continue;
-
+        // v7.7: Capital now included in ring defense (was previously skipped, causing undefended capitals)
+        // Capital: 4 total (1 garrison + 3 ring)
+        // Perimeter cities: 3 total (1 garrison + 2 ring)
+        // Interior cities: 1 total (garrison only) - NO ring formation
         const perimeter = isPerimeterCity(next, city, playerId);
-        const desiredTotal = perimeter ? 3 : 1; // 3 for perimeter, 1 for interior
+        const desiredTotal = city.isCapital ? 4 : (perimeter ? 3 : 1);
         const desiredRing = desiredTotal - 1; // Subtract 1 for garrison inside
 
         if (desiredRing <= 0) continue; // Interior cities don't need ring

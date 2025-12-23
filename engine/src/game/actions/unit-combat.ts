@@ -63,14 +63,29 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             });
         }
 
-        // Smart Stack Attack: If targeting a Settler with a military escort, redirect to escort
+        // Smart Stack Attack: If targeting a Settler, check for ANY military unit on the same tile
+        // This handles both linked escorts AND unlinked military units (e.g., after capturing a settler)
         if (defender.type === UnitType.Settler) {
-            const partner = resolveLinkedPartner(state, defender);
-            if (partner && partner.ownerId === defender.ownerId && hexEquals(partner.coord, defender.coord)) {
-                const partnerStats = UNITS[partner.type];
-                if (partnerStats.domain !== "Civilian") {
-                    // Redirect attack to the escort
-                    defender = partner;
+            // First check for any military unit on the same tile (linked or not)
+            const militaryOnTile = state.units.find(u =>
+                hexEquals(u.coord, defender.coord) &&
+                u.id !== defender.id &&
+                u.ownerId === defender.ownerId &&
+                UNITS[u.type].domain !== UnitDomain.Civilian
+            );
+
+            if (militaryOnTile) {
+                // Redirect attack to the military unit
+                defender = militaryOnTile;
+            } else {
+                // Fall back to linked partner check for backwards compatibility
+                const partner = resolveLinkedPartner(state, defender);
+                if (partner && partner.ownerId === defender.ownerId && hexEquals(partner.coord, defender.coord)) {
+                    const partnerStats = UNITS[partner.type];
+                    if (partnerStats.domain !== "Civilian") {
+                        // Redirect attack to the escort
+                        defender = partner;
+                    }
                 }
             }
         }

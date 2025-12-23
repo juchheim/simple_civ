@@ -282,7 +282,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 80->70
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 65, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v6.6o: Cost 75->65
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 85, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 95->85
-    [UnitType.Titan]: { atk: 25, def: 8, rng: 1, move: 3, hp: 40, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v7.6: Massive Buff (HP 25->40, Def 6->8, Move 2->3, Atk 22->25)
+    [UnitType.Titan]: { atk: 25, def: 8, rng: 1, move: 3, hp: 32, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v7.7: HP Nerf (40->32) - was too survivable (67.5% survival)
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },

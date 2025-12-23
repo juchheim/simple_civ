@@ -115,6 +115,8 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
         } else {
             if (friendlyCivilianOnTile > 0) throw new Error("Tile occupied by civilian unit");
             if (hasEnemyUnit) throw new Error("Cannot enter enemy tile");
+            // Civilians cannot enter enemy city tiles
+            if (isEnemyCityTile) throw new Error("Cannot enter enemy city");
             friendlyCivilianOnTile += 1;
         }
     }

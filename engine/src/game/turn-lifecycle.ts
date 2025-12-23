@@ -284,9 +284,9 @@ function checkConquestVictory(state: GameState): string | null {
     const capitals = state.cities.filter(c => c.isCapital);
     if (capitals.length === 0) return null;
 
-    // Total capitals = number of players who have founded a city (their capital)
-    // We count eliminated players' capitals too since they can be captured
-    const totalCapitals = state.players.filter(p => p.hasFoundedFirstCity).length;
+    // v7.7: Total capitals = number of players in the game (not hasFoundedFirstCity filter)
+    // This ensures correct majority calculation: 6 civs = need 4 capitals, 5 civs = need 3, etc.
+    const totalCapitals = state.players.length;
     if (totalCapitals < 2) return null; // Not enough players to have a capital majority contest
 
     const needed = Math.floor(totalCapitals / 2) + 1; // >50% threshold
@@ -309,6 +309,13 @@ function eliminationSweep(state: GameState) {
         if (!hasCity && !hasSettler) {
             player.isEliminated = true;
             state.units = state.units.filter(u => u.ownerId !== player.id);
+
+            // Clean up diplomacy offers from/to eliminated player
+            if (state.diplomacyOffers) {
+                state.diplomacyOffers = state.diplomacyOffers.filter(
+                    o => o.from !== player.id && o.to !== player.id
+                );
+            }
         }
     }
 }

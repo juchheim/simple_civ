@@ -46,7 +46,11 @@ export function handleSetDiplomacy(state: GameState, action: { type: "SetDiploma
 export function handleProposePeace(state: GameState, action: { type: "ProposePeace"; playerId: string; targetPlayerId: string }) {
     const a = action.playerId;
     const b = action.targetPlayerId;
-    if (!state.players.find(p => p.id === b)) throw new Error("Target player not found");
+    const targetPlayer = state.players.find(p => p.id === b);
+    if (!targetPlayer) throw new Error("Target player not found");
+    if (targetPlayer.isEliminated) throw new Error("Cannot propose peace to eliminated player");
+    const proposingPlayer = state.players.find(p => p.id === a);
+    if (proposingPlayer?.isEliminated) throw new Error("Eliminated player cannot propose peace");
     assertContact(state, a, b);
     if (state.diplomacy[a]?.[b] === DiplomacyState.Peace) return state;
 
