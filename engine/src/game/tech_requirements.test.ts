@@ -36,7 +36,7 @@ describe("Tech Requirements", () => {
     };
 
     it("should BLOCK researching Banner tech with only 2 Hearth techs", () => {
-        let state = createInitialState();
+        const state = createInitialState();
         state.players[0].techs = [TechId.Fieldcraft, TechId.StoneworkHalls];
 
         expect(() => {

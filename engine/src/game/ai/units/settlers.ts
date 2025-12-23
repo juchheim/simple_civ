@@ -399,7 +399,7 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         const liveSettler = next.units.find(u => u.id === settler.id);
         if (!liveSettler) continue;
 
-        let currentTile = next.map.tiles.find(t => hexEquals(t.coord, liveSettler.coord));
+        const currentTile = next.map.tiles.find(t => hexEquals(t.coord, liveSettler.coord));
         if (!currentTile) continue;
 
         const safety = assessSettlerSafety(liveSettler.coord, playerId, next);
@@ -571,7 +571,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             }
         }
 
-        let availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
+        const availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
 
         // v1.1: REMOVED garrison fallback - never pull garrisons to escort settlers
         // If no non-garrison units are available, settler must wait

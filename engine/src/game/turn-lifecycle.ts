@@ -433,7 +433,7 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     const player = state.players.find(p => p.id === playerId);
     // Build cache once for all city yield calculations (O(1) tile/unit lookups)
     const cache = buildLookupCache(state);
-    let baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state, cache).S, 0);
+    const baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state, cache).S, 0);
     const signalRelayBonus = player?.techs.includes(TechId.SignalRelay) ? cities.length : 0;
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
     // Spirit Observatory grants +2 Science per city (tracked via Observatory milestone in completedProjects)

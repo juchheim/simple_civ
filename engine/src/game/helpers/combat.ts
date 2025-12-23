@@ -3,7 +3,7 @@ import {
     UNITS,
     TERRAIN,
     TECHS,
-    JADE_COVENANT_POP_COMBAT_BONUS_PER,
+
     FORGE_CLANS_HILL_COMBAT_THRESHOLD,
     FORGE_CLANS_HILL_COMBAT_BONUS,
     FORGE_CLANS_ENGINE_ATTACK_BONUS,
@@ -106,15 +106,7 @@ export function getTotalPopulation(state: GameState, playerId: string): number {
         .reduce((sum, c) => sum + c.pop, 0);
 }
 
-/**
- * v0.98: Get JadeCovenant's "Population Power" combat bonus.
- * Military units gain +1 attack and defense per 8 total population (nerfed from 5).
- */
-export function getJadeCovenantCombatBonus(state: GameState, player: Player): number {
-    if (player.civName !== "JadeCovenant") return 0;
-    const totalPop = getTotalPopulation(state, player.id);
-    return Math.floor(totalPop / JADE_COVENANT_POP_COMBAT_BONUS_PER);
-}
+
 
 /**
  * v0.98 Update 5: Get ForgeClans "Forged Arms" attack bonus.
@@ -241,12 +233,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         boosted.atk += engineBonus;
     }
 
-    // v0.98: JadeCovenant "Population Power" - +1 Atk/Def per 8 Pop
-    if (player.civName === "JadeCovenant" && UNITS[unit.type].domain !== "Civilian") {
-        const jadeBonus = getJadeCovenantCombatBonus(state, player);
-        boosted.atk += jadeBonus;
-        boosted.def += jadeBonus;
-    }
+
 
     // v0.99 BUFF: "Ancestral Protection" - Settlers get +2 Defense
     if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
@@ -259,7 +246,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
     if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
         // Flat attack bonus for early-game presence
         boosted.atk += 1;
-        
+
         if (isTileAdjacentToRiver(state.map, unit.coord)) {
             boosted.atk += 2;
             boosted.def += 2;

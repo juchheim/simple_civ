@@ -72,13 +72,24 @@ function scoreAttack(
     const profile = getAiProfileV2(state, playerId);
 
     // Base damage value
-    let base = damage * 2;
+    const base = damage * 2;
 
     // MASSIVE bonus for kills (THE key insight from spec)
     const killBonus = wouldKill ? 150 : 0;
 
     // Threat bonus for high-threat targets
-    const threatBonus = 'isCity' in target ? 0 : getThreatLevel(target as Unit) * 15;
+    // FIXv7.5: Massive bonus for Cities so we actually attack them (Combat ADHD fix)
+    let threatBonus = 0;
+    if ('isCity' in target) {
+        threatBonus = 200; // Base priority: Cities are ALWAYS threats
+        // Bonus for focus target
+        const memory = getAiMemoryV2(state, playerId);
+        if (memory.focusCityId === target.id) {
+            threatBonus += 100;
+        }
+    } else {
+        threatBonus = getThreatLevel(target as Unit) * 15;
+    }
 
     // Ranged overkill penalty - prefer melee to finish when ranged wastes damage
     let rangedFinishPenalty = 0;
@@ -693,7 +704,7 @@ function hasAnyTargetInRange(state: GameState, unit: Unit, enemies: Set<string>)
  */
 export function executeMoveAttack(state: GameState, playerId: string, plan: MoveAttackPlan): GameState {
     // First move
-    let next = tryAction(state, {
+    const next = tryAction(state, {
         type: "MoveUnit",
         playerId,
         unitId: plan.unit.id,

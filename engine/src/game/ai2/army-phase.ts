@@ -7,7 +7,7 @@
  * Phases: SCATTERED -> RALLYING -> STAGED -> ATTACKING
  */
 
-import { GameState, Unit, UnitType } from "../../core/types.js";
+import { GameState, Unit, UnitType, BuildingType } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
@@ -25,14 +25,15 @@ type CivAggressionProfile = {
 
 const CIV_AGGRESSION: Record<string, CivAggressionProfile> = {
     // Aggressive civs: high riskTolerance (0.55), high forceConcentration (0.75)
-    ForgeClans: { exposureMultiplier: 0.6, waitThresholdMult: 0.4, maxStagingTurns: 2, requiredArmyPercent: 0.60 },
-    RiverLeague: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 2, requiredArmyPercent: 0.65 },
-    AetherianVanguard: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.50 },
+    // FIXv7.5: Unleash the Hordes - lower requirements (0.6 -> 0.4) and staging time (2 -> 1)
+    ForgeClans: { exposureMultiplier: 0.6, waitThresholdMult: 0.4, maxStagingTurns: 1, requiredArmyPercent: 0.40 },
+    RiverLeague: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.45 },
+    AetherianVanguard: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.40 },
     // Balanced civ: moderate riskTolerance (0.45), moderate forceConcentration (0.7)
-    JadeCovenant: { exposureMultiplier: 0.8, waitThresholdMult: 0.8, maxStagingTurns: 3, requiredArmyPercent: 0.70 },
+    JadeCovenant: { exposureMultiplier: 0.8, waitThresholdMult: 0.8, maxStagingTurns: 2, requiredArmyPercent: 0.60 },
     // Defensive civs: low riskTolerance (0.2), low forceConcentration (0.55)
-    ScholarKingdoms: { exposureMultiplier: 1.0, waitThresholdMult: 1.0, maxStagingTurns: 4, requiredArmyPercent: 0.80 },
-    StarborneSeekers: { exposureMultiplier: 1.0, waitThresholdMult: 1.0, maxStagingTurns: 4, requiredArmyPercent: 0.80 },
+    ScholarKingdoms: { exposureMultiplier: 1.0, waitThresholdMult: 1.0, maxStagingTurns: 3, requiredArmyPercent: 0.70 },
+    StarborneSeekers: { exposureMultiplier: 1.0, waitThresholdMult: 1.0, maxStagingTurns: 3, requiredArmyPercent: 0.70 },
 };
 
 export function getCivAggression(civName: string): CivAggressionProfile {
@@ -286,6 +287,44 @@ function checkAttackOverrides(
             if (adjacentUnits >= 1) {
                 return true; // Can finish the city!
             }
+        }
+    }
+
+    // Override 7: Local Superiority (Smart Aggression)
+    // If we have significantly more power LOCALLY than the target city/area has defense, attack immediately.
+    // This prevents "waiting for 100% of army" when 3 units could win easily.
+    if (focusCity) {
+        // Calculate Local Army Power (Attackers within 5 tiles of target)
+        const localUnits = state.units.filter(u =>
+            u.ownerId === playerId &&
+            isMilitary(u) &&
+            hexDistance(u.coord, focusCity.coord) <= 5
+        );
+        const localPower = localUnits.reduce((sum, u) => sum + UNITS[u.type].atk, 0);
+
+        // Calculate Target Defense (City + Defenders within 2 tiles)
+        let targetDefense = 0;
+        // City defense
+        const cityObj = state.cities.find(c => hexDistance(c.coord, focusCity.coord) === 0);
+        if (cityObj) {
+            targetDefense += 3; // Base defense (CITY_DEFENSE_BASE)
+            if (cityObj.buildings.includes(BuildingType.CityWard)) targetDefense += 3;
+            if (cityObj.buildings.includes(BuildingType.Bulwark)) targetDefense += 8;
+            if (cityObj.buildings.includes(BuildingType.ShieldGenerator)) targetDefense += 15;
+            targetDefense += Math.min(cityObj.pop, 10); // Population factor estimate
+        }
+
+        // Defender units
+        const defenders = state.units.filter(u =>
+            u.ownerId === cityObj?.ownerId &&
+            hexDistance(u.coord, focusCity.coord) <= 2
+        );
+        targetDefense += defenders.reduce((sum, u) => sum + UNITS[u.type].def, 0);
+
+        // If we have 1.5x superiority, GO!
+        // Min power 5 prevents single-scout suicide runs
+        if (localPower > (targetDefense * 1.5) && localPower > 5) {
+            return true;
         }
     }
 

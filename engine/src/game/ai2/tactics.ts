@@ -226,15 +226,16 @@ function runFocusSiegeAndCapture(state: GameState, playerId: string): GameState 
         }
 
         // FIX #3: Route capturers to cities under ACTIVE SIEGE (not just 0 HP).
-        // If city is below 60% HP, it's being bombarded - get capturers in position NOW.
+        // If city is below 85% HP (was 60%), it's being bombarded - get capturers in position NOW.
+        // FIXv7.5: Swarm Logic - attack sooner
         const hpPercent = focusCity.maxHp ? focusCity.hp / focusCity.maxHp : 1;
-        const isUnderSiege = hpPercent <= 0.6;
+        const isUnderSiege = hpPercent <= 0.85;
 
         // FIX #4: MELEE ASSAULT
         // If we have no siege units, we MUST attack with melee or we stall forever.
-        // Also if we have overwhelming numbers (3+ capturers), just swarm.
+        // Also if we have overwhelming numbers (2+ capturers), just swarm.
         const noSiegeSupport = siege.length === 0;
-        const overwhelmingForce = capturers.length >= 3;
+        const overwhelmingForce = capturers.length >= 2; // Reduced from 3
         const shouldAssault = isUnderSiege || noSiegeSupport || overwhelmingForce;
 
         // Once the city is low, under siege, or it's a capital, step onto an approach tile so we can capture immediately when it hits 0.
@@ -860,8 +861,6 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
             if (moved !== next) {
                 next = moved;
                 continue;
-            } else {
-
             }
         }
 
@@ -889,8 +888,6 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
                     next = moved;
                     visitedTiles.add(stepKey);
                     continue;
-                } else {
-
                 }
                 // Movement failed: attempt to clear a blocking unit (prefer the unit on our intended step).
                 if (!live.hasAttacked) {
@@ -941,8 +938,6 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
                     next = attacked;
                     continue;
                 }
-            } else {
-
             }
         }
 

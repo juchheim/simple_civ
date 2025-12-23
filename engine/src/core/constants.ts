@@ -110,8 +110,7 @@ export const STARBORNE_EXTRA_STARTING_UNITS = []; // v0.99: Removed extra scout 
 // v2.7: Forge Clans "Unleashed" - Start with Riders to begin aggression immediately
 export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
-// v0.98 Update 5: JadeCovenant Population Power - Combat bonus based on city population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 20; // v7.4: Heavy nerf (was 6) - essentially removes bonus until late game
+
 
 // v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
 export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90; // v6.6n: Nerfed to 10% (was 30%)
@@ -280,9 +279,9 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.Riders]: { atk: 2, def: 2, rng: 1, move: 2, hp: 10, cost: 32, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     [UnitType.Skiff]: { atk: 2, def: 2, rng: 1, move: 3, hp: 10, cost: 32, domain: UnitDomain.Naval, canCaptureCity: false, vision: 2 },
     [UnitType.ArmyScout]: { atk: 3, def: 3, rng: 1, move: 2, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: false, vision: 3 },
-    [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 80, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
-    [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 75, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
-    [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 95, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
+    [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 80->70
+    [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 65, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v6.6o: Cost 75->65
+    [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 85, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 95->85
     [UnitType.Titan]: { atk: 22, def: 6, rng: 1, move: 2, hp: 25, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 },
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -293,7 +292,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     // Landship: Late game siege breaker.
     [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 120, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.2: Cost 220 -> 120 (more attainable)
     // v7.0: Lorekeeper - Defensive ranged unit for ScholarKingdoms/StarborneSeekers
-    [UnitType.Lorekeeper]: { atk: 4, def: 6, rng: 2, move: 1, hp: 16, cost: 55, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
+    [UnitType.Lorekeeper]: { atk: 4, def: 4, rng: 2, move: 1, hp: 14, cost: 80, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v2.9b: Cost 60 -> 80
 };
 
 export type BuildingData = {
@@ -314,7 +313,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
     [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, conditional: "+1P more if any Forest worked" },
     [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 } }, // v4.2: S:3, Cost 50
-    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 40, defenseBonus: 3, cityAttackBonus: 1 }, // v6.1: Nerfed Defense 4->3
+    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 3, cityAttackBonus: 1 }, // v2.9b: Cost 40 -> 60
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 220, conditional: "Summons The Titan upon completion" }, // v1.7: Nerfed to 220 (was 180) to delay Titan

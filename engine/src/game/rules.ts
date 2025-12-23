@@ -187,8 +187,8 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
             !other.isEliminated &&
             state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
         );
-        if (!atWar) {
-            total.S += 1; // v2.8: Nerfed to +1 (was +3)
+        if (!atWar && city.isCapital) {
+            total.S += 1; // v2.8: Nerfed to +1 (was +3), and restricted to Capital
         }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)

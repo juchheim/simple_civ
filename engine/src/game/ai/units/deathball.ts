@@ -71,7 +71,7 @@ export function moveTroopsTowardTitan(state: GameState, playerId: string): GameS
     for (const unit of nearbyUnits) {
         if (movedCount >= MAX_MOVES) break;
 
-        let liveUnit = next.units.find(u => u.id === unit.id);
+        const liveUnit = next.units.find(u => u.id === unit.id);
         if (!liveUnit || liveUnit.movesLeft <= 0) continue;
 
         // Already adjacent to target or Titan? Stay
