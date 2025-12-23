@@ -953,11 +953,24 @@ function runTitanAgent(state: GameState, playerId: string): GameState {
     }
 
     // If we still have moves after attacking, keep closing to an engagement tile.
+    // If we still have moves after attacking, keep closing to an engagement tile.
     const cityNow = next.cities.find(c => c.id === targetCityId);
     if (!cityNow) return next;
     const path = findEngagementPath(liveTitan.coord, cityNow.coord, liveTitan, next);
     const dest = (path && path.length > 0) ? path[path.length - 1] : cityNow.coord;
-    next = moveTowardAllMoves(next, playerId, liveTitan.id, dest, 8);
+
+    // v7.7: TITAN SPRINT LOGIC (Fix for Move 3 outrunning Move 2 escorts)
+    // If we are far from the target (> 5 tiles), limit movement to 2 steps to stay with the army.
+    // If we are close (<= 5 tiles), UNLEASH SPEED 3 to close the gap and engage.
+    const distToTarget = hexDistance(liveTitan.coord, cityNow.coord);
+    const sprintMode = distToTarget <= 5;
+    const allowedMoves = sprintMode ? 8 : 2; // 8 is effectively "all moves", 2 is "army speed"
+
+    if (sprintMode) {
+        aiInfo(`[TITAN LOG] SPRINTING to target (Dist: ${distToTarget})`);
+    }
+
+    next = moveTowardAllMoves(next, playerId, liveTitan.id, dest, allowedMoves);
     return next;
 }
 
