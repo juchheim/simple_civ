@@ -47,6 +47,46 @@ export function estimateMilitaryPower(playerId: string, state: GameState): numbe
 }
 
 /**
+ * Estimate OFFENSIVE power for a player - excludes units that won't participate in attacks.
+ * Used for war declaration decisions to ensure AI has actual offensive capability.
+ * 
+ * Excludes:
+ * - Home defenders (isHomeDefender === true)
+ * - Units garrisoned in cities (on a friendly city tile)
+ * - Civilian units (Settlers, Scouts)
+ */
+export function estimateOffensivePower(playerId: string, state: GameState): number {
+    const cities = state.cities.filter(c => c.ownerId === playerId);
+    const cityCoords = new Set(cities.map(c => `${c.coord.q},${c.coord.r}`));
+
+    const offensiveUnits = state.units.filter(u => {
+        if (u.ownerId !== playerId) return false;
+        // Exclude home defenders - they stay in territory
+        if (u.isHomeDefender) return false;
+        // Exclude garrisons - units on friendly city tiles
+        if (cityCoords.has(`${u.coord.q},${u.coord.r}`)) return false;
+        // Exclude civilians
+        const stats = UNITS[u.type];
+        if (stats.domain === "Civilian") return false;
+        // Exclude pure scouts (no offensive capability)
+        if (u.type === UnitType.Scout || u.type === UnitType.ArmyScout) return false;
+        return true;
+    });
+
+    const unitPower = offensiveUnits.reduce((sum, u) => {
+        const stats = UNITS[u.type];
+        const atk = stats.atk * 2;
+        const def = stats.def * 1.5;
+        const hp = stats.hp * 0.25;
+        const formationBonus = u.type.startsWith("Army") ? 1.25 : 1;
+        return sum + (atk + def + hp) * formationBonus;
+    }, 0);
+
+    // Note: No city power for offensive calculation - cities don't attack
+    return unitPower;
+}
+
+/**
  * v0.98 Update 4: Check if player has overwhelming military dominance (2x power over all enemies)
  */
 function hasOverwhelmingPower(playerId: string, state: GameState): boolean {

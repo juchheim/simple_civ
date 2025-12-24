@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GameState, PlayerPhase, DiplomacyState, UnitType, BuildingType, TechId, ProjectId } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
-import { coordinateDefensiveFocusFire, positionDefensiveRing, sendMutualDefenseReinforcements } from "../../../game/ai2/defense.js";
+import { coordinateDefensiveFocusFire, runDefensiveRingCombat, positionDefensiveRing, sendMutualDefenseReinforcements } from "../../../game/ai2/defense.js";
 import { shouldPrioritizeDefense } from "../../../game/ai2/production.js";
 import { aiInfo } from "../../../game/ai/debug-logging.js";
 
@@ -116,7 +116,37 @@ describe("AI Defense Logic (v7.2)", () => {
         });
     });
 
-    // runDefensiveSortie tests removed
+    describe("runDefensiveRingCombat", () => {
+        it("ring defenders attack approaching enemies", () => {
+            const state = baseState();
+            state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+            state.cities = [mkCity("p1", "c1", 0, 0, { capital: true })];
+            state.units = [
+                mkUnit("p1", "ring1", UnitType.SpearGuard, 0, 1), // Ring defender (distance 1 from city)
+                mkUnit("p2", "e1", UnitType.SpearGuard, 0, 2), // Enemy approaching (distance 2 from city)
+            ];
+            state.units[0].movesLeft = 1;
+            state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
+
+            for (let q = -5; q <= 5; q++) {
+                for (let r = -5; r <= 5; r++) {
+                    state.map.tiles.push({ coord: { q, r }, terrain: "Plains", overlays: [] } as any);
+                }
+            }
+
+            const after = runDefensiveRingCombat(state, "p1");
+
+            const ring1 = after.units.find(u => u.id === "ring1")!;
+            const e1 = after.units.find(u => u.id === "e1");
+
+            // Ring defender should have attacked
+            expect(ring1.hasAttacked).toBe(true);
+            // Enemy should have taken damage or be dead
+            if (e1) {
+                expect(e1.hp).toBeLessThan(10);
+            }
+        });
+    });
 
     describe("positionDefensiveRing", () => {
         it("forms a ring around a perimeter city", () => {

@@ -81,6 +81,10 @@ export function useInteractionController({
         if (!gameState) return false;
 
         const unitStats = UNITS[unit.type as keyof typeof UNITS];
+
+        // Only military units can attack cities (not civilians like Settlers)
+        if (unitStats.domain === "Civilian") return false;
+
         const dist = hexDistance(unit.coord, targetCity.coord);
         if (dist > unitStats.rng || targetCity.hp <= 0) return false;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GameState, PlayerPhase, DiplomacyState, UnitType, BuildingType, TechId, ProjectId } from "../../core/types.js";
+import { GameState, PlayerPhase, DiplomacyState, UnitType, BuildingType, TechId, ProjectId, TerrainType } from "../../core/types.js";
 import { decideDiplomacyActionsV2 } from "./diplomacy.js";
 import { runTacticsV2 } from "./tactics.js";
 import { getAiMemoryV2 } from "./memory.js";
@@ -118,6 +118,53 @@ describe("UtilityV2 AI (behavior sanity)", () => {
         const after = runTacticsV2(state, "p1");
         const mem = getAiMemoryV2(after, "p1");
         expect(mem.titanFocusCityId).toBe("cap");
+    });
+
+    it("Post-war rally: units move toward focus city on war declaration turn", () => {
+        const state = baseState();
+        state.turn = 50;
+        state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true }),
+            mkCity("p2", "e1", 10, 0, { capital: true }),
+        ];
+        // Units far from enemy city
+        state.units = [
+            mkUnit("p1", "u1", UnitType.SpearGuard, 0, 1),
+            mkUnit("p1", "u2", UnitType.BowGuard, 1, 0),
+            mkUnit("p1", "u3", UnitType.Riders, 0, 2),
+        ];
+        state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
+
+        // Set up memory to simulate just declaring war this turn
+        state.aiMemoryV2 = {
+            p1: {
+                focusTargetPlayerId: "p2",
+                focusCityId: "e1",
+                focusSetTurn: 50, // Same as current turn = just declared war
+            }
+        };
+
+        // Generate map tiles for pathfinding
+        for (let q = -2; q <= 15; q++) {
+            for (let r = -2; r <= 5; r++) {
+                state.map.tiles.push({ coord: { q, r }, terrain: TerrainType.Plains, overlays: [] });
+            }
+        }
+
+        const after = runTacticsV2(state, "p1");
+
+        // Units should have moved closer to the enemy city at (10, 0)
+        const u1After = after.units.find(u => u.id === "u1");
+        const u2After = after.units.find(u => u.id === "u2");
+        const u3After = after.units.find(u => u.id === "u3");
+
+        // At least some units should have moved toward the target
+        const u1MovedCloser = u1After && (u1After.coord.q > 0 || u1After.movesLeft === 0);
+        const u2MovedCloser = u2After && (u2After.coord.q > 1 || u2After.movesLeft === 0);
+        const u3MovedCloser = u3After && (u3After.coord.q > 0 || u3After.movesLeft === 0);
+
+        expect(u1MovedCloser || u2MovedCloser || u3MovedCloser).toBe(true);
     });
 });
 

@@ -1206,6 +1206,44 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
 
     const profile = getAiProfileV2(next, playerId);
 
+    // POST-WAR RALLY: Immediately after war declaration, aggressively move all units to the front
+    // This fixes the issue where AI declares war but units are scattered and don't attack
+    const justDeclaredWar = memory.focusSetTurn === next.turn && inWar;
+    if (justDeclaredWar && focusCity) {
+        aiInfo(`[POST-WAR RALLY] ${playerId} just declared war - rallying all forces to ${focusCity.name}`);
+
+        const rallyTarget = focusCity.coord;
+        const myCityCoords = new Set(myCities.map(c => `${c.coord.q},${c.coord.r}`));
+
+        const militaryToRally = next.units.filter(u =>
+            u.ownerId === playerId &&
+            u.movesLeft > 0 &&
+            isMilitary(u) &&
+            u.type !== UnitType.Titan && // Titan has its own agent
+            !u.isTitanEscort && // Escorts follow Titan
+            !u.isHomeDefender && // Home defenders stay in territory
+            !myCityCoords.has(`${u.coord.q},${u.coord.r}`) && // Don't pull garrisons
+            hexDistance(u.coord, rallyTarget) > 3 // Not already close enough
+        ).sort((a, b) =>
+            hexDistance(a.coord, rallyTarget) - hexDistance(b.coord, rallyTarget)
+        );
+
+        let rallied = 0;
+        for (const unit of militaryToRally) {
+            const liveUnit = next.units.find(u => u.id === unit.id);
+            if (!liveUnit || liveUnit.movesLeft <= 0) continue;
+
+            // Use ALL movement to get there fast
+            const before = next;
+            next = moveTowardAllMoves(next, playerId, liveUnit.id, rallyTarget, 6);
+            if (next !== before) rallied++;
+        }
+
+        if (rallied > 0) {
+            aiInfo(`[POST-WAR RALLY] ${playerId} rallied ${rallied} units toward ${focusCity.name}`);
+        }
+    }
+
     // Pre-war rally: if we have a focus target and can initiate wars, start staging a strike group even while at peace.
     // This avoids a deadlock where diplomacy wants staged forces before declaring but no one ever moves toward the front.
     const focusedTargetId = memory.focusTargetPlayerId;

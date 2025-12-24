@@ -122,6 +122,16 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                     });
                 }
 
+                // Peace accepted - AI accepted player's peace offer
+                if (event.type === HistoryEventType.PeaceMade && event.data.targetId === playerId) {
+                    newToasts.push({
+                        id: `peace-accepted-${event.playerId}-${Date.now()}`,
+                        message: `${otherPlayer.civName} accepted your peace offer!`,
+                        icon: "🕊️",
+                        duration: 5000,
+                    });
+                }
+
                 // Wonder built (unique buildings)
                 if (event.type === HistoryEventType.WonderBuilt) {
                     const buildId = event.data.buildId;

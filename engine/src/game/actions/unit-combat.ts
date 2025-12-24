@@ -34,6 +34,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
 
     const attackerStats = getEffectiveUnitStats(attacker, state);
 
+    // Civilian units (like Settlers) cannot attack
+    if (UNITS[attacker.type].domain === UnitDomain.Civilian) {
+        throw new Error("Civilian units cannot attack");
+    }
+
     // v6.0: Early check for untargetable units (Air Domain)
     if (action.targetType === "Unit") {
         const targetUnit = state.units.find(u => u.id === action.targetId);

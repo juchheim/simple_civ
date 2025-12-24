@@ -1,7 +1,7 @@
 import { Action, AiVictoryGoal, DiplomacyState, GameState, ProjectId } from "../../core/types.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { hexDistance } from "../../core/hex.js";
-import { estimateMilitaryPower } from "../ai/goals.js";
+import { estimateMilitaryPower, estimateOffensivePower } from "../ai/goals.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { selectFocusCityAgainstTarget } from "./strategy.js";
@@ -118,6 +118,9 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         earlyRushActive = rushSeed < profile.diplomacy.earlyRushChance * 100;
     }
 
+    // Use offensive power for our own calculation - excludes home defenders and garrisons
+    // Use full military power for enemy calculation - their defenders WILL fight back
+    const myOffensivePower = estimateOffensivePower(playerId, next);
     const myPower = estimateMilitaryPower(playerId, next);
     const myCities = next.cities.filter(c => c.ownerId === playerId);
     const myAnchor = myCities.find(c => c.isCapital) ?? myCities[0];
@@ -206,7 +209,11 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
 
         const stance = next.diplomacy?.[playerId]?.[other.id] ?? DiplomacyState.Peace;
         const theirPower = estimateMilitaryPower(other.id, next);
+        // ratio = full power comparison for peace/war continuation decisions
         const ratio = theirPower > 0 ? myPower / theirPower : Infinity;
+        // offensiveRatio = offensive power comparison for war DECLARATION decisions
+        // Ensures AI only declares war when it has actual offensive capability
+        const offensiveRatio = theirPower > 0 ? myOffensivePower / theirPower : Infinity;
 
         const theirCities = next.cities.filter(c => c.ownerId === other.id);
         const theirAnchor = theirCities.find(c => c.isCapital) ?? theirCities[0];
@@ -435,34 +442,79 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         const allowDistance = progressThreat ? Math.max(warDistanceMax, 999) : warDistanceMax;
         if (dist > allowDistance) continue;
 
-        if (ratio >= escalatedRatio) {
+        if (offensiveRatio >= escalatedRatio) {
             // Basic sanity gate: don't declare war with no army.
             if (myMilitaryCount < Math.max(2, Math.ceil(next.cities.filter(c => c.ownerId === playerId).length * 0.75))) continue;
-
+        } else if (ratio >= escalatedRatio) {
+            // We have favorable total power but not enough OFFENSIVE power.
+            // Set focus target so AI knows who to stage against and build offensive units.
             const focusCity = selectFocusCityAgainstTarget(next, playerId, other.id);
-
-            // Force concentration gate (prevents "trickle wars"): require some forces near the prospective front.
             if (focusCity) {
-                // Titan online for Aetherian: declare war immediately (Titan is the conquest engine).
-                // Staging gates are intentionally bypassed to avoid "Titan exists but never fights".
-                // Still must respect peace cooldown
-                if (isAetherian && hasTitanNow && canDeclareWar(next, playerId, other.id)) {
-                    const mem2 = getAiMemoryV2(next, playerId);
-                    next = setAiMemoryV2(next, playerId, {
-                        ...mem2,
-                        focusTargetPlayerId: other.id,
-                        focusCityId: focusCity.id,
-                        focusSetTurn: next.turn,
-                        lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
-                        warInitiationTurns: [...recentInitiations, next.turn],
-                    });
-                    actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
-                    warsPlanned += 1;
-                    continue;
-                }
-                // Progress denial must be allowed to start immediately, even if we aren't staged yet.
-                // Otherwise we "politely stage for 30 turns" and lose to GrandExperiment.
-                if (progressThreat) {
+                const mem2a = getAiMemoryV2(next, playerId);
+                next = setAiMemoryV2(next, playerId, {
+                    ...mem2a,
+                    focusTargetPlayerId: other.id,
+                    focusCityId: focusCity.id,
+                    focusSetTurn: next.turn,
+                });
+            }
+            continue; // Don't declare war yet - need more offensive units
+        } else {
+            continue; // Not enough power at all
+        }
+
+        const focusCity = selectFocusCityAgainstTarget(next, playerId, other.id);
+
+        // Force concentration gate (prevents "trickle wars"): require some forces near the prospective front.
+        if (focusCity) {
+            // Titan online for Aetherian: declare war immediately (Titan is the conquest engine).
+            // Staging gates are intentionally bypassed to avoid "Titan exists but never fights".
+            // Still must respect peace cooldown
+            if (isAetherian && hasTitanNow && canDeclareWar(next, playerId, other.id)) {
+                const mem2 = getAiMemoryV2(next, playerId);
+                next = setAiMemoryV2(next, playerId, {
+                    ...mem2,
+                    focusTargetPlayerId: other.id,
+                    focusCityId: focusCity.id,
+                    focusSetTurn: next.turn,
+                    lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
+                    warInitiationTurns: [...recentInitiations, next.turn],
+                });
+                actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
+                warsPlanned += 1;
+                continue;
+            }
+            // Progress denial must be allowed to start immediately, even if we aren't staged yet.
+            // Otherwise we "politely stage for 30 turns" and lose to GrandExperiment.
+            if (progressThreat) {
+                const mem2a = getAiMemoryV2(next, playerId);
+                next = setAiMemoryV2(next, playerId, {
+                    ...mem2a,
+                    focusTargetPlayerId: other.id,
+                    focusCityId: focusCity.id,
+                    focusSetTurn: next.turn,
+                });
+            } else {
+                // REVISION 2: Moderate staging requirements.
+                const stageDistMax = 6;
+                const requiredNear = Math.max(3, Math.ceil(profile.tactics.forceConcentration * 4));
+                const nearCount = next.units.filter(u =>
+                    u.ownerId === playerId &&
+                    u.type !== "Settler" && u.type !== "Scout" && u.type !== "Skiff" && u.type !== "ArmyScout" &&
+                    hexDistance(u.coord, focusCity.coord) <= stageDistMax
+                ).length;
+
+                // Composition gate: Softened.
+                // OLD: Must have 1 Capturer AND 1 Siege. (Blocked pure melee armies).
+                // NEW: Must have 1 Capturer. Siege is optional if we have pure numbers.
+                const capturersNear = countNearbyByPredicate(next, playerId, focusCity.coord, stageDistMax, (u) =>
+                    u.type === "SpearGuard" || u.type === "ArmySpearGuard" || u.type === "Titan"
+                );
+
+                // If we don't have enough troops OR (no Titan AND no Capturers), wait.
+                // Removed the "SiegeNear < 1" blocker. Melee rushes are valid.
+                if (nearCount < requiredNear) {
+                    // Start focusing, but wait to declare until forces are staged.
                     const mem2a = getAiMemoryV2(next, playerId);
                     next = setAiMemoryV2(next, playerId, {
                         ...mem2a,
@@ -470,87 +522,56 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                         focusCityId: focusCity.id,
                         focusSetTurn: next.turn,
                     });
-                } else {
-                    // REVISION 2: Moderate staging requirements.
-                    const stageDistMax = 6;
-                    const requiredNear = Math.max(3, Math.ceil(profile.tactics.forceConcentration * 4));
-                    const nearCount = next.units.filter(u =>
-                        u.ownerId === playerId &&
-                        u.type !== "Settler" && u.type !== "Scout" && u.type !== "Skiff" && u.type !== "ArmyScout" &&
-                        hexDistance(u.coord, focusCity.coord) <= stageDistMax
-                    ).length;
+                    continue;
+                }
 
-                    // Composition gate: Softened.
-                    // OLD: Must have 1 Capturer AND 1 Siege. (Blocked pure melee armies).
-                    // NEW: Must have 1 Capturer. Siege is optional if we have pure numbers.
-                    const capturersNear = countNearbyByPredicate(next, playerId, focusCity.coord, stageDistMax, (u) =>
-                        u.type === "SpearGuard" || u.type === "ArmySpearGuard" || u.type === "Titan"
-                    );
-
-                    // If we don't have enough troops OR (no Titan AND no Capturers), wait.
-                    // Removed the "SiegeNear < 1" blocker. Melee rushes are valid.
-                    if (nearCount < requiredNear) {
-                        // Start focusing, but wait to declare until forces are staged.
-                        const mem2a = getAiMemoryV2(next, playerId);
-                        next = setAiMemoryV2(next, playerId, {
-                            ...mem2a,
-                            focusTargetPlayerId: other.id,
-                            focusCityId: focusCity.id,
-                            focusSetTurn: next.turn,
-                        });
-                        continue;
-                    }
-
-                    // Must have at least ONE unit capable of capturing the city.
-                    if (!hasTitanNow && capturersNear < 1) {
-                        const mem2a = getAiMemoryV2(next, playerId);
-                        next = setAiMemoryV2(next, playerId, {
-                            ...mem2a,
-                            focusTargetPlayerId: other.id,
-                            focusCityId: focusCity.id,
-                            focusSetTurn: next.turn,
-                        });
-                        continue;
-                    }
+                // Must have at least ONE unit capable of capturing the city.
+                if (!hasTitanNow && capturersNear < 1) {
+                    const mem2a = getAiMemoryV2(next, playerId);
+                    next = setAiMemoryV2(next, playerId, {
+                        ...mem2a,
+                        focusTargetPlayerId: other.id,
+                        focusCityId: focusCity.id,
+                        focusSetTurn: next.turn,
+                    });
+                    continue;
                 }
             }
-
-            // From here, we have enough nearby forces. Apply "declare now" gates.
-            // BYPASS GATES if it's a Progress Threat OR early rush is active
-            if (!progressThreat && !earlyRushActive) {
-                if (next.turn < profile.diplomacy.minWarTurn) continue;
-                if (warsPlanned >= profile.diplomacy.maxConcurrentWars) continue;
-                if (recentInitiations.length >= profile.diplomacy.maxInitiatedWarsPer50Turns) continue;
-            } else if (earlyRushActive) {
-                // Early rush: lower threshold but still require turn 8 minimum
-                if (next.turn < 8) continue;
-            }
-
-            // Check peace cooldown before declaring war
-            if (!canDeclareWar(next, playerId, other.id)) continue;
-
-            const mem2 = getAiMemoryV2(next, playerId);
-            const myCities = next.cities.filter(c => c.ownerId === playerId).length;
-            const myUnits = next.units.filter(u => u.ownerId === playerId && u.type !== "Settler" && u.type !== "Scout").length;
-
-            next = setAiMemoryV2(next, playerId, {
-                ...mem2,
-                focusTargetPlayerId: other.id,
-                focusCityId: focusCity?.id,
-                focusSetTurn: next.turn,
-                lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
-                warInitiationTurns: [...recentInitiations, next.turn],
-                // Track starting state for game-state peace conditions
-                warCityCount: { ...(mem2.warCityCount ?? {}), [other.id]: myCities },
-                warUnitsCount: { ...(mem2.warUnitsCount ?? {}), [other.id]: myUnits },
-                lastCityCaptureTurn: { ...(mem2.lastCityCaptureTurn ?? {}), [other.id]: next.turn },
-            });
-            actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
-            warsPlanned += 1;
         }
+
+        // From here, we have enough nearby forces. Apply "declare now" gates.
+        // BYPASS GATES if it's a Progress Threat OR early rush is active
+        if (!progressThreat && !earlyRushActive) {
+            if (next.turn < profile.diplomacy.minWarTurn) continue;
+            if (warsPlanned >= profile.diplomacy.maxConcurrentWars) continue;
+            if (recentInitiations.length >= profile.diplomacy.maxInitiatedWarsPer50Turns) continue;
+        } else if (earlyRushActive) {
+            // Early rush: lower threshold but still require turn 8 minimum
+            if (next.turn < 8) continue;
+        }
+
+        // Check peace cooldown before declaring war
+        if (!canDeclareWar(next, playerId, other.id)) continue;
+
+        const mem2 = getAiMemoryV2(next, playerId);
+        const myCities = next.cities.filter(c => c.ownerId === playerId).length;
+        const myUnits = next.units.filter(u => u.ownerId === playerId && u.type !== "Settler" && u.type !== "Scout").length;
+
+        next = setAiMemoryV2(next, playerId, {
+            ...mem2,
+            focusTargetPlayerId: other.id,
+            focusCityId: focusCity?.id,
+            focusSetTurn: next.turn,
+            lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
+            warInitiationTurns: [...recentInitiations, next.turn],
+            // Track starting state for game-state peace conditions
+            warCityCount: { ...(mem2.warCityCount ?? {}), [other.id]: myCities },
+            warUnitsCount: { ...(mem2.warUnitsCount ?? {}), [other.id]: myUnits },
+            lastCityCaptureTurn: { ...(mem2.lastCityCaptureTurn ?? {}), [other.id]: next.turn },
+        });
+        actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
+        warsPlanned += 1;
     }
 
     return { state: next, actions };
 }
-
-

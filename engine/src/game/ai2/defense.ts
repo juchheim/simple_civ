@@ -609,6 +609,178 @@ export function coordinateDefensiveFocusFire(state: GameState, playerId: string)
     return next;
 }
 
+/**
+ * v7.8: Defensive Ring Combat
+ * Makes units in defensive ring positions (distance 1 from cities) actively attack enemies.
+ * This ensures ring defenders don't just sit passively as they get picked off.
+ * 
+ * Priority:
+ * 1. Attack enemies closest to the city we're defending
+ * 2. Prefer attacks that will kill the enemy
+ * 3. Avoid suicide attacks unless we can get a kill
+ * 4. If out of range, move toward enemy and attack (intercept ranged attackers)
+ */
+export function runDefensiveRingCombat(state: GameState, playerId: string): GameState {
+    let next = state;
+
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
+    if (myCities.length === 0) return next;
+
+    // Find enemies at war with us
+    const enemies = next.players.filter(p =>
+        !p.isEliminated &&
+        p.id !== playerId &&
+        next.diplomacy[playerId]?.[p.id] === DiplomacyState.War
+    );
+    if (enemies.length === 0) return next;
+    const enemyIds = new Set(enemies.map(e => e.id));
+
+    // For each city, find units in the defensive ring (distance 1) that can attack
+    for (const city of myCities) {
+        // Find ring defenders for this city
+        const ringDefenders = next.units.filter(u =>
+            u.ownerId === playerId &&
+            isMilitary(u) &&
+            !u.hasAttacked &&
+            u.movesLeft > 0 &&
+            hexDistance(u.coord, city.coord) === 1
+        );
+
+        if (ringDefenders.length === 0) continue;
+
+        // Find enemy units within range 3 of the city (potential threats)
+        const nearbyEnemies = next.units.filter(u =>
+            enemyIds.has(u.ownerId) &&
+            isMilitary(u) &&
+            hexDistance(u.coord, city.coord) <= 3
+        );
+
+        if (nearbyEnemies.length === 0) continue;
+
+        // For each ring defender, find and execute best attack
+        for (const defender of ringDefenders) {
+            const liveDefender = next.units.find(u => u.id === defender.id);
+            if (!liveDefender || liveDefender.hasAttacked || liveDefender.movesLeft <= 0) continue;
+
+            const range = UNITS[liveDefender.type].rng ?? 1;
+
+            // Find enemies in attack range
+            const attackableEnemies = nearbyEnemies.filter(e => {
+                const liveEnemy = next.units.find(u => u.id === e.id);
+                return liveEnemy && hexDistance(liveDefender.coord, liveEnemy.coord) <= range;
+            });
+
+            // If we have enemies in range, attack the best one
+            if (attackableEnemies.length > 0) {
+                // Score each potential attack
+                let bestTarget: typeof attackableEnemies[0] | null = null;
+                let bestScore = -Infinity;
+
+                for (const enemy of attackableEnemies) {
+                    const liveEnemy = next.units.find(u => u.id === enemy.id);
+                    if (!liveEnemy) continue;
+
+                    const preview = getCombatPreviewUnitVsUnit(next, liveDefender, liveEnemy);
+                    const dmg = preview.estimatedDamage.avg;
+                    const ret = preview.returnDamage?.avg ?? 0;
+
+                    // Score factors
+                    const wouldKill = dmg >= liveEnemy.hp ? 50 : 0;
+                    const wouldDie = ret >= liveDefender.hp ? -100 : 0;
+                    const proximityToCity = (4 - hexDistance(liveEnemy.coord, city.coord)) * 15;
+                    const damageRatio = (dmg - ret) * 2;
+
+                    const score = wouldKill + wouldDie + proximityToCity + damageRatio;
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestTarget = liveEnemy;
+                    }
+                }
+
+                // Attack if we found a worthwhile target
+                if (bestTarget && bestScore > 0) {
+                    aiInfo(`[RING COMBAT] ${playerId} ring defender ${liveDefender.type} attacking ${bestTarget.type} near ${city.name} (score: ${bestScore.toFixed(0)})`);
+                    next = tryAction(next, {
+                        type: "Attack",
+                        playerId,
+                        attackerId: liveDefender.id,
+                        targetId: bestTarget.id,
+                        targetType: "Unit"
+                    });
+                }
+            } else {
+                // No enemies in range - move toward closest enemy and attack if possible
+                // This handles melee defenders vs ranged attackers
+                const closestEnemy = nearbyEnemies
+                    .map(e => {
+                        const liveEnemy = next.units.find(u => u.id === e.id);
+                        return liveEnemy ? { enemy: liveEnemy, dist: hexDistance(liveDefender.coord, liveEnemy.coord) } : null;
+                    })
+                    .filter((x): x is NonNullable<typeof x> => x !== null)
+                    .sort((a, b) => a.dist - b.dist)[0];
+
+                if (!closestEnemy) continue;
+
+                // Find the best tile to move to that gets us closer to the enemy
+                const neighbors = getNeighbors(liveDefender.coord);
+                const moveOptions = neighbors
+                    .map(n => ({
+                        coord: n,
+                        distToEnemy: hexDistance(n, closestEnemy.enemy.coord),
+                        distToCity: hexDistance(n, city.coord)
+                    }))
+                    .filter(opt => {
+                        // Can't move onto occupied tiles
+                        const occupied = next.units.some(u => hexEquals(u.coord, opt.coord));
+                        const cityTile = next.cities.some(c => hexEquals(c.coord, opt.coord));
+                        return !occupied && !cityTile;
+                    })
+                    .sort((a, b) => a.distToEnemy - b.distToEnemy);
+
+                if (moveOptions.length === 0) continue;
+
+                const bestMove = moveOptions[0];
+
+                // Only move if it gets us closer to the enemy
+                if (bestMove.distToEnemy < hexDistance(liveDefender.coord, closestEnemy.enemy.coord)) {
+                    aiInfo(`[RING COMBAT] ${playerId} ring defender ${liveDefender.type} moving to intercept ${closestEnemy.enemy.type}`);
+                    const moveResult = tryAction(next, {
+                        type: "MoveUnit",
+                        playerId,
+                        unitId: liveDefender.id,
+                        to: bestMove.coord
+                    });
+
+                    if (moveResult !== next) {
+                        next = moveResult;
+
+                        // After moving, try to attack if now in range
+                        const movedDefender = next.units.find(u => u.id === liveDefender.id);
+                        const stillAliveEnemy = next.units.find(u => u.id === closestEnemy.enemy.id);
+
+                        if (movedDefender && !movedDefender.hasAttacked && stillAliveEnemy) {
+                            const newDist = hexDistance(movedDefender.coord, stillAliveEnemy.coord);
+                            if (newDist <= range) {
+                                aiInfo(`[RING COMBAT] ${playerId} ${movedDefender.type} attacking after move`);
+                                next = tryAction(next, {
+                                    type: "Attack",
+                                    playerId,
+                                    attackerId: movedDefender.id,
+                                    targetId: stillAliveEnemy.id,
+                                    targetType: "Unit"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return next;
+}
+
 
 /**
  * v7.2: Preemptive Defensive Sortie

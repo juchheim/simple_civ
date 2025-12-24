@@ -11,16 +11,24 @@ describe("Balance Adjustments", () => {
             expect(getUnitCost(UnitType.SpearGuard, 1)).toBe(baseCost);
         });
 
-        it("should double cost at Turn 25", () => {
-            expect(getUnitCost(UnitType.SpearGuard, 25)).toBe(baseCost * 2);
+        it("should have base cost at Turn 34", () => {
+            expect(getUnitCost(UnitType.SpearGuard, 34)).toBe(baseCost);
         });
 
-        it("should triple cost at Turn 50", () => {
-            expect(getUnitCost(UnitType.SpearGuard, 50)).toBe(baseCost * 3);
+        it("should double cost at Turn 35", () => {
+            expect(getUnitCost(UnitType.SpearGuard, 35)).toBe(baseCost * 2);
         });
 
-        it("should scale linearly", () => {
-            expect(getUnitCost(UnitType.SpearGuard, 100)).toBe(baseCost * 5);
+        it("should triple cost at Turn 70", () => {
+            expect(getUnitCost(UnitType.SpearGuard, 70)).toBe(baseCost * 3);
+        });
+
+        it("should quadruple cost at Turn 105", () => {
+            expect(getUnitCost(UnitType.SpearGuard, 105)).toBe(baseCost * 4);
+        });
+
+        it("should cap at 4x for late game (Turn 150)", () => {
+            expect(getUnitCost(UnitType.SpearGuard, 150)).toBe(baseCost * 4);
         });
     });
 
