@@ -192,12 +192,11 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
 
     const maxHp = city.maxHp || BASE_CITY_HP;
     const wasDamagedThisTurn = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn === state.turn;
-    if (city.hp > 0 && city.hp < maxHp && !wasDamagedThisTurn) {
+    // v7.3: Cities at 0 HP now heal if not damaged this turn (same rules as any other HP level)
+    if (city.hp < maxHp && !wasDamagedThisTurn) {
         gameLog(`[TurnLoop] Healing city ${city.name} (${city.ownerId}) from ${city.hp} to ${Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN)} `);
         city.hp = Math.min(maxHp, city.hp + CITY_HEAL_PER_TURN);
         if (!city.maxHp) city.maxHp = maxHp;
-    } else if (city.hp <= 0) {
-        gameLog(`[TurnLoop] City ${city.name} (${city.ownerId}) at ${city.hp} HP - NOT healing(capturable!)`);
     }
 
     // v6.0: Shield Regeneration

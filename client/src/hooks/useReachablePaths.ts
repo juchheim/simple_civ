@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Action, GameState, HexCoord, applyAction } from "@simple-civ/engine";
+import { GameState, HexCoord, Unit, Tile, UNITS, TERRAIN, TerrainType, UnitDomain, UnitType } from "@simple-civ/engine";
 import { getNeighbors, hexToString } from "../utils/hex";
 
 export type PathInfo = { path: HexCoord[]; movesLeft: number };
@@ -25,68 +25,216 @@ export function useReachablePaths(gameState: GameState | null, playerId: string,
     return { reachablePaths, reachableCoordSet };
 }
 
+/**
+ * Optimized reachable path computation using lightweight movement cost calculations.
+ * 
+ * Instead of cloning the entire game state for each BFS expansion (which caused
+ * exponential slowdown for high-movement units like Titan/Landship/Airship),
+ * this implementation:
+ * 1. Builds O(1) lookup caches once at the start
+ * 2. Uses Dijkstra-style BFS with movement cost tracking
+ * 3. Only stores path via parent pointers, reconstructing on demand
+ */
 function computeReachablePaths(state: GameState, playerId: string, unitId: string): PathMap {
     const unit = state.units.find(u => u.id === unitId);
     if (!unit || unit.ownerId !== playerId || unit.movesLeft <= 0) {
         return {};
     }
 
+    // Build O(1) lookup caches once
+    const tileByKey = new Map<string, Tile>();
+    for (const tile of state.map.tiles) {
+        tileByKey.set(hexToString(tile.coord), tile);
+    }
+
+    const unitByCoordKey = new Map<string, Unit>();
+    for (const u of state.units) {
+        const key = hexToString(u.coord);
+        if (!unitByCoordKey.has(key)) {
+            unitByCoordKey.set(key, u);
+        }
+    }
+
+    const cityCoords = new Set<string>();
+    for (const city of state.cities) {
+        cityCoords.add(hexToString(city.coord));
+    }
+
+    const visibleTiles = new Set<string>(state.visibility[playerId] || []);
+
+    // BFS node with parent pointer for path reconstruction
+    type BfsNode = {
+        coord: HexCoord;
+        movesLeft: number;
+        parent: BfsNode | null;
+    };
+
+    const startKey = hexToString(unit.coord);
+    const startNode: BfsNode = { coord: unit.coord, movesLeft: unit.movesLeft, parent: null };
+
+    // Track best movesLeft seen at each coord to avoid duplicate work
+    const bestMovesAt = new Map<string, number>();
+    bestMovesAt.set(startKey, unit.movesLeft);
+
+    // Priority queue sorted by movesLeft descending (process highest moves first)
+    // Using array with index pointer for O(1) dequeue
+    const queue: BfsNode[] = [startNode];
+    let queueHead = 0;
+
     const results: PathMap = {};
-    type QueueNode = { state: GameState; path: HexCoord[] };
-    const queue: QueueNode[] = [{ state, path: [] }];
-    const bestStateSeen = new Map<string, number>();
 
-    while (queue.length) {
-        const node = queue.shift()!;
-        const currentUnit = node.state.units.find(u => u.id === unitId);
-        if (!currentUnit) {
+    while (queueHead < queue.length) {
+        const current = queue[queueHead++];
+        const currentKey = hexToString(current.coord);
+
+        // Skip if we've found a better path to this coord
+        const bestHere = bestMovesAt.get(currentKey);
+        if (bestHere !== undefined && bestHere > current.movesLeft && currentKey !== startKey) {
             continue;
         }
-        const partner = currentUnit.linkedUnitId
-            ? node.state.units.find(u => u.id === currentUnit.linkedUnitId)
-            : undefined;
-        const signature = serializeUnitState(currentUnit, partner);
-        const prevBest = bestStateSeen.get(signature);
-        if (prevBest !== undefined && prevBest >= currentUnit.movesLeft) {
-            continue;
-        }
-        bestStateSeen.set(signature, currentUnit.movesLeft);
 
-        if (node.path.length > 0) {
-            const key = hexToString(currentUnit.coord);
-            const existing = results[key];
-            if (!existing || existing.movesLeft < currentUnit.movesLeft) {
-                results[key] = { path: [...node.path], movesLeft: currentUnit.movesLeft };
+        // Record result (skip start position)
+        if (current.parent !== null) {
+            const existing = results[currentKey];
+            if (!existing || existing.movesLeft < current.movesLeft) {
+                // Reconstruct path by walking parent pointers
+                const path: HexCoord[] = [];
+                let node: BfsNode | null = current;
+                while (node && node.parent !== null) {
+                    path.unshift(node.coord);
+                    node = node.parent;
+                }
+                results[currentKey] = { path, movesLeft: current.movesLeft };
             }
         }
 
-        if (currentUnit.movesLeft <= 0) {
+        // No more moves? Stop expanding from this node
+        if (current.movesLeft <= 0) {
             continue;
         }
 
-        for (const neighbor of getNeighbors(currentUnit.coord)) {
-            try {
-                const nextState = applyAction(node.state, {
-                    type: "MoveUnit",
-                    playerId,
-                    unitId,
-                    to: neighbor,
-                } as Extract<Action, { type: "MoveUnit" }>);
-                queue.push({
-                    state: nextState,
-                    path: [...node.path, neighbor],
-                });
-            } catch {
-                // Ignore invalid moves
+        // Expand to neighbors
+        for (const neighbor of getNeighbors(current.coord)) {
+            const neighborKey = hexToString(neighbor);
+            const tile = tileByKey.get(neighborKey);
+            if (!tile) continue; // Off map
+
+            // Calculate movement cost
+            const moveCost = getClientMovementCost(
+                tile,
+                unit,
+                state,
+                unitByCoordKey,
+                cityCoords,
+                visibleTiles,
+                neighborKey
+            );
+
+            if (moveCost === Infinity) continue; // Impassable
+
+            // Special rule: units with 1 base move can always move if they have any moves left
+            const stats = UNITS[unit.type];
+            let newMovesLeft: number;
+            if (stats.move === 1 || unit.type === UnitType.Titan) {
+                // Titans and 1-move units ignore terrain costs
+                newMovesLeft = current.movesLeft - 1;
+            } else if (current.movesLeft >= moveCost) {
+                newMovesLeft = current.movesLeft - moveCost;
+            } else {
+                // Not enough moves
+                continue;
             }
+
+            // Check if this is a better path
+            const prevBest = bestMovesAt.get(neighborKey);
+            if (prevBest !== undefined && prevBest >= newMovesLeft) {
+                continue; // Already found a path with same or more moves remaining
+            }
+
+            bestMovesAt.set(neighborKey, newMovesLeft);
+            queue.push({
+                coord: neighbor,
+                movesLeft: newMovesLeft,
+                parent: current,
+            });
         }
     }
 
     return results;
 }
 
-function serializeUnitState(unit: GameState["units"][number], partner?: GameState["units"][number]) {
-    const base = `${unit.id}:${unit.coord.q},${unit.coord.r}:${unit.movesLeft}`;
-    if (!partner) return base;
-    return `${base}|${partner.id}:${partner.coord.q},${partner.coord.r}:${partner.movesLeft}`;
+/**
+ * Client-side movement cost calculation - mirrors engine logic but uses pre-built caches.
+ * Returns Infinity for impassable tiles, otherwise the movement cost.
+ */
+function getClientMovementCost(
+    tile: Tile,
+    unit: Unit,
+    state: GameState,
+    unitByCoordKey: Map<string, Unit>,
+    cityCoords: Set<string>,
+    visibleTiles: Set<string>,
+    tileKey: string
+): number {
+    const stats = UNITS[unit.type];
+    if (!stats) return Infinity;
+
+    const isVisible = visibleTiles.has(tileKey);
+
+    // Optimistic pathfinding: assume hidden tiles are passable
+    if (!isVisible) {
+        return 1;
+    }
+
+    // Check for blocking units
+    const unitOnTile = unitByCoordKey.get(tileKey);
+    const blockingUnit = unitOnTile && unitOnTile.id !== unit.id ? unitOnTile : undefined;
+
+    if (blockingUnit && blockingUnit.ownerId !== unit.ownerId) {
+        return Infinity; // Enemy unit blocks
+    }
+
+    // Check peacetime borders
+    if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+        const diplomacy = state.diplomacy[unit.ownerId]?.[tile.ownerId] || "Peace";
+        const isCity = cityCoords.has(tileKey);
+        if (!isCity && diplomacy !== "War") {
+            return Infinity; // Can't enter enemy territory during peace
+        }
+    }
+
+    // Domain-specific checks
+    if (stats.domain === UnitDomain.Land) {
+        if (tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea) {
+            return Infinity;
+        }
+        if (tile.terrain === TerrainType.Mountain) {
+            return Infinity;
+        }
+
+        if (blockingUnit) {
+            // Friendly unit - add penalty but allow through
+            return (TERRAIN[tile.terrain]?.moveCostLand ?? 999) + 5;
+        }
+
+        return TERRAIN[tile.terrain]?.moveCostLand ?? 1;
+    } else if (stats.domain === UnitDomain.Naval) {
+        if (tile.terrain !== TerrainType.Coast && tile.terrain !== TerrainType.DeepSea) {
+            return Infinity;
+        }
+        if (unit.type === UnitType.Skiff && tile.terrain === TerrainType.DeepSea) {
+            return Infinity;
+        }
+
+        if (blockingUnit) {
+            return (TERRAIN[tile.terrain]?.moveCostNaval ?? 999) + 5;
+        }
+
+        return TERRAIN[tile.terrain]?.moveCostNaval ?? 1;
+    } else if (stats.domain === UnitDomain.Air) {
+        // Air units can go anywhere on the map
+        return 1;
+    }
+
+    return 1;
 }

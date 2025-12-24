@@ -116,6 +116,9 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90; // v6.6n: Nerfed to 10% (was 30%)
 export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
 
+// v1.0.2: JadeCovenant "Population Power" - combat bonus per population
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 12; // +1 Atk/Def per 12 total population
+
 
 
 // v1.9: REMOVED - Projects 20% faster perk (was never actually implemented in game logic)
@@ -282,7 +285,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 80->70
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 65, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v6.6o: Cost 75->65
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 85, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 95->85
-    [UnitType.Titan]: { atk: 25, def: 8, rng: 1, move: 3, hp: 32, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v7.7: HP Nerf (40->32) - was too survivable (67.5% survival)
+    [UnitType.Titan]: { atk: 20, def: 8, rng: 1, move: 3, hp: 30, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v7.8: Nerf (HP 32->30, ATK 25->20) - captures too fast
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },

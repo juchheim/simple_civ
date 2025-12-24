@@ -12,6 +12,8 @@ export const unitImages: Record<string, string> = {
     ArmyBowGuard: "/units/ArmyBowGuard.png",
     ArmyRiders: "/units/ArmyRiders.png",
     Titan: "/units/Titan.png",
+    Landship: "/units/Landship.png",
+    Airship: "/units/Airship.png",
     // Native units
     NativeChampion: "/units/NativeChampion.png",
     NativeArcher: "/units/NativeArcher.png",
@@ -32,6 +34,8 @@ export const unitDisplayNames: Record<string, string> = {
     ArmyBowGuard: "Bow Guard Army",
     ArmyRiders: "Riders Army",
     Titan: "Titan",
+    Landship: "Landship",
+    Airship: "Airship",
     // Native units
     NativeChampion: "Native Champion",
     NativeArcher: "Native Archer",

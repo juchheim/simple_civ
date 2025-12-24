@@ -137,7 +137,7 @@ describe("City Combat", () => {
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city).toBeDefined();
         expect(city!.ownerId).toBe("p1"); // Ownership changed
-        expect(city!.hp).toBe(8); // Reset HP
+        expect(city!.hp).toBe(10); // Reset HP (CAPTURED_CITY_HP_RESET)
         expect(city!.pop).toBe(1); // Pop reduced
 
         const unit = nextState.units.find(u => u.id === "u1");
@@ -268,7 +268,7 @@ describe("City Combat", () => {
 
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city).toBeDefined();
-        expect(city!.hp).toBe(12); // 10 + 2
+        expect(city!.hp).toBe(13); // 10 + 3 (CITY_HEAL_PER_TURN)
     });
 
     it("should NOT heal a city that was damaged this turn", () => {
@@ -336,6 +336,6 @@ describe("City Combat", () => {
         nextState = applyAction(nextState, { type: "EndTurn", playerId: "p1" });
 
         city = nextState.cities.find(c => c.id === "c1");
-        expect(city!.hp).toBe(damagedHp + 2); // Healed by 2!
+        expect(city!.hp).toBe(damagedHp + 3); // Healed by 3 (CITY_HEAL_PER_TURN)!
     });
 });

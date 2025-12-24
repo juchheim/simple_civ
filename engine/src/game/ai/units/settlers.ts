@@ -473,9 +473,20 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         return threatOrder[a.safety.threatLevel] - threatOrder[b.safety.threatLevel];
     });
 
+    const myCities = next.cities.filter(c => c.ownerId === playerId);
     const garrisonedCities = new Set(
-        next.cities.filter(c => c.ownerId === playerId).map(c => hexToString(c.coord))
+        myCities.map(c => hexToString(c.coord))
     );
+
+    // v1.2: Also protect units in the defensive ring (distance 1 from cities)
+    // These units are part of the city defense and should not be pulled for escort duty
+    const ringDefenderCoords = new Set<string>();
+    for (const city of myCities) {
+        const neighbors = getNeighbors(city.coord);
+        for (const n of neighbors) {
+            ringDefenderCoords.add(hexToString(n));
+        }
+    }
 
     const militaryUnits = next.units.filter(u =>
         u.ownerId === playerId &&
@@ -484,7 +495,15 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         !u.linkedUnitId
     );
 
-    const nonGarrisonUnits = militaryUnits.filter(u => !garrisonedCities.has(hexToString(u.coord)));
+    // v1.2: Exclude both garrison units (on city) AND ring defenders (adjacent to city)
+    const nonGarrisonUnits = militaryUnits.filter(u => {
+        const coordKey = hexToString(u.coord);
+        // Don't use units that are garrisoned
+        if (garrisonedCities.has(coordKey)) return false;
+        // Don't use units that are in a defensive ring around any city
+        if (ringDefenderCoords.has(coordKey)) return false;
+        return true;
+    });
     const garrisonUnits = militaryUnits.filter(u => garrisonedCities.has(hexToString(u.coord)));
 
     const escortAssignments = new Map<string, string>();

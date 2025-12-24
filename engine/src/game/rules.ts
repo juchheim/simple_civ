@@ -440,8 +440,10 @@ export function getProjectCost(projectId: ProjectId, turn: number): number {
     if (!data) return 9999;
 
     if (data.scalesWithTurn) {
-        // Scale cost by turn number: Base * (1 + floor(Turn / 25))
-        const multiplier = 1 + Math.floor(turn / 25);
+        // Scale cost by turn number: Base * (1 + floor(Turn / 40)), capped at 5x
+        // v1.0.2: Reduced scaling from /25 to /40 for less dramatic late-game inflation
+        // v1.0.2: Capped at 5x to prevent runaway costs in long games (avg victory ~turn 192)
+        const multiplier = Math.min(5, 1 + Math.floor(turn / 40));
         return data.cost * multiplier;
     }
 

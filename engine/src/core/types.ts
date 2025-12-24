@@ -168,6 +168,7 @@ export type Unit = {
     campId?: string; // Links native unit to its home camp
     isTitanEscort?: boolean; // v6.6h: Reserved for Titan escort duty - skip in other combat logic
     isHomeDefender?: boolean; // v7.1: Territorial defender - stays in friendly territory, not sent to war
+    originCityId?: string; // v1.0.2: City where unit was built (for ForgeClans hill bonus)
 };
 
 export type City = {
@@ -194,6 +195,7 @@ export type City = {
     lastDamagedOnTurn?: number; // Turn when city was last damaged (for healing prevention)
     savedProduction?: Record<string, number>; // Key: "Type:Id", Value: progress
     originalOwnerId?: string; // v6.7: Original founder for capital recapture AI logic
+    lastCompletedBuild?: { type: "Unit" | "Building" | "Project"; id: string }; // For UI: what was just finished
 };
 
 export type Player = {

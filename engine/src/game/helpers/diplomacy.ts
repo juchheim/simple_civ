@@ -1,5 +1,50 @@
 import { DiplomacyState, GameState, HistoryEventType } from "../../core/types.js";
 import { logEvent } from "../history.js";
+import { MIN_PEACE_DURATION } from "../../core/constants.js";
+
+/**
+ * Check if a player can declare war on another player.
+ * Returns false if peace was established less than MIN_PEACE_DURATION turns ago.
+ */
+export function canDeclareWar(state: GameState, a: string, b: string): boolean {
+    const currentStance = state.diplomacy?.[a]?.[b] ?? DiplomacyState.Peace;
+
+    // If already at war, no restriction
+    if (currentStance === DiplomacyState.War) {
+        return true;
+    }
+
+    // Check when peace was established
+    const peaceEstablishedTurn = state.diplomacyChangeTurn?.[a]?.[b] ?? 0;
+
+    // If no record, assume peace existed from game start (turn 0) - allow war
+    if (peaceEstablishedTurn === 0) {
+        return true;
+    }
+
+    const turnsSincePeace = state.turn - peaceEstablishedTurn;
+    return turnsSincePeace >= MIN_PEACE_DURATION;
+}
+
+/**
+ * Get the number of turns remaining until war can be declared.
+ */
+export function getTurnsUntilWarAllowed(state: GameState, a: string, b: string): number {
+    const currentStance = state.diplomacy?.[a]?.[b] ?? DiplomacyState.Peace;
+
+    if (currentStance === DiplomacyState.War) {
+        return 0;
+    }
+
+    const peaceEstablishedTurn = state.diplomacyChangeTurn?.[a]?.[b] ?? 0;
+
+    if (peaceEstablishedTurn === 0) {
+        return 0;
+    }
+
+    const turnsSincePeace = state.turn - peaceEstablishedTurn;
+    return Math.max(0, MIN_PEACE_DURATION - turnsSincePeace);
+}
 
 function ensureContactMaps(state: GameState, a: string, b: string) {
     if (!state.contacts[a]) state.contacts[a] = {} as any;

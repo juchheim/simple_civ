@@ -162,14 +162,15 @@ export function useTutorialProgress() {
     // Track milestones that have been marked (synchronously) to prevent race conditions
     const completedMilestonesRef = useRef<Set<TutorialMilestone>>(new Set());
 
-    // Reset completed milestones tracking when gameId changes
+    // Keep completedMilestonesRef in sync with progress state
+    // This ensures milestones loaded from localStorage are tracked
     useEffect(() => {
         completedMilestonesRef.current = new Set(
             Object.entries(progress)
                 .filter(([, completed]) => completed)
                 .map(([milestone]) => milestone as TutorialMilestone)
         );
-    }, [gameId]); // Only reset on gameId change, not on every progress change
+    }, [progress]); // Sync whenever progress changes (including localStorage load)
 
     const markComplete = useCallback((milestone: TutorialMilestone): string | null => {
         if (optedOut) return null;

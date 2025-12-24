@@ -29,9 +29,14 @@ export function claimCityTerritory(city: City, state: GameState, ownerId: string
     for (const coord of territory) {
         const tile = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
         if (tile) {
-            const ownedByOtherCity = tile.ownerCityId && tile.ownerCityId !== city.id;
-            const ownedByOtherPlayer = tile.ownerId && tile.ownerId !== ownerId && tile.ownerCityId !== city.id;
-            if (ownedByOtherCity || ownedByOtherPlayer) continue;
+            // Skip tiles owned by OTHER PLAYERS (enemy cities block territory)
+            const ownedByEnemy = tile.ownerId && tile.ownerId !== ownerId;
+            if (ownedByEnemy) continue;
+
+            // Skip tiles already owned by another of this player's cities (don't reassign)
+            const ownedByFriendlyCity = tile.ownerCityId && tile.ownerCityId !== city.id && tile.ownerId === ownerId;
+            if (ownedByFriendlyCity) continue;
+
             tile.ownerId = ownerId;
             tile.ownerCityId = city.id;
             tile.hasCityCenter = hexEquals(coord, city.coord);
@@ -171,6 +176,8 @@ export function captureCity(state: GameState, city: City, newOwnerId: string) {
 
     const currentRing = getClaimedRing(city, state);
     const targetRing = Math.max(currentRing, maxClaimableRing(city));
+    // v6.8: Clear old owner's territory before claiming for new owner
+    clearCityTerritory(city, state);
     claimCityTerritory(city, state, newOwnerId, targetRing);
     city.workedTiles = ensureWorkedTiles(city, state);
     city.hasFiredThisTurn = false;
@@ -243,6 +250,10 @@ export function createCity(
     // v6.6: Nerfed from 5 to 3 (was contributing to 40% win rate dominance)
     const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 2 : 0);
 
+    // v6.8: Calculate isCapital BEFORE setting hasFoundedFirstCity
+    // The first city for a player is their capital
+    const isCapital = playerCities.length === 0 && !player?.hasFoundedFirstCity;
+
     if (player) {
         player.hasFoundedFirstCity = true;
     }
@@ -261,7 +272,7 @@ export function createCity(
         buildProgress: 0,
         hp: 20,
         maxHp: 20,
-        isCapital: playerCities.length === 0,
+        isCapital,
         originalOwnerId: ownerId, // v6.7: Track original founder for capital recapture AI
         hasFiredThisTurn: false,
         milestones: [],

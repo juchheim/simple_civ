@@ -1,81 +1,82 @@
 # Aether Era Analysis Report
 
-**Simulations Reaching Aether Era:** 573 / 600 (95.5%)
-**Victories by Civs with Aether Techs:** 515
+**Simulations Reaching Aether Era:** 596 / 600 (99.3%)
+**Victories by Civs with Aether Techs:** 514
 
 ## Technology Adoption
-- **Aerodynamics**: Researched 1359 times. (Win Rate when researched: 33.0%)
-- **ZeroPointEnergy**: Researched 1487 times. (Win Rate when researched: 30.0%)
-- **CompositeArmor**: Researched 1911 times. (Win Rate when researched: 26.1%)
-- **DimensionalGate**: Researched 1333 times. (Win Rate when researched: 32.2%)
-- **PlasmaShields**: Researched 1684 times. (Win Rate when researched: 26.8%)
+- **Aerodynamics**: Researched 1459 times. (Win Rate when researched: 33.8%)
+- **ZeroPointEnergy**: Researched 1671 times. (Win Rate when researched: 29.6%)
+- **CompositeArmor**: Researched 1959 times. (Win Rate when researched: 25.5%)
+- **DimensionalGate**: Researched 1471 times. (Win Rate when researched: 33.6%)
+- **PlasmaShields**: Researched 1712 times. (Win Rate when researched: 29.3%)
 
 ## Unit Production
-- **Airship**: Produced 0 times. (Win Rate when produced: 0.0%)
-- **Landship**: Produced 3533 times. (Win Rate when produced: 28.4%)
+- **Airship**: Produced 7 times. (Win Rate when produced: 100.0%)
+- **Landship**: Produced 3887 times. (Win Rate when produced: 26.3%)
 
 ## Building Construction
 - **AetherReactor**: Built 0 times.
-- **ShieldGenerator**: Built 215 times.
+- **ShieldGenerator**: Built 271 times.
 
 ## Breakdown by Civilization
-### RiverLeague
-**Techs:**
-- CompositeArmor: 360
-- ZeroPointEnergy: 272
-- Aerodynamics: 145
-- PlasmaShields: 210
-- DimensionalGate: 156
-**Units:**
-- Landship: 975
-
 ### AetherianVanguard
 **Techs:**
-- CompositeArmor: 296
-- Aerodynamics: 300
-- PlasmaShields: 168
-- ZeroPointEnergy: 157
-- DimensionalGate: 120
+- Aerodynamics: 368
+- PlasmaShields: 254
+- CompositeArmor: 304
+- ZeroPointEnergy: 220
+- DimensionalGate: 208
 **Units:**
-- Landship: 337
-
-### ScholarKingdoms
-**Techs:**
-- PlasmaShields: 374
-- DimensionalGate: 289
-- Aerodynamics: 258
-- CompositeArmor: 229
-- ZeroPointEnergy: 193
-**Units:**
-- Landship: 9
+- Landship: 423
 
 ### StarborneSeekers
 **Techs:**
-- PlasmaShields: 374
-- DimensionalGate: 319
-- ZeroPointEnergy: 259
-- Aerodynamics: 295
-- CompositeArmor: 262
+- PlasmaShields: 383
+- Aerodynamics: 292
+- ZeroPointEnergy: 279
+- CompositeArmor: 252
+- DimensionalGate: 359
 **Units:**
-- Landship: 18
+- Landship: 28
+
+### RiverLeague
+**Techs:**
+- CompositeArmor: 378
+- ZeroPointEnergy: 295
+- Aerodynamics: 165
+- PlasmaShields: 201
+- DimensionalGate: 163
+**Units:**
+- Landship: 1129
+
+### ScholarKingdoms
+**Techs:**
+- PlasmaShields: 363
+- DimensionalGate: 315
+- ZeroPointEnergy: 222
+- Aerodynamics: 237
+- CompositeArmor: 231
+**Units:**
+- Landship: 27
 
 ### ForgeClans
 **Techs:**
-- CompositeArmor: 379
-- PlasmaShields: 254
-- ZeroPointEnergy: 284
-- DimensionalGate: 191
-- Aerodynamics: 137
+- CompositeArmor: 390
+- ZeroPointEnergy: 299
+- Aerodynamics: 132
+- PlasmaShields: 219
+- DimensionalGate: 164
 **Units:**
-- Landship: 1100
+- Landship: 929
 
 ### JadeCovenant
 **Techs:**
-- CompositeArmor: 385
-- ZeroPointEnergy: 322
-- PlasmaShields: 304
-- DimensionalGate: 258
-- Aerodynamics: 224
+- CompositeArmor: 404
+- ZeroPointEnergy: 356
+- PlasmaShields: 292
+- DimensionalGate: 262
+- Aerodynamics: 265
 **Units:**
-- Landship: 1094
+- Landship: 1351
+- Airship: 7
 

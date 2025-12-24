@@ -1,12 +1,20 @@
 import { DiplomacyState, GameState, HistoryEventType } from "../../core/types.js";
-import { assertCanShareVision, assertContact, disableSharedVision, enableSharedVision, setContact } from "../helpers/diplomacy.js";
+import { assertCanShareVision, assertContact, canDeclareWar, disableSharedVision, enableSharedVision, setContact } from "../helpers/diplomacy.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { logEvent } from "../history.js";
+import { MIN_PEACE_DURATION } from "../../core/constants.js";
 
 export function handleSetDiplomacy(state: GameState, action: { type: "SetDiplomacy"; playerId: string; targetPlayerId: string; state: DiplomacyState }) {
     const a = action.playerId;
     const b = action.targetPlayerId;
     if (!state.players.find(p => p.id === b)) throw new Error("Target player not found");
+
+    // Check peace cooldown when declaring war
+    if (action.state === DiplomacyState.War) {
+        if (!canDeclareWar(state, a, b)) {
+            throw new Error(`Cannot declare war: peace treaty requires ${MIN_PEACE_DURATION} turns before declaring war`);
+        }
+    }
 
     // When declaring war, automatically establish contact if not already made
     // This makes sense since you can't attack/enter someone's territory without making contact

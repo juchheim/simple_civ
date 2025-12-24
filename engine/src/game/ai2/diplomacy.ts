@@ -5,6 +5,7 @@ import { estimateMilitaryPower } from "../ai/goals.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { selectFocusCityAgainstTarget } from "./strategy.js";
+import { canDeclareWar } from "../helpers/diplomacy.js";
 
 
 // ============================================================================
@@ -152,7 +153,8 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         }
 
         // v4: Attack when at 70% power or more (was 50%)
-        if (weakestId && myPower >= weakestPower * 0.7) {
+        // Check peace cooldown before declaring war
+        if (weakestId && myPower >= weakestPower * 0.7 && canDeclareWar(next, playerId, weakestId)) {
             aiInfo(`[AI Diplo] ${playerId} FORCED WAR at turn ${next.turn} against weakest target ${weakestId}`);
             const mem2 = getAiMemoryV2(next, playerId);
             next = setAiMemoryV2(next, playerId, {
@@ -180,7 +182,8 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             const theirTechs = other.techs?.length ?? 0;
 
             // Both have 20 techs = stalemate risk, force war
-            if (theirTechs >= 20) {
+            // Check peace cooldown before declaring war
+            if (theirTechs >= 20 && canDeclareWar(next, playerId, other.id)) {
                 const theirCities = next.cities.filter(c => c.ownerId === other.id).length;
                 if (theirCities === 0) continue; // Can't fight eliminated civs
 
@@ -382,8 +385,9 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         const escalationFactor = getWarEscalationFactor(next.turn);
 
         // DOMINATING POWER: If we have 5x power, declare war immediately (bypass all gates)
+        // Still must respect peace cooldown
         const isDominating = hasDominatingPower(next, playerId, other.id);
-        if (isDominating) {
+        if (isDominating && canDeclareWar(next, playerId, other.id)) {
             const mem2 = getAiMemoryV2(next, playerId);
             next = setAiMemoryV2(next, playerId, {
                 ...mem2,
@@ -441,7 +445,8 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             if (focusCity) {
                 // Titan online for Aetherian: declare war immediately (Titan is the conquest engine).
                 // Staging gates are intentionally bypassed to avoid "Titan exists but never fights".
-                if (isAetherian && hasTitanNow) {
+                // Still must respect peace cooldown
+                if (isAetherian && hasTitanNow && canDeclareWar(next, playerId, other.id)) {
                     const mem2 = getAiMemoryV2(next, playerId);
                     next = setAiMemoryV2(next, playerId, {
                         ...mem2,
@@ -520,6 +525,9 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                 // Early rush: lower threshold but still require turn 8 minimum
                 if (next.turn < 8) continue;
             }
+
+            // Check peace cooldown before declaring war
+            if (!canDeclareWar(next, playerId, other.id)) continue;
 
             const mem2 = getAiMemoryV2(next, playerId);
             const myCities = next.cities.filter(c => c.ownerId === playerId).length;

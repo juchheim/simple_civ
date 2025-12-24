@@ -9,26 +9,26 @@ describe("Project Cost Scaling", () => {
         expect(cost).toBe(100);
     });
 
-    it("should return base cost at turn 24", () => {
-        const cost = getProjectCost(ProjectId.HarvestFestival, 24);
+    it("should return base cost at turn 39", () => {
+        const cost = getProjectCost(ProjectId.HarvestFestival, 39);
         expect(cost).toBe(100);
     });
 
-    it("should return 2x cost at turn 25", () => {
-        const cost = getProjectCost(ProjectId.HarvestFestival, 25);
+    it("should return 2x cost at turn 40", () => {
+        const cost = getProjectCost(ProjectId.HarvestFestival, 40);
         expect(cost).toBe(200);
     });
 
-    it("should return 3x cost at turn 50", () => {
-        const cost = getProjectCost(ProjectId.HarvestFestival, 50);
+    it("should return 3x cost at turn 80", () => {
+        const cost = getProjectCost(ProjectId.HarvestFestival, 80);
         expect(cost).toBe(300);
     });
 
     it("should NOT scale static projects", () => {
         const cost0 = getProjectCost(ProjectId.Observatory, 0);
         const cost50 = getProjectCost(ProjectId.Observatory, 50);
-        expect(cost0).toBe(220); // New base cost
-        expect(cost50).toBe(220);
+        expect(cost0).toBe(250); // Base cost from constants
+        expect(cost50).toBe(250);
     });
 
     it("should set scaled cost in city build", () => {
@@ -64,7 +64,7 @@ describe("Project Cost Scaling", () => {
 
         const mockState: GameState = {
             id: "game1",
-            turn: 50, // Turn 50 -> 3x cost
+            turn: 80, // Turn 80 -> 3x cost
             players: [mockPlayer],
             currentPlayerId: "p1",
             phase: PlayerPhase.Action,

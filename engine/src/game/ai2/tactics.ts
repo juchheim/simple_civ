@@ -641,6 +641,10 @@ function followTitan(state: GameState, playerId: string): GameState {
         const isGarrisoned = myCities.some(c => hexEquals(c.coord, u.coord));
         if (isGarrisoned) return false;
 
+        // v1.2: Ring defenders (distance 1 from any city) also stay put
+        const isInRing = myCities.some(c => hexDistance(c.coord, u.coord) === 1);
+        if (isInRing) return false;
+
         // v6.6i: Already at safe staging distance - don't move closer!
         const distToTarget = hexDistance(u.coord, rallyPoint);
         if (distToTarget <= SAFE_STAGING_DISTANCE && distToTarget >= 2) return false;
@@ -1050,12 +1054,21 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
             const garrisonIds = new Set<string>();
             for (const city of myCities) {
                 if (city.id === rallyCity.id) continue; // Rally city doesn't need garrison - Titan will spawn there
+                // Mark units ON the city tile
                 const garrisons = next.units.filter(u =>
                     u.ownerId === playerId &&
                     isMilitary(u) &&
                     hexEquals(u.coord, city.coord)
                 );
                 garrisons.forEach(g => garrisonIds.add(g.id));
+
+                // v1.2: Also protect ring defenders (distance 1 from city)
+                const ringDefenders = next.units.filter(u =>
+                    u.ownerId === playerId &&
+                    isMilitary(u) &&
+                    hexDistance(u.coord, city.coord) === 1
+                );
+                ringDefenders.forEach(r => garrisonIds.add(r.id));
             }
 
             // Rally ALL military units EXCEPT designated garrisons and home defenders

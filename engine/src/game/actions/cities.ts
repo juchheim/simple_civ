@@ -227,6 +227,7 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
         markAsHomeDefender: action.markAsHomeDefender,
     };
     city.buildProgress = savedProgress;
+    city.lastCompletedBuild = undefined; // Clear since we're starting new production
 
     return state;
 }

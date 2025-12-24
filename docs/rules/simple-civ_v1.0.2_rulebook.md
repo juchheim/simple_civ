@@ -110,8 +110,8 @@
   - Build categories: Unit, Building, Project (one active slot). Switching clears progress.
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
-  - Base city HP 20 (resets to 8 on capture). Base defense strength 3.
-  - City heal 2 HP/turn if not damaged that turn (and HP > 0); friendly city heal for units: +5 HP/turn.
+  - Base city HP 20 (resets to 10 on capture). Base defense strength 3.
+  - City heal 3 HP/turn if not damaged that turn; friendly city heal for units: +5 HP/turn.
   - **Garrison Bonuses**:
     - **Melee Unit**: +2 City Defense, +1 City Attack Strength, Retaliation Range 1.
     - **Ranged Unit**: +1 City Defense, +3 City Attack Strength, Retaliation Range 2.
@@ -205,14 +205,14 @@
   - City garrison retaliation uses the same formula.
 - **Healing**:
   - Friendly tile: +3 HP/turn; friendly city: +5 HP/turn.
-  - Cities heal 2 HP/turn if not damaged that turn.
+  - Cities heal 3 HP/turn if not damaged that turn.
   - Captured units may have healing delay; cities track last damaged turn to gate healing.
 - **Native Camps & Aggro**:
   - Camp territory is a 3-hex radius; entering or attacking natives triggers Aggro for 3 turns (timer refreshes while enemies remain). Aggro natives may chase targets up to 2 tiles beyond camp territory.
   - Native turns resolve at end-of-round: reset moves, patrol if idle, attack/advance when Aggro, retreat toward camp when damaged, then heal (+2 HP/turn inside territory).
   - Clearing the last native converts the camp into a city for the capturing player (auto-named using their next available city name) with +20 Production stored; camp overlay is removed.
 - **Capture**:
-  - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 8.
+  - Only capture-capable units (melee/cavalry/armies/Titan) can seize cities; on capture, city HP resets to 10.
 
 ## 11. Technology
 - **Costs by era**: Hearth 20, Banner 50, Engine 100/120, Aether 200 Science.
@@ -280,27 +280,27 @@
 - **ForgeClans**:
   - Capital: +1 Production per worked Hill.
   - Industrial buildings: Stone Workshop (+1P, +1S), Lumber Mill (+1P), Forgeworks (+1P, +1S).
-  - Military: 20% cheaper; +1 flat Attack to all military; +2 Attack if any city works 2+ Hills; +1 Attack per Engine tech (max +5).
+  - Military: 20% cheaper; +1 flat Attack to all military; +2 Attack for units built in cities with 2+ Hills; +1 Attack per Engine tech (max +5).
 - **Scholar Kingdoms**:
   - Science: +1 in Capital; +1 per city with a City Ward.
   - Defense: +8 total Defense split across cities within 1 tile (1 city = +8, 2 = +4 each, 3 = +2 each, 4+ = +2 each).
   - Starts with an extra Bow Guard; can build Bulwark and Lorekeeper.
 - **River League**:
   - Yields: +1 Food per river tile; +1 Production per 2 river tiles worked.
-  - Military: +1 flat Attack to all military; +2 Attack/+2 Defense when adjacent to a river.
+  - Military: +1 flat Attack to all military; +2 Attack/+2 Defense when adjacent to a river; +2 Attack when attacking cities.
 - **Aetherian Vanguard**:
-  - **Battle Hardened**: Military units gain +2 HP per researched era (Hearth/Banner/Engine; max +6).
+  - **Battle Hardened**: Military units gain +1 HP per researched era (Hearth/Banner/Engine/Aether; max +4).
   - **Scavenger Doctrine**: Kills grant Science based on enemy combat power.
   - **Vanguard Logistics**: Cities with a garrison gain +1 Production.
   - Unique: Titan's Core (summons Titan; once per civ).
 - **Starborne Seekers**:
   - **Celestial Guidance**: +1 Defense to all military units (global).
-  - **Peaceful Meditation**: +1 Science per turn while not at war.
-  - Unique: Spirit Observatory (counts as Observatory milestone, +5S/+4F, once per civ); access to Bulwark and Lorekeeper.
+  - **Peaceful Meditation**: +1 Science in Capital while not at war.
+  - Unique: Spirit Observatory (counts as Observatory milestone, +4S/+3F, once per civ); access to Bulwark and Lorekeeper.
   - Starts with an extra Scout.
 - **Jade Covenant**:
-  - Growth: 20% cheaper globally; Settlers 10% cheaper; Settler move 2; cities start with +2 stored Food.
-  - **Population Power**: +1 Attack/+1 Defense per 6 total population (all cities).
+  - Growth: 10% cheaper globally; Settlers 10% cheaper; Settler move 2; cities start with +2 stored Food.
+  - **Population Power**: +1 Attack/+1 Defense per 12 total population (all cities).
   - **Ancestral Protection**: Settlers +2 Defense.
   - **Nature's Wrath**: Enemy units at war in Jade territory take 1 damage at start of their turn.
   - Unique: Jade Granary (once per civ) — +2F/+1P; on completion +1 Pop in that city, +1 Food per city, and 15% cheaper growth.

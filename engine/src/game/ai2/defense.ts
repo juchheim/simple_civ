@@ -696,7 +696,22 @@ export function positionDefensiveRing(state: GameState, playerId: string): GameS
         const allMilitary = next.units.filter(u => u.ownerId === playerId && isMilitary(u) && !u.hasAttacked);
         const inGarrisons = new Set(next.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`));
 
-        let available = allMilitary.filter(u => !inGarrisons.has(`${u.coord.q},${u.coord.r}`));
+        // v1.2: Also track units already in a defensive ring around ANY city
+        // These should not be pulled to form rings around other cities
+        const inRings = new Set<string>();
+        for (const c of myCities) {
+            for (const u of allMilitary) {
+                if (hexDistance(u.coord, c.coord) === 1) {
+                    inRings.add(u.id);
+                }
+            }
+        }
+
+        // v1.2: Exclude units in garrisons AND units already in a ring around any city
+        let available = allMilitary.filter(u =>
+            !inGarrisons.has(`${u.coord.q},${u.coord.r}`) &&
+            !inRings.has(u.id)
+        );
 
         // How many do we have already?
         const currentRing = allMilitary.filter(u => hexDistance(u.coord, city.coord) === 1);

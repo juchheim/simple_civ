@@ -23,6 +23,7 @@ import {
     NATIVE_CHAMPION_CAMP_BONUS_ATK,
     NATIVE_CHAMPION_CAMP_BONUS_DEF,
     NATIVE_CHAMPION_CAMP_BONUS_RADIUS,
+    JADE_COVENANT_POP_COMBAT_BONUS_PER,
 } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
 import { hexLine, hexToString, hexDistance, hexEquals } from "../../core/hex.js";
@@ -73,28 +74,30 @@ export function calculateCiv6Damage(
 
 /**
  * Count the number of eras the player has researched at least one tech in.
- * Returns 0-3 (Hearth=1, Banner=2, Engine=3)
+ * Returns 0-4 (Hearth=1, Banner=2, Engine=3, Aether=4)
  */
 export function countErasResearched(player: Player): number {
     let count = 0;
     const hasHearth = player.techs.some(t => TECHS[t]?.era === EraId.Hearth);
     const hasBanner = player.techs.some(t => TECHS[t]?.era === EraId.Banner);
     const hasEngine = player.techs.some(t => TECHS[t]?.era === EraId.Engine);
+    const hasAether = player.techs.some(t => TECHS[t]?.era === EraId.Aether);
     if (hasHearth) count++;
     if (hasBanner) count++;
     if (hasEngine) count++;
+    if (hasAether) count++;
     return count;
 }
 
 /**
  * Get the HP bonus for AetherianVanguard's "Battle Hardened" passive.
- * Military units gain +1 HP per era researched (max +3).
+ * Military units gain +1 HP per era researched (max +4).
  */
 export function getAetherianHpBonus(player: Player, unitType: UnitType): number {
     if (player.civName !== "AetherianVanguard") return 0;
     // Only military units get the bonus
     if (UNITS[unitType].domain === "Civilian") return 0;
-    return countErasResearched(player) * 2;
+    return countErasResearched(player) * 1;
 }
 
 /**
@@ -106,29 +109,39 @@ export function getTotalPopulation(state: GameState, playerId: string): number {
         .reduce((sum, c) => sum + c.pop, 0);
 }
 
+/**
+ * v1.0.2: JadeCovenant "Population Power" - combat bonus based on total population.
+ * +1 Attack/+1 Defense per 12 total population across all cities.
+ */
+export function getJadeCovenantCombatBonus(state: GameState, player: Player): number {
+    if (player.civName !== "JadeCovenant") return 0;
+    const totalPop = getTotalPopulation(state, player.id);
+    return Math.floor(totalPop / JADE_COVENANT_POP_COMBAT_BONUS_PER);
+}
 
 
 /**
  * v0.98 Update 5: Get ForgeClans "Forged Arms" attack bonus.
- * Units built in cities with 2+ worked Hill tiles gain +1 Attack.
- * Note: This is tracked per-unit via metadata, applied at creation time.
- * For now, we check if ANY of the player's cities have enough hills.
+ * Units built in cities with 2+ worked Hill tiles gain +2 Attack.
+ * Uses unit.originCityId to check the specific city where the unit was built.
  */
-export function getForgeClansCombatBonus(state: GameState, player: Player): number {
+export function getForgeClansCombatBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "ForgeClans") return 0;
 
-    // Check if player has any city with enough worked hills
-    const citiesWithHills = state.cities.filter(c => {
-        if (c.ownerId !== player.id) return false;
-        const workedHills = c.workedTiles?.filter(coord => {
-            const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
-            return tile?.terrain === TerrainType.Hills;
-        }).length ?? 0;
-        return workedHills >= FORGE_CLANS_HILL_COMBAT_THRESHOLD;
-    });
+    // Find the origin city where this unit was built
+    const originCity = unit.originCityId
+        ? state.cities.find(c => c.id === unit.originCityId)
+        : null;
 
-    // If they have at least one hill-heavy city, their units get the bonus
-    return citiesWithHills.length > 0 ? FORGE_CLANS_HILL_COMBAT_BONUS : 0;
+    if (!originCity) return 0;
+
+    // Count worked hills in the origin city
+    const workedHills = originCity.workedTiles?.filter(coord => {
+        const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
+        return tile?.terrain === TerrainType.Hills;
+    }).length ?? 0;
+
+    return workedHills >= FORGE_CLANS_HILL_COMBAT_THRESHOLD ? FORGE_CLANS_HILL_COMBAT_BONUS : 0;
 }
 
 /**
@@ -218,14 +231,13 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         boosted.def += 1;
     }
 
-    // v0.98 Update 5: ForgeClans "Forged Arms" - +1 Attack if built in city with 2+ Hills
-    // We approximate this by checking if ANY city has 2+ hills (since we don't track origin city perfectly yet)
+    // v0.98 Update 5: ForgeClans "Forged Arms" - +2 Attack if built in city with 2+ Hills
     // Only applies to military units
     if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
         // v1.7: "Forge Hardened" - flat +1 Attack for all military
         boosted.atk += FORGE_CLANS_FLAT_ATTACK_BONUS;
 
-        const forgeBonus = getForgeClansCombatBonus(state, player);
+        const forgeBonus = getForgeClansCombatBonus(state, player, unit);
         boosted.atk += forgeBonus;
 
         // v0.98 Update 6: "Industrial Warfare" - +1 Attack per Engine tech
@@ -233,11 +245,16 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         boosted.atk += engineBonus;
     }
 
-
-
     // v0.99 BUFF: "Ancestral Protection" - Settlers get +2 Defense
     if (player.civName === "JadeCovenant" && unit.type === UnitType.Settler) {
         boosted.def += 2;
+    }
+
+    // v1.0.2: JadeCovenant "Population Power" - +1 Atk/Def per 12 total population
+    if (player.civName === "JadeCovenant" && UNITS[unit.type].domain !== "Civilian") {
+        const popBonus = getJadeCovenantCombatBonus(state, player);
+        boosted.atk += popBonus;
+        boosted.def += popBonus;
     }
 
     // v1.3: River League "River Guardians" - +2 Atk/Def near rivers

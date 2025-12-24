@@ -36,6 +36,7 @@ export function completeBuild(state: GameState, city: City) {
             state: UnitState.Normal,
             hasAttacked: false,
             isHomeDefender: build.markAsHomeDefender === true ? true : undefined,
+            originCityId: city.id,
         });
 
         if (uType === UnitType.Settler) {
@@ -87,6 +88,7 @@ export function completeBuild(state: GameState, city: City) {
                 movesLeft: UNITS[UnitType.Titan].move,
                 state: UnitState.Normal,
                 hasAttacked: false,
+                originCityId: city.id,
             });
         } else if (build.id === BuildingType.SpiritObservatory) {
             logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
@@ -151,6 +153,8 @@ export function completeBuild(state: GameState, city: City) {
         }
     }
 
+    // Store completed build for UI notification
+    city.lastCompletedBuild = { type: build.type, id: build.id };
     city.currentBuild = null;
     city.buildProgress = overflow;
 }

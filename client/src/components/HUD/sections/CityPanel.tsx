@@ -330,7 +330,11 @@ const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, b
                     </div>
                 </>
             ) : (
-                <div className="hud-subtext" style={{ marginBottom: 6 }}>Choose what to produce.</div>
+                <div className="hud-subtext" style={{ marginBottom: 6 }}>
+                    {city.lastCompletedBuild
+                        ? `${formatBuildId(city.lastCompletedBuild.id)} completed. Choose what to produce.`
+                        : "Choose what to produce."}
+                </div>
             )}
             {isMyTurn && (
                 <div className="city-panel__build-grid" style={{ marginTop: 6 }}>
