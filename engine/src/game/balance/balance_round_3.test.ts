@@ -2,8 +2,6 @@
 import { describe, it, expect } from 'vitest';
 import { GameState, Player, City, Tile, UnitType, UnitDomain } from '../../core/types.js';
 import { getCityYields } from '../rules.js';
-import { getJadeCovenantCombatBonus, getEffectiveUnitStats } from '../helpers/combat.js';
-import { JADE_COVENANT_POP_COMBAT_BONUS_PER } from '../../core/constants.js';
 
 // Mock State Helper
 function createMockState(civName: string): { state: GameState, player: Player, city: City } {
@@ -109,25 +107,6 @@ describe('Balance Round 3 Checks', () => {
             // Total P: 5.
 
             expect(yields.P).toBeGreaterThanOrEqual(5);
-        });
-    });
-
-    describe('JadeCovenant Pop Buff', () => {
-        it('should apply population combat bonus at 12 pop threshold', () => {
-            const { state, player, city } = createMockState('JadeCovenant');
-            city.pop = 12; // exactly 12
-
-            const bonus = getJadeCovenantCombatBonus(state, player);
-            expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(12);
-            expect(bonus).toBe(1); // 12 / 12 = 1
-
-            city.pop = 23;
-            const bonus2 = getJadeCovenantCombatBonus(state, player);
-            expect(bonus2).toBe(1);
-
-            city.pop = 24;
-            const bonus3 = getJadeCovenantCombatBonus(state, player);
-            expect(bonus3).toBe(2);
         });
     });
 

@@ -97,7 +97,7 @@ export const GROWTH_FACTORS = [
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 // v0.97 balance: JadeCovenant passive "Verdant Growth" - faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 0.90; // v1.5: Nerfed to 10% discount (was 0.80 = 20%)
+export const JADE_COVENANT_GROWTH_MULT = 0.85; // v7.9: Buffed to 15% discount (was 10%)
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -113,11 +113,13 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 
 // v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
-export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90; // v6.6n: Nerfed to 10% (was 30%)
+export const JADE_COVENANT_SETTLER_DISCOUNT = 0.80; // v7.9: Buffed to 20% (was 10%)
 export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
 
-// v1.0.2: JadeCovenant "Population Power" - combat bonus per population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 12; // +1 Atk/Def per 12 total population
+// v7.9: Re-added Jade Covenant "Population Power" - +1 Atk/Def per X total population
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 6; // v7.9: Buffed to per 6 (was per 10)
+
+
 
 
 
@@ -128,14 +130,14 @@ export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonu
 export const FORGE_CLANS_HILL_COMBAT_BONUS = 2; // +2 Attack for units from hill cities (Buffed from 1)
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // v6.6n: Nerfed to 20% (was 25%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // v7.9: Nerfed to 20% (was 25%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
 export const FORGE_CLANS_ENGINE_ATTACK_BONUS = 1; // +1 Attack per Engine tech (max +5)
 
 // v1.7: ForgeClans "Forge Hardened" - flat attack bonus for all military units
-export const FORGE_CLANS_FLAT_ATTACK_BONUS = 1; // +1 Attack for all military units
+export const FORGE_CLANS_FLAT_ATTACK_BONUS = 0; // v7.9: Removed (was +1)
 
 // v1.8: RiverLeague "River Siege" - bonus when attacking cities
 // v6.6k: Buffed from +1 to +2 to help RiverLeague win rate (was 18.1%)
@@ -285,7 +287,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 80->70
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 65, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v6.6o: Cost 75->65
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 85, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 95->85
-    [UnitType.Titan]: { atk: 20, def: 8, rng: 1, move: 3, hp: 30, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v7.8: Nerf (HP 32->30, ATK 25->20) - captures too fast
+    [UnitType.Titan]: { atk: 20, def: 10, rng: 1, move: 3, hp: 30, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v7.9: Buff DEF 8->10
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -379,21 +381,21 @@ export const TECHS: Record<TechId, TechData> = {
 
 export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     [ProjectId.Observatory]: {
-        cost: 250,  // v1.7: Increased from 220 to slow Progress (target: 45% Conquest / 55% Progress)
+        cost: 300,  // v7.9: Increased from 250 to slow Progress (more time for Conquest civs)
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 320,  // v1.7: Increased from 280
+        cost: 380,  // v7.9: Increased from 320
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 400,  // v1.7: Increased from 350
+        cost: 480,  // v7.9: Increased from 400
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

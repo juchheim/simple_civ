@@ -91,13 +91,13 @@ export function countErasResearched(player: Player): number {
 
 /**
  * Get the HP bonus for AetherianVanguard's "Battle Hardened" passive.
- * Military units gain +1 HP per era researched (max +4).
+ * Military units gain +2 HP per era researched (max +8).
  */
 export function getAetherianHpBonus(player: Player, unitType: UnitType): number {
     if (player.civName !== "AetherianVanguard") return 0;
     // Only military units get the bonus
     if (UNITS[unitType].domain === "Civilian") return 0;
-    return countErasResearched(player) * 1;
+    return countErasResearched(player) * 2;
 }
 
 /**
@@ -110,8 +110,8 @@ export function getTotalPopulation(state: GameState, playerId: string): number {
 }
 
 /**
- * v1.0.2: JadeCovenant "Population Power" - combat bonus based on total population.
- * +1 Attack/+1 Defense per 12 total population across all cities.
+ * v7.9: Re-added Jade Covenant "Population Power" combat bonus.
+ * +1 Atk/Def per 12 total population.
  */
 export function getJadeCovenantCombatBonus(state: GameState, player: Player): number {
     if (player.civName !== "JadeCovenant") return 0;
@@ -250,12 +250,14 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         boosted.def += 2;
     }
 
-    // v1.0.2: JadeCovenant "Population Power" - +1 Atk/Def per 12 total population
+    // v7.9: Re-added Jade Covenant "Population Power" - +1 Atk/Def per 12 total pop
     if (player.civName === "JadeCovenant" && UNITS[unit.type].domain !== "Civilian") {
         const popBonus = getJadeCovenantCombatBonus(state, player);
         boosted.atk += popBonus;
         boosted.def += popBonus;
     }
+
+
 
     // v1.3: River League "River Guardians" - +2 Atk/Def near rivers
     // v1.6: BUFFED from +1/+1 to +2/+2 to improve conquest competitiveness

@@ -211,6 +211,10 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         if (hasGarrison) {
             total.P += 1;
         }
+    } else if (trait === "JadeCovenant") {
+        // v7.9: "Bountiful Harvest" - +2 Food baseline for all cities (nerfed from +3)
+        // Helps Jade grow faster to activate their pop-based combat bonus
+        total.F += 2;
     }
 
     // Jade Granary effect: +1 Food per city
@@ -226,7 +230,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
     return total;
 }
 
-function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "StarborneSeekers" | "AetherianVanguard" | null {
+function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "StarborneSeekers" | "AetherianVanguard" | "JadeCovenant" | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return null;
     if (player.civName === "ForgeClans") return "ForgeClans";
@@ -234,6 +238,7 @@ function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "Schola
     if (player.civName === "RiverLeague") return "RiverLeague";
     if (player.civName === "StarborneSeekers") return "StarborneSeekers";
     if (player.civName === "AetherianVanguard") return "AetherianVanguard";
+    if (player.civName === "JadeCovenant") return "JadeCovenant";
     return null;
 }
 

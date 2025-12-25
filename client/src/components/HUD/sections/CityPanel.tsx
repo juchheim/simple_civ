@@ -170,6 +170,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                     onBuild={onBuild}
                     turn={gameState.turn}
                     tutorial={tutorial}
+                    productionPerTurn={yields.P}
                 />
                 <WorkedTilesSection
                     city={city}
@@ -223,7 +224,7 @@ const EnemyCityPanel: React.FC<EnemyCityPanelProps> = ({ city, civ, unitsAtCity,
                 ) : (
                     <>
                         {unitsAtCity.map(unit => {
-                            const isGarrison = unit.type !== "Settler";
+                            const isGarrison = unit.type !== "Settler" && unit.type !== "Scout";
                             return (
                                 <button
                                     key={unit.id}
@@ -290,9 +291,10 @@ type ProductionSectionProps = {
     onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
     turn: number;
     tutorial: ReturnType<typeof useTutorial>;
+    productionPerTurn: number;
 };
 
-const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, buildOptions, onBuild, turn, tutorial }) => {
+const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, buildOptions, onBuild, turn, tutorial, productionPerTurn }) => {
     const handleBuild = (type: "Unit" | "Building" | "Project", id: string) => {
         tutorial.markComplete("startedProduction");
         if (type === "Project") {
@@ -326,7 +328,12 @@ const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, b
                         />
                     </div>
                     <div className="hud-subtext">
-                        Progress: {city.buildProgress}/{city.currentBuild.cost}
+                        {(() => {
+                            const remaining = city.currentBuild.cost - city.buildProgress;
+                            const turnsRemaining = productionPerTurn > 0 ? Math.ceil(remaining / productionPerTurn) : Infinity;
+                            const turnsText = turnsRemaining === Infinity ? "∞ turns" : `${turnsRemaining} turn${turnsRemaining !== 1 ? "s" : ""}`;
+                            return `${turnsText} (${city.buildProgress}/${city.currentBuild.cost})`;
+                        })()}
                     </div>
                 </>
             ) : (
@@ -461,7 +468,7 @@ const DefenseSection: React.FC<DefenseSectionProps> = ({
     onRazeCity,
 }) => {
     const unitsAtCity = units.filter(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
-    const hasGarrison = unitsAtCity.some(u => u.type !== "Settler");
+    const hasGarrison = unitsAtCity.some(u => u.type !== "Settler" && u.type !== "Scout");
 
     return (
         <div className="city-panel__section">
@@ -472,7 +479,7 @@ const DefenseSection: React.FC<DefenseSectionProps> = ({
                 ) : (
                     <>
                         {unitsAtCity.map(unit => {
-                            const isGarrison = unit.type !== "Settler";
+                            const isGarrison = unit.type !== "Settler" && unit.type !== "Scout";
                             return (
                                 <button
                                     key={unit.id}
@@ -494,7 +501,7 @@ const DefenseSection: React.FC<DefenseSectionProps> = ({
                                 </button>
                             );
                         })}
-                        {!hasGarrison && <span className="hud-chip warn" style={{ marginTop: 4 }}>No garrison (Settlers cannot garrison)</span>}
+                        {!hasGarrison && <span className="hud-chip warn" style={{ marginTop: 4 }}>No garrison (Settlers/Scouts cannot garrison)</span>}
                     </>
                 )}
                 {city.hasFiredThisTurn && <span className="hud-chip warn">City fired this turn</span>}

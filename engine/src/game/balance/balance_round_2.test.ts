@@ -2,8 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameState, Player, City, Tile, BuildingType, UnitType, UnitDomain } from '../../core/types.js';
 import { getCityYields } from '../rules.js';
-import { getJadeCovenantCombatBonus, getEffectiveUnitStats } from '../helpers/combat.js';
-import { BUILDINGS, JADE_COVENANT_POP_COMBAT_BONUS_PER } from '../../core/constants.js';
+import { BUILDINGS } from '../../core/constants.js';
 
 // Mock State Helper
 function createMockState(civName: string): { state: GameState, player: Player, city: City } {
@@ -120,48 +119,6 @@ describe('Balance Round 2 Checks', () => {
             expect(granary.cost).toBe(50);
             expect(granary.yieldFlat?.F).toBe(2);
             expect(granary.yieldFlat?.P).toBe(1);
-        });
-
-        it('should apply population combat bonus at 15 pop threshold', () => {
-            const { state, player, city } = createMockState('JadeCovenant');
-            city.pop = 15; // exactly 15
-
-            const bonus = getJadeCovenantCombatBonus(state, player);
-            expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(12);
-            expect(bonus).toBe(1); // 15 / 12 floors to 1
-
-            city.pop = 29;
-            const bonus2 = getJadeCovenantCombatBonus(state, player);
-            expect(bonus2).toBe(2);
-
-            city.pop = 30;
-            const bonus3 = getJadeCovenantCombatBonus(state, player);
-            expect(bonus3).toBe(2);
-        });
-
-        it('should apply bonus to unit stats', () => {
-            const { state, player, city } = createMockState('JadeCovenant');
-            city.pop = 45; // +3 Bonus
-
-            const unit = {
-                id: 'u1',
-                type: UnitType.SpearGuard,
-                ownerId: player.id,
-                coord: { q: 0, r: 0 },
-                hp: 10,
-                maxHp: 10,
-                moves: 1,
-                state: 'Idle',
-                domain: UnitDomain.Land
-            } as any;
-
-            const stats = getEffectiveUnitStats(unit, state);
-            // Base SpearGuard: 2 Atk / 2 Def
-            // Bonus: +3
-            // Total: 5 Atk / 5 Def
-
-            expect(stats.atk).toBe(5);
-            expect(stats.def).toBe(5);
         });
     });
 

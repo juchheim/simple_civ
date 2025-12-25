@@ -278,7 +278,8 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         if (!hasClearLineOfSight(state, attacker.coord, city.coord)) throw new Error("Line of sight blocked");
 
         // v6.7: Find the garrison with the highest range (for best retaliation) when multiple units on city tile
-        const garrisonCandidates = state.units.filter(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler);
+        // v7.10: Exclude Scouts from garrison - they don't provide defense/attack bonuses
+        const garrisonCandidates = state.units.filter(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler && u.type !== UnitType.Scout);
         const garrison = garrisonCandidates.length > 0
             ? garrisonCandidates.reduce((best, u) => UNITS[u.type].rng > UNITS[best.type].rng ? u : best)
             : undefined;
@@ -401,10 +402,19 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             if (attackerStats.canCaptureCity && dist === 1) {
                 const cityCoord = city.coord;
 
-                if (garrison) {
-                    unlinkPair(garrison, resolveLinkedPartner(state, garrison));
-                    state.units = state.units.filter(u => u.id !== garrison.id);
+                // v7.10: Remove ALL enemy units on city tile (except Air), not just garrison
+                // This ensures Scouts and other non-garrison units are also destroyed on capture
+                const enemyUnitsOnCity = state.units.filter(u =>
+                    hexEquals(u.coord, cityCoord) &&
+                    u.ownerId === city.ownerId &&
+                    UNITS[u.type].domain !== UnitDomain.Air
+                );
+                for (const enemy of enemyUnitsOnCity) {
+                    unlinkPair(enemy, resolveLinkedPartner(state, enemy));
                 }
+                state.units = state.units.filter(u =>
+                    !enemyUnitsOnCity.some(e => e.id === u.id)
+                );
 
                 captureCity(state, city, action.playerId);
                 logEvent(state, HistoryEventType.CityCaptured, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord, isCapital: city.isCapital });

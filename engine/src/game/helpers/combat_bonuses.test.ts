@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { getScholarKingdomsDefenseBonus, getJadeCovenantCombatBonus } from './combat.js';
+import { getScholarKingdomsDefenseBonus } from './combat.js';
 import { GameState, Player, City, Unit, UnitType } from '../../core/types.js';
 import { SCHOLAR_KINGDOMS_DEFENSE_BONUS } from '../../core/constants.js';
 

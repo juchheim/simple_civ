@@ -42,6 +42,24 @@ export function chooseVictoryGoalV2(state: GameState, playerId: string): AiVicto
     const hasTitan = state.units.some(u => u.ownerId === playerId && u.type === UnitType.Titan);
     if (hasTitan && player.civName === "AetherianVanguard") return "Conquest";
 
+    // v7.9: Aetherian post-Titan's Core decision
+    // After building Titan's Core, decide whether to push Conquest (Landships) or pivot to Progress
+    // Decision: If power > 1.5x strongest enemy, stay Conquest. Otherwise, pivot to Progress.
+    const hasTitansCore = player.completedProjects.includes(ProjectId.TitansCoreComplete);
+    if (hasTitansCore && player.civName === "AetherianVanguard") {
+        const myPower = estimateMilitaryPower(playerId, state);
+        const enemies = state.players.filter(p => p.id !== playerId && !p.isEliminated);
+        const strongestEnemyPower = Math.max(...enemies.map(e => estimateMilitaryPower(e.id, state)), 1);
+        const powerRatio = myPower / strongestEnemyPower;
+
+        // If we dominate (1.5x+ power), stay Conquest for the kill
+        if (powerRatio >= 1.5) {
+            return "Conquest";
+        }
+        // Otherwise, pivot to Progress - safer bet with science-on-kill advantage
+        return "Progress";
+    }
+
     const hasStarCharts = player.techs.includes(TechId.StarCharts);
     const hasObs = player.completedProjects.includes(ProjectId.Observatory);
     const hasProgressChain = hasObs || player.completedProjects.includes(ProjectId.GrandAcademy) || player.completedProjects.includes(ProjectId.GrandExperiment);

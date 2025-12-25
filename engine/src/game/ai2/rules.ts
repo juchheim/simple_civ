@@ -383,41 +383,43 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         tech: {
             weights: {
-                [TechId.StoneworkHalls]: 1.5,
-                [TechId.TimberMills]: 1.6,
-                [TechId.SteamForges]: 1.8,
+                // Phase 1: Beeline Titan's Core (SteamForges unlock)
+                [TechId.StoneworkHalls]: 1.8, // v7.9: Buffed - core tech for Titan beeline
+                [TechId.TimberMills]: 1.8, // v7.9: Buffed - production for Titan
+                [TechId.SteamForges]: 2.0, // v7.9: HIGHEST - unlocks Titan's Core
                 [TechId.DrilledRanks]: 1.1,
-                [TechId.CompositeArmor]: 1.8,
-                // NEW: Science priorities to reach Engine Era faster (Titan rush)
-                [TechId.ScriptLore]: 1.4,
-                [TechId.ScholarCourts]: 1.3,
-                // Secondary Progress Path
-                [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 1.2,
-                [TechId.Aerodynamics]: 1.8, // v6.4: Airship support for Titan
+                [TechId.CompositeArmor]: 1.6, // Landships for Titan escort
+                [TechId.Aerodynamics]: 1.5, // Airship support for Titan
+
+                // Phase 2: Pivot to Progress after Titan dominance
+                [TechId.ScriptLore]: 1.5, // v7.9: Buffed - foundation for Progress
+                [TechId.ScholarCourts]: 1.5, // v7.9: Buffed - more science
+                [TechId.SignalRelay]: 1.6, // v7.9: Buffed - StarCharts prereq
+                [TechId.StarCharts]: 1.8, // v7.9: HIGH - Progress pivot after conquest
             },
             pathsByGoal: {
                 Conquest: [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore, TechId.DrilledRanks, TechId.TimberMills, TechId.ScholarCourts, TechId.SteamForges, TechId.CompositeArmor],
+                // v7.9: Add Progress path for late-game pivot
+                Progress: [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts],
             },
         },
         build: {
             armyPerCity: 1.6,
-            settlerCap: 2,
-            desiredCities: 5,
+            settlerCap: 3, // v7.9: Buffed from 2 - expand after conquest
+            desiredCities: 6, // v7.9: Buffed from 5 - more cities = more production for Progress
             weights: {
                 building: {
-                    [BuildingType.TitansCore]: 2.0,
-                    [BuildingType.StoneWorkshop]: 1.2,
-                    // NEW: Build science to fuel the rush
-                    [BuildingType.Scriptorium]: 1.5,
-                    [BuildingType.Academy]: 1.4,
+                    [BuildingType.TitansCore]: 2.5, // v7.9: HIGHEST - beeline Titan
+                    [BuildingType.StoneWorkshop]: 1.3,
+                    [BuildingType.Scriptorium]: 1.5, // Science for Progress pivot
+                    [BuildingType.Academy]: 1.5,
                 },
                 unit: { [UnitType.SpearGuard]: 1.1, [UnitType.BowGuard]: 1.1 },
-                // Secondary Progress Projects
+                // v7.9: Buffed Progress Projects for late-game pivot
                 project: {
-                    [ProjectId.Observatory]: 1.2,
-                    [ProjectId.GrandAcademy]: 1.2,
-                    [ProjectId.GrandExperiment]: 1.2,
+                    [ProjectId.Observatory]: 1.6, // v7.9: Buffed from 1.2
+                    [ProjectId.GrandAcademy]: 1.6, // v7.9: Buffed from 1.2
+                    [ProjectId.GrandExperiment]: 1.8, // v7.9: HIGH - win condition
                 },
             },
         },
@@ -504,12 +506,12 @@ const profiles: Record<string, CivAiProfileV2> = {
             }
         },
         build: {
-            armyPerCity: 1.3, // v1.6: Increased from 1.2 - need more military late-game
-            settlerCap: 5,
-            desiredCities: 10,
+            armyPerCity: 1.6, // v7.9: Buffed from 1.3 - need more military to survive early game
+            settlerCap: 5, // v7.9: Highest settler cap - Jade is THE expansion civ
+            desiredCities: 8, // v7.9: High city target - leverage +3 Food/city perk
             weights: {
                 building: { [BuildingType.JadeGranary]: 2.0, [BuildingType.Farmstead]: 1.3 },
-                unit: { [UnitType.Settler]: 1.5, [UnitType.SpearGuard]: 1.2, [UnitType.BowGuard]: 1.2 }, // v1.6: More military
+                unit: { [UnitType.Settler]: 1.8, [UnitType.SpearGuard]: 1.2, [UnitType.BowGuard]: 1.2 }, // v7.9: Highest Settler priority
                 project: {
                     [ProjectId.Observatory]: 1.4, // v1.6: Higher for Progress path
                     [ProjectId.GrandAcademy]: 1.4,
@@ -517,8 +519,14 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
             },
         },
-        tactics: { riskTolerance: 0.45, forceConcentration: 0.7, siegeCommitment: 0.65, retreatHpFrac: 0.4, rangedCaution: 0.6 }, // v1.6: More aggressive
-        titan: { capitalHunt: 0.7, finisher: 0.85, momentum: 0.8 }, // v1.6: Close out games
+        tactics: {
+            riskTolerance: 0.55, // v7.9: Buffed from 0.45 - fight harder like ForgeClans
+            forceConcentration: 0.75, // v7.9: Buffed from 0.7
+            siegeCommitment: 0.85, // v7.9: Buffed from 0.65 - close out sieges
+            retreatHpFrac: 0.3, // v7.9: Buffed from 0.4 - stay in the fight longer
+            rangedCaution: 0.55 // v7.9: Reduced from 0.6 - be more aggressive with ranged
+        },
+        titan: { capitalHunt: 0.8, finisher: 0.9, momentum: 0.85 }, // v7.9: Close out games faster
     }),
 };
 

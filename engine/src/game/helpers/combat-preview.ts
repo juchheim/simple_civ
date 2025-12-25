@@ -197,8 +197,9 @@ export function getCombatPreviewUnitVsCity(
     }
 
     // v6.7: Find the garrison with the highest range (for best retaliation) when multiple units on city tile
+    // v7.10: Exclude Scouts from garrison - they don't provide defense/attack bonuses
     const garrisonCandidates = state.units.filter(u =>
-        hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler
+        hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler && u.type !== UnitType.Scout
     );
     const garrison = garrisonCandidates.length > 0
         ? garrisonCandidates.reduce((best, u) => UNITS[u.type].rng > UNITS[best.type].rng ? u : best)

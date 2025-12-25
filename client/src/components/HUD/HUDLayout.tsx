@@ -57,6 +57,7 @@ type TopRowProps = {
     mapView: HUDLayoutProps["meta"]["mapView"];
     selectedUnitId: string | null;
     onNavigateMap: (point: { x: number; y: number }) => void;
+    sciencePerTurn: number;
 };
 
 export const TopRow: React.FC<TopRowProps> = ({
@@ -76,6 +77,7 @@ export const TopRow: React.FC<TopRowProps> = ({
     mapView,
     selectedUnitId,
     onNavigateMap,
+    sciencePerTurn,
 }) => {
     const tutorial = useTutorial();
 
@@ -128,7 +130,7 @@ export const TopRow: React.FC<TopRowProps> = ({
                     onOpen={() => onToggleResearch(true)}
                     onClose={() => onToggleResearch(false)}
                 >
-                    <TechButton player={player} onShowTechTree={onShowTechTree} />
+                    <TechButton player={player} onShowTechTree={onShowTechTree} sciencePerTurn={sciencePerTurn} />
                 </ToggleCard>
             </div>
             <MiniMap
@@ -490,6 +492,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 mapView={mapView}
                 selectedUnitId={selectedUnitId}
                 onNavigateMap={onNavigateMap}
+                sciencePerTurn={empireYields.S}
             />
 
             <TopLeftMenu

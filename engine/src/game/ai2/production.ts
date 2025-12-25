@@ -253,6 +253,160 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     );
 
     // =========================================================================
+    // v7.9: EMERGENCY - City Under Direct Attack (highest priority)
+    // =========================================================================
+    // If enemy units are within 2 tiles of this city, immediately produce defenders
+    // This ensures AI reacts quickly when being invaded, not waiting for normal production
+    const enemyPlayers = state.players.filter(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+    const enemyUnitsNearCity = state.units.filter(u =>
+        enemyPlayers.some(ep => ep.id === u.ownerId) &&
+        UNITS[u.type].domain !== "Civilian" &&
+        u.type !== UnitType.Scout &&
+        hexDistance(u.coord, city.coord) <= 2
+    );
+
+    if (enemyUnitsNearCity.length > 0) {
+        // City is under direct attack! Emergency production
+        aiInfo(`[AI Build] ${profile.civName} EMERGENCY: ${city.name} under attack by ${enemyUnitsNearCity.length} enemies!`);
+
+        // Count what we have defending - prioritize what we're missing
+        const nearbyRanged = state.units.filter(u =>
+            u.ownerId === playerId &&
+            (u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard) &&
+            hexDistance(u.coord, city.coord) <= 2
+        ).length;
+        const nearbyMelee = state.units.filter(u =>
+            u.ownerId === playerId &&
+            (u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard) &&
+            hexDistance(u.coord, city.coord) <= 2
+        ).length;
+
+        // Build whichever we have fewer of (balanced defense)
+        if (nearbyRanged <= nearbyMelee) {
+            // Need ranged
+            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                return { type: "Unit", id: UnitType.ArmyBowGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                return { type: "Unit", id: UnitType.BowGuard };
+            }
+        }
+        // Need melee
+        if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+            return { type: "Unit", id: UnitType.ArmySpearGuard };
+        }
+        if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+            return { type: "Unit", id: UnitType.SpearGuard };
+        }
+        // Any military
+        if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+            return { type: "Unit", id: UnitType.ArmyBowGuard };
+        }
+        if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+            return { type: "Unit", id: UnitType.BowGuard };
+        }
+    }
+
+    // =========================================================================
+    // v7.9: WAR STAGING PRODUCTION - Build offensive units before declaring war
+    // =========================================================================
+    // When AI has identified a target (focusTargetPlayerId set) but hasn't declared
+    // war yet, prioritize building offensive units to reach staging threshold.
+    // This ensures AI builds enough units BEFORE attacking, not after.
+    //
+    // GUARDS to prevent conflicts with defense:
+    // - Skip for defensive civs (ScholarKingdoms, StarborneSeekers) - they prioritize defense
+    // - Skip if this city is under threat
+    // - Only triggers when NOT at war (staging phase only)
+    const memory = getAiMemoryV2(state, playerId);
+    const hasFocusTarget = !!memory.focusTargetPlayerId;
+    const focusCity = memory.focusCityId ? state.cities.find(c => c.id === memory.focusCityId) : null;
+
+    // Check if we're staging (have a target but not at war with them yet)
+    const isStaging = hasFocusTarget && !state.players.some(p =>
+        p.id === memory.focusTargetPlayerId &&
+        !p.isEliminated &&
+        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+
+    // Guard 1: Defensive civs usually prioritize defense, but sometimes contribute to staging
+    // Aggressive civs always stage, defensive civs have 30% chance to participate
+    const isAggressiveCiv = !isDefensiveCiv(profile.civName);
+    const defensiveCivStagingChance = 0.30; // 30% chance defensive civs build for staging
+    const stagingRoll = ((state.turn * 17 + city.id.charCodeAt(0) * 7) % 100) / 100;
+    const shouldStageForWar = isAggressiveCiv || (stagingRoll < defensiveCivStagingChance);
+
+    // Guard 2: Skip if this city is under threat
+    const thisCityThreat = getThreatLevel(state, city, playerId);
+    const cityNotThreatened = thisCityThreat === "none" || thisCityThreat === "low";
+
+    if (isStaging && focusCity && shouldStageForWar && cityNotThreatened) {
+        // Count units near the focus city (staging area)
+        const stageDistMax = 6;
+        const nearCount = state.units.filter(u =>
+            u.ownerId === playerId &&
+            u.type !== UnitType.Settler && u.type !== UnitType.Scout &&
+            UNITS[u.type].domain !== "Civilian" &&
+            hexDistance(u.coord, focusCity.coord) <= stageDistMax
+        ).length;
+
+        // Get profile for forceConcentration
+        const stagingProfile = getAiProfileV2(state, playerId);
+        // v7.9: Match the threshold in diplomacy.ts: Math.max(4, forceConcentration * 5)
+        const requiredNear = Math.max(4, Math.ceil(stagingProfile.tactics.forceConcentration * 5));
+
+        // Count capturers (needed for city capture)
+        const capturersNear = state.units.filter(u =>
+            u.ownerId === playerId &&
+            (u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard ||
+                u.type === UnitType.Riders || u.type === UnitType.ArmyRiders ||
+                u.type === UnitType.Titan || u.type === UnitType.Landship) &&
+            hexDistance(u.coord, focusCity.coord) <= stageDistMax
+        ).length;
+
+        // If we need more units to reach staging threshold, build them
+        if (nearCount < requiredNear || capturersNear < 1) {
+            aiInfo(`[AI Build] ${profile.civName} WAR STAGING: Building offensive units (${nearCount}/${requiredNear} near target, ${capturersNear} capturers)`);
+
+            // Prioritize capturers if we have none
+            if (capturersNear < 1) {
+                if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+                    return { type: "Unit", id: UnitType.ArmySpearGuard };
+                }
+                if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
+                    return { type: "Unit", id: UnitType.ArmyRiders };
+                }
+                if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+                    return { type: "Unit", id: UnitType.SpearGuard };
+                }
+                if (canBuild(city, "Unit", UnitType.Riders, state)) {
+                    return { type: "Unit", id: UnitType.Riders };
+                }
+            }
+
+            // Build ranged units for support
+            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                return { type: "Unit", id: UnitType.ArmyBowGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                return { type: "Unit", id: UnitType.BowGuard };
+            }
+
+            // Build any capturer
+            if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+                return { type: "Unit", id: UnitType.ArmySpearGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+                return { type: "Unit", id: UnitType.SpearGuard };
+            }
+        }
+    }
+
+    // =========================================================================
     // v6.6h: GARRISON REPLENISHMENT when Titan pulls escorts
     // =========================================================================
     // When our Titan exists and is pulling units, undefended cities should
@@ -263,12 +417,24 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     if (ourTitan && !thisCityHasGarrison) {
         aiInfo(`[AI Build] ${profile.civName} GARRISON REPLENISHMENT: City ${city.name} is undefended (Titan escort pulled units)`);
 
-        // Build fast military unit to replace pulled garrison
-        const garrisonOptions = [UnitType.SpearGuard, UnitType.ArmySpearGuard, UnitType.BowGuard];
-        for (const unit of garrisonOptions) {
-            if (canBuild(city, "Unit", unit, state)) {
-                return { type: "Unit", id: unit };
+        // v7.9: Alternate between melee and ranged for better unit mix
+        // Use turn + city hash for pseudo-random selection to get varied compositions
+        const preferRanged = ((state.turn + city.id.charCodeAt(0)) % 2) === 0;
+
+        if (preferRanged) {
+            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                return { type: "Unit", id: UnitType.ArmyBowGuard };
             }
+            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                return { type: "Unit", id: UnitType.BowGuard };
+            }
+        }
+        // Fallback to melee capturers
+        if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+            return { type: "Unit", id: UnitType.ArmySpearGuard };
+        }
+        if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
+            return { type: "Unit", id: UnitType.SpearGuard };
         }
     }
 
@@ -411,16 +577,37 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         if (currentTotal < desiredTotal) {
             aiInfo(`[AI Build] ${profile.civName} DEFENSE PRIORITY (${defenseDecision}): ${city.name} needs defenders (${currentTotal}/${desiredTotal})`);
 
-            // Prefer ranged units for defense (can attack approaching enemies)
-            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
-                return { type: "Unit", id: UnitType.ArmyBowGuard };
+            // v7.9: Alternate between ranged and melee for balanced defense composition
+            // A good defense needs both: ranged to chip away, melee to capture/block
+            // Count existing unit types to determine what we need more of
+            const existingRanged = state.units.filter(u =>
+                u.ownerId === playerId &&
+                (u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard) &&
+                hexDistance(u.coord, city.coord) <= 2
+            ).length;
+            const existingMelee = state.units.filter(u =>
+                u.ownerId === playerId &&
+                (u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard) &&
+                hexDistance(u.coord, city.coord) <= 2
+            ).length;
+
+            // Build whichever we have fewer of, or alternate based on turn
+            const needsRanged = existingRanged <= existingMelee ||
+                ((state.turn + city.id.charCodeAt(0)) % 2 === 0 && existingRanged === existingMelee);
+
+            if (needsRanged) {
+                if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                    return { type: "Unit", id: UnitType.ArmyBowGuard };
+                }
+                if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
+                    return { type: "Unit", id: UnitType.BowGuard };
+                }
             }
+            // Lorekeeper for defensive civs
             if (unlockedUnits.includes(UnitType.Lorekeeper) && canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
                 return { type: "Unit", id: UnitType.Lorekeeper };
             }
-            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
-                return { type: "Unit", id: UnitType.BowGuard };
-            }
+            // Melee units
             if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
                 return { type: "Unit", id: UnitType.ArmySpearGuard };
             }

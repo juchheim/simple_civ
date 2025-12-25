@@ -648,11 +648,12 @@ export function runDefensiveRingCombat(state: GameState, playerId: string): Game
 
         if (ringDefenders.length === 0) continue;
 
-        // Find enemy units within range 3 of the city (potential threats)
+        // v7.9: Increased detection range from 3 to 5 tiles to catch enemies earlier
+        // This ensures ring defenders start moving/engaging before enemies reach the city
         const nearbyEnemies = next.units.filter(u =>
             enemyIds.has(u.ownerId) &&
             isMilitary(u) &&
-            hexDistance(u.coord, city.coord) <= 3
+            hexDistance(u.coord, city.coord) <= 5
         );
 
         if (nearbyEnemies.length === 0) continue;
@@ -698,8 +699,9 @@ export function runDefensiveRingCombat(state: GameState, playerId: string): Game
                     }
                 }
 
-                // Attack if we found a worthwhile target
-                if (bestTarget && bestScore > 0) {
+                // v7.9: Lowered threshold from 0 to -20 to make ring defenders attack more aggressively
+                // Ring defenders should engage to protect the city even at disadvantage
+                if (bestTarget && bestScore > -20) {
                     aiInfo(`[RING COMBAT] ${playerId} ring defender ${liveDefender.type} attacking ${bestTarget.type} near ${city.name} (score: ${bestScore.toFixed(0)})`);
                     next = tryAction(next, {
                         type: "Attack",
@@ -742,8 +744,14 @@ export function runDefensiveRingCombat(state: GameState, playerId: string): Game
 
                 const bestMove = moveOptions[0];
 
-                // Only move if it gets us closer to the enemy
-                if (bestMove.distToEnemy < hexDistance(liveDefender.coord, closestEnemy.enemy.coord)) {
+                // v7.9: Always move toward enemy if we're melee and enemy is ranged (intercept them)
+                // This fixes the issue where ShieldGuards just sit there while BowGuards pick them off
+                const isDefenderMelee = range === 1;
+                const isEnemyRanged = (UNITS[closestEnemy.enemy.type].rng ?? 1) > 1;
+                const shouldIntercept = isDefenderMelee && isEnemyRanged;
+
+                // Move if it gets us closer to the enemy OR if we need to intercept a ranged enemy
+                if (bestMove.distToEnemy < hexDistance(liveDefender.coord, closestEnemy.enemy.coord) || shouldIntercept) {
                     aiInfo(`[RING COMBAT] ${playerId} ring defender ${liveDefender.type} moving to intercept ${closestEnemy.enemy.type}`);
                     const moveResult = tryAction(next, {
                         type: "MoveUnit",

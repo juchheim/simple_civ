@@ -6,9 +6,10 @@ import { useTutorial } from "../../../contexts/TutorialContext";
 type TechButtonProps = {
     player: Player | undefined;
     onShowTechTree: () => void;
+    sciencePerTurn: number;
 };
 
-export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }) => {
+export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree, sciencePerTurn }) => {
     const tech = player?.currentTech;
     const progress = tech ? Math.min(100, Math.round((tech.progress / tech.cost) * 100)) : 0;
     const tutorial = useTutorial();
@@ -51,7 +52,14 @@ export const TechButton: React.FC<TechButtonProps> = ({ player, onShowTechTree }
                     <div className="hud-progress">
                         <div className="hud-progress-fill" style={{ width: `${progress}%` }} />
                     </div>
-                    <div className="hud-subtext">Progress: {tech.progress}/{tech.cost}</div>
+                    <div className="hud-subtext">
+                        {(() => {
+                            const remaining = tech.cost - tech.progress;
+                            const turnsRemaining = sciencePerTurn > 0 ? Math.ceil(remaining / sciencePerTurn) : Infinity;
+                            const turnsText = turnsRemaining === Infinity ? "∞ turns" : `${turnsRemaining} turn${turnsRemaining !== 1 ? "s" : ""}`;
+                            return `${turnsText} (${tech.progress}/${tech.cost})`;
+                        })()}
+                    </div>
                 </>
             ) : (
                 <div className="hud-subtext warn">Research is paused until you pick a tech.</div>
