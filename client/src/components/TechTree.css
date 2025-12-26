@@ -509,10 +509,10 @@
 }
 
 .tech-card-unlock-stats {
-    display: block;
+    display: inline;
     font-size: 10px;
     color: var(--color-text-muted);
-    margin-top: 1px;
+    margin-left: 4px;
 }
 
 .tech-card--current .tech-card-unlock {
