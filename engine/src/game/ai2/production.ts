@@ -730,32 +730,28 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
-    // PRIORITY 0.9: Army Units for Defensive Civs (non-Bulwark cities)
+    // PRIORITY 0.9: Army Units for Defensive Civs
     // =========================================================================
-    // For ScholarKingdoms/StarborneSeekers: non-Bulwark cities should build Army
-    // units while Bulwark cities focus on Victory projects
+    // v8.3: Removed Bulwark restriction - ALL cities can now build Army units
     if (isDefensiveCiv(profile.civName) && player.techs.includes(TechId.DrilledRanks)) {
-        if (!city.buildings.includes(BuildingType.Bulwark)) {
-            // Non-Bulwark city: prioritize Army units over Victory projects
-            const currentArmyUnits = state.units.filter(u =>
-                u.ownerId === playerId &&
-                (u.type === UnitType.ArmySpearGuard || u.type === UnitType.ArmyBowGuard || u.type === UnitType.ArmyRiders)
-            ).length;
-            const nonBulwarkCities = myCities.filter(c => !c.buildings.includes(BuildingType.Bulwark)).length;
-            const desiredArmyUnits = Math.max(4, nonBulwarkCities * 2); // At least 4 Army units
+        const currentArmyUnits = state.units.filter(u =>
+            u.ownerId === playerId &&
+            (u.type === UnitType.ArmySpearGuard || u.type === UnitType.ArmyBowGuard || u.type === UnitType.ArmyRiders)
+        ).length;
+        const desiredArmyUnits = Math.max(4, myCities.length * 2); // At least 4 Army units
 
-            if (currentArmyUnits < desiredArmyUnits) {
-                if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
-                    aiInfo(`[AI Build] ${profile.civName} ARMY (pre-project): ArmyBowGuard (${currentArmyUnits}/${desiredArmyUnits})`);
-                    return { type: "Unit", id: UnitType.ArmyBowGuard };
-                }
-                if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
-                    aiInfo(`[AI Build] ${profile.civName} ARMY (pre-project): ArmySpearGuard (${currentArmyUnits}/${desiredArmyUnits})`);
-                    return { type: "Unit", id: UnitType.ArmySpearGuard };
-                }
+        if (currentArmyUnits < desiredArmyUnits) {
+            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
+                aiInfo(`[AI Build] ${profile.civName} ARMY (pre-project): ArmyBowGuard (${currentArmyUnits}/${desiredArmyUnits})`);
+                return { type: "Unit", id: UnitType.ArmyBowGuard };
+            }
+            if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
+                aiInfo(`[AI Build] ${profile.civName} ARMY (pre-project): ArmySpearGuard (${currentArmyUnits}/${desiredArmyUnits})`);
+                return { type: "Unit", id: UnitType.ArmySpearGuard };
             }
         }
     }
+
 
     // =========================================================================
     // PRIORITY 1: Victory Projects (Progress goal)

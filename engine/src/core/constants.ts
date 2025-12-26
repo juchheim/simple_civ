@@ -117,7 +117,7 @@ export const JADE_COVENANT_SETTLER_DISCOUNT = 0.80; // v7.9: Buffed to 20% (was 
 export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
 
 // v7.9: Re-added Jade Covenant "Population Power" - +1 Atk/Def per X total population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 6; // v7.9: Buffed to per 6 (was per 10)
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 20; // v8.11: Nerfed from 16 to 20
 
 
 
@@ -149,8 +149,10 @@ export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 4; // Tiles from capital
 export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // v1.7: Nerfed from +2 to +1 for balance
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
-export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 1; // Tiles from any city
+export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 3; // v8.3: Buffed from 2 to 3 (wider defensive zone)
 export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 8; // v1.7: Reverted to +8 to match code logic
+
+
 
 // Settler
 export const SETTLER_COST = 20;
@@ -297,7 +299,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     // Landship: Late game siege breaker.
     [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 120, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.2: Cost 220 -> 120 (more attainable)
     // v7.0: Lorekeeper - Defensive ranged unit for ScholarKingdoms/StarborneSeekers
-    [UnitType.Lorekeeper]: { atk: 4, def: 4, rng: 2, move: 1, hp: 14, cost: 80, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v2.9b: Cost 60 -> 80
+    [UnitType.Lorekeeper]: { atk: 5, def: 6, rng: 2, move: 1, hp: 20, cost: 50, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v8.12: atk 7→5, hp 18→20, cost 60→50
 };
 
 export type BuildingData = {
@@ -322,7 +324,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 220, conditional: "Summons The Titan upon completion" }, // v1.7: Nerfed to 220 (was 180) to delay Titan
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 220, yieldFlat: { S: 4, F: 3 }, conditional: "The Revelation: +4 Science, +3 Food, counts as Observatory milestone" }, // v7.3: Nerfed (was S:5 F:4)
+    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 250, yieldFlat: { S: 4, F: 3 }, conditional: "The Revelation: +4 Science, +3 Food, counts as Observatory milestone" }, // v8.3: Matches Observatory cost
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
     // v5.5: Bulwark converted to Building (Scholar/Starborne only)
     [BuildingType.Bulwark]: {
@@ -381,21 +383,21 @@ export const TECHS: Record<TechId, TechData> = {
 
 export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     [ProjectId.Observatory]: {
-        cost: 300,  // v7.9: Increased from 250 to slow Progress (more time for Conquest civs)
+        cost: 200,  // v8.10: Reduced from 250 to reduce stalls
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 380,  // v7.9: Increased from 320
+        cost: 260,  // v8.10: Reduced from 320 to reduce stalls
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 480,  // v7.9: Increased from 400
+        cost: 320,  // v8.10: Reduced from 400 to reduce stalls
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

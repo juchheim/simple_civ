@@ -163,9 +163,9 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         if (city.buildings.includes(BuildingType.Forgeworks)) { total.P += 1; total.S += 1; }
     } else if (trait === "ScholarKingdoms") {
         // v1.9: "Citadel Protocol"
-        // 1. +3 Science in Capital (Buffed v2.9)
+        // 1. +2 Science in Capital (Buffed v8.8)
         if (city.isCapital) {
-            total.S += 1; // v2.9: Nerfed to +1 (was +3)
+            total.S += 2; // v8.8: Buffed from +1 to +2
         }
         // 2. +3 Science per CityWard building (Buffed v2.9)
         const cityWardCount = state.cities.filter(c =>
@@ -179,7 +179,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         total.P += Math.floor(riverCount / 2); // v1.6: Buffed from /3 to /2 - +1 Prod per 2 river tiles
         // v1.6: Removed Science bonus - made them Progress-only
     } else if (trait === "StarborneSeekers") {
-        // v1.9: "Peaceful Meditation" - +2 Science when not at war (Buffed from +1)
+        // v1.9: "Peaceful Meditation" - Science when not at war
         // Fits their defensive identity - they avoid wars to pursue Progress
         const player = state.players.find(p => p.id === city.ownerId);
         const atWar = state.players.some(other =>
@@ -188,7 +188,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
             state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
         );
         if (!atWar && city.isCapital) {
-            total.S += 1; // v2.8: Nerfed to +1 (was +3), and restricted to Capital
+            total.S += 2; // v8.11: Buffed from +1 to +2
         }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)

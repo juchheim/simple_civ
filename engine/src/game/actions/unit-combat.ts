@@ -210,7 +210,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     // v6.6k: Buffed to 0.5 to help Aetherian win rate (was 16.9%)
                     // v6.6m: Buffed to 0.7 to further help Aetherian (was 16.4%)
                     const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.7);
+                    const scienceGain = Math.floor(combatPower * 0.4); // v8.12: Nerfed from 0.5 to 0.4
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                         // Track for simulation analysis

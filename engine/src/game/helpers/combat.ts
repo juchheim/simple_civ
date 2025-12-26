@@ -91,13 +91,11 @@ export function countErasResearched(player: Player): number {
 
 /**
  * Get the HP bonus for AetherianVanguard's "Battle Hardened" passive.
- * Military units gain +2 HP per era researched (max +8).
+ * v8.3: DISABLED - was giving +2 HP per era (max +8), made Aetherian too strong.
  */
 export function getAetherianHpBonus(player: Player, unitType: UnitType): number {
-    if (player.civName !== "AetherianVanguard") return 0;
-    // Only military units get the bonus
-    if (UNITS[unitType].domain === "Civilian") return 0;
-    return countErasResearched(player) * 2;
+    // v8.3: Disabled to balance Aetherian win rate
+    return 0;
 }
 
 /**
@@ -167,10 +165,9 @@ export function getStarborneCelestialBonus(state: GameState, player: Player, uni
 }
 
 /**
- * v1.9: ScholarKingdoms "Citadel Protocol" - scaling city defense.
- * Total bonus pool: +8 Defense distributed across all cities (Buffed v2.9).
- * 1 city = +8, 2 = +4, 3 = ~2.6, 4 = +2 each
- * Rewards "tall" play (few highly developed cities).
+ * v1.9: ScholarKingdoms "Citadel Protocol" - defense near cities.
+ * v8.2: Fixed - units get flat +4 defense near any city (was incorrectly splitting by city count).
+ * City count splitting was intended for city defenses, not unit defenses.
  */
 export function getScholarKingdomsDefenseBonus(state: GameState, player: Player, unit: Unit): number {
     if (player.civName !== "ScholarKingdoms") return 0;
@@ -182,15 +179,14 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
     for (const city of cities) {
         const dist = hexDistance(unit.coord, city.coord);
         if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
-            // v2.9: Scaling bonus - 8 total distributed across cities (Buffed from 6)
-            // Math.floor(8 / cityCount): 1 city = +8, 2 = +4, 3 = +2, 4 = +2, 5 = +1, 6 = +1
-            // Using Math.max to ensure minimum of +1
-            return Math.max(1, Math.floor(SCHOLAR_KINGDOMS_DEFENSE_BONUS / cities.length));
+            // v8.2: Flat +4 defense near any city (was 8/cityCount - that's for city defense, not units)
+            return 4;
         }
     }
 
     return 0;
 }
+
 
 
 
@@ -351,7 +347,7 @@ export function getUnitMaxMoves(unit: Unit, state: GameState): number {
     if (unit.type === UnitType.Settler) {
         const player = state.players.find(p => p.id === unit.ownerId);
         if (player?.civName === "JadeCovenant") {
-            moves = 3; // Override to 3 movement
+            moves = 2; // Override to 2 movement
         }
     }
 

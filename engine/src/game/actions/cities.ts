@@ -210,7 +210,16 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
         }
     }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
-    if (action.buildType === "Project") cost = getProjectCost(action.buildId as ProjectId, state.turn);
+    if (action.buildType === "Project") {
+        cost = getProjectCost(action.buildId as ProjectId, state.turn);
+
+        // v8.9: Scholar/Starborne "Academic Focus" - 20% cheaper Progress projects
+        const progressProjects = [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment];
+        if ((player?.civName === "ScholarKingdoms" || player?.civName === "StarborneSeekers")
+            && progressProjects.includes(action.buildId as ProjectId)) {
+            cost = Math.floor(cost * 0.80);
+        }
+    }
 
     // Restore saved progress if exists
     const newKey = `${action.buildType}:${action.buildId}`;
