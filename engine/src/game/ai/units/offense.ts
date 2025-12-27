@@ -1,7 +1,7 @@
 import { aiLog, aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType, UnitState, Unit } from "../../../core/types.js";
-import { UNITS } from "../../../core/constants.js";
+import { UNITS, TERRAIN } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { nearestByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
@@ -254,8 +254,66 @@ function handleUnsafeAttack(
     return next;
 }
 
+/**
+ * v1.0.4: Trebuchet-first attack coordination
+ * All Trebuchets attack the primary siege city before other units.
+ * This ensures siege weapons soften targets for melee to capture.
+ */
+function trebuchetSiegeAttacks(state: GameState, playerId: string): GameState {
+    let next = state;
+
+    const trebuchets = next.units.filter(u =>
+        u.ownerId === playerId &&
+        u.type === UnitType.Trebuchet &&
+        !u.hasAttacked &&
+        u.movesLeft > 0
+    );
+
+    if (trebuchets.length === 0) return next;
+
+    const warTargets = getWarTargets(next, playerId);
+    const warCities = next.cities.filter(c =>
+        warTargets.some(t => t.id === c.ownerId) && c.hp > 0
+    );
+
+    if (warCities.length === 0) return next;
+
+    // Focus fire: all Trebuchets attack lowest HP city in range
+    for (const treb of trebuchets) {
+        const trebStats = UNITS[UnitType.Trebuchet];
+        const inRange = warCities.filter(c =>
+            hexDistance(c.coord, treb.coord) <= trebStats.rng
+        );
+
+        if (inRange.length === 0) continue;
+
+        // Pick lowest HP city (prioritize finishing kills)
+        const target = inRange.sort((a, b) => a.hp - b.hp)[0];
+
+        const result = tryAction(next, {
+            type: "Attack",
+            playerId,
+            attackerId: treb.id,
+            targetId: target.id,
+            targetType: "City"
+        });
+
+        if (result !== next) {
+            const dmg = expectedDamageToCity(treb, target, next);
+            aiInfo(`[AI TREBUCHET VOLLEY] ${playerId} Trebuchet attacks ${target.name} (HP: ${target.hp}, expected dmg: ${dmg})`);
+            next = result;
+        }
+    }
+
+    return next;
+}
+
 export function attackTargets(state: GameState, playerId: string): GameState {
-    let next = coordinateBattleGroups(state, playerId);
+    // v1.0.4: Trebuchets fire first (siege softening)
+    let next = trebuchetSiegeAttacks(state, playerId);
+
+    next = coordinateBattleGroups(next, playerId);
+
 
     const units = getAttackingUnits(next, playerId);
     const warTargets = getWarTargets(next, playerId);
@@ -274,6 +332,9 @@ export function attackTargets(state: GameState, playerId: string): GameState {
         const cityAttack = tryCityAttacks(next, playerId, unit, warCities, primaryCity);
         next = cityAttack.state;
         if (cityAttack.acted) continue;
+
+        // v1.0.3: Trebuchets can only attack cities, not units - skip unit attack logic
+        if (unit.type === UnitType.Trebuchet) continue;
 
         const warEnemyIds = getWarEnemyIds(next, playerId);
         const enemyUnits = getEnemyTargets(next, unit, warEnemyIds);
@@ -509,9 +570,16 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
             }
 
             if (!nearest) {
+                // v1.0.4: Trebuchet-Titan Synergy
+                // Trebuchets can't keep up with Titan (move 1 vs move 3)
+                // Instead of following Titan, go directly to Titan's target city
+                if (titan && current.type === UnitType.Trebuchet && primaryCity) {
+                    nearest = primaryCity;
+                    aiInfo(`[AI TREBUCHET TITAN] ${playerId} Trebuchet moving to Titan's target ${primaryCity.name}`);
+                }
                 // v1.1: Titan Deathball Override
                 // If Titan exists, rally to it!
-                if (titan && current.id !== titan.id) {
+                else if (titan && current.id !== titan.id) {
                     const distToTitan = hexDistance(current.coord, titan.coord);
 
                     // If we are far from Titan (> 3 tiles), move to Titan
@@ -583,6 +651,95 @@ export function moveMilitaryTowardTargets(state: GameState, playerId: string): G
                         aiInfo(`[AI GROUPING] ${playerId} ${current.type} waiting for reinforcements at dist ${currentDist} (${friendliesNearTarget}/${requiredSiegeGroup})`);
                         moved = true; // "Moved" means we took an action (waiting), so stop loop
                     }
+                }
+                // -----------------------------
+
+                // --- v1.0.4: TREBUCHET SIEGE POSITIONING ---
+                // Goal: Stay at range 2 from city, behind friendly melee units.
+                // Key changes from v1.0.3:
+                // - Only waits if enemies exist AND no melee protection
+                // - Advances when has melee escort
+                // - Holds at range 2 (optimal firing position)
+                if (!moved && current.type === UnitType.Trebuchet) {
+                    const warEnemyIds = warTargets.map(p => p.id);
+
+                    // Count friendlies between Trebuchet and city (protection check)
+                    const friendlyMeleeBetween = armyUnits.filter(u =>
+                        u.id !== current.id &&
+                        UNITS[u.type].rng === 1 && // Melee only
+                        hexDistance(u.coord, nearest.coord) < currentDist // Closer to city than us
+                    ).length;
+
+                    // Optimal position: range 2 from city with melee in front
+                    const inFiringRange = currentDist <= 2;
+                    const hasProtection = friendlyMeleeBetween >= 1;
+
+                    // Danger check: enemies within 2 tiles of Trebuchet
+                    const enemiesNearTrebuchet = next.units.filter(u =>
+                        warEnemyIds.includes(u.ownerId) &&
+                        UNITS[u.type].domain !== "Civilian" &&
+                        hexDistance(u.coord, current.coord) <= 2
+                    ).length;
+
+                    // RETREAT if enemies closing in and no protection
+                    if (enemiesNearTrebuchet > 0 && !hasProtection && current.movesLeft > 0) {
+                        // Find safe retreat tile (away from enemies, toward friendlies)
+                        const retreatNeighbors = getNeighbors(current.coord)
+                            .filter(n => {
+                                const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
+                                if (!tile || !TERRAIN[tile.terrain].moveCostLand) return false;
+                                const hasUnit = next.units.some(u => hexEquals(u.coord, n) && UNITS[u.type].domain !== "Civilian");
+                                if (hasUnit) return false;
+                                const closestEnemy = next.units
+                                    .filter(u => warEnemyIds.includes(u.ownerId) && UNITS[u.type].domain !== "Civilian")
+                                    .reduce((min, u) => Math.min(min, hexDistance(u.coord, n)), Infinity);
+                                const currentClosest = next.units
+                                    .filter(u => warEnemyIds.includes(u.ownerId) && UNITS[u.type].domain !== "Civilian")
+                                    .reduce((min, u) => Math.min(min, hexDistance(u.coord, current.coord)), Infinity);
+                                return closestEnemy > currentClosest;
+                            })
+                            .sort((a, b) => {
+                                const aFriendly = armyUnits.filter(u => u.id !== current.id).reduce((min, u) => Math.min(min, hexDistance(u.coord, a)), Infinity);
+                                const bFriendly = armyUnits.filter(u => u.id !== current.id).reduce((min, u) => Math.min(min, hexDistance(u.coord, b)), Infinity);
+                                return aFriendly - bFriendly;
+                            });
+
+                        if (retreatNeighbors.length > 0) {
+                            const retreatTile = retreatNeighbors[0];
+                            const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: retreatTile });
+                            if (retreated !== next) {
+                                aiInfo(`[AI TREBUCHET RETREAT] ${playerId} Trebuchet retreating from ${enemiesNearTrebuchet} enemies (no melee protection)`);
+                                next = retreated;
+                                moved = true;
+                            }
+                        }
+                    }
+
+                    // Count enemy units near the target city
+                    const enemyUnitsNearCity = next.units.filter(u =>
+                        warEnemyIds.includes(u.ownerId) &&
+                        UNITS[u.type].domain !== "Civilian" &&
+                        u.type !== UnitType.Scout &&
+                        hexDistance(u.coord, nearest.coord) <= 3
+                    ).length;
+
+                    // HOLD at firing range - this is where we want to be
+                    if (!moved && inFiringRange) {
+                        aiInfo(`[AI TREBUCHET POSITION] ${playerId} Trebuchet holding at firing range ${currentDist} (melee escorts: ${friendlyMeleeBetween})`);
+                        moved = true;
+                    }
+
+                    // ADVANCE if: has melee protection OR no enemies near city
+                    if (!moved && (hasProtection || enemyUnitsNearCity === 0)) {
+                        // Allow normal movement - don't block
+                        moved = false;
+                    }
+                    // WAIT for escort - only block if close enough that advancing would be dangerous
+                    else if (!moved && !hasProtection && enemyUnitsNearCity > 0 && currentDist <= 4) {
+                        aiInfo(`[AI TREBUCHET WAIT] ${playerId} Trebuchet waiting for melee escort at dist ${currentDist} (escorts: ${friendlyMeleeBetween}, enemies: ${enemyUnitsNearCity})`);
+                        moved = true;
+                    }
+                    // If currentDist > 4 and no protection, allow normal approach (safe distance)
                 }
                 // -----------------------------
 

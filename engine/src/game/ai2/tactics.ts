@@ -462,6 +462,28 @@ function bestAttackForUnit(state: GameState, playerId: string, unit: Unit): { ac
 }
 
 function moveToward(state: GameState, playerId: string, unit: Unit, dest: { q: number; r: number }, cache?: LookupCache): GameState {
+    // v8.1: Ring defender guard - don't move units that are defending a threatened city
+    // This catches ALL callers of moveToward, preventing ring defender shuffling
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const cityInRingOf = myCities.find(c => hexDistance(unit.coord, c.coord) === 1);
+    if (cityInRingOf) {
+        // Check if this city has nearby enemies (within 3 tiles)
+        const enemyIds = new Set(
+            state.players
+                .filter(p => !p.isEliminated && p.id !== playerId && state.diplomacy[playerId]?.[p.id] === DiplomacyState.War)
+                .map(p => p.id)
+        );
+        const enemiesNearCity = state.units.filter(u =>
+            enemyIds.has(u.ownerId) &&
+            isMilitary(u) &&
+            hexDistance(u.coord, cityInRingOf.coord) <= 3
+        );
+        if (enemiesNearCity.length > 0) {
+            // Don't move - this unit is protecting a threatened city
+            return state;
+        }
+    }
+
     const path = findPath(unit.coord, dest, unit, state, cache);
     if (path.length === 0) return state;
     const step = path[0];
@@ -1215,16 +1237,20 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
         const rallyTarget = focusCity.coord;
         const myCityCoords = new Set(myCities.map(c => `${c.coord.q},${c.coord.r}`));
 
-        const militaryToRally = next.units.filter(u =>
-            u.ownerId === playerId &&
-            u.movesLeft > 0 &&
-            isMilitary(u) &&
-            u.type !== UnitType.Titan && // Titan has its own agent
-            !u.isTitanEscort && // Escorts follow Titan
-            !u.isHomeDefender && // Home defenders stay in territory
-            !myCityCoords.has(`${u.coord.q},${u.coord.r}`) && // Don't pull garrisons
-            hexDistance(u.coord, rallyTarget) > 3 // Not already close enough
-        ).sort((a, b) =>
+        const militaryToRally = next.units.filter(u => {
+            if (u.ownerId !== playerId) return false;
+            if (u.movesLeft <= 0) return false;
+            if (!isMilitary(u)) return false;
+            if (u.type === UnitType.Titan) return false; // Titan has its own agent
+            if (u.isTitanEscort) return false; // Escorts follow Titan
+            if (u.isHomeDefender) return false; // Home defenders stay in territory
+            if (myCityCoords.has(`${u.coord.q},${u.coord.r}`)) return false; // Don't pull garrisons
+            // v8.1: Don't pull ring defenders (distance 1 from any city)
+            const inRing = myCities.some(c => hexDistance(u.coord, c.coord) === 1);
+            if (inRing) return false;
+            if (hexDistance(u.coord, rallyTarget) <= 3) return false; // Already close enough
+            return true;
+        }).sort((a, b) =>
             hexDistance(a.coord, rallyTarget) - hexDistance(b.coord, rallyTarget)
         );
 
@@ -1286,14 +1312,18 @@ export function runTacticsV2(state: GameState, playerId: string): GameState {
 
     const cityTiles = new Set(next.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`));
     const movers = next.units
-        .filter(u =>
-            u.ownerId === playerId &&
-            u.movesLeft > 0 &&
-            isMilitary(u) &&
-            u.type !== UnitType.Titan &&
-            !u.isHomeDefender && // v7.1: Home defenders stay in territory
-            !cityTiles.has(`${u.coord.q},${u.coord.r}`) // don't pull garrisons off cities
-        )
+        .filter(u => {
+            if (u.ownerId !== playerId) return false;
+            if (u.movesLeft <= 0) return false;
+            if (!isMilitary(u)) return false;
+            if (u.type === UnitType.Titan) return false;
+            if (u.isHomeDefender) return false; // v7.1: Home defenders stay in territory
+            if (cityTiles.has(`${u.coord.q},${u.coord.r}`)) return false; // don't pull garrisons off cities
+            // v8.1: Don't pull ring defenders (distance 1 from any city)
+            const inRing = myCities.some(c => hexDistance(u.coord, c.coord) === 1);
+            if (inRing) return false;
+            return true;
+        })
         .sort((a, b) => hexDistance(a.coord, focusCity.coord) - hexDistance(b.coord, focusCity.coord));
 
     // If we're not at war yet, move a real strike group (not 2 units) so we can actually declare and capture fast.

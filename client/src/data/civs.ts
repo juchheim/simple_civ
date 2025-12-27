@@ -20,14 +20,14 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "ScholarKingdoms",
         title: "Scholar Kingdoms",
         summary: "Science-focused with defensive bonuses near their learning centers.",
-        perk: "+2 Science (Capital) • +1 Science/City Ward • +4 Defense near cities • Unique: Lorekeeper, Bulwark",
+        perk: "+1 Science (Capital) • +1 Science/City Ward • +2 Defense near cities • Unique: Lorekeeper, Bulwark",
         color: "#0ea5e9",
     },
     {
         id: "RiverLeague",
         title: "River League",
         summary: "Masters of river-based agriculture and industry.",
-        perk: "+1 Food/river • +1 Prod/2 rivers • +1 Atk (all) • +2 Atk/+2 Def near rivers • +1 Atk vs cities",
+        perk: "+1 Food/river • +1 Prod/2 rivers • +2 Atk (all) • +2 Atk/+2 Def near rivers • +1 Atk vs cities",
         color: "#A0522D",
     },
     {
@@ -41,14 +41,14 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "StarborneSeekers",
         title: "Starborne Seekers",
         summary: "Explorers seeking cosmic enlightenment through technology.",
-        perk: "+2 Science (Capital) at peace • +1 Defense (all) • Unique: Spirit Observatory, Lorekeeper, Bulwark",
+        perk: "+1 Science (Capital) at peace • Unique: Spirit Observatory, Lorekeeper, Bulwark",
         color: "#1e3a8a",
     },
     {
         id: "JadeCovenant",
         title: "Jade Covenant",
         summary: "Masters of growth and population-based power.",
-        perk: "+2 Food/city • +1 Atk/Def per 20 pop • 15% faster growth • 20% cheaper Settlers • 2 move Settlers • Nature's Wrath",
+        perk: "+2 Food/city • +1 Atk/Def per 12 pop • 15% faster growth • 20% cheaper Settlers • 2 move Settlers • Nature's Wrath",
         color: "#0f9d58",
     },
 ];

@@ -44,6 +44,8 @@ export enum UnitType {
     Landship = "Landship",
     // v7.0: Defensive civ-exclusive units
     Lorekeeper = "Lorekeeper",
+    // v1.0.3: Siege unit
+    Trebuchet = "Trebuchet",
 }
 
 export enum UnitDomain {
@@ -129,6 +131,7 @@ export enum ProjectId {
     // Markers for unique wonder completions
     JadeGranaryComplete = "JadeGranaryComplete",
     TitansCoreComplete = "TitansCoreComplete",
+    BulwarkComplete = "BulwarkComplete", // v8.14: Bulwark is now once-per-civ
 }
 
 export type Yields = {

@@ -9,6 +9,8 @@ import {
     TERRAIN,
     FORTIFY_DEFENSE_BONUS,
     UNITS,
+    TREBUCHET_CITY_ATTACK_BONUS,
+    TREBUCHET_CITY_RETALIATION_REDUCTION,
 } from "../../core/constants.js";
 import { hexDistance, hexEquals, hexToString, getNeighbors } from "../../core/hex.js";
 import { captureCity } from "../helpers/cities.js";
@@ -44,6 +46,10 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         const targetUnit = state.units.find(u => u.id === action.targetId);
         if (targetUnit && UNITS[targetUnit.type].domain === UnitDomain.Air) {
             throw new Error("Cannot attack air units");
+        }
+        // v1.0.3: Trebuchet can only attack cities, not units
+        if (attacker.type === UnitType.Trebuchet) {
+            throw new Error("Trebuchet can only attack cities");
         }
     }
 
@@ -210,7 +216,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     // v6.6k: Buffed to 0.5 to help Aetherian win rate (was 16.9%)
                     // v6.6m: Buffed to 0.7 to further help Aetherian (was 16.4%)
                     const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.4); // v8.12: Nerfed from 0.5 to 0.4
+                    const scienceGain = Math.floor(combatPower * 0.6); // v1.0.3: Buffed from 0.4 to 0.6
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                         // Track for simulation analysis
@@ -279,7 +285,8 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
 
         // v6.7: Find the garrison with the highest range (for best retaliation) when multiple units on city tile
         // v7.10: Exclude Scouts from garrison - they don't provide defense/attack bonuses
-        const garrisonCandidates = state.units.filter(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler && u.type !== UnitType.Scout);
+        // v1.0.3: Exclude Trebuchets from garrison - siege weapons cannot garrison
+        const garrisonCandidates = state.units.filter(u => hexEquals(u.coord, city.coord) && u.ownerId === city.ownerId && u.type !== UnitType.Settler && u.type !== UnitType.Scout && u.type !== UnitType.Trebuchet);
         const garrison = garrisonCandidates.length > 0
             ? garrisonCandidates.reduce((best, u) => UNITS[u.type].rng > UNITS[best.type].rng ? u : best)
             : undefined;
@@ -339,7 +346,10 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         const player = state.players.find(p => p.id === action.playerId);
         const riverSiegeBonus = player?.civName === "RiverLeague" ? 1 : 0;
 
-        const damageResult = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus + riverSiegeBonus, defensePower, state.seed);
+        // v1.0.3: Trebuchet Siege Bonus - +4 Attack vs cities
+        const trebuchetBonus = attacker.type === UnitType.Trebuchet ? TREBUCHET_CITY_ATTACK_BONUS : 0;
+
+        const damageResult = calculateCiv6Damage(attackerStats.atk + cityFlankingBonus + riverSiegeBonus + trebuchetBonus, defensePower, state.seed);
         let damage = damageResult.damage;
         state.seed = damageResult.newSeed;
 
@@ -389,7 +399,13 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             );
             state.seed = retSeed;
 
-            attacker.hp -= retaliationDamage;
+            // v1.0.3: Trebuchet takes 50% less damage from city retaliation
+            let finalRetaliationDamage = retaliationDamage;
+            if (attacker.type === UnitType.Trebuchet) {
+                finalRetaliationDamage = Math.floor(retaliationDamage * TREBUCHET_CITY_RETALIATION_REDUCTION);
+            }
+
+            attacker.hp -= finalRetaliationDamage;
             attacker.retaliatedAgainstThisTurn = true;
 
             if (attacker.hp <= 0) {

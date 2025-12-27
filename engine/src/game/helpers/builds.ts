@@ -113,6 +113,13 @@ export function completeBuild(state: GameState, city: City) {
 
                 // v2.9 NERF: Free Settler removed.
             }
+        } else if (build.id === BuildingType.Bulwark) {
+            // v8.14: Bulwark is now once-per-civ wonder
+            logEvent(state, HistoryEventType.WonderBuilt, city.ownerId, { buildId: build.id, cityId: city.id, cityName: city.name });
+
+            if (player) {
+                player.completedProjects.push(ProjectId.BulwarkComplete);
+            }
         }
     } else if (build.type === "Project") {
         const pId = build.id as ProjectId;

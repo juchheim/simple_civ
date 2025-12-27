@@ -13,12 +13,16 @@ import { TechId, UnitType, BuildingType } from "../../core/types.js";
 // UNIT ROLES
 // =============================================================================
 
-export type UnitRole = "siege" | "capture" | "defense" | "vision" | "civilian";
+// v1.0.4: Added 'city_siege' to distinguish Trebuchet (city-only) from general siege
+export type UnitRole = "siege" | "city_siege" | "capture" | "defense" | "vision" | "civilian";
 
 export const UNIT_ROLES: Record<UnitType, UnitRole> = {
-    // Siege: Ranged damage to cities
+    // Siege: Ranged damage to cities AND units
     [UnitType.BowGuard]: "siege",
     [UnitType.ArmyBowGuard]: "siege",
+
+    // City-only siege: Can only attack cities, needs escort
+    [UnitType.Trebuchet]: "city_siege", // v1.0.4: Distinct role for specialized siege
 
     // Capture: Take cities at 0 HP
     [UnitType.SpearGuard]: "capture",
@@ -63,6 +67,7 @@ export const TECH_UNLOCKS: Partial<Record<TechId, TechUnlock>> = {
     // Banner Era
     [TechId.DrilledRanks]: { units: [UnitType.ArmySpearGuard, UnitType.ArmyBowGuard] },
     [TechId.TrailMaps]: { units: [UnitType.Riders] },
+    [TechId.TimberMills]: { units: [UnitType.Trebuchet] }, // v1.0.3: Trebuchet siege unit
     [TechId.CityWards]: { buildings: [BuildingType.CityWard, BuildingType.Bulwark] },
     [TechId.ScholarCourts]: { buildings: [BuildingType.Academy] },
 
@@ -89,6 +94,8 @@ export const TECH_CHAINS: Record<string, TechId[]> = {
     Landship: [TechId.FormationTraining, TechId.DrilledRanks, TechId.ArmyDoctrine, TechId.CompositeArmor],
     Airship: [TechId.ScriptLore, TechId.ScholarCourts, TechId.TimberMills, TechId.SteamForges, TechId.Aerodynamics],
     ArmyRiders: [TechId.Fieldcraft, TechId.TrailMaps, TechId.DrilledRanks, TechId.ArmyDoctrine],
+    // v1.0.3: Trebuchet siege unit - conquest civs should prioritize this
+    Trebuchet: [TechId.StoneworkHalls, TechId.TimberMills],
 
     // Unique buildings
     Titan: [TechId.StoneworkHalls, TechId.TimberMills, TechId.SteamForges],

@@ -179,8 +179,8 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
     for (const city of cities) {
         const dist = hexDistance(unit.coord, city.coord);
         if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
-            // v8.2: Flat +4 defense near any city (was 8/cityCount - that's for city defense, not units)
-            return 4;
+            // v8.14: Nerfed from +4 to +2 (was too dominant at 35.2% win rate)
+            return 2;
         }
     }
 
@@ -258,9 +258,10 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
     // v1.3: River League "River Guardians" - +2 Atk/Def near rivers
     // v1.6: BUFFED from +1/+1 to +2/+2 to improve conquest competitiveness
     // v6.6m: "Trade Militia" - flat +1 Attack for all military units
+    // v1.0.4: BUFFED flat attack from +1 to +2
     if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
         // Flat attack bonus for early-game presence
-        boosted.atk += 1;
+        boosted.atk += 2;
 
         if (isTileAdjacentToRiver(state.map, unit.coord)) {
             boosted.atk += 2;
@@ -296,10 +297,9 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         if (onOwnCity || inFriendlyTerritory) {
             boosted.def += LOREKEEPER_TERRITORY_DEFENSE_BONUS;
 
-            // v7.0: Anti-Army bonus - +50% DEF when attacked by Army units IN TERRITORY
-            // Lorekeepers are excellent home defenders but vulnerable when away
+            // v8.13: Anti-Army bonus - +25% DEF when attacked by Army units IN TERRITORY (nerfed from 50%)
             if (attacker && attacker.type.startsWith("Army")) {
-                boosted.def = Math.floor(boosted.def * 1.5);
+                boosted.def = Math.floor(boosted.def * 1.25);
             }
         }
     }

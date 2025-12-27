@@ -396,12 +396,60 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
                 return { type: "Unit", id: UnitType.BowGuard };
             }
 
+            // v1.0.4: Build Trebuchets for siege - scale cap with army size
+            const trebuchetsNear = state.units.filter(u =>
+                u.ownerId === playerId &&
+                u.type === UnitType.Trebuchet &&
+                hexDistance(u.coord, focusCity.coord) <= stageDistMax
+            ).length;
+            const trebuchetsTotal = state.units.filter(u =>
+                u.ownerId === playerId && u.type === UnitType.Trebuchet
+            ).length;
+            // Scale cap: 1 per 4 military units, min 2, max 4
+            const militaryCount = state.units.filter(u =>
+                u.ownerId === playerId &&
+                UNITS[u.type].domain !== "Civilian" &&
+                u.type !== UnitType.Scout
+            ).length;
+            const trebuchetCap = Math.min(4, Math.max(2, Math.floor(militaryCount / 4)));
+            if (trebuchetsNear < 1 && trebuchetsTotal < trebuchetCap) {
+                if (canBuild(city, "Unit", UnitType.Trebuchet, state)) {
+                    aiInfo(`[AI Build] ${profile.civName} WAR STAGING: Trebuchet for siege (${trebuchetsTotal}/${trebuchetCap})`);
+                    return { type: "Unit", id: UnitType.Trebuchet };
+                }
+            }
+
             // Build any capturer
             if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
                 return { type: "Unit", id: UnitType.ArmySpearGuard };
             }
             if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
                 return { type: "Unit", id: UnitType.SpearGuard };
+            }
+        }
+    }
+
+    // =========================================================================
+    // v1.0.4: TREBUCHET PRODUCTION - Build siege units during active war
+    // =========================================================================
+    // Siege-focused civs build trebuchets when at war. Cap scales with army size.
+    const siegeFocusedCivs = ["ForgeClans", "RiverLeague", "JadeCovenant", "AetherianVanguard"];
+    if (atWar && siegeFocusedCivs.includes(profile.civName) && cityNotThreatened) {
+        const trebuchetsTotal = state.units.filter(u =>
+            u.ownerId === playerId && u.type === UnitType.Trebuchet
+        ).length;
+        // v1.0.4: Scale cap with army size (1 per 4 military, min 2, max 4)
+        const militaryForCap = state.units.filter(u =>
+            u.ownerId === playerId &&
+            UNITS[u.type].domain !== "Civilian" &&
+            u.type !== UnitType.Scout
+        ).length;
+        const trebuchetCap = Math.min(4, Math.max(2, Math.floor(militaryForCap / 4)));
+
+        if (trebuchetsTotal < trebuchetCap) {
+            if (canBuild(city, "Unit", UnitType.Trebuchet, state)) {
+                aiInfo(`[AI Build] ${profile.civName} AT WAR: Trebuchet for siege (${trebuchetsTotal}/${trebuchetCap})`);
+                return { type: "Unit", id: UnitType.Trebuchet };
             }
         }
     }

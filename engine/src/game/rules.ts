@@ -165,7 +165,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         // v1.9: "Citadel Protocol"
         // 1. +2 Science in Capital (Buffed v8.8)
         if (city.isCapital) {
-            total.S += 2; // v8.8: Buffed from +1 to +2
+            total.S += 1; // v8.13: Nerfed from +2 to +1 (was too dominant at 37.7% win rate)
         }
         // 2. +3 Science per CityWard building (Buffed v2.9)
         const cityWardCount = state.cities.filter(c =>
@@ -188,7 +188,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
             state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
         );
         if (!atWar && city.isCapital) {
-            total.S += 2; // v8.11: Buffed from +1 to +2
+            total.S += 1; // v8.13: Nerfed from +2 to +1 (was too dominant at 39% win rate)
         }
     } else if (trait === "AetherianVanguard") {
         // v1.9 BUFF: +1 Production in Capital (helps rush Titan)
@@ -308,9 +308,12 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (bId === BuildingType.SpiritObservatory && player.civName !== "StarborneSeekers") return false;
         if (bId === BuildingType.JadeGranary && player.civName !== "JadeCovenant") return false;
 
-        // Bulwark: Scholar/Starborne Only
+        // Bulwark: Scholar/Starborne Only, ONCE PER CIV (v8.14: converted to wonder)
         if (bId === BuildingType.Bulwark) {
             if (player.civName !== "ScholarKingdoms" && player.civName !== "StarborneSeekers") return false;
+            if (player.completedProjects.includes(ProjectId.BulwarkComplete)) return false;
+            const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
+            if (isBuilding) return false;
         }
 
         // Titans Core: once per civ (tracked via TitansCoreComplete marker)
@@ -368,6 +371,11 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
         if (uId === UnitType.Lorekeeper) {
             if (!player.techs.includes(TechId.CityWards)) return false;
             if (player.civName !== "ScholarKingdoms" && player.civName !== "StarborneSeekers") return false;
+        }
+
+        // v1.0.3: Trebuchet - Siege unit, requires Timber Mills
+        if (uId === UnitType.Trebuchet) {
+            if (!player.techs.includes(TechId.TimberMills)) return false;
         }
 
         // v6.0: Aether Era units require their respective techs

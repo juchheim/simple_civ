@@ -60,6 +60,23 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
         return chainTech;
     }
 
+    // PRIORITY 1.05: v1.0.3 - Siege-focused civs should research TimberMills for Trebuchet
+    // Note: Using explicit civ list because goal === "Conquest" is rarely true (default is "Balanced")
+    // TODO: Cleaner approach would be a "playstyle" field on civ profiles
+    const siegeFocusedCivs = ["ForgeClans", "RiverLeague", "JadeCovenant", "AetherianVanguard"];
+    if (siegeFocusedCivs.includes(profile.civName) && !player.techs.includes(TechId.TimberMills)) {
+        // Check if we have StoneworkHalls prereq
+        if (player.techs.includes(TechId.StoneworkHalls) && avail.includes(TechId.TimberMills)) {
+            aiInfo(`[AI Tech] ${profile.civName} SIEGE: TimberMills (enables Trebuchet)`);
+            return TechId.TimberMills;
+        }
+        // Get StoneworkHalls first if we don't have it
+        if (!player.techs.includes(TechId.StoneworkHalls) && avail.includes(TechId.StoneworkHalls)) {
+            aiInfo(`[AI Tech] ${profile.civName} SIEGE PREP: StoneworkHalls (prereq for Trebuchet)`);
+            return TechId.StoneworkHalls;
+        }
+    }
+
     // PRIORITY 1.1: HYBRID VICTORY - Late game StarCharts backup for ALL civs
     // If we're past turn 180 and don't have StarCharts, prioritize getting it
     // This enables the hybrid production logic (backup Progress victory path)
