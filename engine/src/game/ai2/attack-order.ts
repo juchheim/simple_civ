@@ -130,7 +130,6 @@ function scoreAttack(
  * Main entry point: Plan optimal attack order for all eligible units
  */
 export function planAttackOrderV2(state: GameState, playerId: string): PlannedAttack[] {
-    const profile = getAiProfileV2(state, playerId);
     const memory = getAiMemoryV2(state, playerId);
 
     // Phase 1: Gather eligible attackers (units that can attack right now)
@@ -558,8 +557,6 @@ function findReachableTiles(state: GameState, unit: Unit, minMovesAfter: number)
  * Plan move-then-attack actions for units not in attack range
  */
 export function planMoveAndAttack(state: GameState, playerId: string): MoveAttackPlan[] {
-    const profile = getAiProfileV2(state, playerId);
-
     // Get enemies
     const enemies = new Set<string>();
     for (const p of state.players) {

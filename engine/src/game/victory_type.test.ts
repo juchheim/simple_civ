@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { finalizeVictory } from "./turn-lifecycle";
-import { GameState, Player, HistoryEventType } from "../core/types";
+import { GameState, Player } from "../core/types";
 
 // Mock history functions to prevent actual execution during test
 vi.mock("./history", () => {

@@ -1,4 +1,4 @@
-import { GameState, Player, UnitType } from "../../core/types.js";
+import { GameState, Player } from "../../core/types.js";
 import { getUnitMaxMoves } from "./combat.js";
 import { processAutoExplore, processAutoMovement } from "../actions/unit-automation.js";
 

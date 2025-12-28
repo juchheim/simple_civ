@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { GameState, UnitType, TerrainType, TechId, UnitDomain, UnitState, Unit } from "../core/types.js";
+import { describe, it, expect } from "vitest";
+import { GameState, UnitType, TerrainType, TechId, UnitState, Unit } from "../core/types.js";
 import { handleAttack } from "./actions/unit-combat.js";
 import { computeMoveCost, ensureTerrainEntry } from "./helpers/movement.js";
 import { UNITS, TECHS } from "../core/constants.js";
@@ -19,14 +19,12 @@ const mockState = (overrides: Partial<GameState> = {}): GameState => ({
 describe("Aether Era Mechanics", () => {
     describe("Airship Movement", () => {
         it("should allow moving over Mountains", () => {
-            const airship = { type: UnitType.Airship, movesLeft: 4 } as Unit;
             const mountainTile = { terrain: TerrainType.Mountain, coord: { q: 0, r: 0 }, overlays: [] };
 
             expect(() => ensureTerrainEntry(UNITS[UnitType.Airship], mountainTile as any)).not.toThrow();
         });
 
         it("should allow moving over DeepSea", () => {
-            const airship = { type: UnitType.Airship, movesLeft: 4 } as Unit;
             const seaTile = { terrain: TerrainType.DeepSea, coord: { q: 0, r: 0 }, overlays: [] };
 
             expect(() => ensureTerrainEntry(UNITS[UnitType.Airship], seaTile as any)).not.toThrow();

@@ -8,7 +8,7 @@
  * 4. Evaluation of progress
  */
 
-import { AiVictoryGoal, GameState, TechId, UnitType, ProjectId } from "../../core/types.js";
+import { AiVictoryGoal, GameState, TechId, UnitType } from "../../core/types.js";
 import { UNITS } from "../../core/constants.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNIT_ROLES, TECH_CHAINS, getUnitsWithRole, UnitRole } from "./capabilities.js";
@@ -93,7 +93,7 @@ export type GoalRequirements = {
     attackThreshold: number; // Power ratio needed to attack
 };
 
-export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, numCities: number = 1): GoalRequirements {
+export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, _numCities: number = 1): GoalRequirements {
     // Phase multipliers - scale up military requirements as game progresses
     // v2: Reduced Execute from 1.5x to 1.2x to prevent over-building stalls
     const phaseMultiplier = phase === "Expand" ? 0.5 : phase === "Develop" ? 1.0 : 1.2;
@@ -120,7 +120,7 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         // v4: Use Defensive chain for Scholar/Starborne to prioritize ShieldGenerator
         let techTarget = "Progress";
         if (civName === "StarborneSeekers") {
-            techTarget = "SpiritObservatory";
+            techTarget = "Observatory";
         } else if (civName === "ScholarKingdoms") {
             techTarget = "Defensive"; // Will rush PlasmaShields → ShieldGenerator
         }
@@ -142,7 +142,7 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         // This ensures they research PlasmaShields for ShieldGenerator
         let techTarget = "Landship";
         if (civName === "StarborneSeekers") {
-            techTarget = "SpiritObservatory";
+            techTarget = "Observatory";
         } else if (civName === "ScholarKingdoms") {
             techTarget = "Defensive";
         }

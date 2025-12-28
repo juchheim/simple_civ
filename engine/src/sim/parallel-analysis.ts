@@ -1,6 +1,6 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
-import { MapSize, GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
+import { MapSize, UnitType, DiplomacyState, ProjectId } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
@@ -9,14 +9,10 @@ import * as os from "os";
 import { fileURLToPath } from "url";
 import { setAiDebug } from "../game/ai/debug-logging.js";
 import {
-    CivName,
     Event,
     TurnSnapshot,
     estimateMilitaryPower,
-    seededRandom,
-    shuffleWithSeed,
     civList,
-    calculateCivStats,
     createTurnSnapshot
 } from "./shared-analysis.js";
 

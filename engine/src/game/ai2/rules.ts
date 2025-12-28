@@ -206,13 +206,13 @@ const profiles: Record<string, CivAiProfileV2> = {
     ForgeClans: mergeProfile(baseProfile, {
         civName: "ForgeClans",
         diplomacy: {
-            warPowerRatio: 1.2, // Must outproduce to war
+            warPowerRatio: 1.05, // v1.0.8: Bolder (was 1.2) - leverage production
             peaceIfBelowRatio: 0.75,
             peacePowerThreshold: 0.9, // v6.1: Harder to appease (was 1.1)
-            minStanceTurns: 12,
-            minWarTurn: 20,
-            maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 2,
+            minStanceTurns: 10, // v1.0.8: Reduced from 12 to 10
+            minWarTurn: 15, // v1.0.8: Reduced from 20 to 15
+            maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
+            maxInitiatedWarsPer50Turns: 4, // v1.0.8: Increased from 2 to 4
             canInitiateWars: true,
             targetPreference: "Nearest",
             earlyRushChance: 0.7, // 70% chance to attempt early rush - leverages production advantage
@@ -283,14 +283,17 @@ const profiles: Record<string, CivAiProfileV2> = {
             targetPreference: "Finishable",
         },
         tech: {
-            weights: {
-                // v8.6: Match Starborne's tech weights exactly
-                [TechId.ScriptLore]: 1.4,
-                [TechId.ScholarCourts]: 1.3,
-                [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 2.5,  // v8.6: HIGHEST - Match Starborne!
-                [TechId.CityWards]: 1.8,
-                [TechId.DrilledRanks]: 1.0,
+            // v1.0.8: Weights are deprecated, using pathsByGoal.
+            // Explicitly added StoneworkHalls/CityWards to Progress path for defense.
+            pathsByGoal: {
+                Progress: [
+                    TechId.ScriptLore,
+                    TechId.StoneworkHalls, // Unlocks Bulwark (Scholar unique)
+                    TechId.CityWards,      // Unlocks CityWard
+                    TechId.ScholarCourts,
+                    TechId.SignalRelay,
+                    TechId.StarCharts
+                ],
             },
         },
         build: {
@@ -370,11 +373,11 @@ const profiles: Record<string, CivAiProfileV2> = {
     AetherianVanguard: mergeProfile(baseProfile, {
         civName: "AetherianVanguard",
         diplomacy: {
-            warPowerRatio: 1.05,
-            warDistanceMax: 18,
+            warPowerRatio: 1.0, // v1.0.8: Aggressive (was 1.05)
+            warDistanceMax: 20, // v1.0.8: Increased reach (was 18)
             peaceIfBelowRatio: 0.75,
             minWarTurn: 15, // PROPOSAL: Delay war so we don't suicide early
-            maxConcurrentWars: 1,
+            maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
             maxInitiatedWarsPer50Turns: 4,
             canInitiateWars: true,
             targetPreference: "Nearest", // PROPOSAL: "Capital" rush was getting them flanked/killed. Fight standard war until Titan arrives.
@@ -440,13 +443,16 @@ const profiles: Record<string, CivAiProfileV2> = {
             targetPreference: "Finishable",  // Focus on weak targets
         },
         tech: {
-            weights: {
-                [TechId.ScriptLore]: 1.4,
-                [TechId.ScholarCourts]: 1.3,
-                [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 2.5,  // v6.5: HIGHEST - SpiritObservatory unlock
-                [TechId.CityWards]: 1.8,  // v6.5: Lower than Scholar - less Bulwark focus
-                [TechId.DrilledRanks]: 1.0,  // v6.5: Lower - less military focus
+            pathsByGoal: {
+                // v1.0.8: Aggressive Science Rush to SpiritObservatory
+                // Starborne relies on rapid expansion, not turtling.
+                Progress: [
+                    TechId.ScriptLore,
+                    TechId.StoneworkHalls, // Unlocks Bulwark (Unique) - Vital early defense
+                    TechId.ScholarCourts,
+                    TechId.SignalRelay,
+                    TechId.StarCharts
+                ],
             },
         },
         build: {
@@ -461,12 +467,12 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    [BuildingType.SpiritObservatory]: 2.5,  // v6.5: HIGHEST - core identity
+                    [BuildingType.Academy]: 1.5, // Replaces SpiritObservatory role
                     [BuildingType.Bulwark]: 2.0,  // v6.5: Lower than Scholar
                     [BuildingType.CityWard]: 1.6,
                 },
                 project: {
-                    [ProjectId.Observatory]: 1.0,  // v6.5: Lower - SpiritObservatory replaces
+                    [ProjectId.Observatory]: 2.0,  // High priority now (standard path)
                     [ProjectId.GrandAcademy]: 1.2,
                     [ProjectId.GrandExperiment]: 1.2,
                 },
@@ -480,12 +486,12 @@ const profiles: Record<string, CivAiProfileV2> = {
         civName: "JadeCovenant",
         diplomacy: {
             // v8.11: Balanced settings - rely on pop bonus nerf instead
-            warPowerRatio: 1.0, // Attack when equal strength
-            warDistanceMax: 14,
+            warPowerRatio: 0.95, // v1.0.8: Attack even if slightly weaker (was 1.0)
+            warDistanceMax: 16, // v1.0.8: Increased (was 14)
             peaceIfBelowRatio: 0.75,
-            minWarTurn: 15,
-            maxConcurrentWars: 2,
-            maxInitiatedWarsPer50Turns: 3,
+            minWarTurn: 12, // v1.0.8: Reduced (was 15)
+            maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 2?)
+            maxInitiatedWarsPer50Turns: 4, // v1.0.8: Increased from 3
             canInitiateWars: true,
             targetPreference: "Finishable",
         },

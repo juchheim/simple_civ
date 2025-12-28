@@ -2,8 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameState, PlayerPhase, HistoryEventType, DiplomacyState } from '../../core/types';
 import { handleProposePeace, handleSetDiplomacy } from './diplomacy';
-import { disableSharedVision, canDeclareWar, getTurnsUntilWarAllowed } from '../helpers/diplomacy';
-import { MIN_PEACE_DURATION } from '../../core/constants';
+import { canDeclareWar, getTurnsUntilWarAllowed } from '../helpers/diplomacy';
 
 describe('Diplomacy Action Verification', () => {
     it('should log PeaceMade event when PROPOSING peace matches an existing offer', () => {

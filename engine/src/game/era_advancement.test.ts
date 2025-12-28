@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { GameState, Player, TechId, EraId, BuildingType, UnitType, ProjectId, PlayerPhase } from "../core/types.js";
+import { GameState, Player, TechId, EraId, BuildingType, PlayerPhase } from "../core/types.js";
 import { advancePlayerTurn } from "./turn-lifecycle.js";
-import { createTestState } from "./test-utils.js"; // Assuming this exists or I'll mock it
-
-// Mock createTestState if not available or just build a minimal state manually
 function createMinimalState(): GameState {
     const player: Player = {
         id: "p1",

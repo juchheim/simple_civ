@@ -136,7 +136,7 @@ function hasProgressLead(playerId: string, state: GameState): boolean {
  * v0.98 Update 5: Check if we have overwhelming power over a specific target
  * Used to bypass peace duration restrictions
  */
-function hasOverwhelmingPowerOver(playerId: string, targetId: string, state: GameState): boolean {
+function _hasOverwhelmingPowerOver(playerId: string, targetId: string, state: GameState): boolean {
     const myPower = estimateMilitaryPower(playerId, state);
     const theirPower = estimateMilitaryPower(targetId, state);
     return myPower >= theirPower * 2; // 2x power = overwhelming
@@ -147,7 +147,7 @@ function hasOverwhelmingPowerOver(playerId: string, targetId: string, state: Gam
  * When you have 5x+ power, you should ALWAYS be at war until the enemy is eliminated
  * This fixes stalled games where dominant civs sit at peace with weak neighbors
  */
-function hasDominatingPowerOver(playerId: string, targetId: string, state: GameState): boolean {
+function _hasDominatingPowerOver(playerId: string, targetId: string, state: GameState): boolean {
     const myPower = estimateMilitaryPower(playerId, state);
     const theirPower = estimateMilitaryPower(targetId, state);
     // Must have 5x power AND at least 100 power (not just 5 vs 1)
@@ -157,7 +157,7 @@ function hasDominatingPowerOver(playerId: string, targetId: string, state: GameS
 /**
  * v0.98 Update 5: Check if target is finishable (1-2 cities, we have 1.5x power)
  */
-function isFinishableTarget(playerId: string, targetId: string, state: GameState): boolean {
+function _isFinishableTarget(playerId: string, targetId: string, state: GameState): boolean {
     const theirCities = state.cities.filter(c => c.ownerId === targetId);
     if (theirCities.length === 0 || theirCities.length > 2) return false;
 
@@ -170,7 +170,7 @@ function isFinishableTarget(playerId: string, targetId: string, state: GameState
  * v0.98 Update 6: Check if we have city advantage over target
  * Don't make peace when we're territorially dominant
  */
-function hasCityAdvantage(playerId: string, targetId: string, state: GameState): boolean {
+function _hasCityAdvantage(playerId: string, targetId: string, state: GameState): boolean {
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
     const theirCities = state.cities.filter(c => c.ownerId === targetId).length;
     return myCities > theirCities + 1; // Need 2+ city advantage
@@ -179,7 +179,7 @@ function hasCityAdvantage(playerId: string, targetId: string, state: GameState):
 /**
  * v0.98 Update 6: Check if we're winning the war (more power AND more/equal cities)
  */
-function isWinningWar(playerId: string, targetId: string, state: GameState): boolean {
+function _isWinningWar(playerId: string, targetId: string, state: GameState): boolean {
     const myPower = estimateMilitaryPower(playerId, state);
     const theirPower = estimateMilitaryPower(targetId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
@@ -193,7 +193,7 @@ function isWinningWar(playerId: string, targetId: string, state: GameState): boo
  * v0.98 Update 6: Check if we're actually losing (lost cities or significantly weaker)
  * More strict than before - don't peace out just because enemy is slightly stronger
  */
-function isActuallyLosingWar(playerId: string, targetId: string, state: GameState): boolean {
+function _isActuallyLosingWar(playerId: string, targetId: string, state: GameState): boolean {
     const myPower = estimateMilitaryPower(playerId, state);
     const theirPower = estimateMilitaryPower(targetId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
@@ -210,7 +210,7 @@ function isActuallyLosingWar(playerId: string, targetId: string, state: GameStat
  * v0.98 Update 8: War exhaustion check
  * After extended warfare with no progress, both sides become war-weary
  */
-function isWarExhausted(playerId: string, targetId: string, state: GameState): boolean {
+function _isWarExhausted(playerId: string, targetId: string, state: GameState): boolean {
     const stateChangedTurn = state.diplomacyChangeTurn?.[playerId]?.[targetId] ?? 0;
     const turnsSinceWarStart = state.turn - stateChangedTurn;
 
@@ -223,7 +223,7 @@ function isWarExhausted(playerId: string, targetId: string, state: GameState): b
  * Check if the war is making no progress (evenly matched, neither side gaining ground)
  * EXCEPTION: If we have 5x+ power advantage, it's NOT a stalemate - we should finish them
  */
-function isStalemate(playerId: string, targetId: string, state: GameState): boolean {
+function _isStalemate(playerId: string, targetId: string, state: GameState): boolean {
     const myPower = estimateMilitaryPower(playerId, state);
     const theirPower = estimateMilitaryPower(targetId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
@@ -577,7 +577,7 @@ function buildDecisionContext(playerId: string, targetId: string, state: GameSta
     };
 }
 
-function evaluateWarState(context: DecisionContext, options?: { ignorePrep?: boolean }): WarPeaceDecision {
+function evaluateWarState(context: DecisionContext, _options?: { ignorePrep?: boolean }): WarPeaceDecision {
     const { playerId, targetId, state, escalationFactor, progressRisk } = context;
 
     // Use typed evaluators

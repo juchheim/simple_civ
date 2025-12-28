@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from "vitest";
 import { applyAction } from "./turn-loop.js";
-import { GameState, PlayerPhase, TerrainType, UnitState, UnitType, BuildingType } from "../core/types.js";
+import { GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../core/types.js";
 
 function createTestState(): GameState {
     return {

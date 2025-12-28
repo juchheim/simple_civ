@@ -15,7 +15,7 @@ import {
     CIV6_DAMAGE_MAX,
     BUILDINGS,
 } from "../../core/constants.js";
-import { hexEquals, hexToString } from "../../core/hex.js";
+import { hexEquals } from "../../core/hex.js";
 import { getEffectiveUnitStats } from "./combat.js";
 
 export interface CombatModifier {

@@ -5,7 +5,7 @@
 
 import { HexCoord, MapSize, TerrainType, Tile } from "../../core/types.js";
 import { getNeighbors, hexToString } from "../../core/hex.js";
-import { createNoise2D, fractalNoise, smoothstep } from "./noise.js";
+import { createNoise2D, fractalNoise } from "./noise.js";
 import type { TerrainRng } from "./terrain.js";
 
 export type LandmassContext = {
@@ -42,17 +42,6 @@ export const LANDMASS_PARAMS: Record<MapSize, LandmassParams> = {
 };
 
 /**
- * Converts hex axial coordinates to world coordinates for noise sampling.
- * Uses pointy-top hex layout math.
- */
-function hexToWorld(coord: HexCoord): { x: number; y: number } {
-    const size = 1; // Unit hex size
-    const x = size * (Math.sqrt(3) * coord.q + Math.sqrt(3) / 2 * coord.r);
-    const y = size * (3 / 2 * coord.r);
-    return { x, y };
-}
-
-/**
  * Calculates distance from tile to nearest map edge (in tiles).
  */
 function edgeDistance(tile: Tile, width: number, height: number): number {
@@ -84,7 +73,7 @@ export function generateLandmass(
     seed: number
 ): void {
     const { tiles, width, height } = ctx;
-    const { noiseScale, octaves, persistence, landThreshold, edgeFalloffStart } = params;
+    const { noiseScale, octaves, persistence, landThreshold, edgeFalloffStart: _edgeFalloffStart } = params;
 
     // Create seeded noise function
     const noise = createNoise2D(seed);
@@ -92,9 +81,6 @@ export function generateLandmass(
     // Map center in "column, row" space
     const centerCol = width / 2;
     const centerRow = height / 2;
-
-    // Maximum distance from center to corner (for normalization)
-    const maxDist = Math.sqrt(centerCol * centerCol + centerRow * centerRow);
 
     // Base radius as fraction of map (0.5 = half way to edge)
     // Lower threshold = smaller base landmass = more room for variance

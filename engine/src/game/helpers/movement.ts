@@ -1,4 +1,4 @@
-import { aiLog, aiInfo } from "../ai/debug-logging.js";
+import { aiLog } from "../ai/debug-logging.js";
 import { GameState, HexCoord, OverlayType, Tile, Unit, UnitDomain, UnitState, TerrainType, UnitType } from "../../core/types.js";
 import { TERRAIN, UNITS } from "../../core/constants.js";
 import type { UnitStats } from "../../core/constants.js";

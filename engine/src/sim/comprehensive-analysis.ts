@@ -3,14 +3,10 @@ import { runAiTurn } from "../game/ai.js";
 import { MapSize, DiplomacyState, ProjectId } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import {
-    CivName,
     Event,
     TurnSnapshot,
     estimateMilitaryPower,
-    seededRandom,
-    shuffleWithSeed,
     civList,
-    calculateCivStats,
     createTurnSnapshot
 } from "./shared-analysis.js";
 import { writeFileSync, statSync } from "fs";
@@ -63,8 +59,6 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             p.completedProjects.forEach(proj => counts.set(proj, (counts.get(proj) || 0) + 1));
             return [p.id, counts];
         }));
-        const beforeContacts = new Map(state.players.map(p => [p.id, new Set(Object.keys(state.contacts[p.id] || {}))]));
-
         state.players.forEach(p1 => {
             if (!beforeDiplomacy.has(p1.id)) beforeDiplomacy.set(p1.id, new Map());
             state.players.forEach(p2 => {

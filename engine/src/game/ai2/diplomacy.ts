@@ -206,7 +206,6 @@ export function detectEarlyRushOpportunity(
 
     const myPower = estimateMilitaryPower(playerId, state);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
-    const myMilitary = state.units.filter(u => u.ownerId === playerId && isMilitaryUnit(u));
 
     let bestTarget: { targetId: string; priority: number } | null = null;
 
@@ -639,7 +638,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             const territorialStalemate =
                 warAge >= 40 &&
                 turnsSinceCapture >= 40 &&
-                ratio >= 0.95 && ratio <= 1.05;  // VERY even - true stalemate
+                ratio >= 0.85 && ratio <= 1.15;  // v1.0.8: Widened from 0.95-1.05 to catch 1.1x stalemates
 
             if (territorialStalemate && !progressThreatNow) {
                 actions.push({ type: "ProposePeace", playerId, targetPlayerId: other.id });
@@ -667,7 +666,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             // OLD: 60 turns (fires at 58% of avg war!) 
             // NEW: 120 turns (only truly exhausted wars)
             const warExhaustion =
-                warAge >= 120 &&
+                warAge >= 75 && // v1.0.8: Reduced from 120 to 75 (was too long)
                 ratio >= 0.8 && ratio <= 1.2 &&
                 !progressThreatNow;
 
@@ -774,8 +773,6 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         // If we're overwhelmingly ahead, allow re-declaring war faster (prevents long "peace cooldown" stalls).
         const overwhelmingPeace = ratio >= 3 && !stanceDurationOk(next, playerId, other.id, Math.ceil(profile.diplomacy.minStanceTurns * 0.4), memory);
         if (overwhelmingPeace) continue;
-
-        const atWar = (goal === "Conquest" || profile.diplomacy.warPowerRatio <= 1.35);
 
         // WAR ESCALATION: Apply escalation factor to make late-game wars more decisive
         const escalationFactor = getWarEscalationFactor(next.turn);

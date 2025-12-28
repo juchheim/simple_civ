@@ -33,7 +33,7 @@ import {
 } from "../../core/constants.js";
 import { hexDistance, getNeighbors, hexEquals, hexToString } from "../../core/hex.js";
 import { buildTileLookup, calculateCiv6Damage, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
-import { advanceSeed, seededBool, seededChoice } from "../helpers/random.js";
+import { seededBool, seededChoice } from "../helpers/random.js";
 import { createCity, claimCityTerritory, ensureWorkedTiles } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { logEvent } from "../history.js";

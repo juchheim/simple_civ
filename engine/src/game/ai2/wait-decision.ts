@@ -11,7 +11,6 @@
 import { GameState, Unit, UnitType } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
-import { getCombatPreviewUnitVsUnit } from "../helpers/combat-preview.js";
 import { getAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { countThreatsToTile } from "../ai/units/movement-safety.js";

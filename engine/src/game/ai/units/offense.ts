@@ -1,4 +1,4 @@
-import { aiLog, aiInfo } from "../debug-logging.js";
+import { aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType, UnitState, Unit } from "../../../core/types.js";
 import { UNITS, TERRAIN } from "../../../core/constants.js";
@@ -20,12 +20,9 @@ import {
     shouldUseWarProsecutionMode,
     selectHeldGarrisons,
     selectPrimarySiegeCity,
-    stepToward,
     warGarrisonCap,
     isAttackSafe,
     shouldRetreatAfterAttacking,
-    isMeleeAttackExposed,
-    hasMilitaryAdvantage,
     findSafeRetreatTile,
     evaluateTileDanger,
     getNearbyThreats
@@ -378,7 +375,6 @@ export function moveUnitsForPreparation(state: GameState, playerId: string): Gam
 
     // v0.99: Minimum Garrison Logic
     // Strategy is deterministic based on start turn: Even = Cautious, Odd = Risky
-    const isCautious = player.warPreparation.startedTurn % 2 === 0;
     const myCities = next.cities.filter(c => c.ownerId === playerId);
     const reservedUnitIds = new Set<string>();
 

@@ -1,13 +1,12 @@
 import { hexDistance, hexEquals } from "../../../core/hex.js";
-import { GameState, TerrainType, UnitState, UnitType, BuildingType } from "../../../core/types.js";
+import { GameState, UnitState, BuildingType } from "../../../core/types.js";
 import {
     CITY_DEFENSE_BASE,
     CITY_WARD_DEFENSE_BONUS,
     DAMAGE_BASE,
     DAMAGE_MAX,
     DAMAGE_MIN,
-    TERRAIN,
-    UNITS
+    TERRAIN
 } from "../../../core/constants.js";
 import { getEffectiveUnitStats } from "../../helpers/combat.js";
 

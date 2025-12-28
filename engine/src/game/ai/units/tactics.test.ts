@@ -269,7 +269,6 @@ describe("AI Battle Tactics", () => {
             const aiUnit1After = findUnit(nextState.units, aiUnit1.id);
             if (aiUnit1After) {
                 const movedAway = !hexEquals(aiUnit1After.coord, initialCoord);
-                const closerToCity = hexDistance(aiUnit1After.coord, aiCity.coord) <= hexDistance(initialCoord, aiCity.coord);
                 // Either the unit killed the enemy and stayed, or retreated toward safety
                 expect(movedAway || findUnit(nextState.units, enemy1.id) === undefined).toBe(true);
             }

@@ -1,7 +1,7 @@
 import { aiInfo } from "../debug-logging.js";
 import { getNextTargetCity } from "./titan.js";
-import { hexDistance, hexEquals } from "../../../core/hex.js";
-import { DiplomacyState, GameState, UnitType, UnitState, BuildingType } from "../../../core/types.js";
+import { hexDistance } from "../../../core/hex.js";
+import { GameState, UnitType, UnitState, BuildingType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { findPath } from "../../helpers/pathfinding.js";

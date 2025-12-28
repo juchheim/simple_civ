@@ -1,6 +1,6 @@
-import { aiLog, aiInfo } from "./debug-logging.js";
+import { aiInfo } from "./debug-logging.js";
 import { BUILDINGS, TECHS } from "../../core/constants.js";
-import { AiVictoryGoal, BuildingType, GameState, ProjectId, TechId } from "../../core/types.js";
+import { AiVictoryGoal, GameState, ProjectId, TechId } from "../../core/types.js";
 import { getPersonalityForPlayer, AiPersonality } from "./personality.js";
 import { tryAction } from "./shared/actions.js";
 
@@ -96,9 +96,9 @@ export function aiChooseTech(playerId: string, state: GameState, goal: AiVictory
     }
 
     // v1.3: If goal is Balanced but personality prefers Progress, boost Progress path techs
-    const prefersProgress = personality.projectRush?.type === "Building"
-        ? personality.projectRush.id === BuildingType.SpiritObservatory
-        : personality.projectRush?.id === ProjectId.Observatory;
+    const prefersProgress = personality.projectRush?.type === "Project"
+        ? personality.projectRush.id === ProjectId.Observatory
+        : false;
     const progressPathBoost = (goal === "Balanced" && prefersProgress) ? 100 : 0;
 
     // v1.8: Universal StarCharts Priority - ALL civs should work toward Progress option

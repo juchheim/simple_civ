@@ -61,8 +61,6 @@ export function chooseVictoryGoalV2(state: GameState, playerId: string): AiVicto
     }
 
     const hasStarCharts = player.techs.includes(TechId.StarCharts);
-    const hasObs = player.completedProjects.includes(ProjectId.Observatory);
-    const hasProgressChain = hasObs || player.completedProjects.includes(ProjectId.GrandAcademy) || player.completedProjects.includes(ProjectId.GrandExperiment);
 
     // Prefer progress if profile invests heavily AND we have path unlocked.
     const progressAffinity =
@@ -221,4 +219,3 @@ export function selectFocusCityAgainstTarget(state: GameState, playerId: string,
 
     return pickBest(scored, s => s.score)?.item?.c;
 }
-

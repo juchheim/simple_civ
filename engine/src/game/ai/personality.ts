@@ -162,9 +162,9 @@ const personalities: Record<CivName, AiPersonality> = {
             [TechId.ScriptLore]: 1.2,
             [TechId.ScholarCourts]: 1.2,
             [TechId.CityWards]: 2.5,   // v5.0: HIGH priority - unlocks Bulwark
-            [TechId.StarCharts]: 2.0,  // v5.0: High priority - Bulwark awakening + SpiritObservatory
+            [TechId.StarCharts]: 2.0,  // v5.0: High priority - Bulwark awakening + Observatory
         },
-        projectRush: { type: "Building", id: BuildingType.SpiritObservatory },
+        projectRush: { type: "Project", id: ProjectId.Observatory },
         unitBias: { rangedSafety: 1 },
         declareAfterContactTurns: 0,
         armySizeMultiplier: 1.25,

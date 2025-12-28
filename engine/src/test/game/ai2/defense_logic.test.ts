@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { GameState, PlayerPhase, DiplomacyState, UnitType, BuildingType, TechId, ProjectId } from "../../../core/types.js";
+import { GameState, PlayerPhase, DiplomacyState, UnitType, TechId } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
 import { coordinateDefensiveFocusFire, runDefensiveRingCombat, positionDefensiveRing, sendMutualDefenseReinforcements } from "../../../game/ai2/defense.js";
 import { shouldPrioritizeDefense } from "../../../game/ai2/production.js";
-import { aiInfo } from "../../../game/ai/debug-logging.js";
 
 function baseState(): GameState {
     return {

@@ -22,10 +22,10 @@ describe("World Generation", () => {
             players: [{ id: "p1", civName: "Civ A", color: "red" }],
         });
 
-        // v2.1: Standard map size increased to 25x19
-        expect(state.map.width).toBe(25);
-        expect(state.map.height).toBe(19);
-        expect(state.map.tiles.length).toBe(25 * 19);
+        // Standard map size now 30x22
+        expect(state.map.width).toBe(30);
+        expect(state.map.height).toBe(22);
+        expect(state.map.tiles.length).toBe(30 * 22);
     });
 
     it("should place players with starting units", () => {

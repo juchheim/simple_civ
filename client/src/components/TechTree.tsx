@@ -82,9 +82,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         if (civName === "AetherianVanguard" && techId === TechId.SteamForges) {
             return { name: "Titan's Core", stats: getCompactBuildingStats(BuildingType.TitansCore) };
         }
-        if (civName === "StarborneSeekers" && techId === TechId.StarCharts) {
-            return { name: "Spirit Observatory", stats: getCompactBuildingStats(BuildingType.SpiritObservatory) };
-        }
+
         if ((civName === "ScholarKingdoms" || civName === "StarborneSeekers") && techId === TechId.StoneworkHalls) {
             return { name: "Bulwark", stats: getCompactBuildingStats(BuildingType.Bulwark) };
         }
@@ -256,7 +254,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                         <div className={`tech-tree-era tech-tree-era--hearth ${isHearthActive ? "tech-tree-era--active" : ""}`}>
                             <div className="tech-tree-era-header">
                                 <h3 className="tech-tree-era-title">Hearth Era</h3>
-                                <div className="tech-tree-era-req">Choose a technology to research.</div>
+                                <div className="tech-tree-era-req">20 Science each</div>
                             </div>
                             <div className="tech-tree-cards">
                                 {hearthTechs.map(renderTechCard)}
@@ -273,7 +271,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                         <div className={`tech-tree-era tech-tree-era--banner ${isBannerActive ? "tech-tree-era--active" : ""}`}>
                             <div className="tech-tree-era-header">
                                 <h3 className="tech-tree-era-title">Banner Era</h3>
-                                <div className="tech-tree-era-req">Requires 3 Hearth techs</div>
+                                <div className="tech-tree-era-req">50 Science each • Requires 3 Hearth techs</div>
                             </div>
                             <div className="tech-tree-cards">
                                 {bannerTechs.map(renderTechCard)}
@@ -290,7 +288,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                         <div className={`tech-tree-era tech-tree-era--engine ${isEngineActive ? "tech-tree-era--active" : ""}`}>
                             <div className="tech-tree-era-header">
                                 <h3 className="tech-tree-era-title">Engine Era</h3>
-                                <div className="tech-tree-era-req">Requires 2 Banner techs</div>
+                                <div className="tech-tree-era-req">100 Science each • Requires 2 Banner techs</div>
                             </div>
                             <div className="tech-tree-cards">
                                 {engineTechs.map(renderTechCard)}
@@ -308,7 +306,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                         <div className={`tech-tree-era tech-tree-era--aether ${isAetherActive ? "tech-tree-era--active" : ""}`}>
                             <div className="tech-tree-era-header">
                                 <h3 className="tech-tree-era-title">Aether Era</h3>
-                                <div className="tech-tree-era-req">Requires 2 Engine techs</div>
+                                <div className="tech-tree-era-req">200 Science each • Requires 2 Engine techs</div>
                             </div>
                             <div className="tech-tree-cards">
                                 {aetherTechs.map(renderTechCard)}

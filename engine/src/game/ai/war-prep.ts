@@ -1,4 +1,4 @@
-import { aiLog, aiInfo } from "./debug-logging.js";
+import { aiInfo } from "./debug-logging.js";
 import { GameState, Player, DiplomacyState, UnitType } from "../../core/types.js";
 import { aiWarPeaceDecision } from "../ai-decisions.js";
 import { hexDistance } from "../../core/hex.js";

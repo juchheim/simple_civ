@@ -20,10 +20,9 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
     const prevHistoryEventsRef = useRef<Set<string>>(new Set());
     const prevBuildingStatesRef = useRef<Record<string, {
         buildingTitansCore: boolean;
-        buildingSpiritObservatory: boolean;
         buildingJadeGranary: boolean;
         completedTitansCore: boolean;
-        completedSpiritObservatory: boolean;
+
         completedJadeGranary: boolean;
     }>>({});
     const capitalCountsRef = useRef<Record<string, number>>({});
@@ -45,14 +44,12 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                     buildingTitansCore: gameState.cities.some(
                         c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.TitansCore
                     ),
-                    buildingSpiritObservatory: gameState.cities.some(
-                        c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.SpiritObservatory
-                    ),
+
                     buildingJadeGranary: gameState.cities.some(
                         c => c.ownerId === p.id && c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.JadeGranary
                     ),
                     completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
-                    completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
+
                     completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
                 };
                 // Count initial capitals owned by each civ
@@ -142,13 +139,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                             icon: "⚙️",
                             duration: 5000,
                         });
-                    } else if (buildId === BuildingType.SpiritObservatory) {
-                        newToasts.push({
-                            id: `spirit-observatory-complete-${event.playerId}-${Date.now()}`,
-                            message: `${otherPlayer.civName} completed Spirit Observatory!`,
-                            icon: "🔭",
-                            duration: 5000,
-                        });
+
                     } else if (buildId === BuildingType.JadeGranary) {
                         newToasts.push({
                             id: `jade-granary-complete-${event.playerId}-${Date.now()}`,
@@ -167,10 +158,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
 
             const prevState = prevBuildingStatesRef.current[otherPlayer.id] || {
                 buildingTitansCore: false,
-                buildingSpiritObservatory: false,
-                buildingJadeGranary: false,
-                completedTitansCore: false,
-                completedSpiritObservatory: false,
+
                 completedJadeGranary: false,
             };
 
@@ -191,23 +179,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                 });
             }
 
-            // Check if building SpiritObservatory
-            const buildingSpiritObservatory = gameState.cities.some(c =>
-                c.ownerId === otherPlayer.id &&
-                c.currentBuild?.type === "Building" &&
-                c.currentBuild.id === BuildingType.SpiritObservatory
-            );
-            const completedSpiritObservatory = otherPlayer.completedProjects.includes(ProjectId.Observatory) &&
-                otherPlayer.civName === "StarborneSeekers";
 
-            if (buildingSpiritObservatory && !prevState.buildingSpiritObservatory && !completedSpiritObservatory) {
-                newToasts.push({
-                    id: `spirit-observatory-start-${otherPlayer.id}-${Date.now()}`,
-                    message: `${otherPlayer.civName} has begun construction of Spirit Observatory`,
-                    icon: "🔭",
-                    duration: 5000,
-                });
-            }
 
             // Check if building JadeGranary
             const buildingJadeGranary = gameState.cities.some(c =>
@@ -229,10 +201,9 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
             // Update tracking
             prevBuildingStatesRef.current[otherPlayer.id] = {
                 buildingTitansCore,
-                buildingSpiritObservatory,
                 buildingJadeGranary,
                 completedTitansCore,
-                completedSpiritObservatory,
+
                 completedJadeGranary,
             };
 

@@ -7,7 +7,7 @@ export type DiplomacyAlert = {
     otherPlayerId: string;
     civName: string;
     progressMilestone?: "Observatory" | "GrandAcademy" | "GrandExperiment";
-    buildingType?: "TitansCore" | "SpiritObservatory" | "JadeGranary";
+    buildingType?: "TitansCore" | "JadeGranary";
     buildingStatus?: "Started" | "Completed";
     capitalCount?: number; // Total capitals captured by this civ
     cityName?: string; // Name of captured/razed city

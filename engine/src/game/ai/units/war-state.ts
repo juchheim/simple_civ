@@ -1,6 +1,6 @@
-import { aiLog, aiInfo } from "../debug-logging.js";
+import { aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals } from "../../../core/hex.js";
-import { DiplomacyState, GameState, Player, UnitType } from "../../../core/types.js";
+import { DiplomacyState, GameState, Player } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { estimateMilitaryPower, findFinishableEnemies } from "../goals.js";
 

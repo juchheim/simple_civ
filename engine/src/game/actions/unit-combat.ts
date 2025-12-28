@@ -3,7 +3,6 @@ import { logEvent } from "../history.js";
 import {
     BUILDINGS,
     CITY_DEFENSE_BASE,
-    CITY_WARD_DEFENSE_BONUS,
     CITY_ATTACK_BASE,
     CITY_WARD_ATTACK_BONUS,
     TERRAIN,
@@ -216,7 +215,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                     // v6.6k: Buffed to 0.5 to help Aetherian win rate (was 16.9%)
                     // v6.6m: Buffed to 0.7 to further help Aetherian (was 16.4%)
                     const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.6); // v1.0.3: Buffed from 0.4 to 0.6
+                    const scienceGain = Math.floor(combatPower * 0.8); // v1.0.5: Buffed from 0.6 to 0.8 (analysis showed 14.6% win rate)
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                         // Track for simulation analysis

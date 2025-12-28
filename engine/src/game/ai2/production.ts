@@ -26,22 +26,18 @@ import {
     getBestUnitForRole,
     getGamePhase
 } from "./strategic-plan.js";
-import { UNIT_ROLES, getUnitsWithRole } from "./capabilities.js";
+import { UNIT_ROLES } from "./capabilities.js";
 import { getAiMemoryV2 } from "./memory.js";
+import { countMilitary, isWarEmergency } from "./production/emergency.js";
+import { pickVictoryProject } from "./production/victory.js";
+import { pickEconomyBuilding } from "./production/economy.js";
+import { pickWarStagingProduction } from "./production/staging.js";
 
 export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string; markAsHomeDefender?: boolean };
 
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
-
-function countMilitary(state: GameState, playerId: string): number {
-    return state.units.filter(u =>
-        u.ownerId === playerId &&
-        UNIT_ROLES[u.type] !== "civilian" &&
-        UNIT_ROLES[u.type] !== "vision"
-    ).length;
-}
 
 function settlersInFlight(state: GameState, playerId: string): number {
     const active = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler).length;
@@ -273,10 +269,15 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         // City is under direct attack! Emergency production
         aiInfo(`[AI Build] ${profile.civName} EMERGENCY: ${city.name} under attack by ${enemyUnitsNearCity.length} enemies!`);
 
+        // v1.0.9: Defensive civs prioritize Lorekeeper in emergencies (high def, ranged)
+        if (isDefensiveCiv(profile.civName) && canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
+            return { type: "Unit", id: UnitType.Lorekeeper };
+        }
+
         // Count what we have defending - prioritize what we're missing
         const nearbyRanged = state.units.filter(u =>
             u.ownerId === playerId &&
-            (u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard) &&
+            (u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard || u.type === UnitType.Lorekeeper) &&
             hexDistance(u.coord, city.coord) <= 2
         ).length;
         const nearbyMelee = state.units.filter(u =>
@@ -314,120 +315,13 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     // =========================================================================
     // v7.9: WAR STAGING PRODUCTION - Build offensive units before declaring war
     // =========================================================================
-    // When AI has identified a target (focusTargetPlayerId set) but hasn't declared
-    // war yet, prioritize building offensive units to reach staging threshold.
-    // This ensures AI builds enough units BEFORE attacking, not after.
-    //
-    // GUARDS to prevent conflicts with defense:
-    // - Skip for defensive civs (ScholarKingdoms, StarborneSeekers) - they prioritize defense
-    // - Skip if this city is under threat
-    // - Only triggers when NOT at war (staging phase only)
-    const memory = getAiMemoryV2(state, playerId);
-    const hasFocusTarget = !!memory.focusTargetPlayerId;
-    const focusCity = memory.focusCityId ? state.cities.find(c => c.id === memory.focusCityId) : null;
+    const stagingBuild = pickWarStagingProduction(state, playerId, city);
+    if (stagingBuild) {
+        return stagingBuild;
+    }
 
-    // Check if we're staging (have a target but not at war with them yet)
-    const isStaging = hasFocusTarget && !state.players.some(p =>
-        p.id === memory.focusTargetPlayerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    // Guard 1: Defensive civs usually prioritize defense, but sometimes contribute to staging
-    // Aggressive civs always stage, defensive civs have 30% chance to participate
-    const isAggressiveCiv = !isDefensiveCiv(profile.civName);
-    const defensiveCivStagingChance = 0.30; // 30% chance defensive civs build for staging
-    const stagingRoll = ((state.turn * 17 + city.id.charCodeAt(0) * 7) % 100) / 100;
-    const shouldStageForWar = isAggressiveCiv || (stagingRoll < defensiveCivStagingChance);
-
-    // Guard 2: Skip if this city is under threat
     const thisCityThreat = getThreatLevel(state, city, playerId);
     const cityNotThreatened = thisCityThreat === "none" || thisCityThreat === "low";
-
-    if (isStaging && focusCity && shouldStageForWar && cityNotThreatened) {
-        // Count units near the focus city (staging area)
-        const stageDistMax = 6;
-        const nearCount = state.units.filter(u =>
-            u.ownerId === playerId &&
-            u.type !== UnitType.Settler && u.type !== UnitType.Scout &&
-            UNITS[u.type].domain !== "Civilian" &&
-            hexDistance(u.coord, focusCity.coord) <= stageDistMax
-        ).length;
-
-        // Get profile for forceConcentration
-        const stagingProfile = getAiProfileV2(state, playerId);
-        // v7.9: Match the threshold in diplomacy.ts: Math.max(4, forceConcentration * 5)
-        const requiredNear = Math.max(4, Math.ceil(stagingProfile.tactics.forceConcentration * 5));
-
-        // Count capturers (needed for city capture)
-        const capturersNear = state.units.filter(u =>
-            u.ownerId === playerId &&
-            (u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard ||
-                u.type === UnitType.Riders || u.type === UnitType.ArmyRiders ||
-                u.type === UnitType.Titan || u.type === UnitType.Landship) &&
-            hexDistance(u.coord, focusCity.coord) <= stageDistMax
-        ).length;
-
-        // If we need more units to reach staging threshold, build them
-        if (nearCount < requiredNear || capturersNear < 1) {
-            aiInfo(`[AI Build] ${profile.civName} WAR STAGING: Building offensive units (${nearCount}/${requiredNear} near target, ${capturersNear} capturers)`);
-
-            // Prioritize capturers if we have none
-            if (capturersNear < 1) {
-                if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
-                    return { type: "Unit", id: UnitType.ArmySpearGuard };
-                }
-                if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
-                    return { type: "Unit", id: UnitType.ArmyRiders };
-                }
-                if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
-                    return { type: "Unit", id: UnitType.SpearGuard };
-                }
-                if (canBuild(city, "Unit", UnitType.Riders, state)) {
-                    return { type: "Unit", id: UnitType.Riders };
-                }
-            }
-
-            // Build ranged units for support
-            if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
-                return { type: "Unit", id: UnitType.ArmyBowGuard };
-            }
-            if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
-                return { type: "Unit", id: UnitType.BowGuard };
-            }
-
-            // v1.0.4: Build Trebuchets for siege - scale cap with army size
-            const trebuchetsNear = state.units.filter(u =>
-                u.ownerId === playerId &&
-                u.type === UnitType.Trebuchet &&
-                hexDistance(u.coord, focusCity.coord) <= stageDistMax
-            ).length;
-            const trebuchetsTotal = state.units.filter(u =>
-                u.ownerId === playerId && u.type === UnitType.Trebuchet
-            ).length;
-            // Scale cap: 1 per 4 military units, min 2, max 4
-            const militaryCount = state.units.filter(u =>
-                u.ownerId === playerId &&
-                UNITS[u.type].domain !== "Civilian" &&
-                u.type !== UnitType.Scout
-            ).length;
-            const trebuchetCap = Math.min(4, Math.max(2, Math.floor(militaryCount / 4)));
-            if (trebuchetsNear < 1 && trebuchetsTotal < trebuchetCap) {
-                if (canBuild(city, "Unit", UnitType.Trebuchet, state)) {
-                    aiInfo(`[AI Build] ${profile.civName} WAR STAGING: Trebuchet for siege (${trebuchetsTotal}/${trebuchetCap})`);
-                    return { type: "Unit", id: UnitType.Trebuchet };
-                }
-            }
-
-            // Build any capturer
-            if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
-                return { type: "Unit", id: UnitType.ArmySpearGuard };
-            }
-            if (canBuild(city, "Unit", UnitType.SpearGuard, state)) {
-                return { type: "Unit", id: UnitType.SpearGuard };
-            }
-        }
-    }
 
     // =========================================================================
     // v1.0.4: TREBUCHET PRODUCTION - Build siege units during active war
@@ -464,6 +358,11 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
 
     if (ourTitan && !thisCityHasGarrison) {
         aiInfo(`[AI Build] ${profile.civName} GARRISON REPLENISHMENT: City ${city.name} is undefended (Titan escort pulled units)`);
+
+        // v1.0.9: Defensive civs prioritize Lorekeeper for garrison replenishment
+        if (isDefensiveCiv(profile.civName) && canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
+            return { type: "Unit", id: UnitType.Lorekeeper };
+        }
 
         // v7.9: Alternate between melee and ranged for better unit mix
         // Use turn + city hash for pseudo-random selection to get varied compositions
@@ -531,6 +430,10 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     if (isDefensiveCiv(profile.civName) && atWar && myMilitary < WAR_EMERGENCY_THRESHOLD) {
         aiInfo(`[AI Build] ${profile.civName} WAR EMERGENCY: Under attack! Military: ${myMilitary}/${WAR_EMERGENCY_THRESHOLD}`);
 
+        // v1.0.9: Lorekeeper is the best defender for Scholar/Starborne (high def, ranged, territory bonus)
+        if (canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
+            return { type: "Unit", id: UnitType.Lorekeeper };
+        }
         // BowGuard is best for defense (ranged, no retaliation)
         if (canBuild(city, "Unit", UnitType.BowGuard, state)) {
             return { type: "Unit", id: UnitType.BowGuard };
@@ -800,84 +703,16 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         }
     }
 
-
     // =========================================================================
-    // PRIORITY 1: Victory Projects (Progress goal)
+    // v1.0.8: UNIVERSAL WAR EMERGENCY - Don't build projects if army is gone!
     // =========================================================================
-    if (goal === "Progress" || profile.civName === "ScholarKingdoms" || profile.civName === "StarborneSeekers") {
-        // StarborneSeekers unique building satisfies Observatory milestone
-        if (profile.civName === "StarborneSeekers" && player.techs.includes(TechId.StarCharts)) {
-            if (!player.completedProjects.includes(ProjectId.Observatory)) {
-                if (!city.buildings.includes(BuildingType.SpiritObservatory)) {
-                    if (canBuild(city, "Building", BuildingType.SpiritObservatory, state)) {
-                        aiInfo(`[AI Build] ${profile.civName} PRIORITY: SpiritObservatory (Victory)`);
-                        return { type: "Building", id: BuildingType.SpiritObservatory };
-                    }
-                }
-            }
-        }
+    // If we are at war and have critical military shortage (<5 units), 
+    // we must rebuild army before victory projects, regardless of civ type.
+    const warEmergency = isWarEmergency(state, playerId, atWar);
 
-        // Victory project chain
-        const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
-        for (const pid of progressProjects) {
-            if (canBuild(city, "Project", pid, state)) {
-                aiInfo(`[AI Build] ${profile.civName} PRIORITY: ${pid} (Victory)`);
-                return { type: "Project", id: pid };
-            }
-        }
-    }
-
-    // =========================================================================
-    // PRIORITY 1.1: HYBRID VICTORY - Opportunistic Progress for ALL civs
-    // =========================================================================
-    // If we've already invested in the Progress chain, continue it regardless of goal.
-    // This gives Conquest/Balanced civs a backup win condition if wars stall.
-    // Only triggers if we have StarCharts (meaning we *could* pursue Progress).
-    const hasStarCharts = player.techs.includes(TechId.StarCharts);
-    const hasObservatory = player.completedProjects.includes(ProjectId.Observatory);
-    const hasGrandAcademy = player.completedProjects.includes(ProjectId.GrandAcademy);
-    const hasInvestedInProgress = hasObservatory || hasGrandAcademy;
-
-    // Late game trigger: if turn > 200 and we have StarCharts, start Progress as backup
-    const lateGameProgressTrigger = state.turn > 200 && hasStarCharts && !hasInvestedInProgress;
-
-    // v6.1: Monster Trigger (e.g., Jade Covenant with 10 cities)
-    // If we are huge, we can afford to pursue Progress in parallel with Conquest.
-    const hasMonsterEmpire = myCities.length >= 8 && hasStarCharts;
-
-    // v6.5: STALL PREVENTION - If tech tree is complete, FORCE Progress chain completion
-    // Analysis showed games stalling at turn 300 with 20 techs but no Victory
-    // If you have 20 techs and Observatory, you MUST continue to Grand Academy/Experiment
-    const FULL_TECH_TREE_SIZE = 20;
-    const techTreeComplete = player.techs.length >= FULL_TECH_TREE_SIZE;
-    const hasIncompleteProgressChain = hasObservatory && !player.completedProjects.includes(ProjectId.GrandExperiment);
-    const forceProgressFinish = techTreeComplete && hasIncompleteProgressChain;
-
-    // v6.6: Very late game - always pursue Progress as backup
-    // Lowered from 200 to 150 to reduce 14.2% stall rate
-    const veryLateGamePush = state.turn >= 150 && hasStarCharts;
-
-    if (hasStarCharts && (hasInvestedInProgress || lateGameProgressTrigger || hasMonsterEmpire || forceProgressFinish || veryLateGamePush)) {
-        // Check if ANY of our cities is currently building a Progress project
-        const anyBuildingProgress = myCities.some(c =>
-            c.currentBuild?.type === "Project" &&
-            [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment].includes(c.currentBuild.id as ProjectId)
-        );
-
-        // Only assign ONE city to Progress at a time (other cities can do military)
-        // EXCEPTION: forceProgressFinish allows multiple cities to work on it
-        const allowMultipleCities = forceProgressFinish || veryLateGamePush;
-        if (!anyBuildingProgress || allowMultipleCities) {
-            const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
-            for (const pid of progressProjects) {
-                if (canBuild(city, "Project", pid, state)) {
-                    const reason = forceProgressFinish ? "STALL PREVENTION" :
-                        veryLateGamePush ? "VERY LATE GAME" : "backup victory path";
-                    aiInfo(`[AI Build] ${profile.civName} HYBRID: ${pid} (${reason})`);
-                    return { type: "Project", id: pid };
-                }
-            }
-        }
+    if (!warEmergency) {
+        const victoryProject = pickVictoryProject(state, playerId, city, goal, profile, myCities);
+        if (victoryProject) return victoryProject;
     }
 
 
@@ -1122,22 +957,8 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     // =========================================================================
     // PRIORITY 7: Economy Buildings
     // =========================================================================
-    const economyBuildings = [
-        BuildingType.StoneWorkshop,
-        BuildingType.Scriptorium,
-        BuildingType.Academy,
-        BuildingType.Farmstead,
-        BuildingType.Forgeworks,
-    ];
-
-    for (const building of economyBuildings) {
-        if (!city.buildings.includes(building) && canBuild(city, "Building", building, state)) {
-            aiInfo(`[AI Build] ${profile.civName} ECONOMY: ${building}`);
-            return { type: "Building", id: building };
-        }
-    }
-
-    // Note: Bulwark moved to Priority 4.6
+    const economy = pickEconomyBuilding(state, playerId, city, profile.civName);
+    if (economy) return economy;
 
     // =========================================================================
     // FALLBACK: More military

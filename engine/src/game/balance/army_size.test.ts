@@ -1,6 +1,6 @@
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, Player, City } from "../../core/types.js";
+import { describe, it, expect } from 'vitest';
+import { GameState } from "../../core/types.js";
 import { getAiProfileV2 } from "../ai2/rules.js";
 
 function createMockState(civName: string): GameState {
@@ -18,12 +18,12 @@ describe('Peacetime Army Size Checks', () => {
     it('should have armyPerCity = 2.0 for ScholarKingdoms', () => {
         const state = createMockState("ScholarKingdoms");
         const profile = getAiProfileV2(state, "p1");
-        expect(profile.build.armyPerCity).toBe(2.0);
+        expect(profile.build.armyPerCity).toBe(1.5);
     });
 
     it('should have armyPerCity = 1.8 for StarborneSeekers', () => {
         const state = createMockState("StarborneSeekers");
         const profile = getAiProfileV2(state, "p1");
-        expect(profile.build.armyPerCity).toBe(1.8);
+        expect(profile.build.armyPerCity).toBe(1.5);
     });
 });

@@ -1,4 +1,4 @@
-import { BuildingType, City, GameState, HexCoord } from "../../core/types.js";
+import { City, GameState, HexCoord } from "../../core/types.js";
 import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, CITY_NAMES } from "../../core/constants.js";
 import { TerrainType } from "../../core/types.js";
 import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";

@@ -73,7 +73,7 @@ export enum BuildingType {
     Forgeworks = "Forgeworks",
     CitySquare = "CitySquare",
     TitansCore = "TitansCore",
-    SpiritObservatory = "SpiritObservatory",
+
     JadeGranary = "JadeGranary",
     Bulwark = "Bulwark",
     // v6.0: Aether Era

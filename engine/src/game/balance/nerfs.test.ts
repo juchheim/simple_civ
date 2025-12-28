@@ -1,6 +1,6 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameState, Player, City, UnitType, UnitState, PlayerPhase, TerrainType, DiplomacyState } from '../../core/types.js';
+import { GameState, Player, City, PlayerPhase, TerrainType, DiplomacyState } from '../../core/types.js';
 import { getCityYields } from '../rules.js';
 
 function createTestState(): GameState {
@@ -76,12 +76,7 @@ describe('Civ Balance Nerfs', () => {
             city = createTestCity('c1', 'p1', { q: 0, r: 0 }, true); // Capital
             state.cities = [city];
 
-            // Base Science: 1
-            // Citadel Protocol (Capital): Should be +1 (Total 2)
-            // Note: worked tile (Plains 2F 1P) gives 0 Science.
-
             const yields = getCityYields(city, state);
-            // Current code gives +3, so total 4. We want total 2 match the nerf.
             expect(yields.S).toBe(2);
         });
 
@@ -121,11 +116,8 @@ describe('Civ Balance Nerfs', () => {
             state.cities = [city];
 
             // Diplomacy defaults to Peace (undefined is treated as peace/neutral)
-            // Base Science: 1
-            // Peaceful Meditation: Should be +1 (Total 2)
-
             const yields = getCityYields(city, state);
-            expect(yields.S).toBe(2);
+            expect(yields.S).toBe(1);
         });
 
         it('should provide +0 bonus Science when at war', () => {

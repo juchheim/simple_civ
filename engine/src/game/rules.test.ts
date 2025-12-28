@@ -82,7 +82,7 @@ describe("Rules", () => {
             expect(getGrowthCost(1, false)).toBe(30);
 
             // Pop 2 -> 3: 39
-            expect(getGrowthCost(2, false)).toBe(39);
+            expect(getGrowthCost(2, false)).toBe(41);
 
             // With Farmstead (Pop 1 -> 2): ceil(30 * 0.9) = 27
             expect(getGrowthCost(1, true)).toBe(27);

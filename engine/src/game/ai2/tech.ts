@@ -10,6 +10,7 @@ import { aiInfo } from "../ai/debug-logging.js";
 import { AiVictoryGoal, GameState, TechId } from "../../core/types.js";
 import { getAiProfileV2 } from "./rules.js";
 import { getGoalRequirements, getNextTechInChain, getGamePhase } from "./strategic-plan.js";
+import { evaluateBestVictoryPath } from "../ai/victory-evaluator.js";
 
 // =============================================================================
 // TECH AVAILABILITY
@@ -77,20 +78,70 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
         }
     }
 
-    // PRIORITY 1.1: HYBRID VICTORY - Late game StarCharts backup for ALL civs
-    // If we're past turn 180 and don't have StarCharts, prioritize getting it
-    // This enables the hybrid production logic (backup Progress victory path)
+    // =========================================================================
+    // STRATEGIC DECISION POINTS - Evaluate Progress pivot at military milestones
+    // =========================================================================
+    // At each key military tech, evaluate if we should pivot to Progress.
+    // These are the natural decision points in a Conquest strategy where
+    // a civ should consider if Progress might now be faster.
+    //
+    // Decision Point 1: After DrilledRanks (unlocks Form Army)
+    // Decision Point 2: After ArmyDoctrine (army boost)
+    // Decision Point 3: After CompositeArmor (unlocks Landships)
+    //
+    // At each point: If Progress is faster, pivot to ScriptLore → ScholarCourts → SignalRelay → StarCharts
+    // =========================================================================
+
     const hasStarCharts = player.techs.includes(TechId.StarCharts);
-    if (state.turn >= 180 && !hasStarCharts) {
-        // Need SignalRelay first
-        if (!player.techs.includes(TechId.SignalRelay) && avail.includes(TechId.SignalRelay)) {
-            aiInfo(`[AI Tech] ${profile.civName} HYBRID: SignalRelay (backup victory path)`);
-            return TechId.SignalRelay;
-        }
-        // Then StarCharts
-        if (avail.includes(TechId.StarCharts)) {
-            aiInfo(`[AI Tech] ${profile.civName} HYBRID: StarCharts (backup victory path)`);
-            return TechId.StarCharts;
+    const hasSignalRelay = player.techs.includes(TechId.SignalRelay);
+    const hasScholarCourts = player.techs.includes(TechId.ScholarCourts);
+    const hasScriptLore = player.techs.includes(TechId.ScriptLore);
+
+    // Check if we're at a strategic decision point (just got a key military tech)
+    const hasDrilledRanks = player.techs.includes(TechId.DrilledRanks);
+    const hasArmyDoctrine = player.techs.includes(TechId.ArmyDoctrine);
+    const hasCompositeArmor = player.techs.includes(TechId.CompositeArmor);
+
+    // At any military milestone, evaluate if we should pivot to Progress
+    const atMilitaryMilestone = hasDrilledRanks || hasArmyDoctrine || hasCompositeArmor;
+
+    if (!hasStarCharts && atMilitaryMilestone) {
+        const victoryEval = evaluateBestVictoryPath(state, playerId);
+
+        // Log the decision point
+        const milestone = hasCompositeArmor ? "CompositeArmor" : hasArmyDoctrine ? "ArmyDoctrine" : "DrilledRanks";
+        aiInfo(`[AI Tech] ${profile.civName} DECISION POINT at ${milestone}: Progress ${victoryEval.turnsToProgress} vs Conquest ${victoryEval.turnsToConquest}`);
+
+        // STRATEGIC BIAS: At milestones, be more willing to pivot to Progress
+        // Even if Conquest is "faster", diversifying to Progress is strategically wise
+        // Pivot if:
+        // 1. Progress is actually faster (progressFaster)
+        // 2. Progress is within 40 turns of Conquest
+        // 3. At CompositeArmor milestone and Progress is within 50 turns (last chance)
+        const progressWithinRange = victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 40;
+        const lastChancePivot = hasCompositeArmor && victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 50;
+        const shouldPivot = victoryEval.progressFaster || progressWithinRange || lastChancePivot;
+
+        if (shouldPivot) {
+            const pivotReason = victoryEval.progressFaster ? "Progress faster" :
+                lastChancePivot ? "LAST CHANCE backup" : "within range";
+            // Pivot to Progress tech chain: ScriptLore → ScholarCourts → SignalRelay → StarCharts
+            if (!hasScriptLore && avail.includes(TechId.ScriptLore)) {
+                aiInfo(`[AI Tech] ${profile.civName} PIVOT: ScriptLore (${pivotReason} at ${milestone})`);
+                return TechId.ScriptLore;
+            }
+            if (!hasScholarCourts && avail.includes(TechId.ScholarCourts)) {
+                aiInfo(`[AI Tech] ${profile.civName} PIVOT: ScholarCourts (${pivotReason} at ${milestone})`);
+                return TechId.ScholarCourts;
+            }
+            if (!hasSignalRelay && avail.includes(TechId.SignalRelay)) {
+                aiInfo(`[AI Tech] ${profile.civName} PIVOT: SignalRelay (${pivotReason} at ${milestone})`);
+                return TechId.SignalRelay;
+            }
+            if (avail.includes(TechId.StarCharts)) {
+                aiInfo(`[AI Tech] ${profile.civName} PIVOT: StarCharts (${pivotReason} at ${milestone})`);
+                return TechId.StarCharts;
+            }
         }
     }
 

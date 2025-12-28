@@ -1,4 +1,4 @@
-import { aiLog, aiInfo } from "../debug-logging.js";
+import { aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, hexSpiral, getNeighbors, hexToString } from "../../../core/hex.js";
 import {
     DiplomacyState,
@@ -504,11 +504,9 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         if (ringDefenderCoords.has(coordKey)) return false;
         return true;
     });
-    const garrisonUnits = militaryUnits.filter(u => garrisonedCities.has(hexToString(u.coord)));
-
     const escortAssignments = new Map<string, string>();
 
-    for (const { settler: staleSettler, safety } of sortedSettlers) {
+    for (const { settler: staleSettler } of sortedSettlers) {
         const settler = next.units.find(u => u.id === staleSettler.id);
         if (!settler) continue;
         if (settler.linkedUnitId) {

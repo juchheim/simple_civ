@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { GameState, Player, UnitType, BuildingType, TechId, DiplomacyState, PlayerPhase } from '../core/types.js';
+import { GameState, UnitType } from '../core/types.js';
 import { runEndOfRound } from './turn-lifecycle.js';
 
 describe('Conquest Victory Stall', () => {

@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getScholarKingdomsDefenseBonus } from './combat.js';
-import { GameState, Player, City, Unit, UnitType } from '../../core/types.js';
+import { GameState, Player, Unit } from '../../core/types.js';
 import { SCHOLAR_KINGDOMS_DEFENSE_BONUS } from '../../core/constants.js';
 
 describe('Combat Bonuses', () => {
@@ -16,7 +16,7 @@ describe('Combat Bonuses', () => {
         it('should correctly divide bonus among cities', () => {
             const player = { id: 'p1', civName: 'ScholarKingdoms' } as Player;
 
-            // 1 City: +8
+            // 1 City: flat +1 global bonus
             const state1 = {
                 cities: [{ id: 'c1', ownerId: 'p1', coord: { q: 0, r: 0 } }],
                 players: [player]
@@ -24,12 +24,12 @@ describe('Combat Bonuses', () => {
             // Unit at 0,0 (dist 0)
             const unit1 = { coord: { q: 0, r: 0 } } as Unit;
 
-            // Ensure constant is 8
-            expect(SCHOLAR_KINGDOMS_DEFENSE_BONUS).toBe(8);
+            // v1.0.9: Ensure constant matches current balance (+1 global)
+            expect(SCHOLAR_KINGDOMS_DEFENSE_BONUS).toBe(1);
 
-            expect(getScholarKingdomsDefenseBonus(state1, player, unit1)).toBe(8);
+            expect(getScholarKingdomsDefenseBonus(state1, player, unit1)).toBe(1);
 
-            // 2 Cities: +4 each
+            // 2 Cities: flat bonus, not divided
             const state2 = {
                 cities: [
                     { id: 'c1', ownerId: 'p1', coord: { q: 0, r: 0 } },
@@ -38,9 +38,9 @@ describe('Combat Bonuses', () => {
                 players: [player]
             } as unknown as GameState;
             // Unit near city 1
-            expect(getScholarKingdomsDefenseBonus(state2, player, unit1)).toBe(4);
+            expect(getScholarKingdomsDefenseBonus(state2, player, unit1)).toBe(1);
 
-            // 4 Cities: +2 each
+            // 4 Cities: still flat bonus
             const state4 = {
                 cities: [
                     { id: 'c1', ownerId: 'p1', coord: { q: 0, r: 0 } },
@@ -50,23 +50,24 @@ describe('Combat Bonuses', () => {
                 ],
                 players: [player]
             } as unknown as GameState;
-            expect(getScholarKingdomsDefenseBonus(state4, player, unit1)).toBe(2);
+            expect(getScholarKingdomsDefenseBonus(state4, player, unit1)).toBe(1);
         });
 
-        it('should verify bonus radius', () => {
+        it('should verify bonus is global (applies at any distance)', () => {
             const player = { id: 'p1', civName: 'ScholarKingdoms' } as Player;
             const state = {
                 cities: [{ id: 'c1', ownerId: 'p1', coord: { q: 0, r: 0 } }],
                 players: [player]
             } as unknown as GameState;
 
+            // v1.0.9: Bonus is now global - applies at any distance from cities
             // At radius 1 (adjacent) -> Should get bonus
             const unitIn = { coord: { q: 0, r: 1 } } as Unit;
-            expect(getScholarKingdomsDefenseBonus(state, player, unitIn)).toBe(8);
+            expect(getScholarKingdomsDefenseBonus(state, player, unitIn)).toBe(1);
 
-            // At radius 2 -> Should NOT get bonus (default radius is 1)
-            const unitOut = { coord: { q: 0, r: 2 } } as Unit;
-            expect(getScholarKingdomsDefenseBonus(state, player, unitOut)).toBe(0);
+            // At radius 10 -> Still gets bonus (now global)
+            const unitFar = { coord: { q: 0, r: 10 } } as Unit;
+            expect(getScholarKingdomsDefenseBonus(state, player, unitFar)).toBe(1);
         });
     });
 });

@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { GameState, Player, City, Tile, BuildingType, UnitType, UnitDomain } from '../../core/types.js';
+import { GameState, Player, City, Tile, BuildingType } from '../../core/types.js';
 import { getCityYields } from '../rules.js';
 import { BUILDINGS } from '../../core/constants.js';
 
@@ -109,7 +109,7 @@ describe('Balance Round 2 Checks', () => {
             expect(yields.F).toBeGreaterThanOrEqual(6);
             // If it was old logic (1 per 1), P would be 3 (base) + 3 (bonus) = 6.
             // New logic: 3 (base) + 1 (bonus) = 4.
-            expect(yields.P).toBe(5);
+            expect(yields.P).toBe(4);
         });
     });
 

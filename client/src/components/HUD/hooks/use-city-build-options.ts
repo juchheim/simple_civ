@@ -39,7 +39,7 @@ const BUILDING_OPTIONS: BuildOption<BuildingType>[] = [
     { id: BuildingType.Forgeworks, name: "Forgeworks" },
     { id: BuildingType.CitySquare, name: "City Square" },
     { id: BuildingType.TitansCore, name: "Titan's Core" },
-    { id: BuildingType.SpiritObservatory, name: "Spirit Observatory" },
+
     { id: BuildingType.JadeGranary, name: "Jade Granary" },
     { id: BuildingType.Bulwark, name: "Bulwark" },
     // v6.0: Aether Era buildings

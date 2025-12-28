@@ -135,7 +135,7 @@ function applyScoutReward(
     state: GameState,
     playerId: string,
     coord: HexCoord,
-    tile: Tile
+    _tile: Tile
 ): GoodieHutReward {
     const scoutStats = UNITS[UnitType.Scout];
 

@@ -74,7 +74,6 @@ export const TECH_UNLOCKS: Partial<Record<TechId, TechUnlock>> = {
     // Engine Era
     [TechId.SteamForges]: { buildings: [BuildingType.TitansCore, BuildingType.Forgeworks] },
     [TechId.ArmyDoctrine]: { units: [UnitType.ArmyRiders] },
-    [TechId.StarCharts]: { buildings: [BuildingType.SpiritObservatory] },
 
     // Aether Era  
     [TechId.CompositeArmor]: { units: [UnitType.Landship] },
@@ -107,8 +106,8 @@ export const TECH_CHAINS: Record<string, TechId[]> = {
     // Victory projects - standard Progress path
     Progress: [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts],
 
-    // SpiritObservatory for StarborneSeekers: CityWards FIRST (early defense), then Progress path, then PlasmaShields (late game)
-    SpiritObservatory: [TechId.StoneworkHalls, TechId.CityWards, TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts, TechId.PlasmaShields],
+    // Observatory focus for StarborneSeekers: CityWards FIRST (early defense), then Progress path, then PlasmaShields (late game)
+    Observatory: [TechId.StoneworkHalls, TechId.CityWards, TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts, TechId.PlasmaShields],
 
     // Defensive civs (Scholar/Starborne): CityWards FIRST for early protection, then Progress path, then PlasmaShields (late game bulking)
     // Order: StoneworkHalls → CityWards (early defense), then ScriptLore → ScholarCourts → SignalRelay → StarCharts (victory), then PlasmaShields (ShieldGenerator)

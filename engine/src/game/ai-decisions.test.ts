@@ -4,7 +4,6 @@ import {
     evaluateWarStatus,
     evaluateDistance,
     aiWarPeaceDecision,
-    PowerClassification,
 } from "./ai-decisions.js";
 import { DiplomacyState, UnitType, PlayerPhase } from "../core/types.js";
 import { hexToString } from "../core/hex.js";

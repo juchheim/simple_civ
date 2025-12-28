@@ -136,7 +136,6 @@ describe("Ranged Threat Awareness", () => {
 
             // The key test: unit should NOT have moved directly into BowGuard range at (2,5)
             // Instead should take a path via (1,4) or (1,6) to approach from an angle
-            const distToBow = hexDistance(movedSpear!.coord, bowGuard.coord);
             // Unit should avoid moving directly into range 2 of BowGuard (unless no alternative)
             // This is a soft check - the AI might still move toward target but via safer route
             expect(movedSpear!.coord.q).toBeGreaterThan(0); // Made progress

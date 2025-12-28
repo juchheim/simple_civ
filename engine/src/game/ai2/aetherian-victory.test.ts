@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GameState, PlayerPhase, DiplomacyState, UnitType, TechId, ProjectId, TerrainType } from "../../core/types.js";
+import { GameState, PlayerPhase, DiplomacyState, UnitType, TechId, ProjectId } from "../../core/types.js";
 import { chooseVictoryGoalV2 } from "./strategy.js";
 
 function baseState(): GameState {

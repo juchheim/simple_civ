@@ -845,7 +845,6 @@ export function runLastStandAttacks(state: GameState, playerId: string): GameSta
 
     // Get friendly cities for retreat check
     const myCities = next.cities.filter(c => c.ownerId === playerId);
-    const cityCoords = new Set(myCities.map(c => `${c.coord.q},${c.coord.r}`));
 
     // Find units that might be cornered
     const militaryUnits = next.units.filter(u =>
@@ -1053,9 +1052,6 @@ export function positionDefensiveRing(state: GameState, playerId: string): GameS
         next.diplomacy[playerId]?.[p.id] === DiplomacyState.War
     );
     const enemyIds = new Set(enemies.map(e => e.id));
-
-    // Build set of city coords
-    const cityCoords = new Set(myCities.map(c => `${c.coord.q},${c.coord.r}`));
 
     // Get terrain for defensive scoring
     const getTile = (coord: { q: number; r: number }) =>

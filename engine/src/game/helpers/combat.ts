@@ -8,7 +8,6 @@ import {
     FORGE_CLANS_HILL_COMBAT_BONUS,
     FORGE_CLANS_ENGINE_ATTACK_BONUS,
     FORGE_CLANS_FLAT_ATTACK_BONUS,
-    STARBORNE_CAPITAL_DEFENSE_RADIUS,
     STARBORNE_CAPITAL_DEFENSE_BONUS,
     SCHOLAR_KINGDOMS_DEFENSE_BONUS,
     LOREKEEPER_TERRITORY_DEFENSE_BONUS,
@@ -93,7 +92,7 @@ export function countErasResearched(player: Player): number {
  * Get the HP bonus for AetherianVanguard's "Battle Hardened" passive.
  * v8.3: DISABLED - was giving +2 HP per era (max +8), made Aetherian too strong.
  */
-export function getAetherianHpBonus(player: Player, unitType: UnitType): number {
+export function getAetherianHpBonus(_player: Player, _unitType: UnitType): number {
     // v8.3: Disabled to balance Aetherian win rate
     return 0;
 }
@@ -158,7 +157,7 @@ export function getForgeClansEngineBonus(player: Player): number {
  * v1.9: StarborneSeekers "Starborne Resilience" - +1 Defense EVERYWHERE.
  * (Previously "Celestial Guidance" which only applied near capital)
  */
-export function getStarborneCelestialBonus(state: GameState, player: Player, unit: Unit): number {
+export function getStarborneCelestialBonus(state: GameState, player: Player, _unit: Unit): number {
     if (player.civName !== "StarborneSeekers") return 0;
     // v1.9: Global defense bonus - applies everywhere, not just near capital
     return STARBORNE_CAPITAL_DEFENSE_BONUS; // Repurposed constant, now global
@@ -179,8 +178,8 @@ export function getScholarKingdomsDefenseBonus(state: GameState, player: Player,
     for (const city of cities) {
         const dist = hexDistance(unit.coord, city.coord);
         if (dist <= SCHOLAR_KINGDOMS_DEFENSE_RADIUS) {
-            // v8.14: Nerfed from +4 to +2 (was too dominant at 35.2% win rate)
-            return 2;
+            // v1.0.7: Fixed to use constant (was hardcoded 2, constant is 8)
+            return SCHOLAR_KINGDOMS_DEFENSE_BONUS;
         }
     }
 

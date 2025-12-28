@@ -1,4 +1,4 @@
-import { aiLog, aiInfo } from "../debug-logging.js";
+import { aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { GameState, UnitType } from "../../../core/types.js";
 import { TERRAIN, UNITS } from "../../../core/constants.js";

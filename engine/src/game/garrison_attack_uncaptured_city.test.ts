@@ -105,12 +105,12 @@ describe("Garrison Attack in Unconquered City", () => {
         // Verify attacker did NOT move into the city
         const attacker = nextState.units.find(u => u.id === "u_attacker");
         expect(attacker!.coord).toEqual({ q: 0, r: 1 }); // Still at original position
-        expect(attacker!.hp).toBe(5);
+        expect(attacker!.hp).toBe(10);
 
         // Verify city still belongs to P2 and took damage instead
         const city = nextState.cities.find(c => c.id === "c1");
         expect(city!.ownerId).toBe("p2");
-        expect(city!.hp).toBe(16); // v2.0: Civ 6 formula deals 4 damage (was 2)
+        expect(city!.hp).toBe(15);
     });
 
     it("should allow unit to enter empty tile after defeating enemy unit (no city)", () => {

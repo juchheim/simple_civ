@@ -331,12 +331,7 @@ function addStartingUnitsForPlayer(params: AddStartingUnitsParams) {
         }
     }
 
-    if (player.civName === "StarborneSeekers") {
-        // v8.3: Changed from extra Scout to BowGuard for better defense
-        const extraBowCoord = findSpawnCoord(usedCoords);
-        usedCoords.push(extraBowCoord);
-        addUnit(UnitType.BowGuard, `u_${player.id}_bow`, extraBowCoord);
-    }
+
 
     if (player.civName === "ScholarKingdoms") {
         const extraBowCoord = findSpawnCoord(usedCoords);

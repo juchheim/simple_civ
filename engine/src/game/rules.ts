@@ -24,7 +24,6 @@ import {
     TERRAIN,
     PROJECTS,
     UNITS,
-    CITY_WORK_RADIUS_RINGS,
 } from "../core/constants.js";
 import { hexEquals, hexDistance, hexToString } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
@@ -167,11 +166,10 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         if (city.isCapital) {
             total.S += 1; // v8.13: Nerfed from +2 to +1 (was too dominant at 37.7% win rate)
         }
-        // 2. +3 Science per CityWard building (Buffed v2.9)
-        const cityWardCount = state.cities.filter(c =>
-            c.ownerId === city.ownerId && c.buildings.includes(BuildingType.CityWard)
-        ).length;
-        total.S += cityWardCount * 1; // v2.9: Nerfed to +1 (was +3)
+        // 2. +1 Science if this city has a CityWard (Citadel Protocol)
+        if (city.buildings.includes(BuildingType.CityWard)) {
+            total.S += 1;
+        }
     } else if (trait === "RiverLeague") {
         // v2.3: River bonuses - multiple river tiles boost yields
         const riverCount = riverAdjacencyCount(state.map, workedTiles);
@@ -181,7 +179,6 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
     } else if (trait === "StarborneSeekers") {
         // v1.9: "Peaceful Meditation" - Science when not at war
         // Fits their defensive identity - they avoid wars to pursue Progress
-        const player = state.players.find(p => p.id === city.ownerId);
         const atWar = state.players.some(other =>
             other.id !== city.ownerId &&
             !other.isEliminated &&
@@ -290,7 +287,7 @@ export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary
  * @param cache - Optional lookup cache for O(1) unit lookups.
  * @returns True if the item can be built.
  */
-export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: string, state: GameState, cache?: LookupCache): boolean {
+export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: string, state: GameState, _cache?: LookupCache): boolean {
     const player = state.players.find(p => p.id === city.ownerId);
     if (!player) return false;
 
@@ -305,7 +302,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
 
         // Civ-specific unique wonders (consumed on completion, once per civ)
         if (bId === BuildingType.TitansCore && player.civName !== "AetherianVanguard") return false;
-        if (bId === BuildingType.SpiritObservatory && player.civName !== "StarborneSeekers") return false;
+
         if (bId === BuildingType.JadeGranary && player.civName !== "JadeCovenant") return false;
 
         // Bulwark: Scholar/Starborne Only, ONCE PER CIV (v8.14: converted to wonder)
@@ -323,13 +320,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             if (isBuilding) return false;
         }
 
-        // Spirit Observatory: once per civ, replaces Observatory in Progress chain
-        // Check if already completed (tracked via Observatory milestone)
-        if (bId === BuildingType.SpiritObservatory) {
-            if (player.completedProjects.includes(ProjectId.Observatory)) return false;
-            const isBuilding = state.cities.some(c => c.ownerId === player.id && c.currentBuild?.id === bId);
-            if (isBuilding) return false;
-        }
+
 
         // Jade Granary: once per civ (tracked via JadeGranaryComplete marker)
         if (bId === BuildingType.JadeGranary) {

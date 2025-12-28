@@ -228,7 +228,7 @@ function checkAttackOverrides(
     state: GameState,
     playerId: string,
     focusCity: { coord: { q: number; r: number }; hp: number; maxHp: number } | undefined,
-    civAggression: CivAggressionProfile
+    _civAggression: CivAggressionProfile
 ): boolean {
     // Get enemies for several checks
     const enemies = state.players.filter(p =>

@@ -58,7 +58,7 @@ export function useGoodieHutAlerts(gameState: GameState, playerId: string) {
         }
 
         lastRewardRef.current = currentReward;
-    }, [gameState?.id, gameState?.lastGoodieHutReward, playerId]);
+    }, [gameState, gameState?.id, gameState?.lastGoodieHutReward, playerId]);
 
     const dismissToast = useCallback((id: string) => {
         setToasts(prev => prev.filter(t => t.id !== id));

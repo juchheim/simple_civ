@@ -117,7 +117,7 @@ export const JADE_COVENANT_SETTLER_DISCOUNT = 0.80; // v7.9: Buffed to 20% (was 
 export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
 
 // v7.9: Re-added Jade Covenant "Population Power" - +1 Atk/Def per X total population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 12; // v1.0.4: Buffed from 16 to 12
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 10; // v1.0.5: Buffed from 12 to 10 (analysis showed 13.2% win rate)
 
 
 
@@ -145,12 +145,14 @@ export const RIVER_LEAGUE_SIEGE_BONUS = 2; // +2 Attack when attacking cities
 
 // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - defense near capital
 // v2.6: Starborne Buff - increased defense radius (3 -> 4)
-export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 4; // Tiles from capital
-export const STARBORNE_CAPITAL_DEFENSE_BONUS = 0; // v8.13: Removed global defense (was too dominant at 39% win rate)
+// v1.0.9: Changed to global flat bonus for balance consistency with Scholar
+export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 4; // DEPRECATED - no longer used
+export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // v1.0.9: Restored global +1 defense for balance
 
 // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near any city
-export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 2; // v8.13: Nerfed from 3 to 2 (was too dominant at 37.7% win rate)
-export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 8; // v1.7: Reverted to +8 to match code logic
+// v1.0.9: Changed to global flat bonus (radius was too restrictive, hurting early survival)
+export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 99; // v1.0.9: Effectively global (any distance)
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 1; // v1.0.9: Flat +1 defense (matches Starborne)
 
 
 
@@ -330,7 +332,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 180, conditional: "Summons The Titan upon completion" }, // v1.0.3: Buffed to 180 (was 220)
-    [BuildingType.SpiritObservatory]: { era: EraId.Engine, techReq: TechId.StarCharts, cost: 300, yieldFlat: { S: 4, F: 3 }, conditional: "The Revelation: +4 Science, +3 Food, counts as Observatory milestone" }, // v8.13: Cost 250→300 to slow Starborne Progress victory
+
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
     // v5.5: Bulwark converted to Building (Scholar/Starborne only)
     [BuildingType.Bulwark]: {
@@ -359,30 +361,28 @@ export type TechData = {
 };
 
 export const TECHS: Record<TechId, TechData> = {
-    [TechId.Fieldcraft]: { era: EraId.Hearth, cost: 25, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Farmstead } }, // v1.0.3: 20→25
-    [TechId.StoneworkHalls]: { era: EraId.Hearth, cost: 25, prereqTechs: [], unlock: { type: "Building", id: BuildingType.StoneWorkshop } }, // v1.0.3: 20→25
-    [TechId.ScriptLore]: { era: EraId.Hearth, cost: 35, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Scriptorium } }, // v1.0.3: 30→35
-    [TechId.FormationTraining]: { era: EraId.Hearth, cost: 25, prereqTechs: [], unlock: { type: "Passive", key: "+1/+1 to Melee & Ranged" } }, // v1.0.3: 20→25
-    [TechId.TrailMaps]: { era: EraId.Hearth, cost: 25, prereqTechs: [], unlock: { type: "Unit", id: UnitType.Skiff } }, // v1.0.3: 20→25
-    [TechId.Wellworks]: { era: EraId.Banner, cost: 60, prereqTechs: [TechId.Fieldcraft], unlock: { type: "Building", id: BuildingType.Reservoir } }, // v1.0.3: 50→60
-    [TechId.TimberMills]: { era: EraId.Banner, cost: 60, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Unit", id: UnitType.Trebuchet } }, // v1.0.3: 50→60
-    [TechId.ScholarCourts]: { era: EraId.Banner, cost: 100, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } }, // v1.0.3: 80→100
-    [TechId.DrilledRanks]: { era: EraId.Banner, cost: 60, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } }, // v1.0.3: 50→60
-    [TechId.CityWards]: { era: EraId.Banner, cost: 60, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.CityWard } }, // v1.0.3: 50→60
-    // v5.0: Engine Era tech costs increased (85 -> 100/120), rewards buffed
-    [TechId.SteamForges]: { era: EraId.Engine, cost: 120, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } }, // v1.0.3: 100→120
-    [TechId.SignalRelay]: { era: EraId.Engine, cost: 170, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+2 Science per city" } }, // v1.0.3: 140→170
-    [TechId.UrbanPlans]: { era: EraId.Engine, cost: 120, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } }, // v1.0.3: 100→120
-    [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 120, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } }, // v1.0.3: 100→120
-    [TechId.StarCharts]: { era: EraId.Engine, cost: 200, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } }, // v1.0.3: 170→200
-
-    // v6.0: Aether Era
-    // High costs (200) representing end-game investment - increased to 240
-    [TechId.Aerodynamics]: { era: EraId.Aether, cost: 240, prereqTechs: [TechId.SteamForges], unlock: { type: "Unit", id: UnitType.Airship } }, // v1.0.3: 200→240
-    [TechId.ZeroPointEnergy]: { era: EraId.Aether, cost: 240, prereqTechs: [TechId.UrbanPlans], unlock: { type: "Building", id: BuildingType.AetherReactor } }, // v1.0.3: 200→240
-    [TechId.CompositeArmor]: { era: EraId.Aether, cost: 240, prereqTechs: [TechId.ArmyDoctrine], unlock: { type: "Unit", id: UnitType.Landship } }, // v1.0.3: 200→240
-    [TechId.PlasmaShields]: { era: EraId.Aether, cost: 240, prereqTechs: [TechId.SignalRelay], unlock: { type: "Building", id: BuildingType.ShieldGenerator } }, // v1.0.3: 200→240
-    [TechId.DimensionalGate]: { era: EraId.Aether, cost: 240, prereqTechs: [TechId.StarCharts], unlock: { type: "Passive", key: "Global Mobility: +1 Move to all units" } }, // v1.0.3: 200→240
+    // v1.0.6: Standardized tech costs by era
+    [TechId.Fieldcraft]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Farmstead } },
+    [TechId.StoneworkHalls]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.StoneWorkshop } },
+    [TechId.ScriptLore]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Scriptorium } },
+    [TechId.FormationTraining]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Passive", key: "+1/+1 to Melee & Ranged" } },
+    [TechId.TrailMaps]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Unit", id: UnitType.Skiff } },
+    [TechId.Wellworks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.Fieldcraft], unlock: { type: "Building", id: BuildingType.Reservoir } },
+    [TechId.TimberMills]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Unit", id: UnitType.Trebuchet } },
+    [TechId.ScholarCourts]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } },
+    [TechId.DrilledRanks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } },
+    [TechId.CityWards]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.CityWard } },
+    [TechId.SteamForges]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } },
+    [TechId.SignalRelay]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+2 Science per city" } },
+    [TechId.UrbanPlans]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } },
+    [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } },
+    [TechId.StarCharts]: { era: EraId.Engine, cost: 100, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } },
+    // Aether Era
+    [TechId.Aerodynamics]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.SteamForges], unlock: { type: "Unit", id: UnitType.Airship } },
+    [TechId.ZeroPointEnergy]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.UrbanPlans], unlock: { type: "Building", id: BuildingType.AetherReactor } },
+    [TechId.CompositeArmor]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.ArmyDoctrine], unlock: { type: "Unit", id: UnitType.Landship } },
+    [TechId.PlasmaShields]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.SignalRelay], unlock: { type: "Building", id: BuildingType.ShieldGenerator } },
+    [TechId.DimensionalGate]: { era: EraId.Aether, cost: 200, prereqTechs: [TechId.StarCharts], unlock: { type: "Passive", key: "Global Mobility: +1 Move to all units" } },
 };
 
 

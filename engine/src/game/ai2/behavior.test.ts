@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GameState, PlayerPhase, DiplomacyState, UnitType, BuildingType, TechId, ProjectId, TerrainType } from "../../core/types.js";
+import { GameState, PlayerPhase, DiplomacyState, UnitType, TechId, TerrainType } from "../../core/types.js";
 import { decideDiplomacyActionsV2 } from "./diplomacy.js";
 import { runTacticsV2 } from "./tactics.js";
 import { getAiMemoryV2 } from "./memory.js";
@@ -167,5 +167,4 @@ describe("UtilityV2 AI (behavior sanity)", () => {
         expect(u1MovedCloser || u2MovedCloser || u3MovedCloser).toBe(true);
     });
 });
-
 

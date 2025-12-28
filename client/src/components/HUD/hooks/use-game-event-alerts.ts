@@ -19,10 +19,10 @@ export function useGameEventAlerts(gameState: GameState, playerId: string) {
     const prevHistoryEventsRef = useRef<Set<string>>(new Set());
     const prevBuildingStatesRef = useRef<Record<string, {
         buildingTitansCore: boolean;
-        buildingSpiritObservatory: boolean;
+
         buildingJadeGranary: boolean;
         completedTitansCore: boolean;
-        completedSpiritObservatory: boolean;
+
         completedJadeGranary: boolean;
     }>>({});
     const prevErasRef = useRef<Record<string, EraId>>({});
@@ -38,10 +38,10 @@ export function useGameEventAlerts(gameState: GameState, playerId: string) {
                 prevErasRef.current[p.id] = p.currentEra;
                 prevBuildingStatesRef.current[p.id] = {
                     buildingTitansCore: false,
-                    buildingSpiritObservatory: false,
+
                     buildingJadeGranary: false,
                     completedTitansCore: p.completedProjects.includes(ProjectId.TitansCoreComplete),
-                    completedSpiritObservatory: p.completedProjects.includes(ProjectId.Observatory) && p.civName === "StarborneSeekers",
+
                     completedJadeGranary: p.completedProjects.includes(ProjectId.JadeGranaryComplete),
                 };
                 // Count initial capitals owned by each civ
@@ -119,15 +119,7 @@ export function useGameEventAlerts(gameState: GameState, playerId: string) {
                             buildingType: "TitansCore",
                             buildingStatus: "Completed",
                         });
-                    } else if (buildId === BuildingType.SpiritObservatory) {
-                        newAlerts.push({
-                            id: `spirit-observatory-complete-${event.playerId}-${Date.now()}`,
-                            type: "UniqueBuilding",
-                            otherPlayerId: event.playerId,
-                            civName: otherPlayer.civName,
-                            buildingType: "SpiritObservatory",
-                            buildingStatus: "Completed",
-                        });
+
                     } else if (buildId === BuildingType.JadeGranary) {
                         newAlerts.push({
                             id: `jade-granary-complete-${event.playerId}-${Date.now()}`,
@@ -174,25 +166,7 @@ export function useGameEventAlerts(gameState: GameState, playerId: string) {
                 });
             }
 
-            // Check if building SpiritObservatory
-            const buildingSpiritObservatory = gameState.cities.some(c =>
-                c.ownerId === otherPlayer.id &&
-                c.currentBuild?.type === "Building" &&
-                c.currentBuild.id === BuildingType.SpiritObservatory
-            );
-            const completedSpiritObservatory = otherPlayer.completedProjects.includes(ProjectId.Observatory) &&
-                otherPlayer.civName === "StarborneSeekers";
 
-            if (buildingSpiritObservatory && !prevState.buildingSpiritObservatory && !completedSpiritObservatory) {
-                newAlerts.push({
-                    id: `spirit-observatory-start-${otherPlayer.id}-${Date.now()}`,
-                    type: "UniqueBuilding",
-                    otherPlayerId: otherPlayer.id,
-                    civName: otherPlayer.civName,
-                    buildingType: "SpiritObservatory",
-                    buildingStatus: "Started",
-                });
-            }
 
             // Check if building JadeGranary
             const buildingJadeGranary = gameState.cities.some(c =>
@@ -216,10 +190,10 @@ export function useGameEventAlerts(gameState: GameState, playerId: string) {
             // Update tracking
             prevBuildingStatesRef.current[otherPlayer.id] = {
                 buildingTitansCore,
-                buildingSpiritObservatory,
+
                 buildingJadeGranary,
                 completedTitansCore,
-                completedSpiritObservatory,
+
                 completedJadeGranary,
             };
 

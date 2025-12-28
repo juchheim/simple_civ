@@ -1,19 +1,16 @@
-import { aiLog, aiInfo } from "./debug-logging.js";
+import { aiInfo } from "./debug-logging.js";
 import { hexDistance } from "../../core/hex.js";
-import { AiVictoryGoal, BuildingType, City, GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
+import { AiVictoryGoal, BuildingType, GameState, ProjectId, UnitType } from "../../core/types.js";
 import { getPersonalityForPlayer } from "./personality.js";
 import { CITY_DEFENSE_BASE, CITY_WARD_DEFENSE_BONUS, UNITS } from "../../core/constants.js";
 import { getProgressChainStatus, hasEnemyProgressThreat } from "./progress-helpers.js";
+import { evaluateBestVictoryPath, shouldConsiderProgressPivot } from "./victory-evaluator.js";
 
 export function setAiGoal(state: GameState, playerId: string, goal: AiVictoryGoal): GameState {
     return {
         ...state,
         players: state.players.map(p => (p.id === playerId ? { ...p, aiGoal: goal } : p)),
     };
-}
-
-function anyEnemyNearCity(city: City, state: GameState, ownerId: string, radius: number): boolean {
-    return state.units.some(u => u.ownerId !== ownerId && hexDistance(u.coord, city.coord) <= radius);
 }
 
 /**
@@ -169,9 +166,9 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
     const capitals = state.cities.filter(c => c.ownerId === playerId && c.isCapital);
 
     // Determine fallback based on personality
-    const prefersProgress = personality.projectRush?.type === "Building"
-        ? personality.projectRush.id === BuildingType.SpiritObservatory
-        : personality.projectRush?.id === ProjectId.Observatory;
+    const prefersProgress = personality.projectRush?.type === "Project"
+        ? personality.projectRush.id === ProjectId.Observatory
+        : false;
     const aggressionForward = personality.aggression.warPowerThreshold < 1;
     const fallback = player.aiGoal ?? (prefersProgress ? "Progress" : aggressionForward ? "Conquest" : "Balanced");
 
@@ -253,37 +250,31 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
     }
 
     // ===========================================
-    // PRIORITY 5: Late Game / Stall Prevention (CONSOLIDATED)
+    // PRIORITY 5: Dynamic Victory Path Evaluation
     // ===========================================
-    if (state.turn >= 200) {
-        // Tech-complete civs: must commit to one victory path
-        if (player.techs.length >= 15) {
-            if (progress.hasObservatory || progress.isBuildingProgressProject) {
-                aiInfo(`[AI Goal] ${playerId} Tech-complete with Progress chain`);
-                return "Progress";
-            } else {
-                aiInfo(`[AI Goal] ${playerId} Tech-complete - forcing Conquest`);
-                return "Conquest";
-            }
-        }
+    // Replaces time-based triggers with strategic evaluation
+    if (shouldConsiderProgressPivot(state, playerId)) {
+        const victoryEval = evaluateBestVictoryPath(state, playerId);
 
-        // Has StarCharts but no Progress chain started -> force Progress
-        if (progress.hasStarCharts && !progress.hasObservatory && !progress.isBuildingProgressProject) {
-            aiInfo(`[AI Goal] ${playerId} Late game: forcing Progress chain start`);
+        // v1.0.5: Removed confidence check - act on all Progress recommendations
+        if (victoryEval.progressFaster) {
+            aiInfo(`[AI Goal] ${playerId} Victory eval: Progress faster (${victoryEval.reason})`);
             return "Progress";
         }
 
-        // Aggressive civs without Progress chain -> Conquest
-        const aggressiveCivs = ["AetherianVanguard", "ForgeClans", "JadeCovenant", "RiverLeague"];
-        if (player.civName && aggressiveCivs.includes(player.civName) && !progress.isNearVictory) {
-            aiInfo(`[AI Goal] ${playerId} Late game aggression - CONQUEST`);
-            return "Conquest";
+        // If already invested in Progress, continue it
+        if (progress.hasObservatory || progress.isBuildingProgressProject) {
+            aiInfo(`[AI Goal] ${playerId} Continuing Progress chain investment`);
+            return "Progress";
         }
     }
 
-    // Turn 225+: No Progress chain -> force Conquest to end game
-    if (state.turn >= 225 && !progress.hasObservatory && !progress.isBuildingProgressProject) {
-        aiInfo(`[AI Goal] ${playerId} Turn 225+ with no Progress - forcing Conquest`);
+    // ===========================================
+    // PRIORITY 5.5: Anti-Stall Fallback (Turn 250+)
+    // ===========================================
+    // Keep a safety valve to prevent infinite games
+    if (state.turn >= 250 && !progress.hasObservatory && !progress.isBuildingProgressProject) {
+        aiInfo(`[AI Goal] ${playerId} Turn 250+ with no Progress - anti-stall Conquest`);
         return "Conquest";
     }
 

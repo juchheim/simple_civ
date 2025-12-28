@@ -1,16 +1,15 @@
 
 import { describe, it, expect } from "vitest";
-import { UnitType } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
 import { startPlayerTurn } from "./turn-lifecycle.js";
-import { GameState, PlayerPhase, TerrainType, UnitState, DiplomacyState } from "../core/types.js";
+import { GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../core/types.js";
 
 describe("Titan Stats & Mechanics", () => {
     it("should have correct Titan stats (as defined in core/constants)", () => {
         const titan = UNITS[UnitType.Titan];
-        expect(titan.def).toBe(6);
-        expect(titan.hp).toBe(25);
-        expect(titan.atk).toBe(22);
+        expect(titan.def).toBe(12);
+        expect(titan.hp).toBe(35);
+        expect(titan.atk).toBe(20);
     });
 
     it("should regenerate exactly 1 HP per turn", () => {

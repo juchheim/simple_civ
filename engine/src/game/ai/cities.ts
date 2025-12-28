@@ -1,4 +1,4 @@
-import { aiLog, aiInfo } from "./debug-logging.js";
+import { aiInfo } from "./debug-logging.js";
 import { hexEquals, hexDistance } from "../../core/hex.js";
 import {
     AiVictoryGoal,
@@ -175,7 +175,7 @@ function getProgressCityPriorities(player: { techs: TechId[]; completedProjects:
     priorities.push(
         { type: "Building" as const, id: BuildingType.Academy },
         { type: "Building" as const, id: BuildingType.Scriptorium },
-        { type: "Building" as const, id: BuildingType.SpiritObservatory },
+        { type: "Project" as const, id: ProjectId.Observatory },
         { type: "Building" as const, id: BuildingType.StoneWorkshop },
         { type: "Building" as const, id: BuildingType.CityWard },
     );
@@ -197,7 +197,6 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
     // v2.0: Army sizing intelligence
     const armyStatus = getArmyDeficit(state, playerId);
-    const needsMoreMilitary = armyStatus.deficit > 0 && (atWar || player?.warPreparation);
 
     // v2.0: Siege composition awareness
     const needsCaptureUnits = siegesNeedCaptureUnits(state, playerId);
@@ -455,7 +454,7 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Project" as const, id: ProjectId.GrandExperiment },
         { type: "Building" as const, id: BuildingType.Scriptorium },
         { type: "Building" as const, id: BuildingType.Academy },
-        { type: "Building" as const, id: BuildingType.SpiritObservatory }, // Unique
+        { type: "Project" as const, id: ProjectId.Observatory },
         { type: "Building" as const, id: BuildingType.JadeGranary },       // Unique
         { type: "Building" as const, id: BuildingType.CitySquare },
         { type: "Building" as const, id: BuildingType.Reservoir },
@@ -513,7 +512,7 @@ function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, 
         { type: "Building" as const, id: BuildingType.CityWard },
         { type: "Building" as const, id: BuildingType.TitansCore },        // Unique - Prioritize heavily
         { type: "Building" as const, id: BuildingType.JadeGranary },       // Unique
-        { type: "Building" as const, id: BuildingType.SpiritObservatory }, // Unique
+        { type: "Project" as const, id: ProjectId.Observatory },
         { type: "Building" as const, id: BuildingType.TitansCore },        // Unique (Retry if missed)
         ...(isSafeEnough ? [
             { type: "Project" as const, id: ProjectId.HarvestFestival },

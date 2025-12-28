@@ -1,4 +1,4 @@
-import { DiplomacyState, GameState, HexCoord } from "../core/types.js";
+import { DiplomacyState, GameState } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
 import { hexDistance, hexToString, hexSpiral } from "../core/hex.js";
 import { buildTileLookup, hasClearLineOfSight } from "./helpers/combat.js";

@@ -59,8 +59,485 @@ describe("river polyline snapshots", () => {
         [
           {
             "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 8,
+              "r": 2,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
               5,
               0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 11,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 13,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 13,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 13,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 14,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 14,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 14,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 18,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 18,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 18,
+              "r": 2,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              4,
+              5,
             ],
             "mouth": false,
             "tile": {
@@ -70,23 +547,12 @@ describe("river polyline snapshots", () => {
           },
           {
             "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
               1,
               0,
             ],
             "mouth": false,
             "tile": {
-              "q": 5,
+              "q": 4,
               "r": 7,
             },
           },
@@ -97,41 +563,19 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 5,
+              "q": 4,
               "r": 7,
             },
           },
           {
             "corners": [
-              3,
+              5,
               4,
             ],
             "mouth": false,
             "tile": {
-              "q": 6,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 6,
+              "q": 4,
+              "r": 7,
             },
           },
           {
@@ -141,7 +585,51 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
+              "q": 4,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
               "r": 5,
             },
           },
@@ -152,8 +640,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 5,
+              "q": 5,
+              "r": 4,
             },
           },
           {
@@ -163,8 +651,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 5,
+              "q": 5,
+              "r": 4,
             },
           },
           {
@@ -174,8 +662,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 4,
+              "q": 5,
+              "r": 3,
             },
           },
           {
@@ -185,8 +673,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 4,
+              "q": 5,
+              "r": 3,
             },
           },
           {
@@ -196,8 +684,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 4,
+              "q": 5,
+              "r": 3,
             },
           },
           {
@@ -207,51 +695,29 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
+              "q": 5,
               "r": 2,
             },
           },
           {
             "corners": [
-              4,
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              0,
               5,
             ],
             "mouth": true,
             "tile": {
-              "q": 8,
+              "q": 5,
               "r": 2,
             },
           },
@@ -264,173 +730,19 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 8,
-              "r": 8,
+              "q": 13,
+              "r": 11,
             },
           },
           {
             "corners": [
               3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
               4,
-              5,
             ],
             "mouth": false,
             "tile": {
-              "q": 10,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 11,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 11,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 11,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 12,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 12,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 12,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 13,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 13,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 13,
-              "r": 8,
+              "q": 14,
+              "r": 11,
             },
           },
           {
@@ -441,7 +753,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 14,
-              "r": 8,
+              "r": 11,
             },
           },
           {
@@ -452,130 +764,185 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 14,
-              "r": 8,
+              "r": 11,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 10,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 10,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 10,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 9,
             },
           },
           {
             "corners": [
               0,
               1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 18,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 18,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
             ],
             "mouth": true,
             "tile": {
-              "q": 14,
-              "r": 8,
+              "q": 18,
+              "r": 9,
             },
           },
         ],
         [
           {
             "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 3,
-              "r": 5,
-            },
-          },
-          {
-            "corners": [
+              4,
               5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 2,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 2,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 2,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
             ],
             "mouth": false,
             "tile": {
               "q": 0,
-              "r": 8,
+              "r": 12,
             },
           },
           {
             "corners": [
-              4,
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 0,
+              "r": 11,
+            },
+          },
+          {
+            "corners": [
+              2,
               3,
             ],
             "mouth": false,
             "tile": {
               "q": 0,
-              "r": 8,
+              "r": 11,
             },
           },
           {
             "corners": [
-              1,
-              0,
+              3,
+              4,
             ],
             "mouth": false,
             "tile": {
-              "q": -1,
-              "r": 8,
+              "q": 0,
+              "r": 11,
             },
           },
           {
@@ -586,7 +953,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": -1,
-              "r": 8,
+              "r": 11,
             },
           },
           {
@@ -597,7 +964,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": -1,
-              "r": 8,
+              "r": 11,
             },
           },
           {
@@ -608,7 +975,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": -1,
-              "r": 7,
+              "r": 10,
             },
           },
           {
@@ -616,155 +983,43 @@ describe("river polyline snapshots", () => {
               3,
               4,
             ],
-            "mouth": true,
+            "mouth": false,
             "tile": {
               "q": -1,
-              "r": 7,
+              "r": 10,
             },
           },
-        ],
-        [
           {
             "corners": [
               0,
-              1,
+              5,
             ],
             "mouth": false,
             "tile": {
-              "q": 8,
-              "r": 4,
+              "q": -2,
+              "r": 10,
             },
           },
           {
             "corners": [
-              3,
-              2,
+              5,
+              4,
             ],
             "mouth": false,
             "tile": {
-              "q": 9,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 4,
+              "q": -2,
+              "r": 10,
             },
           },
           {
             "corners": [
               4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 11,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 11,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 11,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              2,
               3,
             ],
             "mouth": false,
             "tile": {
-              "q": 12,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 12,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 12,
-              "r": 3,
+              "q": -2,
+              "r": 10,
             },
           },
           {
@@ -774,8 +1029,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 12,
-              "r": 2,
+              "q": -3,
+              "r": 10,
             },
           },
           {
@@ -785,8 +1040,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 12,
-              "r": 2,
+              "q": -3,
+              "r": 10,
             },
           },
           {
@@ -796,8 +1051,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": true,
             "tile": {
-              "q": 12,
-              "r": 2,
+              "q": -3,
+              "r": 10,
             },
           },
         ],
@@ -829,8 +1084,19 @@ describe("river polyline snapshots", () => {
         [
           {
             "corners": [
-              1,
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 10,
+            },
+          },
+          {
+            "corners": [
               2,
+              1,
             ],
             "mouth": false,
             "tile": {
@@ -840,35 +1106,46 @@ describe("river polyline snapshots", () => {
           },
           {
             "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              2,
               1,
+              0,
             ],
             "mouth": false,
             "tile": {
               "q": 7,
-              "r": 10,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 8,
             },
           },
           {
@@ -878,1092 +1155,90 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 11,
+              "q": 8,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 7,
             },
           },
           {
             "corners": [
               0,
-              1,
+              5,
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 11,
+              "q": 9,
+              "r": 7,
             },
           },
           {
             "corners": [
-              1,
-              2,
+              3,
+              4,
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 11,
+              "q": 10,
+              "r": 6,
             },
           },
           {
             "corners": [
               4,
-              3,
+              5,
             ],
             "mouth": false,
             "tile": {
-              "q": 7,
-              "r": 12,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 12,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 13,
+              "q": 10,
+              "r": 6,
             },
           },
           {
             "corners": [
               5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
               0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 10,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              2,
               1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 4,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 4,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 4,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 3,
-              "r": 16,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 3,
-              "r": 16,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": true,
-            "tile": {
-              "q": 3,
-              "r": 16,
-            },
-          },
-        ],
-        [
-          {
-            "corners": [
-              2,
-              3,
             ],
             "mouth": false,
             "tile": {
               "q": 11,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 11,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 11,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 12,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 12,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 16,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 16,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": true,
-            "tile": {
-              "q": 6,
-              "r": 16,
-            },
-          },
-        ],
-        [
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 4,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 5,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 6,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
               "r": 5,
             },
           },
           {
             "corners": [
               1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 5,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 7,
-              "r": 5,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 8,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 9,
-              "r": 3,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 10,
-              "r": 2,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": true,
-            "tile": {
-              "q": 10,
-              "r": 2,
-            },
-          },
-        ],
-        [
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 13,
-              "r": 11,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 14,
-              "r": 11,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 14,
-              "r": 11,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 14,
-              "r": 11,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 15,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 15,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 15,
-              "r": 10,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 16,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 16,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 16,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 17,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 17,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 17,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 18,
-              "r": 9,
-            },
-          },
-          {
-            "corners": [
-              2,
-              1,
-            ],
-            "mouth": true,
-            "tile": {
-              "q": 18,
-              "r": 9,
-            },
-          },
-        ],
-        [
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 0,
-              "r": 12,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 13,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -2,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -2,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -2,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -3,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -3,
-              "r": 14,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -4,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -4,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -4,
-              "r": 15,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -5,
-              "r": 16,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -5,
-              "r": 16,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": true,
-            "tile": {
-              "q": -5,
-              "r": 16,
-            },
-          },
-        ],
-        [
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 3,
-              "r": 5,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 2,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 2,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              3,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 2,
-              "r": 6,
-            },
-          },
-          {
-            "corners": [
-              0,
-              1,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              1,
-              2,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 0,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              4,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 0,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              1,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              0,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              5,
-              4,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 8,
-            },
-          },
-          {
-            "corners": [
-              2,
-              3,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": -1,
-              "r": 7,
-            },
-          },
-          {
-            "corners": [
-              3,
-              4,
-            ],
-            "mouth": true,
-            "tile": {
-              "q": -1,
-              "r": 7,
-            },
-          },
-        ],
-        [
-          {
-            "corners": [
-              5,
               0,
             ],
             "mouth": false,
@@ -1974,8 +1249,30 @@ describe("river polyline snapshots", () => {
           },
           {
             "corners": [
-              2,
-              1,
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 11,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
             ],
             "mouth": false,
             "tile": {
@@ -1991,7 +1288,163 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 12,
-              "r": 4,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 12,
+              "r": 2,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 10,
+              "r": 10,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 11,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 11,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 11,
+              "r": 9,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 12,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 13,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 13,
+              "r": 7,
             },
           },
           {
@@ -2002,29 +1455,29 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 13,
-              "r": 4,
+              "r": 7,
             },
           },
           {
             "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 13,
-              "r": 4,
-            },
-          },
-          {
-            "corners": [
-              0,
               1,
+              0,
             ],
             "mouth": false,
             "tile": {
               "q": 13,
-              "r": 4,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 13,
+              "r": 6,
             },
           },
           {
@@ -2035,7 +1488,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 14,
-              "r": 4,
+              "r": 5,
             },
           },
           {
@@ -2046,7 +1499,51 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 14,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 14,
               "r": 4,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 14,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 15,
+              "r": 3,
             },
           },
           {
@@ -2056,8 +1553,54 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
+              "q": 15,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 16,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 16,
+              "r": 2,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
               "q": 14,
-              "r": 4,
+              "r": 10,
             },
           },
           {
@@ -2068,7 +1611,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 15,
-              "r": 3,
+              "r": 9,
             },
           },
           {
@@ -2079,7 +1622,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 15,
-              "r": 3,
+              "r": 9,
             },
           },
           {
@@ -2090,7 +1633,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 15,
-              "r": 3,
+              "r": 9,
             },
           },
           {
@@ -2101,7 +1644,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 16,
-              "r": 2,
+              "r": 8,
             },
           },
           {
@@ -2112,7 +1655,7 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 16,
-              "r": 2,
+              "r": 8,
             },
           },
           {
@@ -2120,9 +1663,396 @@ describe("river polyline snapshots", () => {
               5,
               0,
             ],
-            "mouth": true,
+            "mouth": false,
             "tile": {
               "q": 16,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 18,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 18,
+              "r": 2,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
+              "r": 8,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 7,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 6,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 5,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 4,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              3,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 3,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 2,
+            },
+          },
+          {
+            "corners": [
+              0,
+              5,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 9,
               "r": 2,
             },
           },
@@ -2136,40 +2066,18 @@ describe("river polyline snapshots", () => {
             "mouth": false,
             "tile": {
               "q": 15,
-              "r": 5,
+              "r": 13,
             },
           },
           {
             "corners": [
               3,
-              4,
+              2,
             ],
             "mouth": false,
             "tile": {
               "q": 16,
-              "r": 5,
-            },
-          },
-          {
-            "corners": [
-              4,
-              5,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 16,
-              "r": 5,
-            },
-          },
-          {
-            "corners": [
-              5,
-              0,
-            ],
-            "mouth": false,
-            "tile": {
-              "q": 16,
-              "r": 5,
+              "r": 13,
             },
           },
           {
@@ -2179,8 +2087,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 17,
-              "r": 4,
+              "q": 16,
+              "r": 13,
             },
           },
           {
@@ -2190,8 +2098,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 17,
-              "r": 4,
+              "q": 16,
+              "r": 13,
             },
           },
           {
@@ -2201,8 +2109,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 18,
-              "r": 4,
+              "q": 17,
+              "r": 13,
             },
           },
           {
@@ -2212,8 +2120,30 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
+              "q": 17,
+              "r": 13,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 17,
+              "r": 13,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
               "q": 18,
-              "r": 4,
+              "r": 13,
             },
           },
           {
@@ -2223,8 +2153,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 19,
-              "r": 3,
+              "q": 18,
+              "r": 13,
             },
           },
           {
@@ -2234,30 +2164,74 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
+              "q": 18,
+              "r": 13,
+            },
+          },
+          {
+            "corners": [
+              4,
+              5,
+            ],
+            "mouth": false,
+            "tile": {
               "q": 19,
-              "r": 3,
+              "r": 13,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 19,
+              "r": 13,
             },
           },
           {
             "corners": [
               0,
-              5,
+              1,
             ],
             "mouth": false,
             "tile": {
               "q": 19,
-              "r": 3,
+              "r": 13,
             },
           },
           {
             "corners": [
               3,
-              4,
+              2,
             ],
             "mouth": false,
             "tile": {
               "q": 20,
-              "r": 2,
+              "r": 13,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 20,
+              "r": 13,
+            },
+          },
+          {
+            "corners": [
+              1,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 20,
+              "r": 13,
             },
           },
           {
@@ -2267,8 +2241,8 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": false,
             "tile": {
-              "q": 20,
-              "r": 2,
+              "q": 21,
+              "r": 13,
             },
           },
           {
@@ -2278,8 +2252,465 @@ describe("river polyline snapshots", () => {
             ],
             "mouth": true,
             "tile": {
-              "q": 20,
-              "r": 2,
+              "q": 21,
+              "r": 13,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 2,
+              "r": 14,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 1,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 0,
+              "r": 19,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 0,
+              "r": 19,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 14,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              2,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 6,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 5,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              5,
+              4,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
+              "r": 19,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 4,
+              "r": 19,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 4,
+              "r": 19,
+            },
+          },
+        ],
+        [
+          {
+            "corners": [
+              2,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 10,
+              "r": 14,
+            },
+          },
+          {
+            "corners": [
+              5,
+              0,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 15,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 9,
+              "r": 16,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 17,
+            },
+          },
+          {
+            "corners": [
+              4,
+              3,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              3,
+              2,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 8,
+              "r": 18,
+            },
+          },
+          {
+            "corners": [
+              0,
+              1,
+            ],
+            "mouth": false,
+            "tile": {
+              "q": 7,
+              "r": 19,
+            },
+          },
+          {
+            "corners": [
+              1,
+              2,
+            ],
+            "mouth": true,
+            "tile": {
+              "q": 7,
+              "r": 19,
             },
           },
         ],
@@ -2289,9 +2720,9 @@ describe("river polyline snapshots", () => {
 
   it("maintains river overlay counts across sizes", () => {
     const cases: Array<{ mapSize: MapSize; seed: number; expected: number }> = [
-      { mapSize: "Small", seed: 12345, expected: 55 },
-      { mapSize: "Standard", seed: 98765, expected: 116 },
-      { mapSize: "Large", seed: 54321, expected: 125 },
+      { mapSize: "Small", seed: 12345, expected: 78 },
+      { mapSize: "Standard", seed: 98765, expected: 135 },
+      { mapSize: "Large", seed: 54321, expected: 189 },
     ];
 
     for (const { mapSize, seed, expected } of cases) {

@@ -57,9 +57,7 @@ export const DiplomacyAlertModal: React.FC<DiplomacyAlertModalProps> = ({ alert,
     } else if (isUniqueBuilding) {
         const buildingName = alert.buildingType === "TitansCore"
             ? "Titan's Core"
-            : alert.buildingType === "SpiritObservatory"
-                ? "Spirit Observatory"
-                : "Jade Granary";
+            : "Jade Granary";
         const isStarted = alert.buildingStatus === "Started";
 
         title = isStarted ? `${buildingName} Construction Begun` : `${buildingName} Completed`;
@@ -69,13 +67,11 @@ export const DiplomacyAlertModal: React.FC<DiplomacyAlertModalProps> = ({ alert,
 
         if (alert.buildingType === "TitansCore" && !isStarted) {
             subtitle = "The Titan has been summoned!";
-        } else if (alert.buildingType === "SpiritObservatory" && !isStarted) {
-            subtitle = "The Revelation: +1 Science per city";
         } else if (alert.buildingType === "JadeGranary" && !isStarted) {
             subtitle = "The Great Harvest: +1 Pop per city, 15% cheaper growth";
         }
 
-        icon = alert.buildingType === "TitansCore" ? "⚙️" : alert.buildingType === "SpiritObservatory" ? "🔭" : "🌾";
+        icon = alert.buildingType === "TitansCore" ? "⚙️" : "🌾";
         borderColor = isStarted ? "#f59e0b" : "#10b981"; // Amber for started, green for completed
         showDiplomacyButton = false;
     } else if (isEraTransition) {

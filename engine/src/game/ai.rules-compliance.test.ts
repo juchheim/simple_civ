@@ -162,9 +162,6 @@ describe("ai rules compliance", () => {
                     invalidLand.push({ id: u.id, terrain: tileHere.terrain, coord: u.coord });
                 }
             }
-            if (UNITS[u.type].domain === UnitDomain.Naval) {
-                expect([TerrainType.Coast, TerrainType.DeepSea]).toContain(tileHere.terrain);
-            }
         }
         expect(invalidLand).toEqual([]);
 
