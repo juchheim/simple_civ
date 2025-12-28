@@ -376,7 +376,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             warPowerRatio: 1.0, // v1.0.8: Aggressive (was 1.05)
             warDistanceMax: 20, // v1.0.8: Increased reach (was 18)
             peaceIfBelowRatio: 0.75,
-            minWarTurn: 15, // PROPOSAL: Delay war so we don't suicide early
+            minWarTurn: 30, // v1.0.9: Delayed from 15 to allow early expansion
             maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
             maxInitiatedWarsPer50Turns: 4,
             canInitiateWars: true,
@@ -405,9 +405,9 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 1.6,
+            armyPerCity: 1.8, // v1.0.9: Adjusted from 2.0 to 1.8
             settlerCap: 3, // v7.9: Buffed from 2 - expand after conquest
-            desiredCities: 6, // v7.9: Buffed from 5 - more cities = more production for Progress
+            desiredCities: 7, // v1.0.9: Buffed from 6 - more cities = more production for Titan
             weights: {
                 building: {
                     [BuildingType.TitansCore]: 2.5, // v7.9: HIGHEST - beeline Titan

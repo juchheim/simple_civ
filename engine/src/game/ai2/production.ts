@@ -630,11 +630,12 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
-    // PRIORITY 0.7: Early Expansion (Aggressive Land Grab)
+    // PRIORITY 0.7: Early Expansion (Aggressive Land Grab) - ALL CIVS
     // =========================================================================
     // v6.6: Defensive civs MUST expand early to survive. This is CRITICAL.
-    // ScholarKingdoms was ending games with 1.4 avg cities (should be 4).
-    if (isDefensiveCiv(profile.civName) && (state.turn < 80 || phase === "Expand")) {
+    // v1.0.9: Extended to ALL civs - non-defensive civs were drastically under-expanding
+    // (1.7 cities/game vs 4.7 for defensive civs). Every civ needs to grab land early.
+    if (state.turn < 80 || phase === "Expand") {
         const settlerCap = profile.build.settlerCap;
         const desiredCities = profile.build.desiredCities;
 
@@ -761,29 +762,36 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         }
 
         // =====================================================================
-        // PRIORITY 2.5: Titan Escort Production (ArmyRiders ONLY)
+        // PRIORITY 2.5: Titan Escort Production (ArmyRiders preferred)
         // =====================================================================
-        // Build ArmyRiders as Titan escorts - they have 2 movement to match Titan's 2 move.
-        // Triggers when: SteamForges researched AND (titanCoreCityId set OR core building)
-        // Target: 5-6 ArmyRiders before Titan spawns
-        const memory = getAiMemoryV2(state, playerId);
-        const isBuildingCore = myCities.some(c =>
-            c.currentBuild?.type === "Building" && c.currentBuild?.id === BuildingType.TitansCore
-        );
-        const isPrepForTitan = player.techs.includes(TechId.SteamForges) &&
-            (memory.titanCoreCityId || isBuildingCore) &&
-            !hasTitan;
+        // v1.0.9: Start building escorts when RESEARCHING SteamForges (not when complete)
+        // This gives more time to build the deathball before Titan spawns.
+        // Target: 6 fast units (ArmyRiders > Landship > Riders) before Titan spawns
+        const isResearchingSteamForges = player.currentTech?.id === TechId.SteamForges;
+        const hasSteamForges = player.techs.includes(TechId.SteamForges);
+        const isPrepForTitan = (isResearchingSteamForges || hasSteamForges) && !hasTitan;
 
-        if (isPrepForTitan && player.techs.includes(TechId.ArmyDoctrine)) {
-            const currentRiders = state.units.filter(u =>
-                u.ownerId === playerId && u.type === UnitType.ArmyRiders
+        if (isPrepForTitan) {
+            // Count all fast escorts (2+ move units that can follow Titan)
+            const currentEscorts = state.units.filter(u =>
+                u.ownerId === playerId &&
+                (u.type === UnitType.ArmyRiders || u.type === UnitType.Landship || u.type === UnitType.Riders)
             ).length;
-            const TITAN_ESCORT_TARGET = 6; // Target 6 ArmyRiders for proper deathball
+            const TITAN_ESCORT_TARGET = 6; // Target 6 fast escorts for proper deathball
 
-            if (currentRiders < TITAN_ESCORT_TARGET) {
+            if (currentEscorts < TITAN_ESCORT_TARGET) {
+                // Priority: ArmyRiders (best) > Landship > Riders
                 if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
-                    aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: ArmyRiders (${currentRiders}/${TITAN_ESCORT_TARGET})`);
+                    aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: ArmyRiders (${currentEscorts}/${TITAN_ESCORT_TARGET})`);
                     return { type: "Unit", id: UnitType.ArmyRiders };
+                }
+                if (canBuild(city, "Unit", UnitType.Landship, state)) {
+                    aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: Landship (${currentEscorts}/${TITAN_ESCORT_TARGET})`);
+                    return { type: "Unit", id: UnitType.Landship };
+                }
+                if (canBuild(city, "Unit", UnitType.Riders, state)) {
+                    aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: Riders (${currentEscorts}/${TITAN_ESCORT_TARGET})`);
+                    return { type: "Unit", id: UnitType.Riders };
                 }
             }
         }

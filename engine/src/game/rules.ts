@@ -161,10 +161,10 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         if (city.buildings.includes(BuildingType.LumberMill)) total.P += 1;
         if (city.buildings.includes(BuildingType.Forgeworks)) { total.P += 1; total.S += 1; }
     } else if (trait === "ScholarKingdoms") {
-        // v1.9: "Citadel Protocol"
-        // 1. +2 Science in Capital (Buffed v8.8)
+        // ScholarKingdoms "Citadel Protocol"
+        // +1 Science in Capital
         if (city.isCapital) {
-            total.S += 1; // v8.13: Nerfed from +2 to +1 (was too dominant at 37.7% win rate)
+            total.S += 1;
         }
         // 2. +1 Science if this city has a CityWard (Citadel Protocol)
         if (city.buildings.includes(BuildingType.CityWard)) {
@@ -177,27 +177,20 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         total.P += Math.floor(riverCount / 2); // v1.6: Buffed from /3 to /2 - +1 Prod per 2 river tiles
         // v1.6: Removed Science bonus - made them Progress-only
     } else if (trait === "StarborneSeekers") {
-        // v1.9: "Peaceful Meditation" - Science when not at war
-        // Fits their defensive identity - they avoid wars to pursue Progress
+        // StarborneSeekers "Peaceful Meditation" - +1 Science in Capital when not at war
         const atWar = state.players.some(other =>
             other.id !== city.ownerId &&
             !other.isEliminated &&
             state.diplomacy?.[city.ownerId]?.[other.id] === DiplomacyState.War
         );
         if (!atWar && city.isCapital) {
-            total.S += 1; // v8.13: Nerfed from +2 to +1 (was too dominant at 39% win rate)
+            total.S += 1;
         }
     } else if (trait === "AetherianVanguard") {
-        // v1.9 BUFF: +1 Production in Capital (helps rush Titan)
-        // if (city.isCapital) {
-        //    total.P += 1;
-        // }
-        // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
-        // This bridges their weak early game to the Titan
+        // AetherianVanguard "Vanguard Logistics" - +1 Production if city has a garrisoned unit
         const cityKey = hexToString(city.coord);
         const unitAtCity = cache ? cache.unitByCoordKey.get(cityKey) : state.units.find(u => hexEquals(u.coord, city.coord));
 
-        // v0.99 BUFF: "Vanguard Logistics" - +1 Production if city has a garrisoned unit
         const hasGarrison = unitAtCity
             ? (unitAtCity.ownerId === city.ownerId && unitAtCity.type !== UnitType.Settler)
             : state.units.some(u =>
@@ -209,7 +202,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
             total.P += 1;
         }
     } else if (trait === "JadeCovenant") {
-        // v7.9: "Bountiful Harvest" - +2 Food baseline for all cities (nerfed from +3)
+        // v7.9: "Bountiful Harvest" - +2 Food baseline for all cities
         // Helps Jade grow faster to activate their pop-based combat bonus
         total.F += 2;
     }

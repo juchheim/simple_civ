@@ -268,15 +268,21 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         }
     }
 
-    // v0.98 Update 5: StarborneSeekers "Celestial Guidance" - +1 Defense near Capital
-    // Only applies to military units
+    // StarborneSeekers "Celestial Guidance" - +1 Defense (global)
+    // v1.0.9: Simplified to flat bonus for all military units
     if (player.civName === "StarborneSeekers" && UNITS[unit.type].domain !== "Civilian") {
         const celestialBonus = getStarborneCelestialBonus(state, player, unit);
         boosted.def += celestialBonus;
     }
 
-    // v0.98 Update 8: ScholarKingdoms "Scholarly Retreat" - defense near Scriptorium/Academy cities
-    // Only applies to military units
+    // v1.0.9: AetherianVanguard "Vanguard Resilience" - +1 Defense globally
+    // Helps them survive until Titan spawns (19% elimination rate was too high)
+    if (player.civName === "AetherianVanguard" && UNITS[unit.type].domain !== "Civilian") {
+        boosted.def += 1;
+    }
+
+    // ScholarKingdoms "Scholarly Fortitude" - +1 Defense (global)
+    // v1.0.9: Simplified to flat bonus for all military units
     if (player.civName === "ScholarKingdoms" && UNITS[unit.type].domain !== "Civilian") {
         const scholarBonus = getScholarKingdomsDefenseBonus(state, player, unit);
         boosted.def += scholarBonus;

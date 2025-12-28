@@ -106,10 +106,12 @@ export const TECH_CHAINS: Record<string, TechId[]> = {
     // Victory projects - standard Progress path
     Progress: [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts],
 
-    // Observatory focus for StarborneSeekers: CityWards FIRST (early defense), then Progress path, then PlasmaShields (late game)
-    Observatory: [TechId.StoneworkHalls, TechId.CityWards, TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts, TechId.PlasmaShields],
+    // v1.0.9: Fast Progress path for StarborneSeekers - skip CityWards, beeline StarCharts
+    // Strategy: Get StoneworkHalls for Bulwark, then rush to Progress victory without CityWards detour
+    // Order: StoneworkHalls (Bulwark) → ScriptLore → ScholarCourts → SignalRelay → StarCharts (victory), then PlasmaShields
+    ProgressRush: [TechId.StoneworkHalls, TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts, TechId.PlasmaShields],
 
-    // Defensive civs (Scholar/Starborne): CityWards FIRST for early protection, then Progress path, then PlasmaShields (late game bulking)
+    // Defensive civs (Scholar): CityWards FIRST for early protection, then Progress path, then PlasmaShields (late game bulking)
     // Order: StoneworkHalls → CityWards (early defense), then ScriptLore → ScholarCourts → SignalRelay → StarCharts (victory), then PlasmaShields (ShieldGenerator)
     Defensive: [TechId.StoneworkHalls, TechId.CityWards, TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts, TechId.PlasmaShields],
 };

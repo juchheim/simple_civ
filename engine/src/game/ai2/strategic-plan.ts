@@ -118,11 +118,12 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         const defenseBase = phase === "Expand" ? 3 : phase === "Develop" ? 4 : 5;
 
         // v4: Use Defensive chain for Scholar/Starborne to prioritize ShieldGenerator
+        // v1.0.9: Starborne uses ProgressRush (fast beeline), Scholar uses Defensive (CityWards)
         let techTarget = "Progress";
         if (civName === "StarborneSeekers") {
-            techTarget = "Observatory";
+            techTarget = "ProgressRush"; // v1.0.9: Skip CityWards, beeline StarCharts
         } else if (civName === "ScholarKingdoms") {
-            techTarget = "Defensive"; // Will rush PlasmaShields → ShieldGenerator
+            techTarget = "Defensive"; // CityWards first for early defense
         }
 
         return {
@@ -139,10 +140,10 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         const baseMil = Math.ceil(2 * phaseMultiplier);
 
         // v5: Even with Balanced goal, defensive civs should use Defensive chain
-        // This ensures they research PlasmaShields for ShieldGenerator
+        // v1.0.9: Starborne uses ProgressRush, Scholar uses Defensive
         let techTarget = "Landship";
         if (civName === "StarborneSeekers") {
-            techTarget = "Observatory";
+            techTarget = "ProgressRush"; // v1.0.9: Skip CityWards, beeline StarCharts
         } else if (civName === "ScholarKingdoms") {
             techTarget = "Defensive";
         }
