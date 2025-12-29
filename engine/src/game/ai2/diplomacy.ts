@@ -6,409 +6,82 @@ import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { selectFocusCityAgainstTarget } from "./strategy.js";
 import { canDeclareWar } from "../helpers/diplomacy.js";
+import { checkTacticalOpportunity, hasUnitsStaged } from "./diplomacy/opportunities.js";
+import {
+    countNearbyByPredicate,
+    currentWarCount,
+    getWarEscalationFactor,
+    hasCapturableCity,
+    hasDominatingPower,
+    hasUnitType,
+    isProgressThreat,
+    stanceDurationOk
+} from "./diplomacy/utils.js";
 
+export { detectCounterAttackOpportunity, detectEarlyRushOpportunity } from "./diplomacy/opportunities.js";
 
-// ============================================================================
-// WAR ESCALATION & POWER COMPARISON (from Legacy AI)
-// ============================================================================
+type WarInitiationOptions = {
+    focusCityId?: string;
+    setFocus?: boolean;
+    warInitiationTurns?: number[];
+    warCityCount?: number;
+    warUnitsCount?: number;
+    recordCaptureTurn?: boolean;
+};
 
-/**
- * War escalation factor - civs become MORE aggressive as game progresses
- * Adjusted: 100/150/200 turns instead of Legacy's 100-180
- */
-function getWarEscalationFactor(turn: number): number {
-    if (turn < 100) return 1.0;  // No escalation before turn 100
-    if (turn < 150) {
-        // Turn 100-150: 1.0 -> 0.8 (20% more aggressive)
-        const progress = (turn - 100) / 50;
-        return 1.0 - (progress * 0.2);
-    }
-    if (turn < 200) {
-        // Turn 150-200: 0.8 -> 0.6 (40% more aggressive total)
-        const progress = (turn - 150) / 50;
-        return 0.8 - (progress * 0.2);
-    }
-    // Turn 200+: 0.6 (40% more aggressive - "death war" mode)
-    return 0.6;
-}
-
-/**
- * Check if we have DOMINATING power (5x+) over target
- * Dominant civs should ALWAYS be at war until enemy eliminated
- */
-function hasDominatingPower(state: GameState, playerId: string, targetId: string): boolean {
-    const myUnits = state.units.filter(u => u.ownerId === playerId && u.type !== "Settler" && u.type !== "Scout");
-    const theirUnits = state.units.filter(u => u.ownerId === targetId && u.type !== "Settler" && u.type !== "Scout");
-
-    const myPower = myUnits.length;
-    const theirPower = Math.max(1, theirUnits.length);
-
-    // 5x power AND at least 10 units (not just 5 vs 1)
-    return myPower >= theirPower * 5 && myPower >= 10;
-}
-
-/**
- * Check if target has a capturable city (HP <= 0)
- * NEVER accept peace when we can capture a city this turn!
- */
-function hasCapturableCity(state: GameState, targetId: string): boolean {
-    return state.cities.some(c => c.ownerId === targetId && c.hp <= 0);
-}
-
-function hasUnitType(state: GameState, playerId: string, unitType: string): boolean {
-    return state.units.some(u => u.ownerId === playerId && u.type === unitType);
-}
-
-function countNearbyByPredicate(
-    state: GameState,
+function recordFocusTarget(
+    next: GameState,
     playerId: string,
-    center: { q: number; r: number },
-    distMax: number,
-    pred: (u: any) => boolean
-): number {
-    return state.units.filter(u => u.ownerId === playerId && pred(u) && hexDistance(u.coord, center) <= distMax).length;
+    targetId: string,
+    focusCityId?: string
+): GameState {
+    const memory = getAiMemoryV2(next, playerId);
+    return setAiMemoryV2(next, playerId, {
+        ...memory,
+        focusTargetPlayerId: targetId,
+        focusCityId,
+        focusSetTurn: next.turn,
+    });
 }
 
-function stanceDurationOk(state: GameState, playerId: string, targetId: string, minTurns: number, memory: ReturnType<typeof getAiMemoryV2>): boolean {
-    const last = memory.lastStanceTurn?.[targetId] ?? 0;
-    return last === 0 || (state.turn - last) >= minTurns;
+function recordWarInitiation(
+    next: GameState,
+    playerId: string,
+    targetId: string,
+    options: WarInitiationOptions = {}
+): GameState {
+    const memory = getAiMemoryV2(next, playerId);
+    const warInitiationTurns = options.warInitiationTurns ?? (memory.warInitiationTurns ?? []);
+
+    const updated = {
+        ...memory,
+        lastStanceTurn: { ...(memory.lastStanceTurn ?? {}), [targetId]: next.turn },
+        warInitiationTurns: [...warInitiationTurns, next.turn],
+        ...(options.setFocus ? {
+            focusTargetPlayerId: targetId,
+            focusCityId: options.focusCityId,
+            focusSetTurn: next.turn,
+        } : {}),
+        ...(options.warCityCount !== undefined ? {
+            warCityCount: { ...(memory.warCityCount ?? {}), [targetId]: options.warCityCount }
+        } : {}),
+        ...(options.warUnitsCount !== undefined ? {
+            warUnitsCount: { ...(memory.warUnitsCount ?? {}), [targetId]: options.warUnitsCount }
+        } : {}),
+        ...(options.recordCaptureTurn ? {
+            lastCityCaptureTurn: { ...(memory.lastCityCaptureTurn ?? {}), [targetId]: next.turn }
+        } : {}),
+    };
+
+    return setAiMemoryV2(next, playerId, updated);
 }
 
-function isProgressThreat(state: GameState, targetPlayerId: string): boolean {
-    const p = state.players.find(x => x.id === targetPlayerId);
-    if (!p) return false;
-    const completedObs = p.completedProjects?.includes(ProjectId.Observatory);
-    const completedAcad = p.completedProjects?.includes(ProjectId.GrandAcademy);
-    const completedExp = p.completedProjects?.includes(ProjectId.GrandExperiment);
-    if (completedExp) return true;
-
-    // If they are currently building any progress-chain project, treat as a threat that scales with turn.
-    const buildingProgress = state.cities.some(c =>
-        c.ownerId === targetPlayerId &&
-        c.currentBuild?.type === "Project" &&
-        (c.currentBuild.id === ProjectId.Observatory || c.currentBuild.id === ProjectId.GrandAcademy || c.currentBuild.id === ProjectId.GrandExperiment)
-    );
-
-    // Early chain is only a "soft" threat; once Observatory is done or they are building Academy/Experiment, it's urgent.
-    if (completedAcad || buildingProgress) return true;
-    if (completedObs && state.turn >= 110) return true;
-    return false;
-}
-
-function currentWarCount(state: GameState, playerId: string): number {
-    return state.players.filter(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        (state.diplomacy?.[playerId]?.[p.id] ?? DiplomacyState.Peace) === DiplomacyState.War
-    ).length;
-}
-
-// ============================================================================
-// v8.0: COMPLEX TACTICAL OPPORTUNITY DETECTION
-// ============================================================================
-// Detects multiple types of opportunities:
-// 1. Early Rush - Military advantage over expanding enemy
-// 2. Counter-Attack - Enemy military overextended
-// 3. Vulnerable Cities - Low or no defenders
-
-function isMilitaryUnit(u: { type: string }): boolean {
-    return u.type !== "Settler" && u.type !== "Scout" && u.type !== "ArmyScout" && u.type !== "Skiff";
-}
-
-/**
- * Check if the AI has enough military units staged near a target to attack effectively.
- * This prevents premature war declarations where the AI declares war but has no units
- * positioned to actually attack, leading to "declare war then do nothing" behavior.
- * 
- * When this returns false but a target is identified, the AI should set focusTargetPlayerId
- * which triggers the pre-war rally behavior in tactics.ts (lines 1247-1315) to stage units.
- */
-function hasUnitsStaged(state: GameState, playerId: string, targetId: string): boolean {
-    const targetCities = state.cities.filter(c => c.ownerId === targetId);
-    const focusCity = targetCities.find(c => c.isCapital) ?? targetCities[0];
-    if (!focusCity) return false;
-
-    const STAGING_DISTANCE = 5;
-    const MIN_STAGED_UNITS = 3;
-
-    const stagedMilitary = state.units.filter(u =>
-        u.ownerId === playerId &&
-        isMilitaryUnit(u) &&
-        hexDistance(u.coord, focusCity.coord) <= STAGING_DISTANCE
-    );
-
-    return stagedMilitary.length >= MIN_STAGED_UNITS;
-}
-
-/**
- * Find a vulnerable city (low defenders within 2 tiles)
- */
-function findVulnerableCity(
-    state: GameState,
-    ownerId: string,
-    maxDefenders: number = 1
-): { q: number; r: number; name: string; id: string; defenders: number } | null {
-    const cities = state.cities.filter(c => c.ownerId === ownerId);
-    const military = state.units.filter(u => u.ownerId === ownerId && isMilitaryUnit(u));
-
-    let mostVulnerable: { city: typeof cities[0]; defenders: number } | null = null;
-
-    for (const city of cities) {
-        const defenders = military.filter(u => hexDistance(u.coord, city.coord) <= 2).length;
-        if (defenders <= maxDefenders) {
-            if (!mostVulnerable || defenders < mostVulnerable.defenders) {
-                mostVulnerable = { city, defenders };
-            }
-        }
-    }
-
-    if (mostVulnerable) {
-        return {
-            q: mostVulnerable.city.coord.q,
-            r: mostVulnerable.city.coord.r,
-            name: mostVulnerable.city.name,
-            id: mostVulnerable.city.id,
-            defenders: mostVulnerable.defenders
-        };
-    }
-    return null;
-}
-
-/**
- * v8.0: Detect Early Rush Opportunity
- * 
- * Triggers when:
- * - We have military advantage (1.5x+ power)
- * - Target is over-expanding (more cities than military)
- * - Target capital has low defense
- * - We have nearby units
- * 
- * Returns prioritized target or null.
- */
-export function detectEarlyRushOpportunity(
-    state: GameState,
-    playerId: string
-): { targetId: string; priority: number } | null {
-    const profile = getAiProfileV2(state, playerId);
-    if (!profile.diplomacy.canInitiateWars) return null;
-
-    // Only consider early rush before turn 60
-    if (state.turn > 60) return null;
-
-    // Check early rush chance from profile
-    const rushChance = (profile as any).earlyRushChance || 0;
-    if (rushChance <= 0) return null;
-
-    // Roll for early rush (deterministic based on turn + player id hash)
-    const hash = playerId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const roll = ((state.turn * 7 + hash) % 100) / 100;
-    if (roll > rushChance) return null;
-
-    const myPower = estimateMilitaryPower(playerId, state);
-    const myCities = state.cities.filter(c => c.ownerId === playerId);
-
-    let bestTarget: { targetId: string; priority: number } | null = null;
-
-    for (const other of state.players) {
-        if (other.id === playerId || other.isEliminated) continue;
-        if (!canDeclareWar(state, playerId, other.id)) continue;
-
-        const theirPower = estimateMilitaryPower(other.id, state);
-        const theirCities = state.cities.filter(c => c.ownerId === other.id);
-        const theirMilitary = state.units.filter(u => u.ownerId === other.id && isMilitaryUnit(u));
-
-        // Calculate priority based on opportunity factors
-        let priority = 0;
-
-        // Factor 1: Military advantage (up to +30)
-        if (myPower > theirPower * 1.5) priority += 15;
-        if (myPower > theirPower * 2.0) priority += 15;
-
-        // Factor 2: Over-expansion (more cities than military) (up to +20)
-        const overExpansion = theirCities.length - theirMilitary.length;
-        if (overExpansion > 0) priority += Math.min(20, overExpansion * 5);
-
-        // Factor 3: Capital low defense (up to +25)
-        const theirCapital = theirCities.find(c => c.isCapital);
-        if (theirCapital) {
-            const capitalDefenders = theirMilitary.filter(u =>
-                hexDistance(u.coord, theirCapital.coord) <= 2
-            ).length;
-            if (capitalDefenders === 0) priority += 25;
-            else if (capitalDefenders === 1) priority += 15;
-            else if (capitalDefenders === 2) priority += 5;
-        }
-
-        // Factor 4: Proximity (up to +15)
-        const myCapital = myCities.find(c => c.isCapital);
-        if (myCapital && theirCapital) {
-            const dist = hexDistance(myCapital.coord, theirCapital.coord);
-            if (dist <= 8) priority += 15;
-            else if (dist <= 12) priority += 10;
-            else if (dist <= 16) priority += 5;
-        }
-
-        // Only consider if priority is high enough
-        if (priority >= 25 && (!bestTarget || priority > bestTarget.priority)) {
-            bestTarget = { targetId: other.id, priority };
-        }
-    }
-
-    return bestTarget;
-}
-
-/**
- * v8.0: Detect Counter-Attack Opportunity
- * 
- * Triggers when an opponent's military is far from their cities,
- * leaving them vulnerable to a counter-attack.
- * 
- * Returns the best opportunity or null.
- */
-export function detectCounterAttackOpportunity(
-    state: GameState,
-    playerId: string
-): { targetId: string; priority: number; vulnerableCity: { q: number; r: number; name: string; id: string } } | null {
-    const profile = getAiProfileV2(state, playerId);
-    if (!profile.diplomacy.canInitiateWars) return null;
-
-    const myMilitary = state.units.filter(u => u.ownerId === playerId && isMilitaryUnit(u));
-
-    let bestOpportunity: {
-        targetId: string;
-        priority: number;
-        vulnerableCity: { q: number; r: number; name: string; id: string }
-    } | null = null;
-
-    for (const other of state.players) {
-        if (other.id === playerId || other.isEliminated) continue;
-        if (!canDeclareWar(state, playerId, other.id)) continue;
-
-        const theirCities = state.cities.filter(c => c.ownerId === other.id);
-        const theirMilitary = state.units.filter(u => u.ownerId === other.id && isMilitaryUnit(u));
-
-        if (theirCities.length === 0 || theirMilitary.length === 0) continue;
-
-        // Find their most vulnerable city
-        let mostVulnerable: { city: typeof theirCities[0]; defenders: number } | null = null;
-        for (const city of theirCities) {
-            const defenders = theirMilitary.filter(u => hexDistance(u.coord, city.coord) <= 2).length;
-            if (!mostVulnerable || defenders < mostVulnerable.defenders) {
-                mostVulnerable = { city, defenders };
-            }
-        }
-
-        if (!mostVulnerable) continue;
-
-        // Calculate how overextended their military is
-        let totalDistFromHome = 0;
-        for (const unit of theirMilitary) {
-            let minDistToCity = Infinity;
-            for (const city of theirCities) {
-                const dist = hexDistance(unit.coord, city.coord);
-                if (dist < minDistToCity) minDistToCity = dist;
-            }
-            totalDistFromHome += minDistToCity;
-        }
-        const avgDistFromHome = totalDistFromHome / theirMilitary.length;
-
-        // Calculate priority
-        let priority = 0;
-
-        // Factor 1: Low defenders on vulnerable city (up to +30)
-        priority += (3 - mostVulnerable.defenders) * 10;
-
-        // Factor 2: Nearby friendly units (up to +20)
-        const nearbyFriendlies = myMilitary.filter(u =>
-            hexDistance(u.coord, mostVulnerable!.city.coord) <= 5
-        ).length;
-        priority += Math.min(20, nearbyFriendlies * 5);
-
-        // Factor 3: Enemy military far from home (up to +25)
-        if (avgDistFromHome >= 5) priority += 15;
-        if (avgDistFromHome >= 8) priority += 10;
-
-        // Factor 4: Vulnerable city is capital (+10)
-        if (mostVulnerable.city.isCapital) priority += 10;
-
-        // Only consider if priority is high enough
-        if (priority >= 40 && (!bestOpportunity || priority > bestOpportunity.priority)) {
-            bestOpportunity = {
-                targetId: other.id,
-                priority,
-                vulnerableCity: {
-                    q: mostVulnerable.city.coord.q,
-                    r: mostVulnerable.city.coord.r,
-                    name: mostVulnerable.city.name,
-                    id: mostVulnerable.city.id
-                }
-            };
-        }
-    }
-
-    return bestOpportunity;
-}
-
-/**
- * Check for any tactical opportunity (early rush, counter-attack, or punitive strike)
- */
-function checkTacticalOpportunity(
-    state: GameState,
-    playerId: string
-): { targetId: string; focusCity?: { q: number; r: number; name: string; id: string }; reason: string } | null {
-    // Check early rush opportunity
-    const earlyRush = detectEarlyRushOpportunity(state, playerId);
-    if (earlyRush) {
-        const targetCities = state.cities.filter(c => c.ownerId === earlyRush.targetId);
-        const focusCity = targetCities.find(c => c.isCapital) || targetCities[0];
-        if (focusCity) {
-            return {
-                targetId: earlyRush.targetId,
-                focusCity: { q: focusCity.coord.q, r: focusCity.coord.r, name: focusCity.name, id: focusCity.id },
-                reason: `Early Rush (priority ${earlyRush.priority})`
-            };
-        }
-    }
-
-    // Check counter-attack opportunity
-    const counterAttack = detectCounterAttackOpportunity(state, playerId);
-    if (counterAttack) {
-        return {
-            targetId: counterAttack.targetId,
-            focusCity: counterAttack.vulnerableCity,
-            reason: `Counter-Attack (priority ${counterAttack.priority})`
-        };
-    }
-
-    // Check simple vulnerable city (fallback)
-    for (const other of state.players) {
-        if (other.id === playerId || other.isEliminated) continue;
-        if (!canDeclareWar(state, playerId, other.id)) continue;
-
-        const vulnerable = findVulnerableCity(state, other.id, 0);
-        if (vulnerable) {
-            // Must have enough free units
-            const myCityCoordsSet = new Set(
-                state.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`)
-            );
-            const freeUnits = state.units.filter(u =>
-                u.ownerId === playerId &&
-                isMilitaryUnit(u) &&
-                !u.isHomeDefender &&
-                !myCityCoordsSet.has(`${u.coord.q},${u.coord.r}`)
-            );
-
-            if (freeUnits.length >= 4) {
-                return {
-                    targetId: other.id,
-                    focusCity: vulnerable,
-                    reason: `Punitive Strike (0 defenders on ${vulnerable.name})`
-                };
-            }
-        }
-    }
-
-    return null;
+function recordLastStanceTurn(next: GameState, playerId: string, targetId: string): GameState {
+    const memory = getAiMemoryV2(next, playerId);
+    return setAiMemoryV2(next, playerId, {
+        ...memory,
+        lastStanceTurn: { ...(memory.lastStanceTurn ?? {}), [targetId]: next.turn },
+    });
 }
 
 
@@ -444,33 +117,22 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
     if (warsNow === 0) {
         const opportunity = checkTacticalOpportunity(next, playerId);
         if (opportunity) {
-            const mem2 = getAiMemoryV2(next, playerId);
-
             // STAGING GATE: Only declare war if we have units positioned to attack
             // Otherwise, set focus target to trigger pre-war rally (staging behavior)
             const unitsReady = hasUnitsStaged(next, playerId, opportunity.targetId);
 
             if (unitsReady) {
                 aiInfo(`[TACTICAL] ${playerId} attacking ${opportunity.targetId} - ${opportunity.reason}`);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2,
-                    lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [opportunity.targetId]: next.turn },
-                    warInitiationTurns: [...(mem2.warInitiationTurns ?? []), next.turn],
-                    focusTargetPlayerId: opportunity.targetId,
+                next = recordWarInitiation(next, playerId, opportunity.targetId, {
+                    setFocus: true,
                     focusCityId: opportunity.focusCity?.id,
-                    focusSetTurn: next.turn,
                 });
                 actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: opportunity.targetId, state: DiplomacyState.War });
                 warsPlanned = 1;
             } else {
                 // Not staged yet - set focus to trigger unit rallying, but don't declare war
                 aiInfo(`[TACTICAL] ${playerId} staging for ${opportunity.targetId} - ${opportunity.reason} (units not positioned yet)`);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2,
-                    focusTargetPlayerId: opportunity.targetId,
-                    focusCityId: opportunity.focusCity?.id,
-                    focusSetTurn: next.turn,
-                });
+                next = recordFocusTarget(next, playerId, opportunity.targetId, opportunity.focusCity?.id);
             }
         }
     }
@@ -507,7 +169,6 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         // v4: Attack when at 70% power or more (was 50%)
         // Check peace cooldown before declaring war
         if (weakestId && myPower >= weakestPower * 0.7 && canDeclareWar(next, playerId, weakestId)) {
-            const mem2 = getAiMemoryV2(next, playerId);
             const focusCity = selectFocusCityAgainstTarget(next, playerId, weakestId);
 
             // STAGING GATE: Only declare war if we have units positioned to attack
@@ -515,25 +176,16 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
 
             if (unitsReady) {
                 aiInfo(`[AI Diplo] ${playerId} FORCED WAR at turn ${next.turn} against weakest target ${weakestId}`);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2,
-                    lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [weakestId]: next.turn },
-                    warInitiationTurns: [...(mem2.warInitiationTurns ?? []), next.turn],
-                    focusTargetPlayerId: weakestId,
+                next = recordWarInitiation(next, playerId, weakestId, {
+                    setFocus: true,
                     focusCityId: focusCity?.id,
-                    focusSetTurn: next.turn,
                 });
                 actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: weakestId, state: DiplomacyState.War });
                 warsPlanned = 1;
             } else {
                 // Not staged yet - set focus to trigger unit rallying
                 aiInfo(`[AI Diplo] ${playerId} staging for FORCED WAR against ${weakestId} (units not positioned yet)`);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2,
-                    focusTargetPlayerId: weakestId,
-                    focusCityId: focusCity?.id,
-                    focusSetTurn: next.turn,
-                });
+                next = recordFocusTarget(next, playerId, weakestId, focusCity?.id);
             }
         }
     }
@@ -558,7 +210,6 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                 const theirCities = next.cities.filter(c => c.ownerId === other.id).length;
                 if (theirCities === 0) continue; // Can't fight eliminated civs
 
-                const mem2 = getAiMemoryV2(next, playerId);
                 const focusCity = selectFocusCityAgainstTarget(next, playerId, other.id);
 
                 // STAGING GATE: Only declare war if we have units positioned to attack
@@ -566,13 +217,9 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
 
                 if (unitsReady) {
                     aiInfo(`[AI Diplo] ${playerId} TECH STALEMATE WAR at turn ${next.turn} - both have 20 techs, forcing war against ${other.id}`);
-                    next = setAiMemoryV2(next, playerId, {
-                        ...mem2,
-                        lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
-                        warInitiationTurns: [...(mem2.warInitiationTurns ?? []), next.turn],
-                        focusTargetPlayerId: other.id,
+                    next = recordWarInitiation(next, playerId, other.id, {
+                        setFocus: true,
                         focusCityId: focusCity?.id,
-                        focusSetTurn: next.turn,
                     });
                     actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
                     warsPlanned = 1;
@@ -580,12 +227,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                 } else {
                     // Not staged yet - set focus to trigger unit rallying
                     aiInfo(`[AI Diplo] ${playerId} staging for TECH STALEMATE WAR against ${other.id} (units not positioned yet)`);
-                    next = setAiMemoryV2(next, playerId, {
-                        ...mem2,
-                        focusTargetPlayerId: other.id,
-                        focusCityId: focusCity?.id,
-                        focusSetTurn: next.turn,
-                    });
+                    next = recordFocusTarget(next, playerId, other.id, focusCity?.id);
                     break; // Only stage against one target at a time
                 }
             }
@@ -626,8 +268,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             const militaryCollapse = ratio < 0.7 && lostCities > 0 && warAge >= 5;
             if (militaryCollapse && !progressThreatNow) {
                 actions.push({ type: "ProposePeace", playerId, targetPlayerId: other.id });
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                next = recordLastStanceTurn(next, playerId, other.id);
                 continue;
             }
 
@@ -642,8 +283,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
 
             if (territorialStalemate && !progressThreatNow) {
                 actions.push({ type: "ProposePeace", playerId, targetPlayerId: other.id });
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                next = recordLastStanceTurn(next, playerId, other.id);
                 continue;
             }
 
@@ -657,8 +297,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
 
             if (thirdPartyThreat && warAge >= 20) {
                 actions.push({ type: "ProposePeace", playerId, targetPlayerId: other.id });
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                next = recordLastStanceTurn(next, playerId, other.id);
                 continue;
             }
 
@@ -672,8 +311,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
 
             if (warExhaustion) {
                 actions.push({ type: "ProposePeace", playerId, targetPlayerId: other.id });
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                next = recordLastStanceTurn(next, playerId, other.id);
                 continue;
             }
 
@@ -705,8 +343,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                 if (stalledWinner && !progressThreatNow) {
                     // "I'm barely winning but completely stalled - accept peace"
                     actions.push({ type: "AcceptPeace", playerId, targetPlayerId: other.id });
-                    const mem2 = getAiMemoryV2(next, playerId);
-                    next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                    next = recordLastStanceTurn(next, playerId, other.id);
                     continue;
                 }
             }
@@ -748,8 +385,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                     ? { type: "AcceptPeace", playerId, targetPlayerId: other.id }
                     : { type: "ProposePeace", playerId, targetPlayerId: other.id }
                 );
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                next = recordLastStanceTurn(next, playerId, other.id);
                 continue;
             }
 
@@ -761,8 +397,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                     ? { type: "AcceptPeace", playerId, targetPlayerId: other.id }
                     : { type: "ProposePeace", playerId, targetPlayerId: other.id }
                 );
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, { ...mem2, lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn } });
+                next = recordLastStanceTurn(next, playerId, other.id);
             }
             continue;
         }
@@ -781,12 +416,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         // Still must respect peace cooldown
         const isDominating = hasDominatingPower(next, playerId, other.id);
         if (isDominating && canDeclareWar(next, playerId, other.id)) {
-            const mem2 = getAiMemoryV2(next, playerId);
-            next = setAiMemoryV2(next, playerId, {
-                ...mem2,
-                lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
-                warInitiationTurns: [...(mem2.warInitiationTurns ?? []), next.turn]
-            });
+            next = recordWarInitiation(next, playerId, other.id);
             actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
             warsPlanned += 1;
             continue;
@@ -837,13 +467,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             // Set focus target so AI knows who to stage against and build offensive units.
             const focusCity = selectFocusCityAgainstTarget(next, playerId, other.id);
             if (focusCity) {
-                const mem2a = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2a,
-                    focusTargetPlayerId: other.id,
-                    focusCityId: focusCity.id,
-                    focusSetTurn: next.turn,
-                });
+                next = recordFocusTarget(next, playerId, other.id, focusCity.id);
             }
             continue; // Don't declare war yet - need more offensive units
         } else {
@@ -858,14 +482,10 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             // Staging gates are intentionally bypassed to avoid "Titan exists but never fights".
             // Still must respect peace cooldown
             if (isAetherian && hasTitanNow && canDeclareWar(next, playerId, other.id)) {
-                const mem2 = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2,
-                    focusTargetPlayerId: other.id,
+                next = recordWarInitiation(next, playerId, other.id, {
+                    setFocus: true,
                     focusCityId: focusCity.id,
-                    focusSetTurn: next.turn,
-                    lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
-                    warInitiationTurns: [...recentInitiations, next.turn],
+                    warInitiationTurns: recentInitiations,
                 });
                 actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
                 warsPlanned += 1;
@@ -874,13 +494,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             // Progress denial must be allowed to start immediately, even if we aren't staged yet.
             // Otherwise we "politely stage for 30 turns" and lose to GrandExperiment.
             if (progressThreat) {
-                const mem2a = getAiMemoryV2(next, playerId);
-                next = setAiMemoryV2(next, playerId, {
-                    ...mem2a,
-                    focusTargetPlayerId: other.id,
-                    focusCityId: focusCity.id,
-                    focusSetTurn: next.turn,
-                });
+                next = recordFocusTarget(next, playerId, other.id, focusCity.id);
             } else {
                 // REVISION 2: Moderate staging requirements.
                 // v7.9: Increased from 3/4x to 4/5x - require more units staged before attack
@@ -903,25 +517,13 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
                 // Removed the "SiegeNear < 1" blocker. Melee rushes are valid.
                 if (nearCount < requiredNear) {
                     // Start focusing, but wait to declare until forces are staged.
-                    const mem2a = getAiMemoryV2(next, playerId);
-                    next = setAiMemoryV2(next, playerId, {
-                        ...mem2a,
-                        focusTargetPlayerId: other.id,
-                        focusCityId: focusCity.id,
-                        focusSetTurn: next.turn,
-                    });
+                    next = recordFocusTarget(next, playerId, other.id, focusCity.id);
                     continue;
                 }
 
                 // Must have at least ONE unit capable of capturing the city.
                 if (!hasTitanNow && capturersNear < 1) {
-                    const mem2a = getAiMemoryV2(next, playerId);
-                    next = setAiMemoryV2(next, playerId, {
-                        ...mem2a,
-                        focusTargetPlayerId: other.id,
-                        focusCityId: focusCity.id,
-                        focusSetTurn: next.turn,
-                    });
+                    next = recordFocusTarget(next, playerId, other.id, focusCity.id);
                     continue;
                 }
             }
@@ -941,21 +543,16 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         // Check peace cooldown before declaring war
         if (!canDeclareWar(next, playerId, other.id)) continue;
 
-        const mem2 = getAiMemoryV2(next, playerId);
         const myCities = next.cities.filter(c => c.ownerId === playerId).length;
         const myUnits = next.units.filter(u => u.ownerId === playerId && u.type !== "Settler" && u.type !== "Scout").length;
 
-        next = setAiMemoryV2(next, playerId, {
-            ...mem2,
-            focusTargetPlayerId: other.id,
+        next = recordWarInitiation(next, playerId, other.id, {
+            setFocus: true,
             focusCityId: focusCity?.id,
-            focusSetTurn: next.turn,
-            lastStanceTurn: { ...(mem2.lastStanceTurn ?? {}), [other.id]: next.turn },
-            warInitiationTurns: [...recentInitiations, next.turn],
-            // Track starting state for game-state peace conditions
-            warCityCount: { ...(mem2.warCityCount ?? {}), [other.id]: myCities },
-            warUnitsCount: { ...(mem2.warUnitsCount ?? {}), [other.id]: myUnits },
-            lastCityCaptureTurn: { ...(mem2.lastCityCaptureTurn ?? {}), [other.id]: next.turn },
+            warInitiationTurns: recentInitiations,
+            warCityCount: myCities,
+            warUnitsCount: myUnits,
+            recordCaptureTurn: true,
         });
         actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: other.id, state: DiplomacyState.War });
         warsPlanned += 1;
