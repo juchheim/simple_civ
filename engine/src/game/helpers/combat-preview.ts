@@ -14,6 +14,8 @@ import {
     CIV6_DAMAGE_MIN,
     CIV6_DAMAGE_MAX,
     BUILDINGS,
+    TREBUCHET_CITY_ATTACK_BONUS,
+    TREBUCHET_CITY_RETALIATION_REDUCTION,
 } from "../../core/constants.js";
 import { hexEquals } from "../../core/hex.js";
 import { getEffectiveUnitStats } from "./combat.js";
@@ -211,7 +213,14 @@ export function getCombatPreviewUnitVsCity(
         cityDefense += garrisonDefBonus;
     }
 
-    const estimatedDamage = calculateDamageRange(attackerStats.atk, cityDefense);
+    // v1.0.10: Trebuchet Siege Bonus - +8 Attack vs cities (must be included in preview)
+    let effectiveAtk = attackerStats.atk;
+    if (attacker.type === UnitType.Trebuchet) {
+        attackerMods.push({ label: "Siege Bonus", value: TREBUCHET_CITY_ATTACK_BONUS });
+        effectiveAtk += TREBUCHET_CITY_ATTACK_BONUS;
+    }
+
+    const estimatedDamage = calculateDamageRange(effectiveAtk, cityDefense);
 
     // Return damage from city retaliation
     let returnDamage: { min: number; max: number; avg: number } | null = null;
@@ -267,13 +276,22 @@ export function getCombatPreviewUnitVsCity(
             }
 
             returnDamage = calculateDamageRange(cityAtk, attackerDefense);
+
+            // v1.0.10: Trebuchet takes 50% less damage from city retaliation
+            if (attacker.type === UnitType.Trebuchet && returnDamage) {
+                returnDamage = {
+                    min: Math.floor(returnDamage.min * TREBUCHET_CITY_RETALIATION_REDUCTION),
+                    max: Math.floor(returnDamage.max * TREBUCHET_CITY_RETALIATION_REDUCTION),
+                    avg: Math.floor(returnDamage.avg * TREBUCHET_CITY_RETALIATION_REDUCTION),
+                };
+            }
         }
     }
 
     return {
         attacker: {
             name: getUnitDisplayName(attacker.type),
-            atk: attackerStats.atk,
+            atk: effectiveAtk,
             def: attackerStats.def,
             hp: attacker.hp,
             maxHp: attacker.maxHp ?? UNITS[attacker.type].hp,

@@ -5,6 +5,40 @@ import { getThreatLevel } from "../../ai/units/unit-helpers.js";
 
 export type DefenseDecision = "defend" | "expand" | "interleave";
 
+type WarPowerSnapshot = {
+    warEnemies: GameState["players"];
+    atWar: boolean;
+    powerRatio: number;
+    maxEnemyPower: number;
+};
+
+function getWarEnemies(state: GameState, playerId: string): GameState["players"] {
+    return state.players.filter(p =>
+        p.id !== playerId &&
+        !p.isEliminated &&
+        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
+    );
+}
+
+function getMaxEnemyPower(state: GameState, enemies: GameState["players"]): number {
+    let maxEnemyPower = 0;
+    for (const enemy of enemies) {
+        const enemyPower = estimateMilitaryPower(enemy.id, state);
+        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
+    }
+    return maxEnemyPower;
+}
+
+function getWarPowerSnapshot(state: GameState, playerId: string): WarPowerSnapshot {
+    const warEnemies = getWarEnemies(state, playerId);
+    const atWar = warEnemies.length > 0;
+    const myPower = estimateMilitaryPower(playerId, state);
+    const maxEnemyPower = getMaxEnemyPower(state, warEnemies);
+    const powerRatio = maxEnemyPower > 0 ? myPower / maxEnemyPower : Infinity;
+
+    return { warEnemies, atWar, powerRatio, maxEnemyPower };
+}
+
 /**
  * v7.2: Intelligent Expansion vs Defense Decision
  * 
@@ -25,27 +59,7 @@ export function shouldPrioritizeDefense(
     const threat = getThreatLevel(state, city, playerId);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
 
-    // Check if at war with anyone
-    const atWar = state.players.some(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    // Calculate power ratio vs nearest enemy
-    const myPower = estimateMilitaryPower(playerId, state);
-    const enemies = state.players.filter(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    let maxEnemyPower = 0;
-    for (const enemy of enemies) {
-        const enemyPower = estimateMilitaryPower(enemy.id, state);
-        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
-    }
-    const powerRatio = maxEnemyPower > 0 ? myPower / maxEnemyPower : Infinity;
+    const { atWar, powerRatio } = getWarPowerSnapshot(state, playerId);
 
     // ==== DECISION LOGIC ====
 
@@ -106,25 +120,13 @@ export function shouldPrioritizeDefense(
  */
 export function resolveInterleave(state: GameState, playerId: string, cityIndex: number = 0): boolean {
     // Calculate defense weight based on power ratio
-    const myPower = estimateMilitaryPower(playerId, state);
-    const enemies = state.players.filter(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    let maxEnemyPower = 0;
-    for (const enemy of enemies) {
-        const enemyPower = estimateMilitaryPower(enemy.id, state);
-        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
-    }
+    const { powerRatio, maxEnemyPower } = getWarPowerSnapshot(state, playerId);
 
     // Defense weight: 0.3 (strong) to 0.7 (weak)
     // powerRatio >= 2.0 = 0.3 defense weight (30% chance to defend)
     // powerRatio <= 0.5 = 0.7 defense weight (70% chance to defend)
     let defenseWeight = 0.5; // Default 50/50
     if (maxEnemyPower > 0) {
-        const powerRatio = myPower / maxEnemyPower;
         defenseWeight = Math.max(0.3, Math.min(0.7, 1.1 - powerRatio * 0.4));
     }
 

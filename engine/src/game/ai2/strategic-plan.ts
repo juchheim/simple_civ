@@ -93,70 +93,85 @@ export type GoalRequirements = {
     attackThreshold: number; // Power ratio needed to attack
 };
 
-export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, _numCities: number = 1): GoalRequirements {
-    // Phase multipliers - scale up military requirements as game progresses
-    // v2: Reduced Execute from 1.5x to 1.2x to prevent over-building stalls
-    const phaseMultiplier = phase === "Expand" ? 0.5 : phase === "Develop" ? 1.0 : 1.2;
+// Phase multipliers - scale up military requirements as game progresses
+// v2: Reduced Execute from 1.5x to 1.2x to prevent over-building stalls
+const PHASE_MULTIPLIERS: Record<GamePhase, number> = {
+    Expand: 0.5,
+    Develop: 1.0,
+    Execute: 1.2,
+};
 
+const PROGRESS_DEFENSE_BASE: Record<GamePhase, number> = {
+    Expand: 3,
+    Develop: 4,
+    Execute: 5,
+};
+
+const CIV_TECH_OVERRIDES: Record<string, string> = {
+    StarborneSeekers: "ProgressRush",
+    ScholarKingdoms: "Defensive",
+};
+
+function resolveTechTarget(goal: AiVictoryGoal, civName: string): string {
     if (goal === "Conquest") {
-        // Conquest: Offense-focused, scale with phase
-        // v3: Increased base from 3 to 5 (adds 2 more units to attack forces)
-        const baseSiege = Math.ceil(5 * phaseMultiplier);
-        const baseCapture = Math.ceil(5 * phaseMultiplier);
-        return {
-            minSiege: baseSiege,
-            minCapture: baseCapture,
-            minDefense: 0,
-            minVision: 1,
-            garrisonAll: true,
-            techTarget: civName === "AetherianVanguard" ? "Titan" : "Landship",
-            attackThreshold: phase === "Execute" ? 1.1 : 1.3,
-        };
-    } else if (goal === "Progress") {
-        // Progress: Defense-focused but not excessive, need production for projects
-        // v3: Reduced from 4/6/7 to 3/4/5 to free production capacity
-        const defenseBase = phase === "Expand" ? 3 : phase === "Develop" ? 4 : 5;
+        return civName === "AetherianVanguard" ? "Titan" : "Landship";
+    }
 
-        // v4: Use Defensive chain for Scholar/Starborne to prioritize ShieldGenerator
-        // v1.0.9: Starborne uses ProgressRush (fast beeline), Scholar uses Defensive (CityWards)
-        let techTarget = "Progress";
-        if (civName === "StarborneSeekers") {
-            techTarget = "ProgressRush"; // v1.0.9: Skip CityWards, beeline StarCharts
-        } else if (civName === "ScholarKingdoms") {
-            techTarget = "Defensive"; // CityWards first for early defense
+    const civOverride = CIV_TECH_OVERRIDES[civName];
+    if (goal === "Progress") {
+        return civOverride ?? "Progress";
+    }
+
+    return civOverride ?? "Landship";
+}
+
+export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, _numCities: number = 1): GoalRequirements {
+    const phaseMultiplier = PHASE_MULTIPLIERS[phase];
+    const techTarget = resolveTechTarget(goal, civName);
+
+    switch (goal) {
+        case "Conquest": {
+            // Conquest: Offense-focused, scale with phase
+            // v3: Increased base from 3 to 5 (adds 2 more units to attack forces)
+            const baseSiege = Math.ceil(5 * phaseMultiplier);
+            const baseCapture = Math.ceil(5 * phaseMultiplier);
+            return {
+                minSiege: baseSiege,
+                minCapture: baseCapture,
+                minDefense: 0,
+                minVision: 1,
+                garrisonAll: true,
+                techTarget,
+                attackThreshold: phase === "Execute" ? 1.1 : 1.3,
+            };
         }
-
-        return {
-            minSiege: 1,
-            minCapture: 2,
-            minDefense: defenseBase,
-            minVision: 1,
-            garrisonAll: true,
-            techTarget,
-            attackThreshold: 2.0,
-        };
-    } else {
-        // Balanced: Moderate scaling
-        const baseMil = Math.ceil(2 * phaseMultiplier);
-
-        // v5: Even with Balanced goal, defensive civs should use Defensive chain
-        // v1.0.9: Starborne uses ProgressRush, Scholar uses Defensive
-        let techTarget = "Landship";
-        if (civName === "StarborneSeekers") {
-            techTarget = "ProgressRush"; // v1.0.9: Skip CityWards, beeline StarCharts
-        } else if (civName === "ScholarKingdoms") {
-            techTarget = "Defensive";
+        case "Progress": {
+            // Progress: Defense-focused but not excessive, need production for projects
+            // v3: Reduced from 4/6/7 to 3/4/5 to free production capacity
+            const defenseBase = PROGRESS_DEFENSE_BASE[phase];
+            return {
+                minSiege: 1,
+                minCapture: 2,
+                minDefense: defenseBase,
+                minVision: 1,
+                garrisonAll: true,
+                techTarget,
+                attackThreshold: 2.0,
+            };
         }
-
-        return {
-            minSiege: baseMil,
-            minCapture: baseMil,
-            minDefense: Math.ceil(1.5 * phaseMultiplier),
-            minVision: 1,
-            garrisonAll: true,
-            techTarget,
-            attackThreshold: 1.5,
-        };
+        default: {
+            // Balanced: Moderate scaling
+            const baseMil = Math.ceil(2 * phaseMultiplier);
+            return {
+                minSiege: baseMil,
+                minCapture: baseMil,
+                minDefense: Math.ceil(1.5 * phaseMultiplier),
+                minVision: 1,
+                garrisonAll: true,
+                techTarget,
+                attackThreshold: 1.5,
+            };
+        }
     }
 }
 
@@ -238,6 +253,30 @@ export type ExecutionReadiness = {
     powerAdvantage: boolean;
 };
 
+function getEffectiveAttackThreshold(
+    baseThreshold: number,
+    warDuration: number,
+    turn: number
+): number {
+    let effectiveThreshold = baseThreshold;
+
+    // After 20 turns in war OR turn 150+: reduce threshold by 30%
+    // v4: Reverted to less aggressive escalation
+    if (warDuration > 30 || turn > 180) {
+        effectiveThreshold *= 0.8;
+    }
+    // After 50 turns in war OR turn 220+: attack when equal
+    if (warDuration > 50 || turn > 220) {
+        effectiveThreshold = 1.0;
+    }
+    // After 70 turns in war OR turn 260+: attack even when slightly weaker
+    if (warDuration > 70 || turn > 260) {
+        effectiveThreshold = 0.85;
+    }
+
+    return effectiveThreshold;
+}
+
 export function checkExecutionReadiness(
     state: GameState,
     playerId: string,
@@ -257,22 +296,12 @@ export function checkExecutionReadiness(
     ).length;
 
     // War escalation timer - break deadlocks (v2: more aggressive)
-    let effectiveThreshold = requirements.attackThreshold;
     const warDuration = warStartTurn ? state.turn - warStartTurn : 0;
-
-    // After 20 turns in war OR turn 150+: reduce threshold by 30%
-    // v4: Reverted to less aggressive escalation
-    if (warDuration > 30 || state.turn > 180) {
-        effectiveThreshold *= 0.8;
-    }
-    // After 50 turns in war OR turn 220+: attack when equal
-    if (warDuration > 50 || state.turn > 220) {
-        effectiveThreshold = 1.0;
-    }
-    // After 70 turns in war OR turn 260+: attack even when slightly weaker
-    if (warDuration > 70 || state.turn > 260) {
-        effectiveThreshold = 0.85;
-    }
+    const effectiveThreshold = getEffectiveAttackThreshold(
+        requirements.attackThreshold,
+        warDuration,
+        state.turn
+    );
 
     const powerAdvantage = theirPower === 0 || (myPower / theirPower) >= effectiveThreshold;
 

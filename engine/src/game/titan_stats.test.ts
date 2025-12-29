@@ -2,14 +2,14 @@
 import { describe, it, expect } from "vitest";
 import { UNITS } from "../core/constants.js";
 import { startPlayerTurn } from "./turn-lifecycle.js";
-import { GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../core/types.js";
+import { EraId, GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../core/types.js";
 
 describe("Titan Stats & Mechanics", () => {
     it("should have correct Titan stats (as defined in core/constants)", () => {
         const titan = UNITS[UnitType.Titan];
-        expect(titan.def).toBe(15);
-        expect(titan.hp).toBe(45);
-        expect(titan.atk).toBe(20);
+        expect(titan.def).toBe(12);
+        expect(titan.hp).toBe(30);
+        expect(titan.atk).toBe(18);
     });
 
     it("should regenerate exactly 1 HP per turn", () => {
@@ -17,7 +17,7 @@ describe("Titan Stats & Mechanics", () => {
             id: "test-game",
             turn: 1,
             players: [
-                { id: "p1", civName: "AetherianVanguard", color: "blue", techs: [], currentTech: null, completedProjects: [], isEliminated: false, hasFoundedFirstCity: true, currentEra: 1 },
+                { id: "p1", civName: "AetherianVanguard", color: "blue", techs: [], currentTech: null, completedProjects: [], isEliminated: false, hasFoundedFirstCity: true, currentEra: EraId.Hearth },
             ],
             currentPlayerId: "p1",
             phase: PlayerPhase.Action,
@@ -43,6 +43,7 @@ describe("Titan Stats & Mechanics", () => {
             sharedVision: {},
             contacts: {},
             diplomacyOffers: [],
+            nativeCamps: [],
         };
 
         // Populate map tiles to avoid errors

@@ -8,6 +8,75 @@ import { cityHasGarrison } from "./analysis.js";
 import { getBestUnitForRole } from "../strategic-plan.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 
+const PERIMETER_DISTANCE = 5;
+const RING_DISTANCE = 1;
+const LOCAL_DEFENSE_RANGE = 2;
+
+const RANGED_DEFENDERS = new Set<UnitType>([UnitType.BowGuard, UnitType.ArmyBowGuard]);
+const MELEE_DEFENDERS = new Set<UnitType>([UnitType.SpearGuard, UnitType.ArmySpearGuard]);
+const BASE_DEFENDER_UNITS = new Set<UnitType>([UnitType.SpearGuard, UnitType.BowGuard, UnitType.Riders]);
+const ARMY_DEFENDER_UNITS = new Set<UnitType>([UnitType.ArmySpearGuard, UnitType.ArmyBowGuard, UnitType.ArmyRiders]);
+
+function isNonCivilianUnit(unitType: UnitType): boolean {
+    return UNITS[unitType].domain !== "Civilian";
+}
+
+function getMinimumEnemyDistance(state: GameState, city: City, enemyIds: Set<string>): number {
+    let minEnemyDist = Infinity;
+
+    for (const enemyCity of state.cities) {
+        if (!enemyIds.has(enemyCity.ownerId)) continue;
+        const dist = hexDistance(city.coord, enemyCity.coord);
+        if (dist < minEnemyDist) minEnemyDist = dist;
+    }
+
+    for (const enemyUnit of state.units) {
+        if (!enemyIds.has(enemyUnit.ownerId) || !isNonCivilianUnit(enemyUnit.type)) continue;
+        const dist = hexDistance(city.coord, enemyUnit.coord);
+        if (dist < minEnemyDist) minEnemyDist = dist;
+    }
+
+    return minEnemyDist;
+}
+
+function hasNonCivilianUnitAtCity(units: GameState["units"], city: City): boolean {
+    return units.some(unit =>
+        unit.coord.q === city.coord.q &&
+        unit.coord.r === city.coord.r &&
+        isNonCivilianUnit(unit.type)
+    );
+}
+
+function countUnitsAtDistance(
+    units: GameState["units"],
+    city: City,
+    distance: number,
+    predicate: (unit: GameState["units"][number]) => boolean
+): number {
+    let count = 0;
+    for (const unit of units) {
+        if (predicate(unit) && hexDistance(unit.coord, city.coord) === distance) {
+            count++;
+        }
+    }
+    return count;
+}
+
+function countUnitsWithinDistance(
+    units: GameState["units"],
+    city: City,
+    distance: number,
+    predicate: (unit: GameState["units"][number]) => boolean
+): number {
+    let count = 0;
+    for (const unit of units) {
+        if (predicate(unit) && hexDistance(unit.coord, city.coord) <= distance) {
+            count++;
+        }
+    }
+    return count;
+}
+
 export function pickDefensePriorityBuild(
     state: GameState,
     city: City,
@@ -17,49 +86,35 @@ export function pickDefensePriorityBuild(
 ): BuildOption | null {
     if (!shouldBuildDefender) return null;
 
-    const enemyCities = state.cities.filter(c => context.aliveEnemyIds.has(c.ownerId));
-    const enemyUnitsNearby = state.units.filter(u =>
-        context.aliveEnemyIds.has(u.ownerId) &&
-        UNITS[u.type].domain !== "Civilian"
-    );
-
-    let minEnemyDist = Infinity;
-    for (const ec of enemyCities) {
-        const dist = hexDistance(city.coord, ec.coord);
-        if (dist < minEnemyDist) minEnemyDist = dist;
-    }
-    for (const eu of enemyUnitsNearby) {
-        const dist = hexDistance(city.coord, eu.coord);
-        if (dist < minEnemyDist) minEnemyDist = dist;
-    }
-
-    const isPerimeter = minEnemyDist <= 5;
+    const minEnemyDist = getMinimumEnemyDistance(state, city, context.aliveEnemyIds);
+    const isPerimeter = minEnemyDist <= PERIMETER_DISTANCE;
     const desiredTotal = city.isCapital ? (isPerimeter ? 4 : 1) : (isPerimeter ? 3 : 1);
 
-    const hasGarrison = context.myUnits.some(u =>
-        u.coord.q === city.coord.q &&
-        u.coord.r === city.coord.r &&
-        UNITS[u.type].domain !== "Civilian"
-    ) ? 1 : 0;
-
-    const ringDefenders = context.myUnits.filter(u =>
-        hexDistance(u.coord, city.coord) === 1 &&
-        UNITS[u.type].domain !== "Civilian"
-    ).length;
+    const hasGarrison = hasNonCivilianUnitAtCity(context.myUnits, city) ? 1 : 0;
+    const ringDefenders = countUnitsAtDistance(
+        context.myUnits,
+        city,
+        RING_DISTANCE,
+        unit => isNonCivilianUnit(unit.type)
+    );
 
     const currentTotal = hasGarrison + ringDefenders;
 
     if (currentTotal < desiredTotal) {
         aiInfo(`[AI Build] ${context.profile.civName} DEFENSE PRIORITY (${defenseDecision}): ${city.name} needs defenders (${currentTotal}/${desiredTotal})`);
 
-        const existingRanged = context.myUnits.filter(u =>
-            (u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard) &&
-            hexDistance(u.coord, city.coord) <= 2
-        ).length;
-        const existingMelee = context.myUnits.filter(u =>
-            (u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard) &&
-            hexDistance(u.coord, city.coord) <= 2
-        ).length;
+        const existingRanged = countUnitsWithinDistance(
+            context.myUnits,
+            city,
+            LOCAL_DEFENSE_RANGE,
+            unit => RANGED_DEFENDERS.has(unit.type)
+        );
+        const existingMelee = countUnitsWithinDistance(
+            context.myUnits,
+            city,
+            LOCAL_DEFENSE_RANGE,
+            unit => MELEE_DEFENDERS.has(unit.type)
+        );
 
         const needsRanged = existingRanged <= existingMelee ||
             ((state.turn + city.id.charCodeAt(0)) % 2 === 0 && existingRanged === existingMelee);
@@ -94,7 +149,8 @@ export function pickGarrisonBuild(
 ): BuildOption | null {
     if (cityHasGarrison(state, city) || defenseDecision === "expand") return null;
 
-    const garrisonUnit = isDefensiveCiv(context.profile.civName)
+    const isDefensive = isDefensiveCiv(context.profile.civName);
+    const garrisonUnit = isDefensive
         ? getBestUnitForRole("defense", context.unlockedUnits) ?? getBestUnitForRole("capture", context.unlockedUnits)
         : getBestUnitForRole("capture", context.unlockedUnits);
 
@@ -118,28 +174,26 @@ export function pickTerritorialDefenderBuild(
     const currentDefenders = context.myUnits.filter(u => u.isHomeDefender === true);
     const currentDefenderCount = currentDefenders.length;
 
-    const desiredDefenderCount = isDefensiveCiv(context.profile.civName)
+    const isDefensive = isDefensiveCiv(context.profile.civName);
+    const desiredDefenderCount = isDefensive
         ? Math.ceil(context.myCities.length * DEFENSIVE_CIV_DEFENDER_MULTIPLIER)
         : context.myCities.length * TERRITORIAL_DEFENDERS_PER_CITY;
 
     const bestDefenderUnit = getBestUnitForRole("defense", context.unlockedUnits)
         ?? getBestUnitForRole("capture", context.unlockedUnits);
 
-    const canBuildLorekeeper = isDefensiveCiv(context.profile.civName) &&
+    const canBuildLorekeeper = isDefensive &&
         context.unlockedUnits.includes(UnitType.Lorekeeper) &&
         canBuild(city, "Unit", UnitType.Lorekeeper, state);
     const preferredDefender = canBuildLorekeeper ? UnitType.Lorekeeper : bestDefenderUnit;
 
-    const BASE_UNITS = [UnitType.SpearGuard, UnitType.BowGuard, UnitType.Riders];
-    const ARMY_UNITS = [UnitType.ArmySpearGuard, UnitType.ArmyBowGuard, UnitType.ArmyRiders];
-
     const hasArmyTech = context.player.techs.includes(TechId.DrilledRanks);
     const suboptimalDefenders = currentDefenders.filter(u => {
         if (u.type === UnitType.Lorekeeper) return false;
-        if (ARMY_UNITS.includes(u.type as UnitType)) {
+        if (ARMY_DEFENDER_UNITS.has(u.type as UnitType)) {
             return canBuildLorekeeper;
         }
-        if (BASE_UNITS.includes(u.type as UnitType)) {
+        if (BASE_DEFENDER_UNITS.has(u.type as UnitType)) {
             return hasArmyTech || canBuildLorekeeper;
         }
         return false;
@@ -176,7 +230,8 @@ export function pickShieldGeneratorBuild(
     goal: AiVictoryGoal,
     context: ProductionContext
 ): BuildOption | null {
-    if (goal !== "Progress" && !isDefensiveCiv(context.profile.civName)) return null;
+    const isDefensive = isDefensiveCiv(context.profile.civName);
+    if (goal !== "Progress" && !isDefensive) return null;
 
     if (!city.buildings.includes(BuildingType.ShieldGenerator) && canBuild(city, "Building", BuildingType.ShieldGenerator, state)) {
         aiInfo(`[AI Build] ${context.profile.civName} DEFENSE: ShieldGenerator`);
@@ -191,7 +246,8 @@ export function pickBulwarkBuild(
     city: City,
     context: ProductionContext
 ): BuildOption | null {
-    if (!isDefensiveCiv(context.profile.civName)) return null;
+    const isDefensive = isDefensiveCiv(context.profile.civName);
+    if (!isDefensive) return null;
 
     const currentBulwarks = context.myCities.filter(c => c.buildings.includes(BuildingType.Bulwark)).length;
     const minBulwarks = 1;

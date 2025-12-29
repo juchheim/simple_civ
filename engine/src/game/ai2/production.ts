@@ -23,23 +23,10 @@ import {
     getBestUnitForRole,
     getGamePhase
 } from "./strategic-plan.js";
-import {
-    isWarEmergency,
-    pickCityUnderAttackBuild,
-    pickGarrisonReplenishmentBuild,
-    pickWarEmergencyBuild
-} from "./production/emergency.js";
+import { isWarEmergency, pickCityUnderAttackBuild } from "./production/emergency.js";
+import { pickCapabilityGapBuild } from "./production/capability-gaps.js";
 import { pickVictoryProject } from "./production/victory.js";
 import { pickEconomyBuilding } from "./production/economy.js";
-import { pickWarStagingProduction } from "./production/staging.js";
-import { pickTrebuchetProduction } from "./production/war.js";
-import {
-    pickDefensePriorityBuild,
-    pickGarrisonBuild,
-    pickTerritorialDefenderBuild,
-    pickShieldGeneratorBuild,
-    pickBulwarkBuild
-} from "./production/defense-builds.js";
 import {
     pickAetherianVanguardBuild,
     pickDefensiveArmyBuild,
@@ -47,14 +34,26 @@ import {
     pickDefensiveLorekeeperBuild,
     pickRiverLeagueEarlyBoost
 } from "./production/civ-builds.js";
-import { pickEarlyExpansionBuild, pickExpansionBuild } from "./production/expansion.js";
 import { resolveInterleave, shouldPrioritizeDefense } from "./production/defense-priority.js";
+import { pickTechUnlockBuild } from "./production/tech-unlocks.js";
 import { getUnlockedUnits } from "./production/unlocks.js";
+import { pickPhaseDefensePriorityBuild, pickPhaseDefenseSupportBuild } from "./production/phases/defense.js";
+import { pickPhaseEarlyExpansionBuild, pickPhaseExpansionBuild } from "./production/phases/expansion.js";
+import { pickPhaseWarBuild } from "./production/phases/war.js";
 
 export { shouldPrioritizeDefense } from "./production/defense-priority.js";
 
 export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string; markAsHomeDefender?: boolean };
 
+type BuildPicker = () => BuildOption | null;
+
+function pickFirstBuild(pickers: BuildPicker[]): BuildOption | null {
+    for (const pick of pickers) {
+        const result = pick();
+        if (result) return result;
+    }
+    return null;
+}
 
 // =============================================================================
 // MAIN PRODUCTION SELECTION
@@ -138,38 +137,19 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         profile,
         phase,
         myCities,
-        myUnits,
         unlockedUnits,
-        gaps,
         atWar,
     } = context;
 
-    const emergencyDefense = pickCityUnderAttackBuild(state, city, context);
-    if (emergencyDefense) {
-        return emergencyDefense;
-    }
-
-    // =========================================================================
-    // v7.9: WAR STAGING PRODUCTION - Build offensive units before declaring war
-    // =========================================================================
-    const stagingBuild = pickWarStagingProduction(state, playerId, city);
-    if (stagingBuild) {
-        return stagingBuild;
-    }
-
-    const trebuchetBuild = pickTrebuchetProduction(state, city, context);
-    if (trebuchetBuild) {
-        return trebuchetBuild;
-    }
-
-    const garrisonReplenishment = pickGarrisonReplenishmentBuild(state, city, context);
-    if (garrisonReplenishment) {
-        return garrisonReplenishment;
-    }
-
-    const warEmergencyBuild = pickWarEmergencyBuild(state, playerId, city, context);
-    if (warEmergencyBuild) {
-        return warEmergencyBuild;
+    const urgentBuild = pickFirstBuild([
+        () => pickCityUnderAttackBuild(state, city, context),
+        // =========================================================================
+        // v7.9: WAR STAGING PRODUCTION - Build offensive units before declaring war
+        // =========================================================================
+        () => pickPhaseWarBuild(state, playerId, city, context),
+    ]);
+    if (urgentBuild) {
+        return urgentBuild;
     }
 
     // =========================================================================
@@ -201,54 +181,37 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         (defenseDecision === "interleave" && resolveInterleave(state, playerId, cityIndex))
     );
 
-    const defenseBuild = pickDefensePriorityBuild(state, city, context, defenseDecision, shouldBuildDefender);
-    if (defenseBuild) {
-        return defenseBuild;
-    }
-
-    // =========================================================================
-    // PRIORITY 0.4: RiverLeague Early Military Boost
-    // =========================================================================
-    // v6.6m: RiverLeague declined to 16.7% win rate after balance changes.
-    // Give them an early military advantage - build extra BowGuard before expansion.
-    const riverLeagueBoost = pickRiverLeagueEarlyBoost(state, city, context);
-    if (riverLeagueBoost) {
-        return riverLeagueBoost;
-    }
-
-    // =========================================================================
-    // PRIORITY 0.5: Early Military for Defensive Civs (before CityWards)
-    // =========================================================================
-    // v6.6: FIXED - Previous logic blocked expansion entirely until 4 military.
-    // ScholarKingdoms was stuck with 1 city building military forever.
-    // NEW: Require only 2 military before allowing settlers, then INTERLEAVE.
-    const defensiveEarly = pickDefensiveEarlyMilitaryBuild(state, city, context);
-    if (defensiveEarly) {
-        return defensiveEarly;
-    }
-
-    const earlyExpansion = pickEarlyExpansionBuild(state, playerId, city, context, defenseDecision);
-    if (earlyExpansion) {
-        return earlyExpansion;
-    }
-    // =========================================================================
-    // PRIORITY 0.8: Lorekeeper for Defensive Civs (non-Bulwark cities only)
-    // =========================================================================
-    // ScholarKingdoms/StarborneSeekers get Lorekeeper as their main defensive unit
-    // IMPORTANT: Only non-Bulwark cities build Lorekeepers
-    // Bulwark cities focus on Victory projects (Priority 1)
-    const lorekeeperBuild = pickDefensiveLorekeeperBuild(state, city, context);
-    if (lorekeeperBuild) {
-        return lorekeeperBuild;
-    }
-
-    // =========================================================================
-    // PRIORITY 0.9: Army Units for Defensive Civs
-    // =========================================================================
-    // v8.3: Removed Bulwark restriction - ALL cities can now build Army units
-    const defensiveArmyBuild = pickDefensiveArmyBuild(state, city, context);
-    if (defensiveArmyBuild) {
-        return defensiveArmyBuild;
+    const earlyBuild = pickFirstBuild([
+        () => pickPhaseDefensePriorityBuild(state, city, context, defenseDecision, shouldBuildDefender),
+        // =========================================================================
+        // PRIORITY 0.4: RiverLeague Early Military Boost
+        // =========================================================================
+        // v6.6m: RiverLeague declined to 16.7% win rate after balance changes.
+        // Give them an early military advantage - build extra BowGuard before expansion.
+        () => pickRiverLeagueEarlyBoost(state, city, context),
+        // =========================================================================
+        // PRIORITY 0.5: Early Military for Defensive Civs (before CityWards)
+        // =========================================================================
+        // v6.6: FIXED - Previous logic blocked expansion entirely until 4 military.
+        // ScholarKingdoms was stuck with 1 city building military forever.
+        // NEW: Require only 2 military before allowing settlers, then INTERLEAVE.
+        () => pickDefensiveEarlyMilitaryBuild(state, city, context),
+        () => pickPhaseEarlyExpansionBuild(state, playerId, city, context, defenseDecision),
+        // =========================================================================
+        // PRIORITY 0.8: Lorekeeper for Defensive Civs (non-Bulwark cities only)
+        // =========================================================================
+        // ScholarKingdoms/StarborneSeekers get Lorekeeper as their main defensive unit
+        // IMPORTANT: Only non-Bulwark cities build Lorekeepers
+        // Bulwark cities focus on Victory projects (Priority 1)
+        () => pickDefensiveLorekeeperBuild(state, city, context),
+        // =========================================================================
+        // PRIORITY 0.9: Army Units for Defensive Civs
+        // =========================================================================
+        // v8.3: Removed Bulwark restriction - ALL cities can now build Army units
+        () => pickDefensiveArmyBuild(state, city, context),
+    ]);
+    if (earlyBuild) {
+        return earlyBuild;
     }
 
     // =========================================================================
@@ -264,107 +227,35 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
 
-    // =========================================================================
-    // PRIORITY 1.5: Tech Unlock Priority - Build units from newly researched techs
-    // =========================================================================
-
-    // Landship FIRST: If we researched CompositeArmor and at war/Execute phase
-    // v6.1: Landship is CORE late game unit. Increase cap to 8.
-    if (player.techs.includes(TechId.CompositeArmor) && (atWar || phase === "Execute")) {
-        const currentLandships = myUnits.filter(u => u.type === UnitType.Landship).length;
-        if (currentLandships < 8 && canBuild(city, "Unit", UnitType.Landship, state)) {
-            aiInfo(`[AI Build] ${profile.civName} TECH UNLOCK: Landship (${currentLandships}/8)`);
-            return { type: "Unit", id: UnitType.Landship };
-        }
-    }
-
-    // Airship SECOND: Niche support unit
-    // v6.1: ONLY build if we already have Landships (Core). Don't build Airships in isolation.
-    if (player.techs.includes(TechId.Aerodynamics)) {
-        const currentLandships = myUnits.filter(u => u.type === UnitType.Landship).length;
-        const currentAirships = myUnits.filter(u => u.type === UnitType.Airship).length;
-
-        // Strict Condition: Must have 2+ Landships first
-        if (currentLandships >= 2) {
-            const airshipCap = Math.min(2, myCities.length); // Max 1 per city, cap at 2
-            if (currentAirships < airshipCap && canBuild(city, "Unit", UnitType.Airship, state)) {
-                aiInfo(`[AI Build] ${profile.civName} TECH UNLOCK: Airship (${currentAirships}/${airshipCap}) - Have Landships`);
-                return { type: "Unit", id: UnitType.Airship };
-            }
-        }
-    }
-
-    // =========================================================================
-    // PRIORITY 2: AetherianVanguard Titan Rush
-    // =========================================================================
-    const aetherianBuild = pickAetherianVanguardBuild(state, city, context);
-    if (aetherianBuild) {
-        return aetherianBuild;
-    }
-
-    // =========================================================================
-    // PRIORITY 3: Garrison Undefended Cities
-    // =========================================================================
-    const garrisonBuild = pickGarrisonBuild(state, city, context, defenseDecision);
-    if (garrisonBuild) {
-        return garrisonBuild;
-    }
-
-    const territorialBuild = pickTerritorialDefenderBuild(state, city, context, defenseDecision);
-    if (territorialBuild) {
-        return territorialBuild;
-    }
-
-    const shieldGeneratorBuild = pickShieldGeneratorBuild(state, city, goal, context);
-    if (shieldGeneratorBuild) {
-        return shieldGeneratorBuild;
-    }
-
-    const bulwarkBuild = pickBulwarkBuild(state, city, context);
-    if (bulwarkBuild) {
-        return bulwarkBuild;
-    }
-
-    // =========================================================================
-    // PRIORITY 5: Fill Capability Gaps
-    // =========================================================================
-    if (gaps.priority !== "garrison") {
-        let targetUnit: UnitType | null = null;
-
-        if (gaps.priority === "siege" && gaps.needSiege > 0) {
-            targetUnit = getBestUnitForRole("siege", unlockedUnits);
-            aiInfo(`[AI Build] ${profile.civName} GAP: Need siege (${gaps.needSiege})`);
-        } else if (gaps.priority === "capture" && gaps.needCapture > 0) {
-            targetUnit = getBestUnitForRole("capture", unlockedUnits);
-            aiInfo(`[AI Build] ${profile.civName} GAP: Need capture (${gaps.needCapture})`);
-        } else if (gaps.priority === "defense" && gaps.needDefense > 0) {
-            targetUnit = getBestUnitForRole("defense", unlockedUnits);
-            aiInfo(`[AI Build] ${profile.civName} GAP: Need defense (${gaps.needDefense})`);
-        } else if (gaps.priority === "vision" && gaps.needVision > 0) {
-            targetUnit = getBestUnitForRole("vision", unlockedUnits);
-            aiInfo(`[AI Build] ${profile.civName} GAP: Need vision (${gaps.needVision})`);
-        }
-
-        if (targetUnit && canBuild(city, "Unit", targetUnit, state)) {
-            return { type: "Unit", id: targetUnit };
-        }
-    }
-
-    // =========================================================================
-    // PRIORITY 6: Expansion (Settlers) - Only when safe
-    // =========================================================================
-    // v2.2: Removed !atWar check. Priority 5 (Capability Gaps) already ensures we build units if we need them.
-    // Blocking expansion just because we are at war (even if winning/defended) causes defensive civs to turtle and die.
-    const expansionBuild = pickExpansionBuild(state, playerId, city, context, defenseDecision);
-    if (expansionBuild) {
-        return expansionBuild;
-    }
-
-    // =========================================================================
-    // PRIORITY 7: Economy Buildings
-    // =========================================================================
-    const economy = pickEconomyBuilding(state, playerId, city, profile.civName);
-    if (economy) return economy;
+    const standardBuild = pickFirstBuild([
+        // =========================================================================
+        // PRIORITY 1.5: Tech Unlock Priority - Build units from newly researched techs
+        // =========================================================================
+        () => pickTechUnlockBuild(state, city, context),
+        // =========================================================================
+        // PRIORITY 2: AetherianVanguard Titan Rush
+        // =========================================================================
+        () => pickAetherianVanguardBuild(state, city, context),
+        // =========================================================================
+        // PRIORITY 3: Garrison Undefended Cities
+        // =========================================================================
+        () => pickPhaseDefenseSupportBuild(state, city, goal, context, defenseDecision),
+        // =========================================================================
+        // PRIORITY 5: Fill Capability Gaps
+        // =========================================================================
+        () => pickCapabilityGapBuild(state, city, context),
+        // =========================================================================
+        // PRIORITY 6: Expansion (Settlers) - Only when safe
+        // =========================================================================
+        // v2.2: Removed !atWar check. Priority 5 (Capability Gaps) already ensures we build units if we need them.
+        // Blocking expansion just because we are at war (even if winning/defended) causes defensive civs to turtle and die.
+        () => pickPhaseExpansionBuild(state, playerId, city, context, defenseDecision),
+        // =========================================================================
+        // PRIORITY 7: Economy Buildings
+        // =========================================================================
+        () => pickEconomyBuilding(state, playerId, city, profile.civName),
+    ]);
+    if (standardBuild) return standardBuild;
 
     // =========================================================================
     // FALLBACK: More military
