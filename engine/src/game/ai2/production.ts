@@ -17,7 +17,6 @@ import { hexDistance } from "../../core/hex.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { isDefensiveCiv } from "../helpers/civ-helpers.js";
 import { getThreatLevel } from "../ai/units/unit-helpers.js";
-import { estimateMilitaryPower } from "../ai/goals.js";
 import { UNITS, TERRITORIAL_DEFENDERS_PER_CITY, DEFENSIVE_CIV_DEFENDER_MULTIPLIER } from "../../core/constants.js";
 import {
     assessCapabilities,
@@ -26,204 +25,18 @@ import {
     getBestUnitForRole,
     getGamePhase
 } from "./strategic-plan.js";
-import { UNIT_ROLES } from "./capabilities.js";
-import { getAiMemoryV2 } from "./memory.js";
 import { countMilitary, isWarEmergency } from "./production/emergency.js";
 import { pickVictoryProject } from "./production/victory.js";
 import { pickEconomyBuilding } from "./production/economy.js";
 import { pickWarStagingProduction } from "./production/staging.js";
+import { cityHasGarrison, settlersInFlight } from "./production/analysis.js";
+import { resolveInterleave, shouldPrioritizeDefense } from "./production/defense-priority.js";
+import { getUnlockedUnits } from "./production/unlocks.js";
+
+export { shouldPrioritizeDefense } from "./production/defense-priority.js";
 
 export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string; markAsHomeDefender?: boolean };
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-function settlersInFlight(state: GameState, playerId: string): number {
-    const active = state.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler).length;
-    const queued = state.cities.filter(c =>
-        c.ownerId === playerId && c.currentBuild?.type === "Unit" && c.currentBuild.id === UnitType.Settler
-    ).length;
-    return active + queued;
-}
-
-function cityHasGarrison(state: GameState, city: City): boolean {
-    return state.units.some(u =>
-        u.ownerId === city.ownerId &&
-        u.coord.q === city.coord.q &&
-        u.coord.r === city.coord.r &&
-        UNIT_ROLES[u.type] !== "civilian"
-    );
-}
-
-/**
- * v7.2: Intelligent Expansion vs Defense Decision
- * 
- * Determines whether a city should prioritize building defensive units over settlers.
- * Uses multiple factors: power ratio, threat level, war status, game phase, and randomness.
- * 
- * Returns: "defend" | "expand" | "interleave"
- * - "defend" = Build defensive unit
- * - "expand" = Build settler/economy
- * - "interleave" = Use weighted random (60% expand, 40% defend by default)
- */
-export function shouldPrioritizeDefense(
-    state: GameState,
-    city: City,
-    playerId: string,
-    phase: "Expand" | "Develop" | "Execute"
-): "defend" | "expand" | "interleave" {
-    const threat = getThreatLevel(state, city, playerId);
-    const myCities = state.cities.filter(c => c.ownerId === playerId);
-
-    // Check if at war with anyone
-    const atWar = state.players.some(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    // Calculate power ratio vs nearest enemy
-    const myPower = estimateMilitaryPower(playerId, state);
-    const enemies = state.players.filter(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    let maxEnemyPower = 0;
-    for (const enemy of enemies) {
-        const enemyPower = estimateMilitaryPower(enemy.id, state);
-        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
-    }
-    const powerRatio = maxEnemyPower > 0 ? myPower / maxEnemyPower : Infinity;
-
-    // ==== DECISION LOGIC ====
-
-    // 1. CRITICAL THREAT: Always defend
-    if (threat === "critical") {
-        return "defend";
-    }
-
-    // 1.5. STARCHARTS: Civs with StarCharts should pursue Progress victory
-    // Don't let defense priority block Grand Experiment production
-    const player = state.players.find(p => p.id === playerId);
-    if (player?.techs?.includes(TechId.StarCharts)) {
-        return "expand"; // Let production logic build Observatory/Academy/Experiment
-    }
-
-    // 2. STRONG POSITION + NOT AT WAR: Favor expansion
-    if (powerRatio >= 2.0 && !atWar) {
-        return "expand";
-    }
-
-    // 2.5: COUNTER-ATTACK TRANSITION (Item 6)
-    // If we are significantly stronger than the enemy even during war,
-    // transition to expansion/offense to close out the game.
-    if (atWar && powerRatio >= 1.5) {
-        return "expand";
-    }
-
-    // 3. EARLY GAME: Expansion is critical (need cities first)
-    if (phase === "Expand" && myCities.length < 3 && threat !== "high") {
-        return "expand";
-    }
-
-    // 4. AT WAR + HIGH THREAT: Defend urgently
-    if (atWar && threat === "high") {
-        return "defend";
-    }
-
-    // 5. WEAK POSITION (power ratio < 1.0): Prioritize defense
-    if (powerRatio < 1.0 && atWar) {
-        return "defend";
-    }
-
-    // 6. NO THREAT + PEACE: Expansion friendly
-    if (threat === "none" && !atWar) {
-        return "expand";
-    }
-
-    // 7. UNCERTAIN SITUATIONS: Interleave
-    // Uses weighted random based on power ratio
-    // Higher power = more expansion, lower power = more defense
-    return "interleave";
-}
-
-/**
- * Execute the interleave decision with weighted randomness
- * Returns true if should build defender, false if should expand
- * v7.2: Added cityIndex for per-city random seed (different cities make different decisions)
- */
-function resolveInterleave(state: GameState, playerId: string, cityIndex: number = 0): boolean {
-    // Calculate defense weight based on power ratio
-    const myPower = estimateMilitaryPower(playerId, state);
-    const enemies = state.players.filter(p =>
-        p.id !== playerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-    );
-
-    let maxEnemyPower = 0;
-    for (const enemy of enemies) {
-        const enemyPower = estimateMilitaryPower(enemy.id, state);
-        if (enemyPower > maxEnemyPower) maxEnemyPower = enemyPower;
-    }
-
-    // Defense weight: 0.3 (strong) to 0.7 (weak)
-    // powerRatio >= 2.0 = 0.3 defense weight (30% chance to defend)
-    // powerRatio <= 0.5 = 0.7 defense weight (70% chance to defend)
-    let defenseWeight = 0.5; // Default 50/50
-    if (maxEnemyPower > 0) {
-        const powerRatio = myPower / maxEnemyPower;
-        defenseWeight = Math.max(0.3, Math.min(0.7, 1.1 - powerRatio * 0.4));
-    }
-
-    // v7.2: Use turn number + cityIndex as pseudo-random seed
-    // This ensures each city makes a different decision, enabling true interleaving
-    const pseudoRandom = ((state.turn * 7 + cityIndex * 13) % 100) / 100;
-
-    return pseudoRandom < defenseWeight;
-}
-
-function getUnlockedUnits(playerTechs: TechId[]): UnitType[] {
-    // Base units always available
-    const unlocked: UnitType[] = [UnitType.Scout, UnitType.Settler];
-
-    const hasDrilledRanks = playerTechs.includes(TechId.DrilledRanks);
-    const hasArmyDoctrine = playerTechs.includes(TechId.ArmyDoctrine);
-
-    if (playerTechs.includes(TechId.FormationTraining)) {
-        // Unit obsolescence: SpearGuard/BowGuard become obsolete once DrilledRanks is researched
-        // AI should build Army versions instead (stronger, better survival)
-        if (!hasDrilledRanks) {
-            unlocked.push(UnitType.SpearGuard, UnitType.BowGuard);
-        }
-    }
-    if (playerTechs.includes(TechId.TrailMaps)) {
-        // Unit obsolescence: Riders become obsolete once ArmyDoctrine is researched
-        if (!hasArmyDoctrine) {
-            unlocked.push(UnitType.Riders);
-        }
-    }
-    if (hasDrilledRanks) {
-        unlocked.push(UnitType.ArmySpearGuard, UnitType.ArmyBowGuard);
-    }
-    if (hasArmyDoctrine) {
-        unlocked.push(UnitType.ArmyRiders);
-    }
-    // Landship and Airship are NOT obsoleted - they are unique advanced units
-    if (playerTechs.includes(TechId.CompositeArmor)) {
-        unlocked.push(UnitType.Landship);
-    }
-    if (playerTechs.includes(TechId.Aerodynamics)) {
-        unlocked.push(UnitType.Airship);
-    }
-    if (playerTechs.includes(TechId.CityWards)) {
-        // CityWards unlocks Bulwark building (not a unit)
-    }
-    return unlocked;
-}
 
 // =============================================================================
 // MAIN PRODUCTION SELECTION

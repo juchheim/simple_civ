@@ -19,6 +19,8 @@ export const unitImages: Record<string, string> = {
     NativeArcher: "/units/NativeArcher.png",
     // Defensive civ units
     Lorekeeper: "/units/Lorekeeper.png",
+    // Siege units
+    Trebuchet: "/units/Trebuchet.png",
 };
 
 /** Maps internal unit type IDs to user-friendly display names */
@@ -41,6 +43,8 @@ export const unitDisplayNames: Record<string, string> = {
     NativeArcher: "Native Archer",
     // Defensive civ units
     Lorekeeper: "Lorekeeper",
+    // Siege units
+    Trebuchet: "Trebuchet",
 };
 
 /** Get the display name for a unit type, with fallback to the raw type */

@@ -1,6 +1,6 @@
 import { aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
-import { DiplomacyState, GameState, UnitType, UnitState, Unit } from "../../../core/types.js";
+import { DiplomacyState, GameState, UnitType } from "../../../core/types.js";
 import { UNITS, TERRAIN } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { nearestByDistance } from "../shared/metrics.js";
@@ -8,13 +8,14 @@ import { findPath } from "../../helpers/pathfinding.js";
 import { repositionRanged } from "./defense.js";
 import { captureIfPossible } from "./siege-routing.js";
 import { coordinateGroupAttack, identifyBattleGroups } from "./battle-groups.js";
-export { routeCityCaptures, routeCaptureUnitsToActiveSieges } from "./siege-routing.js";
+import { tryCityAttacks, trebuchetSiegeAttacks } from "./offense-city-attacks.js";
+import { handlePostAttackRetreat, handleUnsafeAttack } from "./offense-retreat.js";
+import { getAttackingUnits, getEnemyTargets, getWarEnemyIds } from "./offense-targeting.js";
 import {
     cityIsCoastal,
-    enemiesWithin,
     expectedDamageFrom,
-    expectedDamageToCity,
     expectedDamageToUnit,
+    enemiesWithin,
     getWarTargets,
     isScoutType,
     shouldUseWarProsecutionMode,
@@ -22,11 +23,11 @@ import {
     selectPrimarySiegeCity,
     warGarrisonCap,
     isAttackSafe,
-    shouldRetreatAfterAttacking,
-    findSafeRetreatTile,
     evaluateTileDanger,
     getNearbyThreats
 } from "./unit-helpers.js";
+
+export { routeCityCaptures, routeCaptureUnitsToActiveSieges } from "./siege-routing.js";
 
 function coordinateBattleGroups(state: GameState, playerId: string): GameState {
     let next = state;
@@ -37,92 +38,6 @@ function coordinateBattleGroups(state: GameState, playerId: string): GameState {
         }
     }
     return next;
-}
-
-function getAttackingUnits(state: GameState, playerId: string) {
-    return state.units.filter(u => {
-        if (u.ownerId !== playerId || u.type === UnitType.Settler || isScoutType(u.type) || u.state === UnitState.Garrisoned) return false;
-        // v2.2: Titan has its own attack logic in titanRampage - exclude from generic attacks
-        if (u.type === UnitType.Titan) return false;
-        const city = state.cities.find(c => hexEquals(c.coord, u.coord));
-        if (city && city.ownerId === playerId) return false;
-        return true;
-    });
-}
-
-function tryCityAttacks(
-    state: GameState,
-    playerId: string,
-    unit: Unit,
-    warCities: GameState["cities"],
-    primaryCity: GameState["cities"][number] | null
-): { state: GameState; acted: boolean } {
-    let next = state;
-    const stats = UNITS[unit.type as UnitType];
-    const cityTargets = warCities
-        .filter(c => hexDistance(c.coord, unit.coord) <= stats.rng && c.hp > 0)
-        .map(c => ({ city: c, dmg: expectedDamageToCity(unit, c, next) }))
-        .sort((a, b) => {
-            const aKill = a.dmg >= a.city.hp ? 0 : 1;
-            const bKill = b.dmg >= b.city.hp ? 0 : 1;
-            if (aKill !== bKill) return aKill - bKill;
-            if (primaryCity) {
-                const aPrimary = a.city.id === primaryCity.id ? -1 : 0;
-                const bPrimary = b.city.id === primaryCity.id ? -1 : 0;
-                if (aPrimary !== bPrimary) return aPrimary - bPrimary;
-            }
-            return a.city.hp - b.city.hp;
-        });
-
-    for (const { city, dmg } of cityTargets) {
-        const attacked = tryAction(next, { type: "Attack", playerId, attackerId: unit.id, targetId: city.id, targetType: "City" });
-        if (attacked !== next) {
-            aiInfo(`[AI ATTACK CITY] ${playerId} attacks ${city.name} (${city.ownerId}) with ${unit.type}, dealing ${dmg} damage (HP: ${city.hp}→${city.hp - dmg})`);
-            next = attacked;
-            next = captureIfPossible(next, playerId, unit.id);
-            return { state: next, acted: true };
-        }
-    }
-
-    return { state: next, acted: false };
-}
-
-function getWarEnemyIds(state: GameState, playerId: string): string[] {
-    return state.players
-        .filter(p =>
-            p.id !== playerId &&
-            !p.isEliminated &&
-            state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-        )
-        .map(p => p.id);
-}
-
-function getEnemyTargets(next: GameState, unit: Unit, warEnemyIds: string[]) {
-    const stats = UNITS[unit.type as UnitType];
-    return next.units
-        .filter(u => warEnemyIds.includes(u.ownerId))
-        .map(u => ({
-            u,
-            d: hexDistance(u.coord, unit.coord),
-            dmg: expectedDamageToUnit(unit, u, next),
-            counter: expectedDamageFrom(u, unit, next),
-            isSettler: u.type === UnitType.Settler
-        }))
-        .filter(({ d, isSettler }) => {
-            if (isSettler) return d === 1;
-            return d <= stats.rng;
-        })
-        .sort((a, b) => {
-            const aKill = a.dmg >= a.u.hp ? 0 : 1;
-            const bKill = b.dmg >= b.u.hp ? 0 : 1;
-            if (aKill !== bKill) return aKill - bKill;
-
-            if (a.dmg !== b.dmg) return b.dmg - a.dmg;
-
-            if (a.isSettler !== b.isSettler) return a.isSettler ? 1 : -1;
-            if (a.d !== b.d) return a.d - b.d;
-            return a.u.hp - b.u.hp;
-        });
 }
 
 function attemptSettlerPounce(
@@ -176,29 +91,6 @@ function attemptSettlerPounce(
     return { state: next, acted: false };
 }
 
-function handlePostAttackRetreat(next: GameState, playerId: string, unitId: string): GameState {
-    const liveUnit = next.units.find(u => u.id === unitId);
-    if (!liveUnit || liveUnit.movesLeft <= 0) return next;
-    if (!shouldRetreatAfterAttacking(liveUnit, next, playerId)) return next;
-
-    const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
-    const nearestCity = friendlyCities.length > 0
-        ? friendlyCities.sort((a, b) => hexDistance(a.coord, liveUnit.coord) - hexDistance(b.coord, liveUnit.coord))[0]
-        : null;
-    if (!nearestCity) return next;
-
-    const safeTile = findSafeRetreatTile(next, playerId, liveUnit, nearestCity.coord);
-    if (!safeTile) return next;
-
-    const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: liveUnit.id, to: safeTile });
-    if (retreated !== next) {
-        aiInfo(`[AI POST-ATTACK RETREAT] ${playerId} ${liveUnit.type} retreating after attack (exposed to multiple threats)`);
-        return retreated;
-    }
-
-    return next;
-}
-
 function performUnitAttack(
     next: GameState,
     playerId: string,
@@ -219,90 +111,6 @@ function performUnitAttack(
         updated = handlePostAttackRetreat(updated, playerId, unit.id);
     }
     return updated;
-}
-
-function handleUnsafeAttack(
-    next: GameState,
-    playerId: string,
-    unit: any,
-    attackSafety: { safe: boolean; riskLevel: "low" | "medium" | "high" | "suicidal"; reason: string }
-): GameState {
-    aiInfo(`[AI SKIP UNSAFE ATTACK] ${playerId} ${unit.type} skipping attack: ${attackSafety.reason}`);
-
-    const inFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, unit.coord));
-
-    if (!inFriendlyCity && (attackSafety.riskLevel === "high" || attackSafety.riskLevel === "suicidal")) {
-        const friendlyCities = next.cities.filter(c => c.ownerId === playerId);
-        const nearestCity = friendlyCities.length > 0
-            ? friendlyCities.sort((a, b) => hexDistance(a.coord, unit.coord) - hexDistance(b.coord, unit.coord))[0]
-            : null;
-        if (nearestCity && unit.movesLeft > 0) {
-            const safeTile = findSafeRetreatTile(next, playerId, unit, nearestCity.coord);
-            if (safeTile) {
-                const retreated = tryAction(next, { type: "MoveUnit", playerId, unitId: unit.id, to: safeTile });
-                if (retreated !== next) {
-                    aiInfo(`[AI PROACTIVE RETREAT] ${playerId} ${unit.type} retreating from dangerous position`);
-                    return retreated;
-                }
-            }
-        }
-    }
-
-    return next;
-}
-
-/**
- * v1.0.4: Trebuchet-first attack coordination
- * All Trebuchets attack the primary siege city before other units.
- * This ensures siege weapons soften targets for melee to capture.
- */
-function trebuchetSiegeAttacks(state: GameState, playerId: string): GameState {
-    let next = state;
-
-    const trebuchets = next.units.filter(u =>
-        u.ownerId === playerId &&
-        u.type === UnitType.Trebuchet &&
-        !u.hasAttacked &&
-        u.movesLeft > 0
-    );
-
-    if (trebuchets.length === 0) return next;
-
-    const warTargets = getWarTargets(next, playerId);
-    const warCities = next.cities.filter(c =>
-        warTargets.some(t => t.id === c.ownerId) && c.hp > 0
-    );
-
-    if (warCities.length === 0) return next;
-
-    // Focus fire: all Trebuchets attack lowest HP city in range
-    for (const treb of trebuchets) {
-        const trebStats = UNITS[UnitType.Trebuchet];
-        const inRange = warCities.filter(c =>
-            hexDistance(c.coord, treb.coord) <= trebStats.rng
-        );
-
-        if (inRange.length === 0) continue;
-
-        // Pick lowest HP city (prioritize finishing kills)
-        const target = inRange.sort((a, b) => a.hp - b.hp)[0];
-
-        const result = tryAction(next, {
-            type: "Attack",
-            playerId,
-            attackerId: treb.id,
-            targetId: target.id,
-            targetType: "City"
-        });
-
-        if (result !== next) {
-            const dmg = expectedDamageToCity(treb, target, next);
-            aiInfo(`[AI TREBUCHET VOLLEY] ${playerId} Trebuchet attacks ${target.name} (HP: ${target.hp}, expected dmg: ${dmg})`);
-            next = result;
-        }
-    }
-
-    return next;
 }
 
 export function attackTargets(state: GameState, playerId: string): GameState {

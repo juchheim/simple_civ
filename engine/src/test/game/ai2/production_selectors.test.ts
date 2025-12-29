@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { pickVictoryProject } from "../../../game/ai2/production/victory.js";
 import { pickEconomyBuilding } from "../../../game/ai2/production/economy.js";
+import { resolveInterleave } from "../../../game/ai2/production/defense-priority.js";
+import { getUnlockedUnits } from "../../../game/ai2/production/unlocks.js";
 import { getAiProfileV2 } from "../../../game/ai2/rules.js";
-import { AiVictoryGoal, BuildingType, City, EraId, GameState, ProjectId, TechId } from "../../../core/types.js";
+import { AiVictoryGoal, BuildingType, City, EraId, GameState, ProjectId, TechId, UnitType } from "../../../core/types.js";
 
 function makeCity(overrides: Partial<City> = {}): City {
     return {
@@ -73,5 +75,21 @@ describe("production selectors", () => {
         const build = pickEconomyBuilding(state, "p1", city, "ScholarKingdoms");
 
         expect(build).toEqual({ type: "Building", id: BuildingType.StoneWorkshop });
+    });
+});
+
+describe("production helpers", () => {
+    it("unlocks army units when DrilledRanks is researched", () => {
+        const unlocked = getUnlockedUnits([TechId.DrilledRanks]);
+        expect(unlocked).toContain(UnitType.ArmySpearGuard);
+        expect(unlocked).toContain(UnitType.ArmyBowGuard);
+        expect(unlocked).not.toContain(UnitType.SpearGuard);
+        expect(unlocked).not.toContain(UnitType.BowGuard);
+    });
+
+    it("resolves interleave deterministically per city index", () => {
+        const state = makeBaseState({ turn: 1 });
+        const shouldDefend = resolveInterleave(state, "p1", 0);
+        expect(shouldDefend).toBe(true);
     });
 });

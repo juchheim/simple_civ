@@ -7,8 +7,8 @@ import { GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../cor
 describe("Titan Stats & Mechanics", () => {
     it("should have correct Titan stats (as defined in core/constants)", () => {
         const titan = UNITS[UnitType.Titan];
-        expect(titan.def).toBe(12);
-        expect(titan.hp).toBe(35);
+        expect(titan.def).toBe(15);
+        expect(titan.hp).toBe(45);
         expect(titan.atk).toBe(20);
     });
 

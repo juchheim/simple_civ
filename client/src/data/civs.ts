@@ -13,7 +13,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "ForgeClans",
         title: "Forge Clans",
         summary: "Industrial powerhouse with strong production and military might.",
-        perk: "+1 Prod/Hill (Capital) • 20% cheaper military • +2 Atk from cities with 2+ Hills • +1 Atk per Engine tech",
+        perk: "+1 Prod/Hill (Capital) • 20% cheaper military • +2 Atk if produced in a city with 2+ Hills • +1 Atk per Engine tech",
         color: "#f97316",
     },
     {
@@ -34,7 +34,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "AetherianVanguard",
         title: "Aetherian Vanguard",
         summary: "Gains strength through combat and can summon the legendary Titan.",
-        perk: "+1 Prod with garrison • +1 Defense (all units) • Science on kills • +1 Move after Titan's Core • Unique: Titan",
+        perk: "+1 Prod in cities with a garrisoned unit • +1 Defense (all units) • Science on kills • +1 Move after Titan's Core • Unique: Titan",
         color: "#9333ea",
     },
     {
@@ -48,7 +48,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "JadeCovenant",
         title: "Jade Covenant",
         summary: "Masters of growth and population-based power.",
-        perk: "+2 Food/city • +1 Atk/Def per 16 pop • 15% faster growth • 20% cheaper Settlers • Settlers: +2 Def, 2 Move",
+        perk: "+2 Food/city • +1 Atk/Def per 16 pop • 15% faster growth • 20% cheaper Settlers (+2 Def, 2 Move) • Nature's Wrath: Enemies in your territory take 1 damage/turn",
         color: "#0f9d58",
     },
 ];

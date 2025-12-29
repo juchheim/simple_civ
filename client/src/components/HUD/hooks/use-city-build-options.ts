@@ -22,6 +22,7 @@ const UNIT_OPTIONS: BuildOption<UnitType>[] = [
     { id: UnitType.ArmyRiders, name: "Army Riders" },
     { id: UnitType.Lorekeeper, name: "Lorekeeper" },
     { id: UnitType.Skiff, name: "Skiff" },
+    { id: UnitType.Trebuchet, name: "Trebuchet" },
     { id: UnitType.Settler, name: "Settler" },
     // v6.0: Aether Era units
     { id: UnitType.Landship, name: "Landship" },

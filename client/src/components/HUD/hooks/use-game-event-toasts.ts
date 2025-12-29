@@ -3,6 +3,14 @@ import { GameState, HistoryEventType, BuildingType, ProjectId } from "@simple-ci
 import { Toast } from "../../Toast";
 
 /**
+ * Converts camelCase civ names to readable format with spaces.
+ * e.g., "JadeCovenant" → "Jade Covenant", "AetherianVanguard" → "Aetherian Vanguard"
+ */
+function formatCivName(civName: string): string {
+    return civName.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+/**
  * Detects important game events from history and current state to notify the player via toasts.
  * 
  * Events detected:
@@ -92,7 +100,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                     const count = capitalCountsRef.current[event.playerId];
                     newToasts.push({
                         id: `capital-capture-${event.playerId}-${event.data.cityId}-${Date.now()}`,
-                        message: `${otherPlayer.civName} captured ${event.data.cityName || "a capital"}! (${count} capital${count !== 1 ? "s" : ""})`,
+                        message: `${formatCivName(otherPlayer.civName)} captured ${event.data.cityName || "a capital"}! (${count} capital${count !== 1 ? "s" : ""})`,
                         icon: "🏛️",
                         duration: 5000,
                     });
@@ -102,7 +110,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                 if (event.type === HistoryEventType.CityRazed) {
                     newToasts.push({
                         id: `city-razed-${event.playerId}-${event.data.cityId}-${Date.now()}`,
-                        message: `${otherPlayer.civName} razed ${event.data.cityName || "a city"}!`,
+                        message: `${formatCivName(otherPlayer.civName)} razed ${event.data.cityName || "a city"}!`,
                         icon: "🔥",
                         duration: 5000,
                     });
@@ -113,7 +121,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                     const eraName = event.data.era === "Banner" ? "Banner" : event.data.era === "Engine" ? "Engine" : "Hearth";
                     newToasts.push({
                         id: `era-${event.playerId}-${event.data.era}-${Date.now()}`,
-                        message: `${otherPlayer.civName} entered the ${eraName} Era`,
+                        message: `${formatCivName(otherPlayer.civName)} entered the ${eraName} Era`,
                         icon: "📜",
                         duration: 4000,
                     });
@@ -123,7 +131,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                 if (event.type === HistoryEventType.PeaceMade && event.data.targetId === playerId) {
                     newToasts.push({
                         id: `peace-accepted-${event.playerId}-${Date.now()}`,
-                        message: `${otherPlayer.civName} accepted your peace offer!`,
+                        message: `${formatCivName(otherPlayer.civName)} accepted your peace offer!`,
                         icon: "🕊️",
                         duration: 5000,
                     });
@@ -135,7 +143,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                     if (buildId === BuildingType.TitansCore) {
                         newToasts.push({
                             id: `titans-core-complete-${event.playerId}-${Date.now()}`,
-                            message: `${otherPlayer.civName} completed Titan's Core! The Titan has been summoned!`,
+                            message: `${formatCivName(otherPlayer.civName)} completed Titan's Core! The Titan has been summoned!`,
                             icon: "⚙️",
                             duration: 5000,
                         });
@@ -143,7 +151,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
                     } else if (buildId === BuildingType.JadeGranary) {
                         newToasts.push({
                             id: `jade-granary-complete-${event.playerId}-${Date.now()}`,
-                            message: `${otherPlayer.civName} completed Jade Granary!`,
+                            message: `${formatCivName(otherPlayer.civName)} completed Jade Granary!`,
                             icon: "🌾",
                             duration: 5000,
                         });
@@ -173,7 +181,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
             if (buildingTitansCore && !prevState.buildingTitansCore && !completedTitansCore) {
                 newToasts.push({
                     id: `titans-core-start-${otherPlayer.id}-${Date.now()}`,
-                    message: `${otherPlayer.civName} has begun construction of Titan's Core`,
+                    message: `${formatCivName(otherPlayer.civName)} has begun construction of Titan's Core`,
                     icon: "⚙️",
                     duration: 5000,
                 });
@@ -192,7 +200,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
             if (buildingJadeGranary && !prevState.buildingJadeGranary && !completedJadeGranary) {
                 newToasts.push({
                     id: `jade-granary-start-${otherPlayer.id}-${Date.now()}`,
-                    message: `${otherPlayer.civName} has begun construction of Jade Granary`,
+                    message: `${formatCivName(otherPlayer.civName)} has begun construction of Jade Granary`,
                     icon: "🌾",
                     duration: 5000,
                 });
@@ -226,7 +234,7 @@ export function useGameEventToasts(gameState: GameState | null, playerId: string
             if (isNowEliminated && !wasEliminated) {
                 newToasts.push({
                     id: `civ-defeated-${otherPlayer.id}-${Date.now()}`,
-                    message: `${otherPlayer.civName} has been eliminated!`,
+                    message: `${formatCivName(otherPlayer.civName)} has been eliminated!`,
                     icon: "💀",
                     duration: 5000,
                 });

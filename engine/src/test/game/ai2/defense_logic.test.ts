@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GameState, PlayerPhase, DiplomacyState, UnitType, TechId } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
-import { coordinateDefensiveFocusFire, runDefensiveRingCombat, positionDefensiveRing, sendMutualDefenseReinforcements } from "../../../game/ai2/defense.js";
+import { coordinateDefensiveFocusFire, defendCitiesV2, runDefensiveRingCombat, positionDefensiveRing, sendMutualDefenseReinforcements } from "../../../game/ai2/defense.js";
+import { isPerimeterCity } from "../../../game/ai2/defense-perimeter.js";
 import { shouldPrioritizeDefense } from "../../../game/ai2/production.js";
 
 function baseState(): GameState {
@@ -144,6 +145,55 @@ describe("AI Defense Logic (v7.2)", () => {
             if (e1) {
                 expect(e1.hp).toBeLessThan(10);
             }
+        });
+    });
+
+    describe("isPerimeterCity", () => {
+        it("classifies far cities as interior when closer cities exist", () => {
+            const state = baseState();
+            state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+            state.cities = [
+                mkCity("p1", "c1", 0, 0, { capital: true }),
+                mkCity("p1", "c2", 0, 1),
+                mkCity("p1", "c3", 0, 20),
+                mkCity("p1", "c4", 0, 21),
+            ];
+            state.units = [mkUnit("p2", "e1", UnitType.SpearGuard, 0, 22)];
+
+            const nearPerimeter = isPerimeterCity(state, state.cities[3], "p1");
+            const farInterior = isPerimeterCity(state, state.cities[0], "p1");
+
+            expect(nearPerimeter).toBe(true);
+            expect(farInterior).toBe(false);
+        });
+    });
+
+    describe("defendCitiesV2", () => {
+        it("swaps a ranged unit into the capital when enemy ranged is nearby", () => {
+            const state = baseState();
+            state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+            state.cities = [mkCity("p1", "cap", 0, 0, { capital: true })];
+            state.units = [
+                mkUnit("p1", "g1", UnitType.SpearGuard, 0, 0),
+                mkUnit("p1", "r1", UnitType.BowGuard, 1, 0),
+                mkUnit("p2", "e1", UnitType.BowGuard, 0, 4),
+            ];
+            state.units[0].movesLeft = 1;
+            state.units[1].movesLeft = 1;
+            state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
+
+            for (let q = -2; q <= 2; q++) {
+                for (let r = -2; r <= 2; r++) {
+                    state.map.tiles.push({ coord: { q, r }, terrain: "Plains", overlays: [] } as any);
+                }
+            }
+
+            const after = defendCitiesV2(state, "p1");
+            const g1 = after.units.find(u => u.id === "g1")!;
+            const r1 = after.units.find(u => u.id === "r1")!;
+
+            expect(r1.coord).toEqual({ q: 0, r: 0 });
+            expect(g1.coord).not.toEqual({ q: 0, r: 0 });
         });
     });
 
