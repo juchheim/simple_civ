@@ -6,7 +6,7 @@
  * 3. Lightweight Pre-Validation - O(1) checks before expensive tryAction
  */
 
-import { Action, GameState, HexCoord, TerrainType, UnitDomain, Unit, Tile } from "../../../core/types.js";
+import { Action, GameState, HexCoord, TerrainType, UnitDomain, Unit, UnitType, Tile } from "../../../core/types.js";
 import { TERRAIN, UNITS } from "../../../core/constants.js";
 import { hexDistance, hexEquals, hexToString, hexLine } from "../../../core/hex.js";
 
@@ -222,14 +222,12 @@ export function canAttemptAttack(
     playerId: string,
     attacker: Unit,
     targetId: string,
-    targetType: "Unit" | "City"
+    targetType: "Unit" | "City",
+    fromCoord: HexCoord | undefined = undefined
 ): boolean {
     // If context not initialized (e.g., direct test calls), skip validation
-    if (!contextInitialized) return true;
-
-    // Check 1: Already failed this turn
-    const attackAction = { type: "Attack" as const, playerId, attackerId: attacker.id, targetId, targetType };
-    if (hasActionFailed(attackAction)) return false;
+    // derived source
+    const source = fromCoord || attacker.coord;
 
     // Check 2: Unit state checks
     if (attacker.hasAttacked) return false;
@@ -243,6 +241,8 @@ export function canAttemptAttack(
     if (targetType === "Unit") {
         const defender = state.units.find(u => u.id === targetId);
         if (!defender) return false;
+        if (UNITS[defender.type].domain === UnitDomain.Air) return false;
+        if (attacker.type === UnitType.Trebuchet) return false;
         targetCoord = defender.coord;
     } else {
         const city = state.cities.find(c => c.id === targetId);
@@ -250,15 +250,59 @@ export function canAttemptAttack(
         targetCoord = city.coord;
     }
 
-    const dist = hexDistance(attacker.coord, targetCoord);
+    const dist = hexDistance(source, targetCoord);
     if (dist > stats.rng) return false;
 
     // Check 4: Line of sight (only if range > 1, melee doesn't need LoS check)
-    if (stats.rng > 1 && !hasLineOfSight(attacker.coord, targetCoord)) {
+    // Note: LoS check requires tile lookup which relies on context or manual tile finding.
+    // hasLineOfSight handles missing tileLookup by returning true (permissive).
+    if (stats.rng > 1 && !hasLineOfSight(source, targetCoord)) {
         return false;
     }
 
+    // If context not initialized, we can't check failedActions or complex reservations
+    if (!contextInitialized) return true;
+
+    const attackAction = { type: "Attack" as const, playerId, attackerId: attacker.id, targetId, targetType };
+    if (hexEquals(source, attacker.coord) && hasActionFailed(attackAction)) return false;
+
     return true;
+}
+
+// ============================================================================
+// Planning Wrappers (Pure Validation)
+// ============================================================================
+
+/**
+ * Pure validation for planning MoveUnit actions.
+ * Checks ALL rules but DOES NOT mutate global validation state (no reservation side effects).
+ * Use this during planning phases.
+ */
+export function canPlanMove(
+    state: GameState,
+    playerId: string,
+    unit: Unit,
+    to: HexCoord
+): boolean {
+    // Rely on canAttemptMove which is already side-effect free 
+    // (it only READS from reservedTiles/failedActions, never writes).
+    return canAttemptMove(state, playerId, unit, to);
+}
+
+/**
+ * Pure validation for planning Attack actions.
+ * Checks ALL rules but DOES NOT mutate global validation state.
+ * Use this during planning phases.
+ */
+export function canPlanAttack(
+    state: GameState,
+    playerId: string,
+    attacker: Unit,
+    targetId: string,
+    targetType: "Unit" | "City",
+    fromCoord?: HexCoord
+): boolean {
+    return canAttemptAttack(state, playerId, attacker, targetId, targetType, fromCoord);
 }
 
 /**
@@ -321,4 +365,3 @@ export function updateOccupancyAfterMove(unit: Unit, from: HexCoord, to: HexCoor
     // Also reserve the destination tile
     reserveTile(to);
 }
-

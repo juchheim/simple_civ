@@ -1,4 +1,5 @@
 import { BuildingType, GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
+import { TacticalTuning } from "./tuning-types.js";
 
 export type CivName =
     | "ForgeClans"
@@ -86,6 +87,7 @@ export type CivAiProfileV2 = {
     build: AiBuildProfileV2;
     tactics: AiTacticsProfileV2;
     titan: AiTitanProfileV2;
+    tacticalTuning?: TacticalTuning; // Optional override for low-level constants
 };
 
 const baseProfile: CivAiProfileV2 = {
@@ -154,6 +156,11 @@ const baseProfile: CivAiProfileV2 = {
         finisher: 0.7,
         momentum: 0.65,
     },
+    // tacticalTuning default is handled by getTacticalTuning merging with DEFAULT_TUNING
+};
+
+type DeepPartial<T> = {
+    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
 type CivAiProfilePatch = {
@@ -175,6 +182,7 @@ type CivAiProfilePatch = {
     };
     tactics?: Partial<AiTacticsProfileV2>;
     titan?: Partial<AiTitanProfileV2>;
+    tacticalTuning?: DeepPartial<TacticalTuning>;
 };
 
 function mergeProfile(base: CivAiProfileV2, patch: CivAiProfilePatch): CivAiProfileV2 {
@@ -199,7 +207,34 @@ function mergeProfile(base: CivAiProfileV2, patch: CivAiProfilePatch): CivAiProf
         },
         tactics: { ...base.tactics, ...(patch.tactics ?? {}) },
         titan: { ...base.titan, ...(patch.titan ?? {}) },
+        tacticalTuning: mergeTacticalTuning(base.tacticalTuning, patch.tacticalTuning),
     };
+}
+
+function mergeTacticalTuning(base: TacticalTuning | undefined, patch: DeepPartial<TacticalTuning> | undefined): TacticalTuning | undefined {
+    if (!patch) return base;
+    if (!base) {
+        // If no base, we can't fully form a TacticalTuning unless patch is complete.
+        // But here we return undefined because the consumer (getTacticalTuning) uses DEFAULT_TUNING as the real base.
+        // So we interpret this as "partial overrides to be applied later". 
+        // Effectively, we just return the patch casted? 
+        // Actually, CivAiProfileV2.tacticalTuning is optional.
+        // If we store it as optional, we can just return the merged partial.
+        // We'll treat the stored profile.tacticalTuning as "overrides" rather than "complete tuning".
+        // Typescript expects TacticalTuning. Let's make the profile field optional. (Done above).
+        return patch as any;
+    }
+
+    // Deep merge known sections
+    return {
+        ...base,
+        ...patch,
+        army: { ...base.army, ...(patch.army ?? {}) },
+        wait: { ...base.wait, ...(patch.wait ?? {}) },
+        defense: { ...base.defense, ...(patch.defense ?? {}) },
+        ring: { ...base.ring, ...(patch.ring ?? {}) },
+        moveAttack: { ...base.moveAttack, ...(patch.moveAttack ?? {}) },
+    } as TacticalTuning;
 }
 
 const profiles: Record<string, CivAiProfileV2> = {

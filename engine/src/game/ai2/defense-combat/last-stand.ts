@@ -1,193 +1,300 @@
-import { DiplomacyState, GameState } from "../../../core/types.js";
+import { DiplomacyState, GameState, Unit } from "../../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../../ai/shared/actions.js";
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { aiInfo } from "../../ai/debug-logging.js";
+import { scoreAttackOption } from "../attack-order/scoring.js";
+import { canPlanAttack, isGarrisoned } from "../attack-order/shared.js";
 import { isMilitary } from "../unit-roles.js";
+import { DefenseAttackPlan } from "../defense-actions.js";
 
-/**
- * v8.1: Last Stand Combat
- * Forces cornered units to attack instead of passively dying.
- * 
- * A unit is considered "cornered" if:
- * 1. It has nearby enemies (within range 2)
- * 2. It cannot retreat to a friendly city (no path or blocked)
- * 3. It hasn't attacked yet this turn
- * 
- * Cornered units attack the best available target regardless of normal score thresholds.
- * Better to go down fighting than to die passively.
- */
-export function runLastStandAttacks(state: GameState, playerId: string): GameState {
-    let next = state;
 
-    // Find enemies at war with us
-    const enemies = next.players.filter(p =>
+
+export function planLastStandAttacks(
+    state: GameState,
+    playerId: string,
+    reservedUnitIds: Set<string>,
+    reservedCoords: Set<string>
+): DefenseAttackPlan[] {
+    const plans: DefenseAttackPlan[] = [];
+
+    const enemies = state.players.filter(p =>
         !p.isEliminated &&
         p.id !== playerId &&
-        next.diplomacy[playerId]?.[p.id] === DiplomacyState.War
+        state.diplomacy[playerId]?.[p.id] === DiplomacyState.War
     );
-    if (enemies.length === 0) return next;
+    if (enemies.length === 0) return plans;
     const enemyIds = new Set(enemies.map(e => e.id));
 
-    // Get friendly cities for retreat check
-    const myCities = next.cities.filter(c => c.ownerId === playerId);
-
-    // Find units that might be cornered
-    const militaryUnits = next.units.filter(u =>
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    // Note: garrisoned units (on city tile) cannot attack, so exclude them
+    const militaryUnits = state.units.filter(u =>
         u.ownerId === playerId &&
         isMilitary(u) &&
         !u.hasAttacked &&
-        u.movesLeft > 0
+        u.movesLeft > 0 &&
+        !reservedUnitIds.has(u.id) &&
+        !isGarrisoned(u, state, playerId) // Garrisoned units can't attack
     );
 
     for (const unit of militaryUnits) {
-        const liveUnit = next.units.find(u => u.id === unit.id);
+        const liveUnit = state.units.find(u => u.id === unit.id);
         if (!liveUnit || liveUnit.hasAttacked) continue;
 
-        // Check if there are nearby enemies
-        const nearbyEnemies = next.units.filter(u =>
+        const nearbyEnemies = state.units.filter(u =>
             enemyIds.has(u.ownerId) &&
             isMilitary(u) &&
             hexDistance(u.coord, liveUnit.coord) <= 2
         );
 
-        if (nearbyEnemies.length === 0) continue; // Not threatened
+        if (nearbyEnemies.length === 0) continue;
 
-        // Check if unit can escape to a friendly city
-        const canRetreat = checkCanRetreat(next, liveUnit, myCities, enemyIds);
+        const canRetreat = checkCanRetreat(state, liveUnit, myCities, enemyIds);
+        if (canRetreat) continue;
 
-        if (canRetreat) continue; // Can still escape, normal logic applies
-
-        // Unit is cornered! Force an attack on any available target
-        const range = UNITS[liveUnit.type].rng ?? 1;
         const attackableEnemies = nearbyEnemies.filter(e =>
-            hexDistance(liveUnit.coord, e.coord) <= range
+            canPlanAttack(state, liveUnit, "Unit", e.id)
         );
 
         if (attackableEnemies.length === 0) {
-            // Can't attack directly, but maybe we CAN move to attack
-            // Try to move to a tile that puts an enemy in range
             const neighbors = getNeighbors(liveUnit.coord);
             for (const neighbor of neighbors) {
-                // Check if tile is unoccupied and not a city
-                const occupied = next.units.some(u => hexEquals(u.coord, neighbor));
-                const isCity = next.cities.some(c => hexEquals(c.coord, neighbor));
+                const occupied = state.units.some(u => hexEquals(u.coord, neighbor));
+                const isCity = state.cities.some(c => hexEquals(c.coord, neighbor));
                 if (occupied || isCity) continue;
+                const neighborKey = `${neighbor.q},${neighbor.r}`;
+                if (reservedCoords.has(neighborKey)) continue;
 
-                // Check if moving here puts an enemy in range
                 const enemyInRange = nearbyEnemies.find(e =>
-                    hexDistance(neighbor, e.coord) <= range
+                    canPlanAttack(state, liveUnit, "Unit", e.id, neighbor)
                 );
                 if (!enemyInRange) continue;
 
-                // Move and attack!
-                const moveResult = tryAction(next, {
-                    type: "MoveUnit",
+                const preview = getCombatPreviewUnitVsUnit(state, { ...liveUnit, coord: neighbor }, enemyInRange);
+                const dmg = preview.estimatedDamage.avg;
+                const ret = preview.returnDamage?.avg ?? 0;
+                const scored = scoreAttackOption({
+                    state,
                     playerId,
-                    unitId: liveUnit.id,
-                    to: neighbor
+                    attacker: { ...liveUnit, coord: neighbor },
+                    targetType: "Unit",
+                    target: enemyInRange,
+                    damage: dmg,
+                    returnDamage: ret
                 });
 
-                if (moveResult !== next) {
-                    next = moveResult;
-                    const movedUnit = next.units.find(u => u.id === liveUnit.id);
-                    const stillAlive = next.units.find(u => u.id === enemyInRange.id);
-
-                    if (movedUnit && !movedUnit.hasAttacked && stillAlive) {
-                        aiInfo(`[LAST STAND] ${playerId} ${movedUnit.type} moved and attacking ${stillAlive.type} (cornered, no escape)`);
-                        next = tryAction(next, {
-                            type: "Attack",
-                            playerId,
-                            attackerId: movedUnit.id,
-                            targetId: stillAlive.id,
-                            targetType: "Unit"
-                        });
-                    }
-                    break;
-                }
+                plans.push({
+                    intent: "move-attack",
+                    unitId: liveUnit.id,
+                    score: scored.score,
+                    wouldKill: scored.wouldKill,
+                    plan: {
+                        unit: liveUnit,
+                        moveTo: neighbor,
+                        targetId: enemyInRange.id,
+                        targetType: "Unit",
+                        exposureDamage: 0,
+                        potentialDamage: dmg,
+                        wouldKill: scored.wouldKill,
+                        score: scored.score
+                    },
+                    reason: "last-stand-move-attack"
+                });
+                reservedUnitIds.add(liveUnit.id);
+                reservedCoords.add(neighborKey);
+                break;
             }
             continue;
         }
 
-        // Find best target (even at negative score - we're desperate!)
         let bestTarget: typeof attackableEnemies[0] | null = null;
         let bestScore = -Infinity;
+        let bestPreview: ReturnType<typeof getCombatPreviewUnitVsUnit> | null = null;
 
         for (const enemy of attackableEnemies) {
-            const preview = getCombatPreviewUnitVsUnit(next, liveUnit, enemy);
+            const preview = getCombatPreviewUnitVsUnit(state, liveUnit, enemy);
             const dmg = preview.estimatedDamage.avg;
             const ret = preview.returnDamage?.avg ?? 0;
-
-            // Scoring for last stand: prioritize damage dealt and kills
-            const wouldKill = dmg >= enemy.hp ? 100 : 0;
-            const damageDealt = dmg * 3; // Value damage highly
-            const damageTaken = ret * 1; // Deprioritize damage taken (we're dying anyway)
-
-            const score = wouldKill + damageDealt - damageTaken;
-
-            if (score > bestScore) {
-                bestScore = score;
+            const scored = scoreAttackOption({
+                state,
+                playerId,
+                attacker: liveUnit,
+                targetType: "Unit",
+                target: enemy,
+                damage: dmg,
+                returnDamage: ret
+            });
+            if (scored.score > bestScore) {
+                bestScore = scored.score;
                 bestTarget = enemy;
+                bestPreview = preview;
             }
         }
 
-        if (bestTarget) {
-            aiInfo(`[LAST STAND] ${playerId} ${liveUnit.type} attacking ${bestTarget.type} (cornered, no escape, score: ${bestScore.toFixed(0)})`);
-            next = tryAction(next, {
-                type: "Attack",
-                playerId,
-                attackerId: liveUnit.id,
-                targetId: bestTarget.id,
-                targetType: "Unit"
+        if (bestTarget && bestPreview) {
+            plans.push({
+                intent: "attack",
+                unitId: liveUnit.id,
+                score: bestScore,
+                wouldKill: bestPreview.estimatedDamage.avg >= bestTarget.hp,
+                plan: {
+                    attacker: liveUnit,
+                    targetId: bestTarget.id,
+                    targetType: "Unit",
+                    damage: bestPreview.estimatedDamage.avg,
+                    wouldKill: bestPreview.estimatedDamage.avg >= bestTarget.hp,
+                    score: bestScore,
+                    returnDamage: bestPreview.returnDamage?.avg ?? 0
+                },
+                reason: "last-stand-attack"
             });
+            reservedUnitIds.add(liveUnit.id);
         }
     }
 
-    return next;
+    return plans;
 }
 
 /**
  * Check if a unit can retreat to a friendly city.
+ * Uses bounded BFS with PESSIMISTIC terrain checking:
+ * - Terrain passability is always checked (mountains, water for land units)
+ * - Hidden/fog tiles are treated as BLOCKED (not passable like normal pathfinding)
+ * - Enemy units block tiles
+ * - Friendly units add cost but don't fully block
+ * 
  * Returns false if:
  * - No friendly cities exist
- * - All adjacent tiles are blocked by enemies
- * - Unit is effectively surrounded
+ * - No valid path to any city within MAX_RETREAT_RANGE tiles
+ * - Unit is effectively cornered
+ * 
+ * Note: Unlike normal pathfinding which is optimistic about fog, this is
+ * pessimistic - if we can't see it, we can't retreat through it.
  */
-function checkCanRetreat(
+export function checkCanRetreat(
     state: GameState,
-    unit: { coord: { q: number; r: number }, movesLeft: number },
+    unit: { coord: { q: number; r: number }, movesLeft: number, type?: string, ownerId?: string },
     myCities: Array<{ coord: { q: number; r: number } }>,
     enemyIds: Set<string>
 ): boolean {
     if (myCities.length === 0) return false;
 
-    // Find the nearest friendly city
-    const nearestCity = myCities.reduce((nearest, city) => {
-        const dist = hexDistance(unit.coord, city.coord);
-        const nearestDist = hexDistance(unit.coord, nearest.coord);
-        return dist < nearestDist ? city : nearest;
-    }, myCities[0]);
+    // Find all cities within potential retreat range
+    const MAX_RETREAT_RANGE = 8;
+    const citiesInRange = myCities.filter(c =>
+        hexDistance(unit.coord, c.coord) <= MAX_RETREAT_RANGE
+    );
 
-    // Check if all adjacent tiles are blocked or lead away from safety
-    const neighbors = getNeighbors(unit.coord);
-    let validEscapeRoutes = 0;
+    // If no cities in range, unit is too far from safety
+    if (citiesInRange.length === 0) return false;
 
-    for (const neighbor of neighbors) {
-        // Check if tile is occupied by enemy
-        const enemyOnTile = state.units.some(u =>
-            hexEquals(u.coord, neighbor) && enemyIds.has(u.ownerId)
-        );
-        if (enemyOnTile) continue;
+    // If already at or next to a city, can retreat
+    const nearestDist = Math.min(...citiesInRange.map(c => hexDistance(unit.coord, c.coord)));
+    if (nearestDist <= 1) return true;
 
-        // Check if this tile gets us closer to a city
-        const currentDist = hexDistance(unit.coord, nearestCity.coord);
-        const newDist = hexDistance(neighbor, nearestCity.coord);
-        if (newDist < currentDist) {
-            validEscapeRoutes++;
+    // Find the actual unit for pathfinding (need type info for domain checks)
+    const liveUnit = state.units.find(u =>
+        hexEquals(u.coord, unit.coord) && u.ownerId && !enemyIds.has(u.ownerId)
+    );
+    if (!liveUnit) return false;
+
+    // Build visibility set for this player
+    const visibilitySet = new Set(state.visibility[liveUnit.ownerId] || []);
+
+    // Build tile lookup map for O(1) access
+    const tileByKey = new Map<string, { terrain: string }>();
+    for (const tile of state.map.tiles) {
+        tileByKey.set(`${tile.coord.q},${tile.coord.r}`, tile);
+    }
+
+    // Build unit lookup for blocking checks
+    const unitByCoord = new Map<string, { ownerId: string }>();
+    for (const u of state.units) {
+        if (u.id !== liveUnit.id) {
+            unitByCoord.set(`${u.coord.q},${u.coord.r}`, u);
         }
     }
 
-    // If no valid escape routes leading toward safety, we're cornered
-    return validEscapeRoutes > 0;
+    // Build city coord set for retreat targets
+    const cityCoords = new Set(citiesInRange.map(c => `${c.coord.q},${c.coord.r}`));
+    // Also include neighbors of cities as valid retreat destinations
+    for (const city of citiesInRange) {
+        for (const neighbor of getNeighbors(city.coord)) {
+            cityCoords.add(`${neighbor.q},${neighbor.r}`);
+        }
+    }
+
+    // Get unit domain for terrain checks
+    const unitStats = UNITS[liveUnit.type];
+    const isLandUnit = unitStats?.domain === "Land";
+    const isNavalUnit = unitStats?.domain === "Naval";
+
+    /**
+     * Check if a tile is passable for retreat (PESSIMISTIC)
+     * - Hidden tiles are BLOCKED (unlike normal pathfinding which is optimistic)
+     * - Enemy units block
+     * - Mountains/water block land units
+     */
+    const isPassable = (coord: { q: number; r: number }): boolean => {
+        const key = `${coord.q},${coord.r}`;
+        const tile = tileByKey.get(key);
+
+        // No tile data = off map or unknown = blocked
+        if (!tile) return false;
+
+        // PESSIMISTIC: Hidden tiles are not passable for retreat calculations
+        // We can only retreat through tiles we can see
+        if (!visibilitySet.has(key)) return false;
+
+        // Enemy unit on tile = blocked
+        const unitOnTile = unitByCoord.get(key);
+        if (unitOnTile && enemyIds.has(unitOnTile.ownerId)) return false;
+
+        // Check terrain based on unit domain
+        if (isLandUnit) {
+            if (tile.terrain === "Coast" || tile.terrain === "DeepSea") return false;
+            if (tile.terrain === "Mountain") return false;
+        } else if (isNavalUnit) {
+            if (tile.terrain !== "Coast" && tile.terrain !== "DeepSea") return false;
+        }
+
+        return true;
+    };
+
+    // BFS to find if we can reach any city or city-adjacent tile
+    const visited = new Set<string>();
+    const queue: Array<{ coord: { q: number; r: number }; depth: number }> = [];
+    const startKey = `${unit.coord.q},${unit.coord.r}`;
+    visited.add(startKey);
+    queue.push({ coord: unit.coord, depth: 0 });
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+
+        // Check if we've reached a city or city-adjacent tile
+        const currentKey = `${current.coord.q},${current.coord.r}`;
+        if (cityCoords.has(currentKey) && current.depth > 0) {
+            // Found a path to safety!
+            return true;
+        }
+
+        // Don't search beyond max range
+        if (current.depth >= MAX_RETREAT_RANGE) continue;
+
+        // Explore neighbors
+        for (const neighbor of getNeighbors(current.coord)) {
+            const neighborKey = `${neighbor.q},${neighbor.r}`;
+            if (visited.has(neighborKey)) continue;
+            visited.add(neighborKey);
+
+            if (isPassable(neighbor)) {
+                queue.push({ coord: neighbor, depth: current.depth + 1 });
+            }
+        }
+    }
+
+    // No path to any city found - unit is cornered
+    return false;
 }
+

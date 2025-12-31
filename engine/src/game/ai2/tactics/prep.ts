@@ -1,6 +1,5 @@
 import { GameState, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
-import { identifyBattleGroups, coordinateGroupAttack } from "../../ai/units/battle-groups.js";
 import { aidVulnerableUnits } from "../../ai/units/defense.js";
 import { updateArmyPhase, type ArmyPhase } from "../army-phase.js";
 import { updateTacticalFocus } from "../attack-order.js";
@@ -37,10 +36,8 @@ export function runTacticsPreparation(state: GameState, playerId: string): Tacti
     const currentArmyPhase = armyPhaseResult.phase;
     aiInfo(`[ARMY PHASE] ${playerId} is in phase: ${currentArmyPhase}`);
 
-    const battleGroups = identifyBattleGroups(next, playerId);
-    for (const group of battleGroups) {
-        next = coordinateGroupAttack(next, playerId, group);
-    }
+    // Battle-group attacks are now planned through the unified tactical planner
+    // instead of being executed directly here (v1.0.3 refactor)
 
     next = updateTacticalFocus(next, playerId);
 

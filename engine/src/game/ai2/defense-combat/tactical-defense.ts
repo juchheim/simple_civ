@@ -1,234 +1,317 @@
-import { GameState } from "../../../core/types.js";
-import { hexDistance, getNeighbors } from "../../../core/hex.js";
+import { Action, GameState, Unit } from "../../../core/types.js";
+import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
-import { tryAction } from "../../ai/shared/actions.js";
 import { aiInfo } from "../../ai/debug-logging.js";
-import { assessDefenseSituation, DefenseSituation } from "../defense-situation.js";
+import { assessDefenseSituation, type DefenseAction, type DefenseSituation } from "../defense-situation.js";
+import { type MoveAttackPlan, type PlannedAttack } from "../attack-order.js";
+import { scoreDefenseAttackPreview } from "../attack-order/scoring.js";
+import { canPlanAttack, isGarrisoned } from "../attack-order/shared.js";
+
+type AttackAction = Extract<Action, { type: "Attack" }>;
+
+export type TacticalDefenseAction =
+    | {
+        intent: "attack";
+        unitId: string;
+        action: AttackAction;
+        score: number;
+        wouldKill: boolean;
+        plan: PlannedAttack;
+        cityId: string;
+        reason: DefenseAction;
+    }
+    | {
+        intent: "move-attack";
+        unitId: string;
+        score: number;
+        plan: MoveAttackPlan;
+        cityId: string;
+        reason: DefenseAction;
+    };
+
+export type TacticalDefensePlan = Array<{
+    situation: DefenseSituation;
+    actions: TacticalDefenseAction[];
+}>;
 
 /**
  * v8.0: Tactical Defense System
  * 
- * Uses defense situation assessment to execute intelligent defensive actions:
+ * Uses defense situation assessment to plan intelligent defensive actions:
  * - Intercept: Melee units pursue ranged enemies
  * - Focus-fire: Coordinate multiple units on weakest enemy
  * - Sortie: Counter-attack when we have advantage
  */
-export function runTacticalDefense(state: GameState, playerId: string): GameState {
-    let next = state;
+export function planTacticalDefense(state: GameState, playerId: string): TacticalDefensePlan {
+    return assessDefenseSituation(state, playerId)
+        .filter(situation => situation.threatLevel !== "none")
+        .map(situation => {
+            let actions: TacticalDefenseAction[] = [];
+            switch (situation.recommendedAction) {
+                case "intercept":
+                    actions = planInterceptActions(state, playerId, situation);
+                    break;
+                case "focus-fire":
+                    actions = planFocusFireActions(state, playerId, situation);
+                    break;
+                case "sortie":
+                    actions = planSortieActions(state, playerId, situation);
+                    break;
+                case "retreat":
+                case "hold":
+                default:
+                    actions = [];
+                    break;
+            }
 
-    // Assess situation for all cities
-    const situations = assessDefenseSituation(next, playerId);
+            return { situation, actions };
+        });
+}
 
-    // Process each city based on its situation
-    for (const situation of situations) {
-        if (situation.threatLevel === "none") continue;
+function buildDefenseAttackAction(
+    state: GameState,
+    playerId: string,
+    attacker: Unit,
+    target: Unit,
+    city: DefenseSituation["city"],
+    reason: DefenseAction
+): TacticalDefenseAction {
+    const scored = scoreDefenseAttackPreview({
+        state,
+        playerId,
+        attacker,
+        target,
+        cityCoord: city.coord
+    });
+    return {
+        intent: "attack",
+        unitId: attacker.id,
+        action: {
+            type: "Attack",
+            playerId,
+            attackerId: attacker.id,
+            targetId: target.id,
+            targetType: "Unit"
+        },
+        score: scored.score,
+        wouldKill: scored.wouldKill,
+        plan: {
+            attacker,
+            targetId: target.id,
+            targetType: "Unit",
+            damage: scored.damage,
+            wouldKill: scored.wouldKill,
+            score: scored.score,
+            returnDamage: scored.returnDamage
+        },
+        cityId: city.id,
+        reason
+    };
+}
 
-        aiInfo(`[TACTICAL] ${situation.city.name}: ${situation.threatLevel} threat, recommending ${situation.recommendedAction}`);
+function buildDefenseMoveAttackAction(
+    state: GameState,
+    playerId: string,
+    attacker: Unit,
+    target: Unit,
+    moveTo: { q: number; r: number },
+    city: DefenseSituation["city"],
+    reason: DefenseAction
+): TacticalDefenseAction {
+    const scored = scoreDefenseAttackPreview({
+        state,
+        playerId,
+        attacker,
+        target,
+        cityCoord: city.coord
+    });
+    return {
+        intent: "move-attack",
+        unitId: attacker.id,
+        score: scored.score,
+        plan: {
+            unit: attacker,
+            moveTo,
+            targetId: target.id,
+            targetType: "Unit",
+            exposureDamage: 0,
+            potentialDamage: scored.damage,
+            wouldKill: scored.wouldKill,
+            score: scored.score
+        },
+        cityId: city.id,
+        reason
+    };
+}
 
-        switch (situation.recommendedAction) {
-            case "intercept":
-                next = executeIntercept(next, playerId, situation);
-                break;
-            case "focus-fire":
-                next = executeFocusFire(next, playerId, situation);
-                break;
-            case "sortie":
-                next = executeSortie(next, playerId, situation);
-                break;
-            case "retreat":
-                // Retreat handled by existing logic
-                break;
-            case "hold":
-            default:
-                // Just hold position
-                break;
+function findInterceptMoveTile(
+    state: GameState,
+    unit: Unit,
+    target: Unit
+): { q: number; r: number } | null {
+    const neighbors = getNeighbors(target.coord);
+    for (const neighbor of neighbors) {
+        const moveDist = hexDistance(unit.coord, neighbor);
+        if (moveDist !== 1) continue;
+        const tile = state.map.tiles.find(t => hexEquals(t.coord, neighbor));
+        if (!tile) continue;
+        if (state.units.some(u => hexEquals(u.coord, neighbor))) continue;
+
+        if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+            const isCity = state.cities.some(c => hexEquals(c.coord, neighbor));
+            const diplomacy = state.diplomacy?.[unit.ownerId]?.[tile.ownerId];
+            if (!isCity && diplomacy !== "War") continue;
         }
+
+        if (!canPlanAttack(state, unit, "Unit", target.id, neighbor)) continue;
+        return neighbor;
     }
 
-    return next;
+    return null;
 }
 
 /**
- * Execute intercept action: Melee units move toward and attack ranged enemies
+ * Plan intercept action: Melee units move toward and attack ranged enemies
  * v8.1: Only intercept if we can ACTUALLY attack this turn (move + attack)
  */
-function executeIntercept(state: GameState, playerId: string, situation: DefenseSituation): GameState {
-    let next = state;
+function planInterceptActions(state: GameState, playerId: string, situation: DefenseSituation): TacticalDefenseAction[] {
+    const actions: TacticalDefenseAction[] = [];
 
-    // Find ranged enemies threatening the city
     const rangedEnemies = situation.nearbyEnemies.filter(e => UNITS[e.type]?.rng > 1);
-    if (rangedEnemies.length === 0) return next;
+    if (rangedEnemies.length === 0) return actions;
 
-    // v8.1: Check if any enemies are close to city - if so, prioritize defending ring
     const enemiesNearCity = situation.nearbyEnemies.filter(e =>
         hexDistance(e.coord, situation.city.coord) <= 2
     );
     if (enemiesNearCity.length > 0) {
         aiInfo(`[INTERCEPT] Skipping intercept - ${enemiesNearCity.length} enemies near city, holding ring`);
-        return next; // Don't move ring defenders when city is actively threatened
+        return actions;
     }
 
-    // Sort by distance (closest first)
-    rangedEnemies.sort((a, b) =>
+    const sortedRanged = [...rangedEnemies].sort((a, b) =>
         hexDistance(a.coord, situation.city.coord) - hexDistance(b.coord, situation.city.coord)
     );
 
-    // Get melee units that can intercept
     const meleeUnits = situation.ringUnits.filter(u => {
-        const liveUnit = next.units.find(lu => lu.id === u.id);
-        if (!liveUnit || liveUnit.movesLeft <= 0) return false;
+        const liveUnit = state.units.find(lu => lu.id === u.id);
+        if (!liveUnit || liveUnit.movesLeft <= 0 || liveUnit.hasAttacked) return false;
+        // Skip garrisoned units - they cannot attack
+        if (isGarrisoned(liveUnit, state, playerId)) return false;
         return UNITS[liveUnit.type]?.rng === 1;
     });
 
-    for (const target of rangedEnemies) {
-        for (const melee of meleeUnits) {
-            const liveUnit = next.units.find(u => u.id === melee.id);
-            if (!liveUnit || liveUnit.movesLeft <= 0) continue;
+    const usedUnits = new Set<string>();
 
-            const dist = hexDistance(liveUnit.coord, target.coord);
-            if (dist === 1) {
-                // Can attack directly
-                const result = tryAction(next, {
-                    type: "Attack",
-                    playerId,
-                    attackerId: liveUnit.id,
-                    targetId: target.id,
-                    targetType: "Unit"
-                });
-                if (result !== next) {
-                    next = result;
-                    aiInfo(`[INTERCEPT] ${liveUnit.type} attacking ${target.type}`);
+    for (const target of sortedRanged) {
+        const liveTarget = state.units.find(u => u.id === target.id);
+        if (!liveTarget || liveTarget.hp <= 0) continue;
+
+        for (const melee of meleeUnits) {
+            if (usedUnits.has(melee.id)) continue;
+            const liveUnit = state.units.find(u => u.id === melee.id);
+            if (!liveUnit || liveUnit.movesLeft <= 0 || liveUnit.hasAttacked) continue;
+
+            const dist = hexDistance(liveUnit.coord, liveTarget.coord);
+            if (dist === 1 && canPlanAttack(state, liveUnit, "Unit", liveTarget.id)) {
+                actions.push(buildDefenseAttackAction(state, playerId, liveUnit, liveTarget, situation.city, "intercept"));
+                usedUnits.add(liveUnit.id);
+                break;
+            }
+
+            if (dist === 2 && liveUnit.movesLeft >= 1) {
+                const moveTo = findInterceptMoveTile(state, liveUnit, liveTarget);
+                if (moveTo) {
+                    actions.push(buildDefenseMoveAttackAction(state, playerId, liveUnit, liveTarget, moveTo, situation.city, "intercept"));
+                    usedUnits.add(liveUnit.id);
                     break;
                 }
-            } else if (dist === 2 && liveUnit.movesLeft >= 1) {
-                // v8.1: Only move if we can attack in the SAME turn (distance exactly 2)
-                // This prevents shuffling toward enemies we can't hit
-                const neighbors = getNeighbors(target.coord);
-                for (const neighbor of neighbors) {
-                    const moveDist = hexDistance(liveUnit.coord, neighbor);
-                    if (moveDist === 1) { // Must be exactly 1 step away
-                        const moveResult = tryAction(next, {
-                            type: "MoveUnit",
-                            playerId,
-                            unitId: liveUnit.id,
-                            to: neighbor
-                        });
-                        if (moveResult !== next) {
-                            next = moveResult;
-                            // Now try to attack
-                            const liveAfterMove = next.units.find(u => u.id === liveUnit.id);
-                            if (liveAfterMove && !liveAfterMove.hasAttacked) {
-                                const attackResult = tryAction(next, {
-                                    type: "Attack",
-                                    playerId,
-                                    attackerId: liveAfterMove.id,
-                                    targetId: target.id,
-                                    targetType: "Unit"
-                                });
-                                if (attackResult !== next) {
-                                    next = attackResult;
-                                    aiInfo(`[INTERCEPT] ${liveUnit.type} moved and attacked ${target.type}`);
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
             }
-            // v8.1: Removed else case - don't move toward enemies if we can't attack this turn
         }
     }
 
-    return next;
+    return actions;
 }
 
 /**
- * Execute focus-fire: Coordinate multiple units to eliminate single target
+ * Plan focus-fire: Coordinate multiple units to eliminate single target
  */
-function executeFocusFire(state: GameState, playerId: string, situation: DefenseSituation): GameState {
-    let next = state;
-
+function planFocusFireActions(state: GameState, playerId: string, situation: DefenseSituation): TacticalDefenseAction[] {
     const target = situation.focusTarget;
-    if (!target) return next;
+    if (!target) return [];
 
-    const liveTarget = next.units.find(u => u.id === target.id);
-    if (!liveTarget) return next;
+    const liveTarget = state.units.find(u => u.id === target.id);
+    if (!liveTarget) return [];
 
     aiInfo(`[FOCUS-FIRE] Targeting ${liveTarget.type} (HP: ${liveTarget.hp})`);
 
-    // Get all units that can attack the target
+    // Do NOT include garrison - garrisoned units cannot attack
     const attackers = [...situation.ringUnits];
-    if (situation.garrison) attackers.push(situation.garrison);
 
+    const actions: TacticalDefenseAction[] = [];
     for (const attacker of attackers) {
-        const liveAttacker = next.units.find(u => u.id === attacker.id);
-        const currentTarget = next.units.find(u => u.id === target.id);
+        const liveAttacker = state.units.find(u => u.id === attacker.id);
+        if (!liveAttacker || liveAttacker.movesLeft <= 0 || liveAttacker.hasAttacked) continue;
+        // Safety: explicitly skip garrisoned units (can't attack) - don't rely on ringUnits filtering
+        if (isGarrisoned(liveAttacker, state, playerId)) continue;
+        if (liveTarget.hp <= 0) break;
 
-        if (!liveAttacker || !currentTarget || liveAttacker.movesLeft <= 0) continue;
-        if (currentTarget.hp <= 0) break; // Target eliminated
-
-        const dist = hexDistance(liveAttacker.coord, currentTarget.coord);
-        const range = UNITS[liveAttacker.type]?.rng || 1;
-
-        if (dist <= range) {
-            const result = tryAction(next, {
-                type: "Attack",
-                playerId,
-                attackerId: liveAttacker.id,
-                targetId: currentTarget.id,
-                targetType: "Unit"
-            });
-            if (result !== next) {
-                next = result;
-                aiInfo(`[FOCUS-FIRE] ${liveAttacker.type} attacked ${currentTarget.type}`);
-            }
+        if (canPlanAttack(state, liveAttacker, "Unit", liveTarget.id)) {
+            actions.push(buildDefenseAttackAction(state, playerId, liveAttacker, liveTarget, situation.city, "focus-fire"));
         }
     }
 
-    return next;
+    return actions;
 }
 
 /**
- * Execute sortie: Counter-attack when we have advantage
+ * Plan sortie: Counter-attack when we have advantage
  */
-function executeSortie(state: GameState, playerId: string, situation: DefenseSituation): GameState {
-    let next = state;
-
-    // Only sortie if we have significant advantage
-    if (situation.defenseScore < situation.threatScore * 1.2) return next;
-    if (situation.ringUnits.length < 3) return next;
+function planSortieActions(state: GameState, playerId: string, situation: DefenseSituation): TacticalDefenseAction[] {
+    if (situation.defenseScore < situation.threatScore * 1.2) return [];
+    if (situation.ringUnits.length < 3) return [];
 
     aiInfo(`[SORTIE] ${situation.city.name} counter-attacking!`);
 
-    // Attack weakest enemies first
-    const sortedEnemies = [...situation.nearbyEnemies].sort((a, b) => a.hp - b.hp);
+    const scoredEnemies = [...situation.nearbyEnemies]
+        .map(enemy => {
+            let bestScore = -Infinity;
+            for (const unit of situation.ringUnits) {
+                const liveUnit = state.units.find(u => u.id === unit.id);
+                if (!liveUnit || liveUnit.movesLeft <= 0 || liveUnit.hasAttacked) continue;
+                if (!canPlanAttack(state, liveUnit, "Unit", enemy.id)) continue;
 
-    for (const enemy of sortedEnemies) {
-        const liveEnemy = next.units.find(u => u.id === enemy.id);
-        if (!liveEnemy) continue;
-
-        for (const unit of situation.ringUnits) {
-            const liveUnit = next.units.find(u => u.id === unit.id);
-            if (!liveUnit || liveUnit.movesLeft <= 0) continue;
-
-            const dist = hexDistance(liveUnit.coord, liveEnemy.coord);
-            const range = UNITS[liveUnit.type]?.rng || 1;
-
-            if (dist <= range) {
-                const result = tryAction(next, {
-                    type: "Attack",
+                const scored = scoreDefenseAttackPreview({
+                    state,
                     playerId,
-                    attackerId: liveUnit.id,
-                    targetId: liveEnemy.id,
-                    targetType: "Unit"
+                    attacker: liveUnit,
+                    target: enemy,
+                    cityCoord: situation.city.coord
                 });
-                if (result !== next) {
-                    next = result;
-                    aiInfo(`[SORTIE] ${liveUnit.type} attacked ${liveEnemy.type}`);
-                }
+                if (scored.score > bestScore) bestScore = scored.score;
             }
+            return { enemy, score: bestScore };
+        })
+        .filter(entry => entry.score > -Infinity)
+        .sort((a, b) => b.score - a.score)
+        .map(entry => entry.enemy);
+
+    const actions: TacticalDefenseAction[] = [];
+    const usedUnits = new Set<string>();
+
+    for (const unit of situation.ringUnits) {
+        const liveUnit = state.units.find(u => u.id === unit.id);
+        if (!liveUnit || liveUnit.movesLeft <= 0 || liveUnit.hasAttacked) continue;
+        if (usedUnits.has(liveUnit.id)) continue;
+        // Skip garrisoned units - they cannot attack
+        if (isGarrisoned(liveUnit, state, playerId)) continue;
+
+        for (const enemy of scoredEnemies) {
+            if (!canPlanAttack(state, liveUnit, "Unit", enemy.id)) continue;
+            actions.push(buildDefenseAttackAction(state, playerId, liveUnit, enemy, situation.city, "sortie"));
+            usedUnits.add(liveUnit.id);
+            break;
         }
     }
 
-    return next;
+    return actions;
 }

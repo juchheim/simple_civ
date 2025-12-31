@@ -1,4 +1,4 @@
-import { DiplomacyState, GameState, Unit } from "../../core/types.js";
+import { DiplomacyState, GameState, Unit, Action } from "../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors, hexToString } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { findPath } from "../helpers/pathfinding.js";
@@ -7,6 +7,7 @@ import { TacticalContext } from "./tactical-context.js";
 import { isMilitary } from "./unit-roles.js";
 import { getAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
+import { canPlanMove } from "../ai/shared/validation.js";
 
 export function nearestFriendlyCity(state: GameState, playerId: string, from: { q: number; r: number }): { q: number; r: number } | null {
     const cities = state.cities.filter(c => c.ownerId === playerId);
@@ -23,13 +24,22 @@ export function nearestFriendlyCity(state: GameState, playerId: string, from: { 
     return best;
 }
 
-export function moveToward(state: GameState, playerId: string, unit: Unit, dest: { q: number; r: number }, cache?: ReturnType<TacticalContext["createLookupCache"]>): GameState {
+/**
+ * Pure version of moveToward that returns an Action instead of executing it.
+ * Uses canPlanMove for validation to avoid side effects.
+ */
+export function planMoveToward(
+    state: GameState,
+    playerId: string,
+    unit: Unit,
+    dest: { q: number; r: number },
+    reservedCoords?: Set<string>,
+    cache?: ReturnType<TacticalContext["createLookupCache"]>
+): Action | null {
     // v8.1: Ring defender guard - don't move units that are defending a threatened city
-    // This catches ALL callers of moveToward, preventing ring defender shuffling
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const cityInRingOf = myCities.find(c => hexDistance(unit.coord, c.coord) === 1);
     if (cityInRingOf) {
-        // Check if this city has nearby enemies (within 3 tiles)
         const enemyIds = new Set(
             state.players
                 .filter(p => !p.isEliminated && p.id !== playerId && state.diplomacy[playerId]?.[p.id] === DiplomacyState.War)
@@ -41,37 +51,56 @@ export function moveToward(state: GameState, playerId: string, unit: Unit, dest:
             hexDistance(u.coord, cityInRingOf.coord) <= 3
         );
         if (enemiesNearCity.length > 0) {
-            // Don't move - this unit is protecting a threatened city
-            return state;
+            return null;
         }
     }
 
     const path = findPath(unit.coord, dest, unit, state, cache);
-    if (path.length === 0) return state;
+    if (path.length === 0) return null;
     const step = path[0];
 
     const stepKey = hexToString(step);
-    const unitAtStep = cache ? cache.unitByCoordKey.get(stepKey) : state.units.find(u => hexEquals(u.coord, step));
-    const occupiedFriendlyMil = unitAtStep && unitAtStep.id !== unit.id && unitAtStep.ownerId === playerId && isMilitary(unitAtStep);
+    if (reservedCoords && reservedCoords.has(stepKey)) {
+        // Path blocked by reservation, fall through to alternate evaluation
+    } else {
+        const unitAtStep = cache ? cache.unitByCoordKey.get(stepKey) : state.units.find(u => hexEquals(u.coord, step));
+        const occupiedFriendlyMil = unitAtStep && unitAtStep.id !== unit.id && unitAtStep.ownerId === playerId && isMilitary(unitAtStep);
 
-    if (occupiedFriendlyMil) {
-        const curDist = hexDistance(unit.coord, dest);
-        const candidates = getNeighbors(unit.coord)
-            .filter(n => hexDistance(n, dest) < curDist)
-            .filter(n => {
-                const nKey = hexToString(n);
-                const uAtN = cache ? cache.unitByCoordKey.get(nKey) : state.units.find(u => hexEquals(u.coord, n));
-                return !(uAtN && uAtN.ownerId === playerId && isMilitary(uAtN));
-            })
-            .sort((a, b) => hexDistance(a, dest) - hexDistance(b, dest));
-        for (const alt of candidates) {
-            const movedAlt = tryAction(state, { type: "MoveUnit", playerId, unitId: unit.id, to: alt });
-            if (movedAlt !== state) return movedAlt;
+        // Standard path is clear
+        if (!occupiedFriendlyMil) {
+            if (canPlanMove(state, playerId, unit, step)) {
+                return { type: "MoveUnit", playerId, unitId: unit.id, to: step };
+            }
         }
-        return state;
     }
 
-    return tryAction(state, { type: "MoveUnit", playerId, unitId: unit.id, to: step });
+    // Path blocked by friendly military or reservation, try neighbors
+    const curDist = hexDistance(unit.coord, dest);
+    const candidates = getNeighbors(unit.coord)
+        .filter(n => hexDistance(n, dest) < curDist)
+        .filter(n => {
+            const nKey = hexToString(n);
+            if (reservedCoords && reservedCoords.has(nKey)) return false;
+            const uAtN = cache ? cache.unitByCoordKey.get(nKey) : state.units.find(u => hexEquals(u.coord, n));
+            return !(uAtN && uAtN.ownerId === playerId && isMilitary(uAtN));
+        })
+        .sort((a, b) => hexDistance(a, dest) - hexDistance(b, dest));
+
+    for (const alt of candidates) {
+        if (canPlanMove(state, playerId, unit, alt)) {
+            return { type: "MoveUnit", playerId, unitId: unit.id, to: alt };
+        }
+    }
+
+    return null;
+}
+
+export function moveToward(state: GameState, playerId: string, unit: Unit, dest: { q: number; r: number }, cache?: ReturnType<TacticalContext["createLookupCache"]>): GameState {
+    const action = planMoveToward(state, playerId, unit, dest, undefined, cache);
+    if (action) {
+        return tryAction(state, action);
+    }
+    return state;
 }
 
 export function moveTowardAllMoves(
@@ -123,7 +152,8 @@ export function retreatIfNeeded(state: GameState, playerId: string, unit: Unit):
     const retreatFrac = profile?.tactics?.retreatHpFrac ?? 0.3;
 
     // FINAL TUNING: During sieges OR active wars, units are 70% less likely to retreat (effectively halves the HP threshold).
-    const atWar = state.players.some(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === "War"); const effectiveRetreatFrac = (inActiveSiege || atWar)
+    const atWar = state.players.some(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === "War");
+    const effectiveRetreatFrac = (inActiveSiege || atWar)
         ? retreatFrac * 0.5
         : retreatFrac;
 

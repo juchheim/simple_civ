@@ -12,6 +12,7 @@ import { AiVictoryGoal, GameState, TechId, UnitType } from "../../core/types.js"
 import { UNITS } from "../../core/constants.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNIT_ROLES, TECH_CHAINS, getUnitsWithRole, UnitRole } from "./capabilities.js";
+import { isCityOnlySiegeUnitType, isCombatUnitType, isSiegeRole } from "./schema.js";
 
 // ... existing code ...
 
@@ -50,8 +51,8 @@ export function assessCapabilities(state: GameState, playerId: string): Capabili
     for (const unit of myUnits) {
         const role = UNIT_ROLES[unit.type];
         if (role === "civilian") continue;
-        totalMilitary++;
-        if (role === "siege") siege++;
+        if (isCombatUnitType(unit.type)) totalMilitary++;
+        if (isSiegeRole(role)) siege++;
         else if (role === "capture") capture++;
         else if (role === "defense") defense++;
         else if (role === "vision") vision++;
@@ -63,7 +64,7 @@ export function assessCapabilities(state: GameState, playerId: string): Capabili
         // v2.1: Relaxed garrison check - count as garrisoned if unit is ON or ADJACENT to city
         // This prevents expansion stalls when units are defending from the field (especially Lorekeepers)
         const hasDefender = myUnits.some(u =>
-            UNIT_ROLES[u.type] !== "civilian" && hexDistance(u.coord, city.coord) <= 1
+            isCombatUnitType(u.type) && hexDistance(u.coord, city.coord) <= 1
         );
         if (hasDefender) garrison++;
     }
@@ -238,7 +239,15 @@ export function getBestUnitForRole(
 
     // Prefer higher-tier units (Armies > Base, Landship > SpearGuard)
     // Simple heuristic: higher cost = better
-    return candidates.sort((a, b) => (UNITS[b]?.cost ?? 0) - (UNITS[a]?.cost ?? 0))[0];
+    return candidates
+        .sort((a, b) => {
+            if (role === "siege") {
+                const aIsCitySiege = isCityOnlySiegeUnitType(a);
+                const bIsCitySiege = isCityOnlySiegeUnitType(b);
+                if (aIsCitySiege !== bIsCitySiege) return aIsCitySiege ? 1 : -1;
+            }
+            return (UNITS[b]?.cost ?? 0) - (UNITS[a]?.cost ?? 0);
+        })[0];
 }
 
 // =============================================================================
@@ -292,7 +301,7 @@ export function checkExecutionReadiness(
     const myPower = caps.totalMilitary;
     const theirPower = state.units.filter(u =>
         u.ownerId === targetId &&
-        UNIT_ROLES[u.type] !== "civilian"
+        isCombatUnitType(u.type)
     ).length;
 
     // War escalation timer - break deadlocks (v2: more aggressive)

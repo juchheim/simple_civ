@@ -1,11 +1,8 @@
-import { GameState, Unit } from "../../../core/types.js";
-import { hexDistance } from "../../../core/hex.js";
+import { City, GameState, Unit } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsCity, getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
-import { getAiMemoryV2 } from "../memory.js";
-import { getAiProfileV2 } from "../rules.js";
-import { countThreatsToTile } from "../../ai/units/movement-safety.js";
-import { getThreatLevel, isGarrisoned, isMilitary, unitValue } from "./shared.js";
+import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
+import { scoreAttackOption } from "./scoring.js";
 
 export type PlannedAttack = {
     attacker: Unit;
@@ -17,91 +14,20 @@ export type PlannedAttack = {
     returnDamage: number;
 };
 
-type CityTarget = { id: string; hp: number; maxHp: number; isCity: true };
-
-/**
- * Score an attack option
- */
-function scoreAttack(
-    attacker: Unit,
-    target: Unit | CityTarget,
-    state: GameState,
-    playerId: string,
-    simulatedHP: Map<string, number>,
-    damage: number,
-    returnDamage: number
-): number {
-    const targetHP = simulatedHP.get(target.id) ?? ('hp' in target ? target.hp : 0);
-    const wouldKill = damage >= targetHP;
-
-    const profile = getAiProfileV2(state, playerId);
-
-    // Base damage value
-    const base = damage * 2;
-
-    // MASSIVE bonus for kills (THE key insight from spec)
-    const killBonus = wouldKill ? 150 : 0;
-
-    // Threat bonus for high-threat targets
-    // FIXv7.5: Massive bonus for Cities so we actually attack them (Combat ADHD fix)
-    let threatBonus = 0;
-    if ('isCity' in target) {
-        threatBonus = 200; // Base priority: Cities are ALWAYS threats
-        // Bonus for focus target
-        const memory = getAiMemoryV2(state, playerId);
-        if (memory.focusCityId === target.id) {
-            threatBonus += 100;
-        }
-    } else {
-        threatBonus = getThreatLevel(target as Unit) * 15;
-    }
-
-    // Ranged overkill penalty - prefer melee to finish when ranged wastes damage
-    let rangedFinishPenalty = 0;
-    if (wouldKill && UNITS[attacker.type].rng > 1 && damage > targetHP + 2) {
-        rangedFinishPenalty = 30;
-    }
-
-    // Suicide penalty
-    const isSuicide = returnDamage >= attacker.hp;
-    let suicidePenalty = 0;
-    if (isSuicide) {
-        if (wouldKill && !('isCity' in target) && unitValue(target as Unit) > unitValue(attacker)) {
-            suicidePenalty = 20; // Small penalty, trade is worth it
-        } else {
-            suicidePenalty = 200; // Never suicide for no kill
-        }
-    }
-
-    // Risk penalty (scaled down if we're getting the kill)
-    const riskPenalty = wouldKill ? (returnDamage * 0.3) : (returnDamage * 1.5);
-
-    // Exposure penalty for melee attacks that leave us surrounded
-    let exposurePenalty = 0;
-    if (!('isCity' in target) && UNITS[attacker.type].rng === 1) {
-        const targetUnit = target as Unit;
-        const threats = countThreatsToTile(state, playerId, targetUnit.coord, targetUnit.id);
-        if (threats.count >= 3 && !wouldKill) {
-            exposurePenalty = 80;
-        } else if (threats.count >= 2) {
-            exposurePenalty = (threats.totalDamage * 0.8) * (1 - profile.tactics.riskTolerance);
-        }
-    }
-
-    return base + killBonus + threatBonus - rangedFinishPenalty - suicidePenalty - riskPenalty - exposurePenalty;
-}
-
 /**
  * Main entry point: Plan optimal attack order for all eligible units
  */
-export function planAttackOrderV2(state: GameState, playerId: string): PlannedAttack[] {
-    const memory = getAiMemoryV2(state, playerId);
-
+export function planAttackOrderV2(
+    state: GameState,
+    playerId: string,
+    excludedUnitIds: Set<string> = new Set()
+): PlannedAttack[] {
     // Phase 1: Gather eligible attackers (units that can attack right now)
     const eligibleAttackers = state.units.filter(u =>
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
         !u.hasAttacked &&
+        !excludedUnitIds.has(u.id) &&
         !isGarrisoned(u, state, playerId) && // Garrisoned units can't attack
         !u.isTitanEscort && // v6.6h: Reserved escorts don't attack - stay with Titan
         isMilitary(u)
@@ -122,18 +48,16 @@ export function planAttackOrderV2(state: GameState, playerId: string): PlannedAt
         attacker: Unit;
         targetId: string;
         targetType: "Unit" | "City";
-        target: Unit | CityTarget;
+        target: Unit | City;
     };
 
     const attackOptions: AttackOption[] = [];
 
     for (const attacker of eligibleAttackers) {
-        const range = UNITS[attacker.type].rng;
-
         // Unit targets
         const unitTargets = state.units.filter(u =>
             enemies.has(u.ownerId) &&
-            hexDistance(attacker.coord, u.coord) <= range
+            canPlanAttack(state, attacker, "Unit", u.id)
         );
         for (const target of unitTargets) {
             attackOptions.push({ attacker, targetId: target.id, targetType: "Unit", target });
@@ -142,14 +66,14 @@ export function planAttackOrderV2(state: GameState, playerId: string): PlannedAt
         // City targets
         const cityTargets = state.cities.filter(c =>
             enemies.has(c.ownerId) &&
-            hexDistance(attacker.coord, c.coord) <= range
+            canPlanAttack(state, attacker, "City", c.id)
         );
         for (const city of cityTargets) {
             attackOptions.push({
                 attacker,
                 targetId: city.id,
                 targetType: "City",
-                target: { id: city.id, hp: city.hp, maxHp: city.maxHp, isCity: true as const }
+                target: city
             });
         }
     }
@@ -171,9 +95,6 @@ export function planAttackOrderV2(state: GameState, playerId: string): PlannedAt
 
     const plannedAttacks: PlannedAttack[] = [];
     const usedAttackers = new Set<string>();
-
-    // Level 2: Focus Fire - get tactical focus target if set
-    const focusUnitId = memory.tacticalFocusUnitId;
 
     while (attackOptions.length > 0) {
         // Score all remaining options using SIMULATED HP
@@ -200,24 +121,18 @@ export function planAttackOrderV2(state: GameState, playerId: string): PlannedAt
                     returnDamage = preview.returnDamage?.avg ?? 0;
                 }
 
-                const wouldKill = simHP - damage <= 0;
-
-                let score = scoreAttack(
-                    opt.attacker,
-                    opt.target,
+                const scoredAttack = scoreAttackOption({
                     state,
                     playerId,
-                    simulatedHP,
+                    attacker: opt.attacker,
+                    targetType: opt.targetType,
+                    target: opt.target,
                     damage,
-                    returnDamage
-                );
+                    returnDamage,
+                    targetHpOverride: simHP
+                });
 
-                // Level 2: Focus bonus - prefer attacking designated focus target
-                if (focusUnitId && opt.targetId === focusUnitId) {
-                    score += 50;
-                }
-
-                return { ...opt, damage, returnDamage, wouldKill, score };
+                return { ...opt, damage, returnDamage, wouldKill: scoredAttack.wouldKill, score: scoredAttack.score };
             })
             .sort((a, b) => b.score - a.score);
 

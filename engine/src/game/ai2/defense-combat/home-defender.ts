@@ -2,172 +2,226 @@ import { DiplomacyState, GameState } from "../../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../../ai/shared/actions.js";
+import { canPlanMove } from "../../ai/shared/validation.js";
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { aiInfo } from "../../ai/debug-logging.js";
+import { scoreAttackOption } from "../attack-order/scoring.js";
+import { canPlanAttack } from "../attack-order/shared.js";
 import { isMilitary } from "../unit-roles.js";
+import { DefenseAttackPlan, DefenseMovePlan, scoreDefenseMove } from "../defense-actions.js";
 
-/**
- * v7.1: Home Defender Territorial Combat
- * Makes home defenders aggressively hunt and attack enemies in friendly territory.
- * This runs BEFORE the main offensive tactics to ensure territorial defense is prioritized.
- */
-export function runHomeDefenderCombat(state: GameState, playerId: string): GameState {
-    let next = state;
 
-    // Get all home defenders that can act
-    const homeDefenders = next.units.filter(u =>
+
+export function planHomeDefenderAttacks(
+    state: GameState,
+    playerId: string,
+    reservedUnitIds: Set<string>
+): DefenseAttackPlan[] {
+    const plans: DefenseAttackPlan[] = [];
+
+    const homeDefenders = state.units.filter(u =>
         u.ownerId === playerId &&
         u.isHomeDefender === true &&
         isMilitary(u) &&
-        !u.hasAttacked
+        !u.hasAttacked &&
+        u.movesLeft > 0 &&
+        !reservedUnitIds.has(u.id)
     );
 
-    if (homeDefenders.length === 0) return next;
+    if (homeDefenders.length === 0) return plans;
 
-    // Get all friendly territory tiles
     const friendlyTiles = new Set(
-        next.map.tiles
+        state.map.tiles
             .filter(t => t.ownerId === playerId)
             .map(t => `${t.coord.q},${t.coord.r}`)
     );
 
-    // Find all enemies that are at war with us
-    const enemies = next.players.filter(p =>
+    const enemies = state.players.filter(p =>
         !p.isEliminated &&
         p.id !== playerId &&
-        next.diplomacy[playerId]?.[p.id] === DiplomacyState.War
+        state.diplomacy[playerId]?.[p.id] === DiplomacyState.War
     );
     const enemyIds = new Set(enemies.map(e => e.id));
 
-    // Find enemy units in or near friendly territory (within 2 tiles of our territory)
-    const enemiesInTerritory = next.units.filter(u => {
+    const enemiesInTerritory = state.units.filter(u => {
         if (!enemyIds.has(u.ownerId)) return false;
         if (!isMilitary(u)) return false;
-
-        // Check if enemy is in friendly territory
         const inTerritory = friendlyTiles.has(`${u.coord.q},${u.coord.r}`);
         if (inTerritory) return true;
-
-        // Check if enemy is adjacent to friendly territory (threatening)
         const neighbors = getNeighbors(u.coord);
         return neighbors.some(n => friendlyTiles.has(`${n.q},${n.r}`));
     });
 
-    if (enemiesInTerritory.length === 0) return next;
+    if (enemiesInTerritory.length === 0) return plans;
 
-    // Get our cities for prioritization
-    const myCities = next.cities.filter(c => c.ownerId === playerId);
-
-    // Sort enemies by threat: closer to cities = higher priority
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
     const sortedEnemies = [...enemiesInTerritory].sort((a, b) => {
         const aMinDist = Math.min(...myCities.map(c => hexDistance(a.coord, c.coord)));
         const bMinDist = Math.min(...myCities.map(c => hexDistance(b.coord, c.coord)));
-        return aMinDist - bMinDist; // Closer to cities = higher priority
+        return aMinDist - bMinDist;
     });
 
-    aiInfo(`[AI Defense] ${playerId} has ${homeDefenders.length} home defenders vs ${enemiesInTerritory.length} enemies in territory`);
-
-    // For each home defender, find and execute the best attack against territorial enemies
     for (const defender of homeDefenders) {
-        const liveDefender = next.units.find(u => u.id === defender.id);
+        const liveDefender = state.units.find(u => u.id === defender.id);
         if (!liveDefender || liveDefender.hasAttacked || liveDefender.movesLeft <= 0) continue;
 
-        // Check if this unit is garrisoned (on city tile) - garrisoned units can't attack
+        // Safety: garrisoned units (on city tile) cannot attack - skip them
         const onCity = myCities.some(c => hexEquals(c.coord, liveDefender.coord));
-        if (onCity) continue; // Skip garrisoned defenders for attacks (they defend passively)
+        if (onCity) continue;
 
-        // Find best attack target among enemies in territory
         let bestTarget: typeof sortedEnemies[0] | null = null;
         let bestScore = -Infinity;
+        let bestPreview: ReturnType<typeof getCombatPreviewUnitVsUnit> | null = null;
 
         for (const enemy of sortedEnemies) {
-            const liveEnemy = next.units.find(u => u.id === enemy.id);
+            const liveEnemy = state.units.find(u => u.id === enemy.id);
             if (!liveEnemy) continue;
+            if (!canPlanAttack(state, liveDefender, "Unit", liveEnemy.id)) continue;
 
-            const dist = hexDistance(liveDefender.coord, liveEnemy.coord);
-            const range = UNITS[liveDefender.type].rng ?? 1;
-
-            // Check if we can attack this turn
-            if (dist > range) continue;
-
-            // Score this attack (simple scoring for defensive attacks)
-            const preview = getCombatPreviewUnitVsUnit(next, liveDefender, liveEnemy);
+            const preview = getCombatPreviewUnitVsUnit(state, liveDefender, liveEnemy);
             const dmg = preview.estimatedDamage.avg;
             const ret = preview.returnDamage?.avg ?? 0;
-            const kill = dmg >= liveEnemy.hp ? 50 : 0;
-            const suicide = ret >= liveDefender.hp ? -100 : 0;
-
-            // Priority: enemies closer to cities are more valuable to kill
             const cityProximityBonus = Math.max(0, 6 - Math.min(...myCities.map(c => hexDistance(liveEnemy.coord, c.coord)))) * 10;
 
-            const score = dmg * 2 + kill + suicide - ret + cityProximityBonus;
+            const scored = scoreAttackOption({
+                state,
+                playerId,
+                attacker: liveDefender,
+                targetType: "Unit",
+                target: liveEnemy,
+                damage: dmg,
+                returnDamage: ret
+            });
+            const score = scored.score + cityProximityBonus;
 
             if (score > bestScore) {
                 bestScore = score;
                 bestTarget = liveEnemy;
+                bestPreview = preview;
             }
         }
 
-        // Execute attack if we found a good target
-        if (bestTarget && bestScore > 0) {
-            aiInfo(`[AI Defense] Home defender ${liveDefender.type} attacking ${bestTarget.type} (score: ${bestScore.toFixed(0)})`);
-            next = tryAction(next, {
-                type: "Attack",
-                playerId,
-                attackerId: liveDefender.id,
-                targetId: bestTarget.id,
-                targetType: "Unit"
+        if (bestTarget && bestScore > 0 && bestPreview) {
+            plans.push({
+                intent: "attack",
+                unitId: liveDefender.id,
+                score: bestScore,
+                wouldKill: bestPreview.estimatedDamage.avg >= bestTarget.hp,
+                plan: {
+                    attacker: liveDefender,
+                    targetId: bestTarget.id,
+                    targetType: "Unit",
+                    damage: bestPreview.estimatedDamage.avg,
+                    wouldKill: bestPreview.estimatedDamage.avg >= bestTarget.hp,
+                    score: bestScore,
+                    returnDamage: bestPreview.returnDamage?.avg ?? 0
+                },
+                reason: "home-defense-attack"
             });
+            reservedUnitIds.add(liveDefender.id);
         }
     }
 
-    // Second pass: Move home defenders toward enemies they couldn't attack
+    return plans;
+}
+
+export function planHomeDefenderMoves(
+    state: GameState,
+    playerId: string,
+    reservedUnitIds: Set<string>,
+    reservedCoords: Set<string>
+): DefenseMovePlan[] {
+    const plans: DefenseMovePlan[] = [];
+
+    const homeDefenders = state.units.filter(u =>
+        u.ownerId === playerId &&
+        u.isHomeDefender === true &&
+        isMilitary(u) &&
+        !u.hasAttacked &&
+        u.movesLeft > 0 &&
+        !reservedUnitIds.has(u.id)
+    );
+
+    if (homeDefenders.length === 0) return plans;
+
+    const friendlyTiles = new Set(
+        state.map.tiles
+            .filter(t => t.ownerId === playerId)
+            .map(t => `${t.coord.q},${t.coord.r}`)
+    );
+
+    const enemies = state.players.filter(p =>
+        !p.isEliminated &&
+        p.id !== playerId &&
+        state.diplomacy[playerId]?.[p.id] === DiplomacyState.War
+    );
+    const enemyIds = new Set(enemies.map(e => e.id));
+
+    const enemiesInTerritory = state.units.filter(u => {
+        if (!enemyIds.has(u.ownerId)) return false;
+        if (!isMilitary(u)) return false;
+        const inTerritory = friendlyTiles.has(`${u.coord.q},${u.coord.r}`);
+        if (inTerritory) return true;
+        const neighbors = getNeighbors(u.coord);
+        return neighbors.some(n => friendlyTiles.has(`${n.q},${n.r}`));
+    });
+
+    if (enemiesInTerritory.length === 0) return plans;
+
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const sortedEnemies = [...enemiesInTerritory].sort((a, b) => {
+        const aMinDist = Math.min(...myCities.map(c => hexDistance(a.coord, c.coord)));
+        const bMinDist = Math.min(...myCities.map(c => hexDistance(b.coord, c.coord)));
+        return aMinDist - bMinDist;
+    });
+
     for (const defender of homeDefenders) {
-        const liveDefender = next.units.find(u => u.id === defender.id);
+        const liveDefender = state.units.find(u => u.id === defender.id);
         if (!liveDefender || liveDefender.movesLeft <= 0) continue;
 
-        // Skip if already in a city (garrison duty)
         const onCity = myCities.some(c => hexEquals(c.coord, liveDefender.coord));
         if (onCity) continue;
 
-        // Find closest enemy in territory that we couldn't attack
         const range = UNITS[liveDefender.type].rng ?? 1;
         const targetEnemy = sortedEnemies.find(e => {
-            const liveEnemy = next.units.find(u => u.id === e.id);
+            const liveEnemy = state.units.find(u => u.id === e.id);
             return liveEnemy && hexDistance(liveDefender.coord, liveEnemy.coord) > range;
         });
 
         if (!targetEnemy) continue;
-        const liveTarget = next.units.find(u => u.id === targetEnemy.id);
+        const liveTarget = state.units.find(u => u.id === targetEnemy.id);
         if (!liveTarget) continue;
 
-        // Move toward the enemy (but stay in friendly territory if possible)
         const neighbors = getNeighbors(liveDefender.coord)
             .filter(n => {
-                // Can we move there?
-                const tile = next.map.tiles.find(t => hexEquals(t.coord, n));
-                if (!tile) return false;
-                // Prefer staying in friendly territory
-                return true;
+                const tile = state.map.tiles.find(t => hexEquals(t.coord, n));
+                return !!tile;
             })
             .sort((a, b) => {
                 const aDist = hexDistance(a, liveTarget.coord);
                 const bDist = hexDistance(b, liveTarget.coord);
-                // Prefer tiles in friendly territory
                 const aInTerritory = friendlyTiles.has(`${a.q},${a.r}`) ? -10 : 0;
                 const bInTerritory = friendlyTiles.has(`${b.q},${b.r}`) ? -10 : 0;
                 return (aDist + aInTerritory) - (bDist + bInTerritory);
             });
 
         for (const step of neighbors) {
-            const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: liveDefender.id, to: step });
-            if (moved !== next) {
-                aiInfo(`[AI Defense] Home defender ${liveDefender.type} moving toward enemy in territory`);
-                next = moved;
+            const key = `${step.q},${step.r}`;
+            if (reservedCoords.has(key)) continue;
+            if (canPlanMove(state, playerId, liveDefender, step)) {
+                plans.push({
+                    intent: "support",
+                    unitId: liveDefender.id,
+                    action: { type: "MoveUnit", playerId, unitId: liveDefender.id, to: step },
+                    score: scoreDefenseMove("raid", hexDistance(step, liveTarget.coord)),
+                    reason: "home-defense-move"
+                });
+                reservedUnitIds.add(liveDefender.id);
+                reservedCoords.add(key);
                 break;
             }
         }
     }
 
-    return next;
+    return plans;
 }

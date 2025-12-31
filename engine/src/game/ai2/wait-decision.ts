@@ -16,6 +16,10 @@ import { getAiProfileV2 } from "./rules.js";
 import { countThreatsToTile } from "../ai/units/movement-safety.js";
 import { getCivAggression } from "./army-phase.js";
 import { PlannedAttack } from "./attack-order.js";
+import { scoreAttackOption } from "./attack-order/scoring.js";
+import { isCombatUnitType } from "./schema.js";
+import { getUnitStrategicValue } from "./tactical-threat.js";
+import { getTacticalTuning } from "./tuning.js";
 
 export type WaitDecision = {
     shouldWait: boolean;
@@ -24,16 +28,39 @@ export type WaitDecision = {
 };
 
 function isMilitary(u: Unit): boolean {
-    return UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Scout && u.type !== UnitType.ArmyScout;
+    return isCombatUnitType(u.type);
 }
 
-function unitValue(u: Unit): number {
-    if (String(u.type).startsWith("Army")) return 18;
-    if (u.type === UnitType.Titan) return 50;
-    if (u.type === UnitType.Riders) return 12;
-    if (u.type === UnitType.BowGuard) return 11;
-    if (u.type === UnitType.SpearGuard) return 10;
-    return 8;
+function scorePlannedAttack(
+    state: GameState,
+    playerId: string,
+    attack: PlannedAttack
+): number | null {
+    if (attack.targetType === "Unit") {
+        const target = state.units.find(u => u.id === attack.targetId);
+        if (!target) return null;
+        return scoreAttackOption({
+            state,
+            playerId,
+            attacker: attack.attacker,
+            targetType: "Unit",
+            target,
+            damage: attack.damage,
+            returnDamage: attack.returnDamage
+        }).score;
+    }
+
+    const city = state.cities.find(c => c.id === attack.targetId);
+    if (!city) return null;
+    return scoreAttackOption({
+        state,
+        playerId,
+        attacker: attack.attacker,
+        targetType: "City",
+        target: city,
+        damage: attack.damage,
+        returnDamage: attack.returnDamage
+    }).score;
 }
 
 /**
@@ -41,7 +68,8 @@ function unitValue(u: Unit): number {
  * If reinforcements are close (1-3 turns), consider waiting
  */
 function checkReinforcementsIncoming(state: GameState, playerId: string, combatCenter: { q: number; r: number }): WaitDecision {
-    const combatZoneRadius = 6;
+    const tuning = getTacticalTuning(state, playerId);
+    const combatZoneRadius = tuning.wait.combatZoneRadius;
 
     // Units in combat zone
     const inZone = state.units.filter(u =>
@@ -55,14 +83,14 @@ function checkReinforcementsIncoming(state: GameState, playerId: string, combatC
         u.ownerId === playerId &&
         isMilitary(u) &&
         hexDistance(u.coord, combatCenter) > combatZoneRadius &&
-        hexDistance(u.coord, combatCenter) <= combatZoneRadius + 3
+        hexDistance(u.coord, combatCenter) <= combatZoneRadius + tuning.wait.reinforcementBuffer
     );
 
-    const currentPower = inZone.reduce((sum, u) => sum + unitValue(u), 0);
-    const reinforcementPower = reinforcements.reduce((sum, u) => sum + unitValue(u), 0);
+    const currentPower = inZone.reduce((sum, u) => sum + getUnitStrategicValue(u), 0);
+    const reinforcementPower = reinforcements.reduce((sum, u) => sum + getUnitStrategicValue(u), 0);
 
-    if (currentPower > 0 && reinforcementPower > currentPower * 0.3) {
-        return { shouldWait: true, score: reinforcementPower * 0.5, reason: "Reinforcements incoming" };
+    if (currentPower > 0 && reinforcementPower > currentPower * tuning.wait.reinforcementPowerRatio) {
+        return { shouldWait: true, score: reinforcementPower * tuning.wait.reinforcementBaseScoreMult, reason: "Reinforcements incoming" };
     }
 
     return { shouldWait: false, score: 0, reason: "" };
@@ -72,7 +100,8 @@ function checkReinforcementsIncoming(state: GameState, playerId: string, combatC
  * Wait Condition 2: Local Power Disadvantage
  */
 function checkLocalPowerDisadvantage(state: GameState, playerId: string, combatCenter: { q: number; r: number }): WaitDecision {
-    const combatZoneRadius = 6;
+    const tuning = getTacticalTuning(state, playerId);
+    const combatZoneRadius = tuning.wait.combatZoneRadius;
 
     // Get enemies
     const enemies = state.players.filter(p =>
@@ -92,17 +121,17 @@ function checkLocalPowerDisadvantage(state: GameState, playerId: string, combatC
         hexDistance(u.coord, combatCenter) <= combatZoneRadius
     );
 
-    const ourPower = ourUnits.reduce((sum, u) => sum + unitValue(u), 0);
-    const theirPower = theirUnits.reduce((sum, u) => sum + unitValue(u), 0);
+    const ourPower = ourUnits.reduce((sum, u) => sum + getUnitStrategicValue(u), 0);
+    const theirPower = theirUnits.reduce((sum, u) => sum + getUnitStrategicValue(u), 0);
 
     const ratio = ourPower / Math.max(theirPower, 1);
 
-    if (ratio < 0.6) {
-        return { shouldWait: true, score: 60, reason: "Outnumbered locally" };
+    if (ratio < tuning.wait.localPowerRatioBad) {
+        return { shouldWait: true, score: tuning.wait.exposureHighThreatScore, reason: "Outnumbered locally" };
     }
 
-    if (ratio < 0.8) {
-        return { shouldWait: true, score: 30, reason: "Slight disadvantage" };
+    if (ratio < tuning.wait.localPowerRatioPoor) {
+        return { shouldWait: true, score: tuning.wait.exposureMedThreatScore, reason: "Slight disadvantage" };
     }
 
     return { shouldWait: false, score: 0, reason: "" };
@@ -111,19 +140,23 @@ function checkLocalPowerDisadvantage(state: GameState, playerId: string, combatC
 /**
  * Wait Condition 3: No Kill Possible
  */
-function checkNoKillPossible(plannedAttacks: PlannedAttack[]): WaitDecision {
+function checkNoKillPossible(state: GameState, playerId: string, plannedAttacks: PlannedAttack[]): WaitDecision {
+    const tuning = getTacticalTuning(state, playerId);
     const killsPossible = plannedAttacks.filter(a => a.wouldKill).length;
 
     if (killsPossible === 0) {
-        const totalDamage = plannedAttacks.reduce((sum, a) => sum + a.damage, 0);
-        const totalReturn = plannedAttacks.reduce((sum, a) => sum + a.returnDamage, 0);
+        const scores = plannedAttacks
+            .map(a => scorePlannedAttack(state, playerId, a))
+            .filter((s): s is number => s !== null);
+        const totalScore = scores.reduce((sum, s) => sum + s, 0);
+        const avgScore = scores.length > 0 ? totalScore / scores.length : 0;
 
-        if (totalReturn > totalDamage * 0.8) {
-            return { shouldWait: true, score: 40, reason: "Bad trade, no kills" };
+        if (totalScore <= 0) {
+            return { shouldWait: true, score: tuning.wait.noKillBaseScore, reason: "Poor trades, no kills" };
         }
 
-        if (totalDamage < 10) {
-            return { shouldWait: true, score: 20, reason: "Marginal damage, no kills" };
+        if (avgScore < tuning.wait.noKillAvgScoreThreshold) {
+            return { shouldWait: true, score: tuning.wait.noKillLowValueScore, reason: "Low-value pokes, no kills" };
         }
     }
 
@@ -145,14 +178,15 @@ function checkExposureAfterAttack(state: GameState, playerId: string, attack: Pl
         }
     }
 
+    const tuning = getTacticalTuning(state, playerId);
     const threats = countThreatsToTile(state, playerId, positionAfterAttack, attack.targetId);
 
-    if (threats.count >= 3 && !attack.wouldKill) {
-        return { shouldWait: true, score: 40, reason: "Would be too exposed" };
+    if (threats.count >= tuning.wait.exposureThreatCount && !attack.wouldKill) {
+        return { shouldWait: true, score: tuning.wait.exposureHighThreatScore, reason: "Would be too exposed" };
     }
 
-    if (threats.count >= 2 && threats.totalDamage >= attack.attacker.hp * 0.5) {
-        return { shouldWait: true, score: 20, reason: "Moderately exposed" };
+    if (threats.count >= tuning.wait.exposureMedThreatCount && threats.totalDamage >= attack.attacker.hp * tuning.wait.exposureMedThreatDamageRatio) {
+        return { shouldWait: true, score: tuning.wait.exposureMedThreatScore, reason: "Moderately exposed" };
     }
 
     return { shouldWait: false, score: 0, reason: "" };
@@ -161,7 +195,7 @@ function checkExposureAfterAttack(state: GameState, playerId: string, attack: Pl
 /**
  * Wait Condition 5: Terrain Disadvantage
  */
-function checkTerrainDisadvantage(state: GameState, attack: PlannedAttack): WaitDecision {
+function checkTerrainDisadvantage(state: GameState, attack: PlannedAttack, tuning: ReturnType<typeof getTacticalTuning>): WaitDecision {
     const defenderTile = state.map.tiles.find(t => {
         const target = state.units.find(u => u.id === attack.targetId);
         return target && t.coord.q === target.coord.q && t.coord.r === target.coord.r;
@@ -176,11 +210,13 @@ function checkTerrainDisadvantage(state: GameState, attack: PlannedAttack): Wait
     }
 
     // Check defensive terrain (hills, forest give defense bonus)
+    // Note: This relies on simple heuristics, but could be tuned if we want to weight terrain differently.
+    // For now, only the score is tuned.
     const defenderBonus = (defenderTile.terrain === 'Hills' || defenderTile.terrain === 'Forest') ? 1 : 0;
     const attackerBonus = (attackerTile.terrain === 'Hills' || attackerTile.terrain === 'Forest') ? 1 : 0;
 
     if (defenderBonus > attackerBonus && !attack.wouldKill) {
-        return { shouldWait: true, score: 15, reason: "Terrain disadvantage" };
+        return { shouldWait: true, score: tuning.wait.terrainScore, reason: "Terrain disadvantage" };
     }
 
     return { shouldWait: false, score: 0, reason: "" };
@@ -193,15 +229,17 @@ function mustAttackAnyway(state: GameState, playerId: string, attack: PlannedAtt
     const profile = getAiProfileV2(state, playerId);
     const civAggression = getCivAggression(profile.civName);
 
+    const tuning = getTacticalTuning(state, playerId);
+
     // Override 1: War dragging on too long (use turn as proxy)
-    if (state.turn >= 30) {
+    if (state.turn >= tuning.wait.overrideWarDurationTurns) {
         return { mustAttack: true, reason: "War too long, push!" };
     }
 
     // Override 2: City almost captured (low HP)
     const memory = getAiMemoryV2(state, playerId);
     const focusCity = memory.focusCityId ? state.cities.find(c => c.id === memory.focusCityId) : undefined;
-    if (focusCity && focusCity.hp <= focusCity.maxHp * 0.3) {
+    if (focusCity && focusCity.hp <= focusCity.maxHp * tuning.wait.overrideCityHpRatio) {
         return { mustAttack: true, reason: "City nearly captured!" };
     }
 
@@ -211,12 +249,12 @@ function mustAttackAnyway(state: GameState, playerId: string, attack: PlannedAtt
     }
 
     // Override 4: Very high value target
-    if (attack.wouldKill && attack.score > 200) {
+    if (attack.wouldKill && attack.score > tuning.wait.overrideHighValueKillScore) {
         return { mustAttack: true, reason: "High value kill" };
     }
 
     // Override 5: Aggressive civ personality
-    if (civAggression.waitThresholdMult <= 0.5) {
+    if (civAggression.waitThresholdMult <= tuning.wait.overrideAggressiveThreshold) {
         return { mustAttack: true, reason: "Aggressive civ" };
     }
 
@@ -251,13 +289,15 @@ export function shouldUnitWait(
         return { shouldWait: false, score: 0, reason: "No combat zone" };
     }
 
+    const tuning = getTacticalTuning(state, playerId);
+
     // Evaluate wait conditions
     const conditions: WaitDecision[] = [
         checkReinforcementsIncoming(state, playerId, combatCenter),
         checkLocalPowerDisadvantage(state, playerId, combatCenter),
-        checkNoKillPossible(allPlannedAttacks),
+        checkNoKillPossible(state, playerId, allPlannedAttacks),
         checkExposureAfterAttack(state, playerId, attack),
-        checkTerrainDisadvantage(state, attack)
+        checkTerrainDisadvantage(state, attack, tuning)
     ];
 
     const totalWaitScore = conditions.reduce((sum, c) => sum + c.score, 0);
@@ -265,7 +305,7 @@ export function shouldUnitWait(
 
     // Compare wait score to attack score
     // Wait only if wait score exceeds 60% of attack score 
-    const waitThreshold = attack.score * 0.6;
+    const waitThreshold = attack.score * tuning.wait.waitThresholdRatio;
 
     if (effectiveWaitScore > waitThreshold) {
         const primaryReason = conditions.filter(c => c.shouldWait).sort((a, b) => b.score - a.score)[0];

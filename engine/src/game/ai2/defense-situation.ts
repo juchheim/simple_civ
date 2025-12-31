@@ -14,6 +14,7 @@ import {
     recommendDefenseAction,
     selectFocusTarget
 } from "./defense-situation/scoring.js";
+import { getTacticalTuning } from "./tuning.js";
 
 // Threat levels
 export type ThreatLevel = "none" | "probe" | "raid" | "assault";
@@ -42,14 +43,20 @@ export function assessCitySituation(
     city: City,
     playerId: string
 ): DefenseSituation {
-    const DETECTION_RANGE = 5;  // How far to look for enemies
-    const RING_RANGE = 2;       // Units forming defensive ring
-
+    const tuning = getTacticalTuning(state, playerId);
+    const DETECTION_RANGE = tuning.defense.detectionRange;
+    const RING_RANGE = tuning.ring.ringRadius;
     const snapshot = buildDefenseSnapshot(state, city, playerId, DETECTION_RANGE, RING_RANGE);
     const threatScore = computeThreatScore(state, city, snapshot.nearbyEnemies, DETECTION_RANGE);
-    const defenseScore = computeDefenseScore(state, city, snapshot.garrison, snapshot.ringUnits);
-    const threatLevel = determineThreatLevel(snapshot.nearbyEnemies, threatScore, defenseScore);
-    const focusTarget = selectFocusTarget(city, snapshot.nearbyEnemies);
+    const defenseScore = computeDefenseScore(state, city, snapshot.garrison, snapshot.ringUnits, tuning);
+    const threatLevel = determineThreatLevel(snapshot.nearbyEnemies, threatScore, defenseScore, tuning);
+    const focusTarget = selectFocusTarget(
+        state,
+        playerId,
+        city,
+        snapshot.nearbyEnemies,
+        snapshot.nearbyFriendlies
+    );
     const recommendedAction = recommendDefenseAction({
         threatLevel,
         focusTarget,
@@ -58,6 +65,7 @@ export function assessCitySituation(
         defenseScore,
         threatScore,
         city,
+        tuning,
     });
 
     return {

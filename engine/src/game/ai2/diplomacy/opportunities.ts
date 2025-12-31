@@ -1,8 +1,9 @@
-import { GameState } from "../../../core/types.js";
+import { GameState, UnitType } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
 import { estimateMilitaryPower } from "../../ai/goals.js";
 import { getAiProfileV2 } from "../rules.js";
 import { canDeclareWar } from "../../helpers/diplomacy.js";
+import { isCombatUnitType } from "../schema.js";
 
 // ============================================================================
 // v8.0: COMPLEX TACTICAL OPPORTUNITY DETECTION
@@ -12,8 +13,8 @@ import { canDeclareWar } from "../../helpers/diplomacy.js";
 // 2. Counter-Attack - Enemy military overextended
 // 3. Vulnerable Cities - Low or no defenders
 
-function isMilitaryUnit(u: { type: string }): boolean {
-    return u.type !== "Settler" && u.type !== "Scout" && u.type !== "ArmyScout" && u.type !== "Skiff";
+function isMilitaryUnit(u: { type: UnitType }): boolean {
+    return isCombatUnitType(u.type);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { City, GameState } from "../../../core/types.js";
-import { getThreatLevel } from "../../ai/units/unit-helpers.js";
+import { assessCityThreatLevel } from "../defense-situation/scoring.js";
 import { type CityThreat } from "../defense-garrison.js";
 
 export type DefenseAssessment = {
@@ -17,11 +17,11 @@ export function buildDefenseAssessment(state: GameState, playerId: string): Defe
 
     const cityThreats: CityThreat[] = cities.map(city => ({
         city,
-        threat: getThreatLevel(state, city, playerId),
+        threat: assessCityThreatLevel(state, city, playerId),
         isCapital: city.isCapital ?? false
     }));
 
-    const threatOrder = { critical: 0, high: 1, low: 2, none: 3 };
+    const threatOrder = { assault: 0, raid: 1, probe: 2, none: 3 };
     cityThreats.sort((a, b) => {
         const threatDiff = threatOrder[a.threat] - threatOrder[b.threat];
         if (threatDiff !== 0) return threatDiff;

@@ -11,7 +11,7 @@ All features from Phase 1 (enhancements) and Phase 2 (implementations) are compl
 | 3 | Movement Safety | `countThreatsToTile()` penalty in `attackScoreVsUnit()` |
 | 5 | War Preparation | `warPrepPhase` fields in `AiPlayerMemoryV2` |
 | 8 | Skirmish Positioning | Ranged skirmishing pass with `getBestSkirmishPosition()` |
-| 9 | City Threat Assessment | `getThreatLevel()` in `defendCitiesV2()` for all cities |
+| 9 | City Threat Assessment | `getThreatLevel()` in `buildDefenseAssessment` for all cities |
 | 10 | Deathball Pre-Rally | Titan Core detection with `titanCoreCityId` |
 
 ---

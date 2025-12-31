@@ -149,6 +149,15 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
     unit.movesLeft -= context.cost;
     unit.state = UnitState.Normal;
 
+    const tileLookup = buildTileLookup(state);
+    const tile = tileLookup.get(hexToString(destination));
+    if (tile?.ownerId && tile.ownerId !== playerId) {
+        const ownerPlayer = state.players.find(p => p.id === tile.ownerId && !p.isEliminated);
+        if (ownerPlayer) {
+            ensureWar(state, playerId, tile.ownerId);
+        }
+    }
+
     if (context.isMilitary) {
         const enemyCivilian = unitsOnTile.find(u => u.ownerId !== playerId && UNITS[u.type].domain === UnitDomain.Civilian);
         if (enemyCivilian) {

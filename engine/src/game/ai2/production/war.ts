@@ -10,7 +10,7 @@ export function pickTrebuchetProduction(
     city: City,
     context: ProductionContext
 ): BuildOption | null {
-    const cityNotThreatened = context.thisCityThreat === "none" || context.thisCityThreat === "low";
+    const cityNotThreatened = context.thisCityThreat === "none" || context.thisCityThreat === "probe";
     if (!context.atWar || !SIEGE_FOCUSED_CIVS.includes(context.profile.civName) || !cityNotThreatened) return null;
 
     const trebuchetsTotal = context.myUnits.filter(u => u.type === UnitType.Trebuchet).length;

@@ -3,6 +3,7 @@ import { hexDistance } from "../../core/hex.js";
 import { estimateMilitaryPower } from "../ai/goals.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
+import { getCityValueProfile } from "./tactical-threat.js";
 import { pickBest } from "./util.js";
 
 function isProgressThreat(state: GameState, targetPlayerId: string): boolean {
@@ -197,22 +198,16 @@ export function selectFocusCityAgainstTarget(state: GameState, playerId: string,
 
     const scored = enemyCities.map(c => {
         const dist = hexDistance(anchor.coord, c.coord);
-        const capital = c.isCapital ? 1 : 0;
-        const hpFrac = c.maxHp ? c.hp / c.maxHp : 1;
-        const finish = c.hp <= 0 ? 1 : 0;
+        const cityValue = getCityValueProfile(state, playerId, c);
         const progressProject =
             c.currentBuild?.type === "Project" &&
             (c.currentBuild.id === ProjectId.Observatory || c.currentBuild.id === ProjectId.GrandAcademy || c.currentBuild.id === ProjectId.GrandExperiment);
         const denyScore = progressProject ? 2000 : 0;
-        // Conquest victory requires owning all capitals; bias heavily toward capital sieges.
-        // This is especially important on small maps where conquest should dominate.
-        const capitalScore = capital ? 220 : 0;
+        const siegeCommitmentScore = profile.tactics.siegeCommitment * 6 * (1 - cityValue.hpFrac);
         const score =
             denyScore +
-            capitalScore +
-            (profile.titan.capitalHunt * 8 * capital) +
-            (profile.titan.finisher * 8 * finish) +
-            (profile.tactics.siegeCommitment * 6 * (1 - hpFrac)) +
+            cityValue.totalValue +
+            siegeCommitmentScore +
             (-dist * 0.45);
         return { c, score };
     });

@@ -8,46 +8,15 @@
  */
 
 import { TechId, UnitType, BuildingType } from "../../core/types.js";
+import { UnitRole, UNIT_ROLE_MAP, isSiegeRole, type UnitCapabilityProfile, getUnitCapabilityProfile } from "./schema.js";
 
 // =============================================================================
 // UNIT ROLES
 // =============================================================================
 
-// v1.0.4: Added 'city_siege' to distinguish Trebuchet (city-only) from general siege
-export type UnitRole = "siege" | "city_siege" | "capture" | "defense" | "vision" | "civilian";
-
-export const UNIT_ROLES: Record<UnitType, UnitRole> = {
-    // Siege: Ranged damage to cities AND units
-    [UnitType.BowGuard]: "siege",
-    [UnitType.ArmyBowGuard]: "siege",
-
-    // City-only siege: Can only attack cities, needs escort
-    [UnitType.Trebuchet]: "city_siege", // v1.0.4: Distinct role for specialized siege
-
-    // Capture: Take cities at 0 HP
-    [UnitType.SpearGuard]: "capture",
-    [UnitType.ArmySpearGuard]: "capture",
-    [UnitType.Riders]: "capture",
-    [UnitType.ArmyRiders]: "capture",
-    [UnitType.Landship]: "capture",
-    [UnitType.Titan]: "capture",
-
-    // Defense: Defensive units (Lorekeeper for Scholar/Starborne civs)
-    [UnitType.Lorekeeper]: "defense",
-
-    // Vision: Scout enemy positions
-    [UnitType.Scout]: "vision",
-    [UnitType.ArmyScout]: "vision",
-    [UnitType.Airship]: "vision",
-    [UnitType.Skiff]: "vision",
-
-    // Civilian
-    [UnitType.Settler]: "civilian",
-
-    // Natives (not buildable)
-    [UnitType.NativeChampion]: "capture",
-    [UnitType.NativeArcher]: "siege",
-};
+export type { UnitRole, UnitCapabilityProfile } from "./schema.js";
+export const UNIT_ROLES: Record<UnitType, UnitRole> = UNIT_ROLE_MAP;
+export { getUnitCapabilityProfile };
 
 // =============================================================================
 // TECH UNLOCKS
@@ -122,7 +91,7 @@ export const TECH_CHAINS: Record<string, TechId[]> = {
 
 export function getUnitsWithRole(role: UnitRole): UnitType[] {
     return Object.entries(UNIT_ROLES)
-        .filter(([_, r]) => r === role)
+        .filter(([_, r]) => (role === "siege" ? isSiegeRole(r) : r === role))
         .map(([u]) => u as UnitType);
 }
 

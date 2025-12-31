@@ -5,7 +5,7 @@ import { estimateMilitaryPower, estimateOffensivePower } from "../ai/goals.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { selectFocusCityAgainstTarget } from "./strategy.js";
-import { canDeclareWar } from "../helpers/diplomacy.js";
+import { canDeclareWar, findBorderViolators } from "../helpers/diplomacy.js";
 import { checkTacticalOpportunity, hasUnitsStaged } from "./diplomacy/opportunities.js";
 import {
     countNearbyByPredicate,
@@ -111,10 +111,42 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
     let warsPlanned = warsNow;
 
     // =========================================================================
+    // BORDER VIOLATION RESPONSE
+    // =========================================================================
+    const borderViolators = findBorderViolators(next, playerId)
+        .filter(entry => canDeclareWar(next, playerId, entry.enemyId));
+    if (borderViolators.length > 0 && myCities.length > 0) {
+        const violatorScores = borderViolators.map(entry => {
+            const enemyUnits = next.units.filter(u => u.ownerId === entry.enemyId);
+            const minDist = enemyUnits.length
+                ? Math.min(...enemyUnits.map(u => Math.min(...myCities.map(c => hexDistance(u.coord, c.coord)))))
+                : 999;
+            return { ...entry, minDist };
+        });
+
+        violatorScores.sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            return a.minDist - b.minDist;
+        });
+
+        const violator = violatorScores[0];
+        if (violator) {
+            const focusCity = selectFocusCityAgainstTarget(next, playerId, violator.enemyId);
+            aiInfo(`[AI Diplo] ${playerId} border violation by ${violator.enemyId}, declaring war`);
+            next = recordWarInitiation(next, playerId, violator.enemyId, {
+                setFocus: true,
+                focusCityId: focusCity?.id,
+            });
+            actions.push({ type: "SetDiplomacy", playerId, targetPlayerId: violator.enemyId, state: DiplomacyState.War });
+            warsPlanned = Math.max(warsPlanned, warsNow + 1);
+        }
+    }
+
+    // =========================================================================
     // v8.0: TACTICAL OPPORTUNITY - Early Rush, Counter-Attack, Punitive Strike
     // =========================================================================
     // Detects multiple types of opportunities to attack vulnerable opponents.
-    if (warsNow === 0) {
+    if (warsNow === 0 && warsPlanned === 0) {
         const opportunity = checkTacticalOpportunity(next, playerId);
         if (opportunity) {
             // STAGING GATE: Only declare war if we have units positioned to attack
@@ -198,7 +230,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
     const player = next.players.find(p => p.id === playerId);
     const techTreeComplete = (player?.techs?.length ?? 0) >= 20;
 
-    if (techTreeComplete && warsNow === 0) {
+    if (techTreeComplete && warsNow === 0 && warsPlanned === 0) {
         // Find another 20-tech civ to fight
         for (const other of next.players) {
             if (other.id === playerId || other.isEliminated) continue;

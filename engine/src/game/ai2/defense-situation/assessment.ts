@@ -1,6 +1,7 @@
 import { City, GameState, Unit } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
 import { isMilitary } from "./metrics.js";
+import { getWarEnemyIds } from "../schema.js";
 
 export type DefenseSnapshot = {
     nearbyEnemies: Unit[];
@@ -16,8 +17,10 @@ export function buildDefenseSnapshot(
     detectionRange: number,
     ringRange: number
 ): DefenseSnapshot {
+    const warEnemyIds = getWarEnemyIds(state, playerId);
+
     const nearbyEnemies = state.units.filter(u =>
-        u.ownerId !== playerId &&
+        warEnemyIds.has(u.ownerId) &&
         isMilitary(u) &&
         hexDistance(u.coord, city.coord) <= detectionRange
     );

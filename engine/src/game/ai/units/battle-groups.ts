@@ -1,9 +1,12 @@
 import { aiInfo } from "../debug-logging.js";
-import { hexDistance } from "../../../core/hex.js";
+import { hexDistance, hexEquals } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType, Unit } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { expectedDamageToUnit } from "./unit-helpers.js";
-import { tryAction } from "../shared/actions.js";
+// tryAction import removed - coordinateGroupAttack is deprecated (v1.0.3)
+import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
+import { scoreAttackOption } from "../../ai2/attack-order/scoring.js";
+import { canPlanAttack } from "../../ai2/attack-order/shared.js";
 
 /**
  * A battle group is a cluster of friendly units that are near each other and near enemies.
@@ -58,59 +61,21 @@ export function identifyBattleGroups(state: GameState, playerId: string): Battle
 }
 
 /**
- * Coordinate attacks within a battle group.
- * Orders: ranged units attack first (soften), then melee (finish).
- * Focus fire: all units target the same enemy until dead.
+ * @deprecated v1.0.3: This function executes attacks directly, bypassing the unified tactical planner.
+ * Use planBattleGroupActions in tactical-planner.ts instead, which returns TacticalActionPlan[]
+ * and respects armyPhase gating, conflict resolution, and wait-decision filtering.
+ * 
+ * This function is kept for reference but should NOT be called.
  */
 export function coordinateGroupAttack(
-    state: GameState,
-    playerId: string,
-    group: BattleGroup
+    _state: GameState,
+    _playerId: string,
+    _group: BattleGroup
 ): GameState {
-    let next = state;
-
-    if (!group.primaryTarget) return next;
-
-    // Sort units: ranged first (to soften targets), then melee
-    const sortedUnits = sortUnitsByRange(group.units);
-
-    // Track the current primary target (may change if killed)
-    let currentTarget = group.primaryTarget;
-
-    for (const unit of sortedUnits) {
-        const liveUnit = next.units.find(u => u.id === unit.id);
-        if (!liveUnit || liveUnit.hasAttacked) continue;
-
-        // Check if current target is still alive
-        const targetStillAlive = next.units.find(u => u.id === currentTarget.id);
-
-        if (!targetStillAlive) {
-            const replacement = findReplacementTarget(next, playerId, liveUnit);
-            if (!replacement) continue;
-            currentTarget = replacement;
-        }
-
-        const stats = UNITS[liveUnit.type];
-        const dist = hexDistance(liveUnit.coord, currentTarget.coord);
-
-        if (dist > stats.rng) continue; // Out of range
-
-        const dmg = expectedDamageToUnit(liveUnit, currentTarget, next);
-        const attacked = tryAction(next, {
-            type: "Attack",
-            playerId,
-            attackerId: liveUnit.id,
-            targetId: currentTarget.id,
-            targetType: "Unit"
-        });
-
-        if (attacked !== next) {
-            aiInfo(`[AI COORDINATED] ${playerId} ${liveUnit.type} attacks ${currentTarget.type} for ${dmg} dmg (focus fire)`);
-            next = attacked;
-        }
-    }
-
-    return next;
+    // v1.0.3: This function is deprecated and does nothing.
+    // Battle-group attacks are now planned through planBattleGroupActions in tactical-planner.ts
+    // which properly gates by armyPhase and goes through conflict resolution.
+    throw new Error("coordinateGroupAttack is deprecated. Use planBattleGroupActions instead.");
 }
 
 const getEligibleMilitaryUnits = (state: GameState, playerId: string) => {
@@ -119,7 +84,8 @@ const getEligibleMilitaryUnits = (state: GameState, playerId: string) => {
         UNITS[u.type].domain !== "Civilian" &&
         !u.hasAttacked &&
         u.type !== UnitType.Scout &&
-        u.type !== UnitType.ArmyScout
+        u.type !== UnitType.ArmyScout &&
+        !isGarrisoned(state, playerId, u)
     );
 };
 
@@ -149,21 +115,65 @@ const markAssigned = (units: Unit[], assigned: Set<string>) => {
 };
 
 const selectPrimaryTarget = (groupUnits: Unit[], nearbyEnemies: Unit[], state: GameState) => {
-    const targetCandidates = nearbyEnemies.map(enemy => {
-        const unitsInRange = groupUnits.filter(u => {
-            const stats = UNITS[u.type as UnitType];
-            const dist = hexDistance(u.coord, enemy.coord);
-            return dist <= stats.rng;
-        });
-        const totalDamage = unitsInRange.reduce((sum, u) => sum + expectedDamageToUnit(u, enemy, state), 0);
-        return { enemy, unitsInRange, totalDamage, canKill: totalDamage >= enemy.hp };
-    }).sort((a, b) => {
-        if (a.canKill !== b.canKill) return a.canKill ? -1 : 1;
-        if (a.unitsInRange.length !== b.unitsInRange.length) return b.unitsInRange.length - a.unitsInRange.length;
-        return a.enemy.hp - b.enemy.hp;
-    });
+    if (groupUnits.length === 0) return null;
+    const playerId = groupUnits[0].ownerId;
 
-    return targetCandidates[0]?.enemy || null;
+    const targetCandidates = nearbyEnemies
+        .map(enemy => {
+            const attackPlans = groupUnits
+                .map(attacker => {
+                    if (!canPlanAttack(state, attacker, "Unit", enemy.id)) return null;
+                    const preview = getCombatPreviewUnitVsUnit(state, attacker, enemy);
+                    return {
+                        attacker,
+                        damage: preview.estimatedDamage.avg,
+                        returnDamage: preview.returnDamage?.avg ?? 0
+                    };
+                })
+                .filter((plan): plan is NonNullable<typeof plan> => plan !== null);
+
+            if (attackPlans.length === 0) return null;
+
+            let simHp = enemy.hp;
+            let score = 0;
+            let totalDamage = 0;
+
+            const orderedPlans = [...attackPlans].sort((a, b) => a.damage - b.damage);
+            for (const plan of orderedPlans) {
+                const scored = scoreAttackOption({
+                    state,
+                    playerId,
+                    attacker: plan.attacker,
+                    targetType: "Unit",
+                    target: enemy,
+                    damage: plan.damage,
+                    returnDamage: plan.returnDamage,
+                    targetHpOverride: simHp
+                });
+                score += scored.score;
+                simHp -= plan.damage;
+                totalDamage += plan.damage;
+            }
+
+            const canKill = totalDamage >= enemy.hp;
+            if (canKill) score += 40;
+
+            return {
+                enemy,
+                score,
+                canKill,
+                unitsInRange: attackPlans.length
+            };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+        .sort((a, b) => {
+            if (a.canKill !== b.canKill) return a.canKill ? -1 : 1;
+            if (a.score !== b.score) return b.score - a.score;
+            if (a.unitsInRange !== b.unitsInRange) return b.unitsInRange - a.unitsInRange;
+            return a.enemy.hp - b.enemy.hp;
+        });
+
+    return targetCandidates[0]?.enemy ?? null;
 };
 
 const sortUnitsByRange = (units: Unit[]) => {
@@ -172,6 +182,13 @@ const sortUnitsByRange = (units: Unit[]) => {
         const bRng = UNITS[b.type as UnitType].rng;
         return bRng - aRng;
     });
+};
+
+const isGarrisoned = (state: GameState, playerId: string, unit: Unit): boolean => {
+    return state.cities.some(c =>
+        c.ownerId === playerId &&
+        hexEquals(c.coord, unit.coord)
+    );
 };
 
 const findReplacementTarget = (state: GameState, playerId: string, liveUnit: Unit) => {

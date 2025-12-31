@@ -1,5 +1,4 @@
-export { runHomeDefenderCombat } from "./defense-combat/home-defender.js";
-export { coordinateDefensiveFocusFire } from "./defense-combat/focus-fire.js";
-export { runDefensiveRingCombat } from "./defense-combat/ring-combat.js";
-export { runLastStandAttacks } from "./defense-combat/last-stand.js";
-export { runTacticalDefense } from "./defense-combat/tactical-defense.js";
+// Defense combat module - exports only the planner-driven API.
+// Legacy run-phase entry points (runHomeDefenderCombat, coordinateDefensiveFocusFire,
+// runDefensiveRingCombat, runLastStandAttacks) have been removed.
+export { planTacticalDefense } from "./defense-combat/tactical-defense.js";

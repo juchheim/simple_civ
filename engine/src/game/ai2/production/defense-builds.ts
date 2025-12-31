@@ -3,9 +3,10 @@ import { AiVictoryGoal, BuildingType, City, GameState, TechId, UnitType } from "
 import { aiInfo } from "../../ai/debug-logging.js";
 import { isDefensiveCiv } from "../../helpers/civ-helpers.js";
 import { hexDistance } from "../../../core/hex.js";
-import { UNITS, TERRITORIAL_DEFENDERS_PER_CITY, DEFENSIVE_CIV_DEFENDER_MULTIPLIER } from "../../../core/constants.js";
+import { TERRITORIAL_DEFENDERS_PER_CITY, DEFENSIVE_CIV_DEFENDER_MULTIPLIER } from "../../../core/constants.js";
 import { cityHasGarrison } from "./analysis.js";
 import { getBestUnitForRole } from "../strategic-plan.js";
+import { isCombatUnitType } from "../schema.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 
 const PERIMETER_DISTANCE = 5;
@@ -18,7 +19,7 @@ const BASE_DEFENDER_UNITS = new Set<UnitType>([UnitType.SpearGuard, UnitType.Bow
 const ARMY_DEFENDER_UNITS = new Set<UnitType>([UnitType.ArmySpearGuard, UnitType.ArmyBowGuard, UnitType.ArmyRiders]);
 
 function isNonCivilianUnit(unitType: UnitType): boolean {
-    return UNITS[unitType].domain !== "Civilian";
+    return isCombatUnitType(unitType);
 }
 
 function getMinimumEnemyDistance(state: GameState, city: City, enemyIds: Set<string>): number {

@@ -12,6 +12,8 @@ import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
+import { isCombatUnitType } from "./schema.js";
+import { getTacticalTuning } from "./tuning.js";
 
 export type ArmyPhase = 'scattered' | 'rallying' | 'staged' | 'attacking';
 
@@ -41,7 +43,7 @@ export function getCivAggression(civName: string): CivAggressionProfile {
 }
 
 function isMilitary(u: Unit): boolean {
-    return UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Scout && u.type !== UnitType.ArmyScout;
+    return isCombatUnitType(u.type);
 }
 
 function countMilitaryUnits(state: GameState, playerId: string): number {
@@ -79,8 +81,9 @@ function hasTitan(state: GameState, playerId: string): boolean {
 }
 
 function titanNearTarget(state: GameState, playerId: string, targetCoord: { q: number; r: number }): boolean {
+    const tuning = getTacticalTuning(state, playerId);
     const titan = state.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
-    return titan ? hexDistance(titan.coord, targetCoord) <= 4 : false;
+    return titan ? hexDistance(titan.coord, targetCoord) <= tuning.army.titanNearTargetDist : false;
 }
 
 function anyUnitDamagedThisTurn(state: GameState, playerId: string): boolean {
@@ -93,12 +96,12 @@ function anyUnitDamagedThisTurn(state: GameState, playerId: string): boolean {
     );
 }
 
-function pickRallyCoord(state: GameState, target: { q: number; r: number }, desiredDist: number): { q: number; r: number } {
+function pickRallyCoord(state: GameState, target: { q: number; r: number }, desiredDist: number, scanLimit: number): { q: number; r: number } {
     let best = target;
     let bestScore = Number.POSITIVE_INFINITY;
     let scanned = 0;
     for (const t of state.map.tiles) {
-        if (scanned++ > 900) break;
+        if (scanned++ > scanLimit) break;
         const d = hexDistance(t.coord, target);
         if (d !== desiredDist) continue;
         const score = Math.abs(t.coord.q - target.q) + Math.abs(t.coord.r - target.r);
@@ -117,6 +120,7 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
     const mem = getAiMemoryV2(state, playerId);
     const profile = getAiProfileV2(state, playerId);
     const civAggression = getCivAggression(profile.civName);
+    const tuning = getTacticalTuning(state, playerId);
 
     let currentPhase: ArmyPhase = mem.armyPhase ?? 'scattered';
     let rallyPoint = mem.armyRallyPoint;
@@ -138,8 +142,8 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
     switch (currentPhase) {
         case 'scattered': {
             // Transition: SCATTERED -> RALLYING when we have focus target and enough units
-            if (focusCity && militaryCount >= 3) {
-                rallyPoint = pickRallyCoord(state, focusCity.coord, 4);
+            if (focusCity && militaryCount >= tuning.army.minUnitsForEarlyAttack) {
+                rallyPoint = pickRallyCoord(state, focusCity.coord, tuning.army.rallyDist, tuning.army.rallyScanLimit);
                 currentPhase = 'rallying';
             }
             break;
@@ -152,9 +156,9 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
                 break;
             }
 
-            const requiredNear = Math.max(3, Math.ceil(profile.tactics.forceConcentration * 5));
-            const nearCount = countUnitsNear(state, playerId, rallyPoint, 3);
-            const hasComposition = hasArmyComposition(state, playerId, rallyPoint, 3);
+            const requiredNear = Math.max(tuning.army.minUnitsForEarlyAttack, Math.ceil(profile.tactics.forceConcentration * 5));
+            const nearCount = countUnitsNear(state, playerId, rallyPoint, tuning.army.rallyRadius);
+            const hasComposition = hasArmyComposition(state, playerId, rallyPoint, tuning.army.rallyRadius);
 
             if (nearCount >= requiredNear && hasComposition) {
                 currentPhase = 'staged';
@@ -170,7 +174,7 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
                 break;
             }
 
-            const nearRally = countUnitsNear(state, playerId, rallyPoint, 3);
+            const nearRally = countUnitsNear(state, playerId, rallyPoint, tuning.army.stagedRadius);
             const armyPercent = militaryCount > 0 ? nearRally / militaryCount : 0;
             const turnsStaged = readyTurn ? state.turn - readyTurn : 0;
 
@@ -182,7 +186,7 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
                 currentPhase = 'attacking';
             } else if (turnsStaged >= civAggression.maxStagingTurns) {
                 currentPhase = 'attacking';
-            } else if (profile.tactics.forceConcentration < 0.6 && nearRally >= 3) {
+            } else if (profile.tactics.forceConcentration < tuning.army.minForceConcentrationForEarlyAttack && nearRally >= tuning.army.minUnitsForEarlyAttack) {
                 currentPhase = 'attacking';
             }
             break;
@@ -244,8 +248,10 @@ function checkAttackOverrides(
         return true;
     }
 
+    const tuning = getTacticalTuning(state, playerId);
+
     // Override 2: City HP reduced (active siege) -> don't retreat
-    if (focusCity && focusCity.maxHp && focusCity.hp < focusCity.maxHp * 0.7) {
+    if (focusCity && focusCity.maxHp && focusCity.hp < focusCity.maxHp * tuning.army.cityHpSiegeThreshold) {
         return true;
     }
 
@@ -257,7 +263,7 @@ function checkAttackOverrides(
     // Override 4: Overwhelming power advantage (2:1)
     const ourPower = state.units.filter(u => u.ownerId === playerId && isMilitary(u)).length;
     const theirPower = state.units.filter(u => enemies.some(e => e.id === u.ownerId) && isMilitary(u)).length;
-    if (theirPower > 0 && ourPower / theirPower >= 2.0) {
+    if (theirPower > 0 && ourPower / theirPower >= tuning.army.overwhelmingPowerRatio) {
         return true;
     }
 
@@ -278,7 +284,7 @@ function checkAttackOverrides(
 
     // Override 6: Any unit adjacent to enemy city with low HP (finishing blow possible)
     for (const city of enemyCities) {
-        if (city.hp <= 15) { // Low HP city
+        if (city.hp <= tuning.army.lowHpCityThreshold) { // Low HP city
             const adjacentUnits = state.units.filter(u =>
                 u.ownerId === playerId &&
                 isMilitary(u) &&
@@ -298,7 +304,7 @@ function checkAttackOverrides(
         const localUnits = state.units.filter(u =>
             u.ownerId === playerId &&
             isMilitary(u) &&
-            hexDistance(u.coord, focusCity.coord) <= 5
+            hexDistance(u.coord, focusCity.coord) <= tuning.army.localSuperiorityRadius
         );
         const localPower = localUnits.reduce((sum, u) => sum + UNITS[u.type].atk, 0);
 
@@ -323,7 +329,7 @@ function checkAttackOverrides(
 
         // If we have 1.5x superiority, GO!
         // Min power 5 prevents single-scout suicide runs
-        if (localPower > (targetDefense * 1.5) && localPower > 5) {
+        if (localPower > (targetDefense * tuning.army.localSuperiorityRatio) && localPower > tuning.army.localSuperiorityMinPower) {
             return true;
         }
     }
@@ -335,13 +341,13 @@ function checkAttackOverrides(
  * Check if a specific attack should be allowed even during non-attack phase
  * (opportunity kills)
  */
-export function allowOpportunityKill(wouldKill: boolean, score: number, armyPhase: ArmyPhase): boolean {
+export function allowOpportunityKill(wouldKill: boolean, score: number, armyPhase: ArmyPhase, threshold: number): boolean {
     if (armyPhase === 'attacking') {
         return true; // Normal attack phase
     }
 
     // During staging, only allow guaranteed kills with high score
-    if (wouldKill && score > 200) {
+    if (wouldKill && score > threshold) {
         return true;
     }
 

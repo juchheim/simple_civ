@@ -109,6 +109,7 @@ describe("Defense Situation Assessment", () => {
             mkUnit("p1", "u2", UnitType.BowGuard, 1, 0),   // ring
             mkUnit("p2", "e1", UnitType.SpearGuard, 3, 0), // nearby enemy
         ];
+        state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
         generateMapTiles(state, -5, 15, -5, 10);
 
         const situations = assessDefenseSituation(state, "p1");
@@ -130,6 +131,7 @@ describe("Defense Situation Assessment", () => {
             mkUnit("p2", "e3", UnitType.ArmyRiders, 3, 0),
             mkUnit("p2", "e4", UnitType.SpearGuard, 3, 1),
         ];
+        state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
         generateMapTiles(state, -5, 15, -5, 10);
 
         const situations = assessDefenseSituation(state, "p1");
@@ -149,6 +151,7 @@ describe("Defense Situation Assessment", () => {
             mkUnit("p2", "e2", UnitType.SpearGuard, 2, 1, { hp: 3 }),  // weakest
             mkUnit("p2", "e3", UnitType.SpearGuard, 3, 0, { hp: 7 }),
         ];
+        state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
         generateMapTiles(state, -5, 15, -5, 10);
 
         const situation = assessCitySituation(state, state.cities[0], "p1");

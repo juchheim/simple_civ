@@ -8,6 +8,7 @@ import { filterAttacksWithWaitDecision } from "../wait-decision.js";
 import { isMilitary } from "../unit-roles.js";
 import { bestAttackForUnit } from "../combat-eval.js";
 import type { TacticalContext } from "../tactical-context.js";
+import { getTacticalTuning } from "../tuning.js";
 
 export function runAttackPhase(
     state: GameState,
@@ -59,7 +60,7 @@ export function runAttackPhase(
                 ? preview.estimatedDamage.avg >= (next.units.find(u => u.id === best.action.targetId)?.hp ?? 0)
                 : false;
 
-            if (allowOpportunityKill(wouldKill, best.score, currentArmyPhase)) {
+            if (allowOpportunityKill(wouldKill, best.score, currentArmyPhase, getTacticalTuning(next, playerId).army.opportunityKillScore)) {
                 next = tryAction(next, best.action);
             } else {
                 aiInfo(`[ARMY PHASE] ${playerId} unit ${live.id} waiting (phase: ${currentArmyPhase})`);

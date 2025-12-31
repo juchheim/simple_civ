@@ -7,7 +7,7 @@ import { nearestByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { repositionRanged } from "./defense.js";
 import { captureIfPossible } from "./siege-routing.js";
-import { coordinateGroupAttack, identifyBattleGroups } from "./battle-groups.js";
+// Battle-group execution removed - handled by unified tactical planner (v1.0.3)
 import { tryCityAttacks, trebuchetSiegeAttacks } from "./offense-city-attacks.js";
 import { handlePostAttackRetreat, handleUnsafeAttack } from "./offense-retreat.js";
 import { getAttackingUnits, getEnemyTargets, getWarEnemyIds } from "./offense-targeting.js";
@@ -29,16 +29,8 @@ import {
 
 export { routeCityCaptures, routeCaptureUnitsToActiveSieges } from "./siege-routing.js";
 
-function coordinateBattleGroups(state: GameState, playerId: string): GameState {
-    let next = state;
-    const battleGroups = identifyBattleGroups(next, playerId);
-    for (const group of battleGroups) {
-        if (group.units.length >= 2) {
-            next = coordinateGroupAttack(next, playerId, group);
-        }
-    }
-    return next;
-}
+// coordinateBattleGroups removed - battle-group attacks now planned through
+// the unified tactical planner (v1.0.3 refactor)
 
 function attemptSettlerPounce(
     next: GameState,
@@ -117,7 +109,7 @@ export function attackTargets(state: GameState, playerId: string): GameState {
     // v1.0.4: Trebuchets fire first (siege softening)
     let next = trebuchetSiegeAttacks(state, playerId);
 
-    next = coordinateBattleGroups(next, playerId);
+    // Battle-group coordination moved to unified tactical planner (v1.0.3)
 
 
     const units = getAttackingUnits(next, playerId);

@@ -46,6 +46,34 @@ export function getTurnsUntilWarAllowed(state: GameState, a: string, b: string):
     return Math.max(0, MIN_PEACE_DURATION - turnsSincePeace);
 }
 
+export type BorderViolation = {
+    enemyId: string;
+    count: number;
+};
+
+export function findBorderViolators(state: GameState, playerId: string): BorderViolation[] {
+    const myTerritory = new Set(
+        state.map.tiles
+            .filter(tile => tile.ownerId === playerId)
+            .map(tile => `${tile.coord.q},${tile.coord.r}`)
+    );
+
+    const counts = new Map<string, number>();
+
+    for (const unit of state.units) {
+        if (unit.ownerId === playerId) continue;
+        const enemy = state.players.find(p => p.id === unit.ownerId);
+        if (!enemy || enemy.isEliminated) continue;
+        const stance = state.diplomacy?.[playerId]?.[unit.ownerId] ?? DiplomacyState.Peace;
+        if (stance === DiplomacyState.War) continue;
+        if (!myTerritory.has(`${unit.coord.q},${unit.coord.r}`)) continue;
+
+        counts.set(unit.ownerId, (counts.get(unit.ownerId) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries()).map(([enemyId, count]) => ({ enemyId, count }));
+}
+
 function ensureContactMaps(state: GameState, a: string, b: string) {
     if (!state.contacts[a]) state.contacts[a] = {} as any;
     if (!state.contacts[b]) state.contacts[b] = {} as any;
@@ -95,8 +123,16 @@ export function disableSharedVision(state: GameState, a: string, b: string) {
 export function ensureWar(state: GameState, a: string, b: string) {
     if (!state.diplomacy[a]) state.diplomacy[a] = {} as any;
     if (!state.diplomacy[b]) state.diplomacy[b] = {} as any;
+    const wasWar = state.diplomacy[a][b] === DiplomacyState.War && state.diplomacy[b][a] === DiplomacyState.War;
     state.diplomacy[a][b] = DiplomacyState.War;
     state.diplomacy[b][a] = DiplomacyState.War;
+    if (!wasWar) {
+        if (!state.diplomacyChangeTurn) state.diplomacyChangeTurn = {};
+        if (!state.diplomacyChangeTurn[a]) state.diplomacyChangeTurn[a] = {};
+        if (!state.diplomacyChangeTurn[b]) state.diplomacyChangeTurn[b] = {};
+        state.diplomacyChangeTurn[a][b] = state.turn;
+        state.diplomacyChangeTurn[b][a] = state.turn;
+    }
     setContact(state, a, b);
     disableSharedVision(state, a, b);
     state.diplomacyOffers = state.diplomacyOffers.filter(o => !(o.from === a && o.to === b) && !(o.from === b && o.to === a));

@@ -1,13 +1,17 @@
-import { GameState, Unit, UnitType } from "../../../core/types.js";
-import { hexDistance, getNeighbors } from "../../../core/hex.js";
+import { City, GameState, Unit } from "../../../core/types.js";
+import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsCity, getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
+import { createMoveContext } from "../../helpers/movement.js";
 import { getAiMemoryV2 } from "../memory.js";
 import { tryAction } from "../../ai/shared/actions.js";
 import { getAiProfileV2 } from "../rules.js";
 import { countThreatsToTile } from "../../ai/units/movement-safety.js";
 import { getCivAggression } from "../army-phase.js";
-import { isGarrisoned, isMilitary } from "./shared.js";
+
+import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
+import { scoreMoveAttackOption } from "./scoring.js";
+import { getTacticalTuning } from "../tuning.js";
 
 export type MoveAttackPlan = {
     unit: Unit;
@@ -39,7 +43,8 @@ function isMoveSurvivable(state: GameState, playerId: string, unit: Unit, tile: 
         return { survivable: false, marginal: false, reason: "Would die before attacking" };
     }
 
-    if (survivalHP <= 2) {
+    const tuning = getTacticalTuning(state, playerId);
+    if (survivalHP <= tuning.moveAttack.survivalHpMarginal) {
         return { survivable: true, marginal: true, reason: "Would survive but barely" };
     }
 
@@ -50,14 +55,12 @@ function isMoveSurvivable(state: GameState, playerId: string, unit: Unit, tile: 
  * Get war duration with any enemy
  */
 function getWarDuration(state: GameState, playerId: string): number {
-    // Approximate by checking memory or fall back to current turn
-    // For simplicity, use a heuristic based on damaged units
-    const damagedUnits = state.units.filter(u =>
-        u.ownerId === playerId &&
-        isMilitary(u) &&
-        u.hp < (u.maxHp ?? UNITS[u.type].hp)
-    ).length;
-    return Math.min(state.turn, damagedUnits * 5); // Rough approximation
+    const warStarts = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === "War")
+        .map(p => state.diplomacyChangeTurn?.[playerId]?.[p.id] ?? 0)
+        .filter(turn => turn > 0);
+    if (warStarts.length === 0) return 0;
+    return state.turn - Math.min(...warStarts);
 }
 
 /**
@@ -73,9 +76,10 @@ function getPowerOverrideMultiplier(state: GameState, playerId: string): number 
     const theirUnits = state.units.filter(u => enemies.some(e => e.id === u.ownerId) && isMilitary(u)).length;
     const ratio = myUnits / Math.max(theirUnits, 1);
 
-    if (ratio >= 2.0) return 0.3;
-    if (ratio >= 1.5) return 0.6;
-    if (ratio >= 1.2) return 0.8;
+    const tuning = getTacticalTuning(state, playerId);
+    if (ratio >= 2.0) return tuning.moveAttack.powerOverride2xMult;
+    if (ratio >= 1.5) return tuning.moveAttack.powerOverride1_5xMult;
+    if (ratio >= 1.2) return tuning.moveAttack.powerOverride1_2xMult;
     return 1.0;
 }
 
@@ -85,9 +89,10 @@ function getPowerOverrideMultiplier(state: GameState, playerId: string): number 
 function getWarDurationMultiplier(state: GameState, playerId: string): number {
     const warDuration = getWarDuration(state, playerId);
 
-    if (warDuration >= 30) return 0.3;
-    if (warDuration >= 20) return 0.5;
-    if (warDuration >= 10) return 0.7;
+    const tuning = getTacticalTuning(state, playerId);
+    if (warDuration >= 30) return tuning.moveAttack.warDuration30Mult;
+    if (warDuration >= 20) return tuning.moveAttack.warDuration20Mult;
+    if (warDuration >= 10) return tuning.moveAttack.warDuration10Mult;
     return 1.0;
 }
 
@@ -99,9 +104,10 @@ function getObjectiveProximityMultiplier(state: GameState, playerId: string, uni
     const focusCity = memory.focusCityId ? state.cities.find(c => c.id === memory.focusCityId) : undefined;
     if (!focusCity) return 1.0;
 
+    const tuning = getTacticalTuning(state, playerId);
     const dist = hexDistance(unitCoord, focusCity.coord);
-    if (dist <= 2) return 0.4;
-    if (dist <= 4) return 0.6;
+    if (dist <= 2) return tuning.moveAttack.objectiveDist2Mult;
+    if (dist <= 4) return tuning.moveAttack.objectiveDist4Mult;
     return 1.0;
 }
 
@@ -124,76 +130,48 @@ function getEffectiveExposureMultiplier(state: GameState, playerId: string, unit
 }
 
 /**
- * Check if target is high value (worth exposure)
+ * Find adjacent tiles a unit can move to and still have moves left to attack.
  */
-function isHighValueTarget(target: Unit): boolean {
-    if (target.type === UnitType.Titan) return true;
-    if (target.type === UnitType.Settler) return true;
-    // Low HP ranged unit
-    if (UNITS[target.type].rng > 1 && target.hp <= 5) return true;
-    return false;
-}
+function findMoveAttackTiles(state: GameState, unit: Unit, minMovesAfter: number): { q: number; r: number }[] {
+    const tuning = getTacticalTuning(state, unit.ownerId); // Not used here? Ah, maybe wait.
+    // The previous code didn't use tuning for findMoveAttackTiles logic (1 move).
+    // The scanMoves logic might be relevant but here it just checks cost.
 
-/**
- * Find tiles a unit can reach with at least minMovesAfter movement remaining
- */
-function findReachableTiles(state: GameState, unit: Unit, minMovesAfter: number): { q: number; r: number }[] {
-    // Simple BFS to find reachable tiles
-    const reachable: { q: number; r: number }[] = [];
-    const visited = new Set<string>();
+    return getNeighbors(unit.coord).filter(coord => {
+        const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
+        if (!tile) return false;
 
-    type QueueItem = { coord: { q: number; r: number }; movesRemaining: number };
-    const queue: QueueItem[] = [{ coord: unit.coord, movesRemaining: unit.movesLeft }];
-    visited.add(`${unit.coord.q},${unit.coord.r}`);
+        // Avoid stepping onto occupied tiles (move would fail).
+        if (state.units.some(u => hexEquals(u.coord, coord))) return false;
 
-    while (queue.length > 0) {
-        const curr = queue.shift()!;
-
-        if (curr.movesRemaining >= minMovesAfter) {
-            reachable.push(curr.coord);
+        // Respect visible peacetime borders.
+        if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+            const isCity = state.cities.some(c => hexEquals(c.coord, coord));
+            const diplomacy = state.diplomacy[unit.ownerId]?.[tile.ownerId];
+            if (!isCity && diplomacy !== "War") return false;
         }
 
-        if (curr.movesRemaining <= 0) continue;
-
-        for (const neighbor of getNeighbors(curr.coord)) {
-            const key = `${neighbor.q},${neighbor.r}`;
-            if (visited.has(key)) continue;
-
-            const tile = state.map.tiles.find(t => t.coord.q === neighbor.q && t.coord.r === neighbor.r);
-            if (!tile) continue;
-
-            // Check for unit at tile (can't move through enemies)
-            const unitAtTile = state.units.find(u => u.coord.q === neighbor.q && u.coord.r === neighbor.r);
-            if (unitAtTile && unitAtTile.ownerId !== unit.ownerId) continue;
-
-            // Simple move cost (1 for plains, 2 for forest/hills)
-            const moveCost = (tile.terrain === 'Hills' || tile.terrain === 'Forest') ? 2 : 1;
-            const newMovesRemaining = curr.movesRemaining - moveCost;
-
-            if (newMovesRemaining >= 0) {
-                visited.add(key);
-                queue.push({ coord: neighbor, movesRemaining: newMovesRemaining });
-            }
+        try {
+            const moveContext = createMoveContext(unit, tile, state);
+            return unit.movesLeft - moveContext.cost >= minMovesAfter;
+        } catch {
+            return false;
         }
-    }
-
-    return reachable;
+    });
 }
 
 /**
  * Check if unit has any target in range
  */
 function hasAnyTargetInRange(state: GameState, unit: Unit, enemies: Set<string>): boolean {
-    const range = UNITS[unit.type].rng;
-
     for (const enemy of state.units) {
-        if (enemies.has(enemy.ownerId) && hexDistance(unit.coord, enemy.coord) <= range) {
+        if (enemies.has(enemy.ownerId) && canPlanAttack(state, unit, "Unit", enemy.id)) {
             return true;
         }
     }
 
     for (const city of state.cities) {
-        if (enemies.has(city.ownerId) && hexDistance(unit.coord, city.coord) <= range) {
+        if (enemies.has(city.ownerId) && canPlanAttack(state, unit, "City", city.id)) {
             return true;
         }
     }
@@ -204,7 +182,11 @@ function hasAnyTargetInRange(state: GameState, unit: Unit, enemies: Set<string>)
 /**
  * Plan move-then-attack actions for units not in attack range
  */
-export function planMoveAndAttack(state: GameState, playerId: string): MoveAttackPlan[] {
+export function planMoveAndAttack(
+    state: GameState,
+    playerId: string,
+    excludedUnitIds: Set<string> = new Set()
+): MoveAttackPlan[] {
     // Get enemies
     const enemies = new Set<string>();
     for (const p of state.players) {
@@ -219,6 +201,7 @@ export function planMoveAndAttack(state: GameState, playerId: string): MoveAttac
         u.ownerId === playerId &&
         u.movesLeft > 0 &&
         !u.hasAttacked &&
+        !excludedUnitIds.has(u.id) &&
         !isGarrisoned(u, state, playerId) &&
         !u.isTitanEscort && // v6.6h: Reserved escorts don't attack - stay with Titan
         isMilitary(u) &&
@@ -228,8 +211,8 @@ export function planMoveAndAttack(state: GameState, playerId: string): MoveAttac
     const plans: MoveAttackPlan[] = [];
 
     for (const unit of needsMovement) {
-        // Find tiles reachable with 1+ move remaining (for attack)
-        const reachableTiles = findReachableTiles(state, unit, 1);
+        // Find adjacent tiles where we can still attack after moving
+        const reachableTiles = findMoveAttackTiles(state, unit, 1);
 
         // For each tile, find potential targets
         const opportunities: Array<{
@@ -240,18 +223,16 @@ export function planMoveAndAttack(state: GameState, playerId: string): MoveAttac
         }> = [];
 
         for (const tile of reachableTiles) {
-            const range = UNITS[unit.type].rng;
-
             // Unit targets from this tile
             for (const enemy of state.units.filter(u => enemies.has(u.ownerId))) {
-                if (hexDistance(tile, enemy.coord) <= range) {
+                if (canPlanAttack(state, unit, "Unit", enemy.id, tile)) {
                     opportunities.push({ tile, target: enemy, targetType: "Unit", targetId: enemy.id });
                 }
             }
 
             // City targets from this tile
             for (const city of state.cities.filter(c => enemies.has(c.ownerId))) {
-                if (hexDistance(tile, city.coord) <= range) {
+                if (canPlanAttack(state, unit, "City", city.id, tile)) {
                     opportunities.push({
                         tile,
                         target: { id: city.id, hp: city.hp, isCity: true as const },
@@ -269,38 +250,46 @@ export function planMoveAndAttack(state: GameState, playerId: string): MoveAttac
 
         const scored = opportunities.map(opp => {
             const exposure = calculateExposureDamage(state, playerId, opp.tile, undefined);
-            const effectiveExposure = exposure * effectiveExposureMult;
-
+            const virtualAttacker = { ...unit, coord: opp.tile };
             let potentialDamage: number;
-            let wouldKill: boolean;
+            let returnDamage: number;
 
+            let target: Unit | City = opp.target as Unit;
             if (opp.targetType === "Unit") {
-                const preview = getCombatPreviewUnitVsUnit(state, unit, opp.target as Unit);
+                const preview = getCombatPreviewUnitVsUnit(state, virtualAttacker, opp.target as Unit);
                 potentialDamage = preview.estimatedDamage.avg;
-                wouldKill = potentialDamage >= (opp.target as Unit).hp;
+                returnDamage = preview.returnDamage?.avg ?? 0;
             } else {
                 const city = state.cities.find(c => c.id === opp.targetId)!;
-                const preview = getCombatPreviewUnitVsCity(state, unit, city);
+                target = city;
+                const preview = getCombatPreviewUnitVsCity(state, virtualAttacker, city);
                 potentialDamage = preview.estimatedDamage.avg;
-                wouldKill = potentialDamage >= city.hp;
+                returnDamage = preview.returnDamage?.avg ?? 0;
             }
 
-            // Score: potential damage + kill bonus - effective exposure
-            let score = potentialDamage * 2;
-            if (wouldKill) score += 150;
-            score -= effectiveExposure * 2;
+            const scoredAttack = scoreMoveAttackOption({
+                state,
+                playerId,
+                attacker: virtualAttacker,
+                targetType: opp.targetType,
+                target,
+                damage: potentialDamage,
+                returnDamage,
+                exposureDamage: exposure,
+                exposureMultiplier: effectiveExposureMult
+            });
+            const wouldKill = scoredAttack.wouldKill;
+
+            let score = scoredAttack.score;
 
             // Check survivability
             const survival = isMoveSurvivable(state, playerId, unit, opp.tile);
             if (!survival.survivable) {
-                if (!wouldKill && !('isCity' in opp.target && opp.target.hp <= potentialDamage)) {
-                    score -= 500; // Heavy penalty for dying without kill
+                if (!wouldKill) {
+                    // tuning is not defined here yet.
+                    const tuning = getTacticalTuning(state, playerId);
+                    score -= tuning.moveAttack.deathWithoutKillPenalty;
                 }
-            }
-
-            // High value target bonus
-            if (opp.targetType === "Unit" && isHighValueTarget(opp.target as Unit)) {
-                score += 100;
             }
 
             return {

@@ -1,9 +1,71 @@
-import { GameState } from "../../../core/types.js";
+import { GameState, Unit } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "../memory.js";
-import { getThreatLevel, isMilitary, unitValue } from "./shared.js";
+import { getUnitRole, isSiegeRole } from "../schema.js";
+import { getUnitThreatProfile } from "../tactical-threat.js";
+import { scoreAttackOption } from "./scoring.js";
+import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
+
+type FocusAttackPlan = {
+    attacker: Unit;
+    damage: number;
+    returnDamage: number;
+};
+
+function fallbackTargetScore(enemy: Unit): number {
+    const maxHp = enemy.maxHp ?? UNITS[enemy.type].hp;
+    const hpMissing = maxHp - enemy.hp;
+    const role = getUnitRole(enemy.type);
+    const profile = getUnitThreatProfile(enemy);
+
+    let score = hpMissing;
+    score += profile.unitThreat * 10;
+    score += profile.strategicValue;
+
+    if (isSiegeRole(role)) score += 25;
+    if (role === "capture") score += 12;
+    if (role === "defense") score += 8;
+
+    return score;
+}
+
+function scoreFocusCandidate(
+    state: GameState,
+    playerId: string,
+    enemy: Unit,
+    attackPlans: FocusAttackPlan[]
+): number {
+    if (attackPlans.length === 0) return fallbackTargetScore(enemy);
+
+    let score = 0;
+    let simHp = enemy.hp;
+    let totalDamage = 0;
+
+    const orderedPlans = [...attackPlans].sort((a, b) => a.damage - b.damage);
+    for (const plan of orderedPlans) {
+        const scored = scoreAttackOption({
+            state,
+            playerId,
+            attacker: plan.attacker,
+            targetType: "Unit",
+            target: enemy,
+            damage: plan.damage,
+            returnDamage: plan.returnDamage,
+            targetHpOverride: simHp
+        });
+        score += scored.score;
+        simHp -= plan.damage;
+        totalDamage += plan.damage;
+    }
+
+    if (totalDamage >= enemy.hp) {
+        score += 40;
+    }
+
+    return score;
+}
 
 /**
  * Update tactical focus target for Level 2 focus fire
@@ -19,6 +81,9 @@ export function updateTacticalFocus(state: GameState, playerId: string): GameSta
             const inRange = state.units.some(u =>
                 u.ownerId === playerId &&
                 isMilitary(u) &&
+                !isGarrisoned(u, state, playerId) &&
+                !u.hasAttacked &&
+                u.movesLeft > 0 &&
                 hexDistance(u.coord, focusUnit.coord) <= UNITS[u.type].rng + 2
             );
             if (inRange) {
@@ -42,32 +107,30 @@ export function updateTacticalFocus(state: GameState, playerId: string): GameSta
         return state;
     }
 
-    // Score potential focus targets
+    const attackers = state.units.filter(u =>
+        u.ownerId === playerId &&
+        isMilitary(u) &&
+        !isGarrisoned(u, state, playerId) &&
+        !u.hasAttacked &&
+        u.movesLeft > 0
+    );
+
+    // Score potential focus targets using unified attack scoring.
     const candidates = state.units
         .filter(u => enemies.has(u.ownerId))
         .map(enemy => {
-            let score = 0;
+            const attackPlans: FocusAttackPlan[] = [];
+            for (const attacker of attackers) {
+                if (!canPlanAttack(state, attacker, "Unit", enemy.id)) continue;
+                const preview = getCombatPreviewUnitVsUnit(state, attacker, enemy);
+                attackPlans.push({
+                    attacker,
+                    damage: preview.estimatedDamage.avg,
+                    returnDamage: preview.returnDamage?.avg ?? 0
+                });
+            }
 
-            // Killability - can we kill it this turn?
-            const ourDamage = state.units
-                .filter(u => u.ownerId === playerId && isMilitary(u) && hexDistance(u.coord, enemy.coord) <= UNITS[u.type].rng)
-                .reduce((sum, u) => {
-                    const preview = getCombatPreviewUnitVsUnit(state, u, enemy);
-                    return sum + preview.estimatedDamage.avg;
-                }, 0);
-
-            if (ourDamage >= enemy.hp) score += 200; // Guaranteed kill
-            else if (ourDamage >= enemy.hp * 0.7) score += 100; // Likely kill
-
-            // Low HP bonus
-            score += (enemy.maxHp ?? UNITS[enemy.type].hp) - enemy.hp;
-
-            // Threat level
-            score += getThreatLevel(enemy) * 10;
-
-            // Unit value
-            score += unitValue(enemy);
-
+            const score = scoreFocusCandidate(state, playerId, enemy, attackPlans);
             return { enemy, score };
         })
         .filter(c => c.score > 0)

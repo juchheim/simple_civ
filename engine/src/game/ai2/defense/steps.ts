@@ -1,18 +1,25 @@
 import { GameState } from "../../../core/types.js";
-import { defendCapitalRing } from "../defense-capital.js";
-import { ensureCityGarrisons, reinforceThreatenedCities } from "../defense-garrison.js";
+import { planCapitalRingDefense } from "../defense-capital.js";
+import { planCityGarrisons, planReinforceThreatenedCities } from "../defense-garrison.js";
+import { DefenseMovePlan } from "../defense-actions.js";
 import type { DefenseAssessment } from "./assessment.js";
 
-export function runDefenseAssignments(
+/**
+ * Plan defense assignments via the unified planner.
+ * Returns planned moves for city garrisons, capital ring, and reinforcements.
+ */
+export function planDefenseAssignments(
     state: GameState,
     playerId: string,
-    assessment: DefenseAssessment
-): GameState {
-    let next = state;
+    assessment: DefenseAssessment,
+    reservedUnitIds: Set<string>,
+    reservedCoords: Set<string>
+): DefenseMovePlan[] {
+    const plans: DefenseMovePlan[] = [];
 
-    next = ensureCityGarrisons(next, playerId, assessment.cityThreats, assessment.cityCoords);
-    next = defendCapitalRing(next, playerId, assessment.capital, assessment.cityCoords);
-    next = reinforceThreatenedCities(next, playerId, assessment.cityThreats, assessment.cityCoords);
+    plans.push(...planCityGarrisons(state, playerId, assessment.cityThreats, assessment.cityCoords, reservedUnitIds, reservedCoords));
+    plans.push(...planCapitalRingDefense(state, playerId, assessment.capital, assessment.cityCoords, reservedUnitIds, reservedCoords));
+    plans.push(...planReinforceThreatenedCities(state, playerId, assessment.cityThreats, assessment.cityCoords, reservedUnitIds, reservedCoords));
 
-    return next;
+    return plans;
 }

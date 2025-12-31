@@ -29,6 +29,14 @@ const baseState = (): GameState => ({
     map: { tiles: [] as any },
 });
 
+function seedTiles(state: GameState, min: number, max: number) {
+    for (let q = min; q <= max; q++) {
+        for (let r = min; r <= max; r++) {
+            state.map.tiles.push({ coord: { q, r }, terrain: "Plains", overlays: [] } as any);
+        }
+    }
+}
+
 describe("bestAttackForUnit", () => {
     it("returns null when no enemies in range", () => {
         const state = baseState();
@@ -60,6 +68,38 @@ describe("bestAttackForUnit", () => {
             yields: { F: 0, P: 0, S: 0 },
         } as any];
         const res = bestAttackForUnit(state, "p1", attacker);
+        expect(res?.action.targetType).toBe("City");
+        expect(res?.action.targetId).toBe("c1");
+    });
+
+    it("filters Trebuchet targets to cities", () => {
+        const state = baseState();
+        const attacker = baseUnit({ id: "t1", type: UnitType.Trebuchet, coord: { q: 0, r: 0 } });
+        const enemyUnit = baseUnit({ id: "e1", ownerId: "p2", coord: { q: 1, r: 0 } });
+        const city = {
+            id: "c1",
+            name: "C",
+            ownerId: "p2",
+            originalOwnerId: "p2",
+            coord: { q: 0, r: 2 },
+            hp: 20,
+            maxHp: 20,
+            isCapital: false,
+            defense: 0,
+            projects: [],
+            buildQueue: [],
+            pop: 1,
+            workedTiles: [],
+            currentBuild: null,
+            buildings: [],
+            yields: { F: 0, P: 0, S: 0 },
+        } as any;
+        state.units = [attacker, enemyUnit];
+        state.cities = [city];
+        seedTiles(state, -1, 2);
+
+        const res = bestAttackForUnit(state, "p1", attacker);
+
         expect(res?.action.targetType).toBe("City");
         expect(res?.action.targetId).toBe("c1");
     });

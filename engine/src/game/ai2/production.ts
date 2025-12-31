@@ -14,8 +14,7 @@ import { canBuild } from "../rules.js";
 import { AiVictoryGoal, City, DiplomacyState, GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
 import { getAiProfileV2 } from "./rules.js";
 import { aiInfo } from "../ai/debug-logging.js";
-import { getThreatLevel } from "../ai/units/unit-helpers.js";
-import { UNITS } from "../../core/constants.js";
+import { isCombatUnitType } from "./schema.js";
 import {
     assessCapabilities,
     findCapabilityGaps,
@@ -40,6 +39,7 @@ import { getUnlockedUnits } from "./production/unlocks.js";
 import { pickPhaseDefensePriorityBuild, pickPhaseDefenseSupportBuild } from "./production/phases/defense.js";
 import { pickPhaseEarlyExpansionBuild, pickPhaseExpansionBuild } from "./production/phases/expansion.js";
 import { pickPhaseWarBuild } from "./production/phases/war.js";
+import { assessCityThreatLevel } from "./defense-situation/scoring.js";
 
 export { shouldPrioritizeDefense } from "./production/defense-priority.js";
 
@@ -73,7 +73,7 @@ export type ProductionContext = {
     warEnemyIds: Set<string>;
     aliveEnemyIds: Set<string>;
     atWar: boolean;
-    thisCityThreat: ReturnType<typeof getThreatLevel>;
+    thisCityThreat: ReturnType<typeof assessCityThreatLevel>;
 };
 
 function buildProductionContext(
@@ -89,9 +89,7 @@ function buildProductionContext(
     const phase = getGamePhase(state);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const myUnits = state.units.filter(u => u.ownerId === playerId);
-    const myMilitaryUnits = myUnits.filter(u =>
-        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Scout
-    );
+    const myMilitaryUnits = myUnits.filter(u => isCombatUnitType(u.type));
     const unlockedUnits = getUnlockedUnits(player.techs);
     const requirements = getGoalRequirements(goal, profile.civName, phase, myCities.length);
     const capabilities = assessCapabilities(state, playerId);
@@ -107,7 +105,7 @@ function buildProductionContext(
         state.players.filter(p => p.id !== playerId && !p.isEliminated).map(p => p.id)
     );
     const atWar = warEnemies.length > 0;
-    const thisCityThreat = getThreatLevel(state, city, playerId);
+    const thisCityThreat = assessCityThreatLevel(state, city, playerId);
 
     return {
         player,

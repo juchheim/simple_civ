@@ -2,69 +2,58 @@
 import { DiplomacyState, GameState } from "../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../core/hex.js";
 import { tryAction } from "../ai/shared/actions.js";
+import { canPlanMove } from "../ai/shared/validation.js";
 import { aiInfo } from "../ai/debug-logging.js";
-import { getThreatLevel } from "../ai/units/unit-helpers.js";
+import { assessCityThreatLevel } from "./defense-situation/scoring.js";
 import { isPerimeterCity } from "./defense-perimeter.js";
 import { isMilitary } from "./unit-roles.js";
+import { moveToward, planMoveToward } from "./movement.js";
+import { DefenseMovePlan, getDefenseCityValueBonus, scoreDefenseMove } from "./defense-actions.js";
 
-/**
- * v7.2: Mutual Defense - Cities Share Defenders
- * When a city is under attack, nearby cities send spare defenders to help.
- * 
- * Rules:
- * - Only send reinforcements from cities that have MORE than their minimum defenders
- * - Capital: keep 4, only send excess
- * - Perimeter: keep 3, only send excess
- * - Interior: keep 1, only send excess
- * - Prioritize reinforcing the most threatened city
- * - Units move toward the threatened city (may take multiple turns)
- */
-export function sendMutualDefenseReinforcements(state: GameState, playerId: string): GameState {
-    let next = state;
 
-    const myCities = next.cities.filter(c => c.ownerId === playerId);
-    if (myCities.length < 2) return next; // Need at least 2 cities for mutual defense
 
-    // Find enemies at war with us
-    const enemies = next.players.filter(p =>
+export function planMutualDefenseReinforcements(
+    state: GameState,
+    playerId: string,
+    reservedUnitIds: Set<string>,
+    reservedCoords: Set<string>
+): DefenseMovePlan[] {
+    const plans: DefenseMovePlan[] = [];
+
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    if (myCities.length < 2) return plans;
+
+    const enemies = state.players.filter(p =>
         !p.isEliminated &&
         p.id !== playerId &&
-        next.diplomacy[playerId]?.[p.id] === DiplomacyState.War
+        state.diplomacy[playerId]?.[p.id] === DiplomacyState.War
     );
-    if (enemies.length === 0) return next;
+    if (enemies.length === 0) return plans;
     const enemyIds = new Set(enemies.map(e => e.id));
 
-    // Calculate threat level and defender status for each city
     const cityStatus = myCities.map(city => {
-        const threat = getThreatLevel(next, city, playerId);
-        const perimeter = isPerimeterCity(next, city, playerId);
-
-        // Minimum required defenders
-        // v7.2: Use perimeter status for capital too. Safe capital only needs 1 garrison.
+        const threatLevel = assessCityThreatLevel(state, city, playerId);
+        const perimeter = isPerimeterCity(state, city, playerId);
         const minDefenders = city.isCapital ? (perimeter ? 4 : 1) : (perimeter ? 3 : 1);
 
-        // Count current defenders (garrison + ring)
-        const garrison = next.units.find(u =>
+        const garrison = state.units.find(u =>
             u.ownerId === playerId &&
             isMilitary(u) &&
             hexEquals(u.coord, city.coord)
         );
-        const ringDefenders = next.units.filter(u =>
+        const ringDefenders = state.units.filter(u =>
             u.ownerId === playerId &&
             isMilitary(u) &&
             hexDistance(u.coord, city.coord) === 1
         );
         const currentDefenders = (garrison ? 1 : 0) + ringDefenders.length;
 
-        // Excess defenders that could be sent
         const excess = Math.max(0, currentDefenders - minDefenders);
-
-        // Deficit defenders that are needed
         const deficit = Math.max(0, minDefenders - currentDefenders);
 
         return {
             city,
-            threat,
+            threatLevel,
             perimeter,
             minDefenders,
             currentDefenders,
@@ -74,90 +63,114 @@ export function sendMutualDefenseReinforcements(state: GameState, playerId: stri
         };
     });
 
-    // Find cities that need reinforcements (high/critical threat AND deficit)
     const needsHelp = cityStatus
-        .filter(cs => (cs.threat === "high" || cs.threat === "critical") && cs.deficit > 0)
+        .filter(cs => (cs.threatLevel === "raid" || cs.threatLevel === "assault") && cs.deficit > 0)
         .sort((a, b) => {
-            // Critical before high
-            if (a.threat === "critical" && b.threat !== "critical") return -1;
-            if (b.threat === "critical" && a.threat !== "critical") return 1;
-            // Capital before others
+            if (a.threatLevel === "assault" && b.threatLevel !== "assault") return -1;
+            if (b.threatLevel === "assault" && a.threatLevel !== "assault") return 1;
             if (a.city.isCapital && !b.city.isCapital) return -1;
             if (b.city.isCapital && !a.city.isCapital) return 1;
-            // Higher deficit first
             return b.deficit - a.deficit;
         });
 
-    if (needsHelp.length === 0) return next;
+    if (needsHelp.length === 0) return plans;
 
-    // Find cities that can send help (have excess defenders)
     const canHelp = cityStatus
         .filter(cs => cs.excess > 0)
-        .sort((a, b) => b.excess - a.excess); // Highest excess first
+        .sort((a, b) => b.excess - a.excess);
 
-    // Send reinforcements from helper cities to threatened cities
     for (const needy of needsHelp) {
         if (needy.deficit <= 0) continue;
+        const needyBonus = getDefenseCityValueBonus(state, playerId, needy.city);
 
         for (const helper of canHelp) {
             if (helper.excess <= 0) continue;
 
-            // Check distance - only help nearby cities (within 8 tiles)
             const distance = hexDistance(helper.city.coord, needy.city.coord);
             if (distance > 8) continue;
 
-            // Find ring defenders that can be sent
-            // v8.1: Only send if THIS city doesn't have nearby enemies (don't strip defenders from threatened cities)
-            const helperEnemiesNearby = next.units.filter(u =>
+            const helperEnemiesNearby = state.units.filter(u =>
                 enemyIds.has(u.ownerId) &&
                 isMilitary(u) &&
                 hexDistance(u.coord, helper.city.coord) <= 3
             );
-            if (helperEnemiesNearby.length > 0) continue; // Don't strip this city's defenders
+            if (helperEnemiesNearby.length > 0) continue;
 
             const toSend = helper.ringDefenders.filter(u => {
-                const liveUnit = next.units.find(uu => uu.id === u.id);
-                return liveUnit && liveUnit.movesLeft > 0;
+                const liveUnit = state.units.find(uu => uu.id === u.id);
+                return liveUnit && liveUnit.movesLeft > 0 && !reservedUnitIds.has(liveUnit.id);
             }).slice(0, Math.min(helper.excess, needy.deficit));
 
             for (const unit of toSend) {
-                const liveUnit = next.units.find(u => u.id === unit.id);
+                const liveUnit = state.units.find(u => u.id === unit.id);
                 if (!liveUnit || liveUnit.movesLeft <= 0) continue;
 
-                // Move toward the threatened city
                 const ringPositions = getNeighbors(needy.city.coord).filter(n =>
-                    !next.units.some(u => hexEquals(u.coord, n))
+                    !state.units.some(u => hexEquals(u.coord, n)) &&
+                    !reservedCoords.has(`${n.q},${n.r}`)
                 );
 
-                let moved = false;
+                let planned = false;
 
-                // If close enough, move directly to ring
                 if (ringPositions.length > 0) {
                     const closest = ringPositions.sort((a, b) =>
                         hexDistance(liveUnit.coord, a) - hexDistance(liveUnit.coord, b)
                     )[0];
 
-                    if (hexDistance(liveUnit.coord, closest) <= liveUnit.movesLeft) {
-                        const moveResult = tryAction(next, {
-                            type: "MoveUnit", playerId, unitId: liveUnit.id, to: closest
-                        });
-                        if (moveResult !== next) {
-                            next = moveResult;
-                            moved = true;
-                            aiInfo(`[MUTUAL DEFENSE] ${playerId} ${liveUnit.type} from ${helper.city.name} reinforcing ${needy.city.name} (threat:${needy.threat})`);
+                    if (hexDistance(liveUnit.coord, closest) === 1) {
+                        const action = { type: "MoveUnit", playerId, unitId: liveUnit.id, to: closest } as const;
+                        if (canPlanMove(state, playerId, liveUnit, closest)) {
+                            plans.push({
+                                intent: "support",
+                                unitId: liveUnit.id,
+                                action,
+                                score: scoreDefenseMove(needy.threatLevel, 1, needyBonus),
+                                cityId: needy.city.id,
+                                reason: "mutual-defense-ring"
+                            });
+                            reservedUnitIds.add(liveUnit.id);
+                            reservedCoords.add(`${closest.q},${closest.r}`);
+                            planned = true;
+                            aiInfo(`[MUTUAL DEFENSE] ${playerId} ${liveUnit.type} from ${helper.city.name} reinforcing ${needy.city.name} (threat:${needy.threatLevel})`);
+                        }
+                    } else {
+                        const moveAction = planMoveToward(state, playerId, liveUnit, closest, reservedCoords);
+                        if (moveAction && moveAction.type === "MoveUnit") {
+                            const destKey = `${moveAction.to.q},${moveAction.to.r}`;
+                            plans.push({
+                                intent: "support",
+                                unitId: liveUnit.id,
+                                action: moveAction,
+                                score: scoreDefenseMove(needy.threatLevel, hexDistance(moveAction.to, needy.city.coord), needyBonus),
+                                cityId: needy.city.id,
+                                reason: "mutual-defense-step"
+                            });
+                            reservedUnitIds.add(liveUnit.id);
+                            reservedCoords.add(destKey);
+                            planned = true;
+                            aiInfo(`[MUTUAL DEFENSE] ${playerId} ${liveUnit.type} stepping toward ${needy.city.name}`);
                         }
                     }
                 }
 
-                // Otherwise step toward city
-                if (!moved) {
+                if (!planned) {
                     const sorted = getNeighbors(liveUnit.coord).sort((a, b) =>
                         hexDistance(a, needy.city.coord) - hexDistance(b, needy.city.coord)
                     );
                     for (const n of sorted) {
-                        const attempt = tryAction(next, { type: "MoveUnit", playerId, unitId: liveUnit.id, to: n });
-                        if (attempt !== next) {
-                            next = attempt;
+                        const key = `${n.q},${n.r}`;
+                        if (reservedCoords.has(key)) continue;
+                        if (canPlanMove(state, playerId, liveUnit, n)) {
+                            plans.push({
+                                intent: "support",
+                                unitId: liveUnit.id,
+                                action: { type: "MoveUnit", playerId, unitId: liveUnit.id, to: n },
+                                score: scoreDefenseMove(needy.threatLevel, hexDistance(n, needy.city.coord), needyBonus),
+                                cityId: needy.city.id,
+                                reason: "mutual-defense-fallback"
+                            });
+                            reservedUnitIds.add(liveUnit.id);
+                            reservedCoords.add(key);
                             aiInfo(`[MUTUAL DEFENSE] ${playerId} ${liveUnit.type} stepping from ${helper.city.name} toward ${needy.city.name}`);
                             break;
                         }
@@ -173,5 +186,5 @@ export function sendMutualDefenseReinforcements(state: GameState, playerId: stri
         }
     }
 
-    return next;
+    return plans;
 }

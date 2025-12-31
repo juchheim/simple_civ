@@ -2,11 +2,11 @@ import { canBuild } from "../../rules.js";
 import { City, GameState, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import { isDefensiveCiv } from "../../helpers/civ-helpers.js";
-import { getThreatLevel } from "../../ai/units/unit-helpers.js";
+import { assessCityThreatLevel } from "../defense-situation/scoring.js";
 import { getAiProfileV2 } from "../rules.js";
 import { getAiMemoryV2 } from "../memory.js";
-import { UNITS } from "../../../core/constants.js";
 import { hexDistance } from "../../../core/hex.js";
+import { canCaptureCities, isCombatUnitType } from "../schema.js";
 import type { BuildOption } from "../production.js";
 
 /**
@@ -30,16 +30,15 @@ export function pickWarStagingProduction(state: GameState, playerId: string, cit
     const stagingRoll = ((state.turn * 17 + city.id.charCodeAt(0) * 7) % 100) / 100;
     const shouldStageForWar = isAggressiveCiv || (stagingRoll < defensiveCivStagingChance);
 
-    const thisCityThreat = getThreatLevel(state, city, playerId);
-    const cityNotThreatened = thisCityThreat === "none" || thisCityThreat === "low";
+    const thisCityThreat = assessCityThreatLevel(state, city, playerId);
+    const cityNotThreatened = thisCityThreat === "none" || thisCityThreat === "probe";
 
     if (!isStaging || !focusCity || !shouldStageForWar || !cityNotThreatened) return null;
 
     const stageDistMax = 6;
     const nearCount = state.units.filter(u =>
         u.ownerId === playerId &&
-        u.type !== UnitType.Settler && u.type !== UnitType.Scout &&
-        UNITS[u.type].domain !== "Civilian" &&
+        isCombatUnitType(u.type) &&
         hexDistance(u.coord, focusCity.coord) <= stageDistMax
     ).length;
 
@@ -48,9 +47,7 @@ export function pickWarStagingProduction(state: GameState, playerId: string, cit
 
     const capturersNear = state.units.filter(u =>
         u.ownerId === playerId &&
-        (u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard ||
-            u.type === UnitType.Riders || u.type === UnitType.ArmyRiders ||
-            u.type === UnitType.Titan || u.type === UnitType.Landship) &&
+        canCaptureCities(u.type) &&
         hexDistance(u.coord, focusCity.coord) <= stageDistMax
     ).length;
 
@@ -90,8 +87,7 @@ export function pickWarStagingProduction(state: GameState, playerId: string, cit
     ).length;
     const militaryCount = state.units.filter(u =>
         u.ownerId === playerId &&
-        UNITS[u.type].domain !== "Civilian" &&
-        u.type !== UnitType.Scout
+        isCombatUnitType(u.type)
     ).length;
     const trebuchetCap = Math.min(4, Math.max(2, Math.floor(militaryCount / 4)));
     if (trebuchetsNear < 1 && trebuchetsTotal < trebuchetCap) {

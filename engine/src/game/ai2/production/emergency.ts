@@ -1,10 +1,9 @@
 import { City, GameState, UnitType } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
-import { UNITS } from "../../../core/constants.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import { canBuild } from "../../rules.js";
 import { isDefensiveCiv } from "../../helpers/civ-helpers.js";
-import { UNIT_ROLES } from "../capabilities.js";
+import { isCombatUnitType } from "../schema.js";
 import { cityHasGarrison } from "./analysis.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 
@@ -34,7 +33,7 @@ const MELEE_THREAT_UNITS = new Set<UnitType>([
 ]);
 
 function isThreateningEnemyUnit(unitType: UnitType): boolean {
-    return UNITS[unitType].domain !== "Civilian" && unitType !== UnitType.Scout;
+    return isCombatUnitType(unitType);
 }
 
 function pickFirstBuildableUnit(
@@ -68,8 +67,7 @@ function countUnitsWithinDistance(
 export function countMilitary(state: GameState, playerId: string): number {
     return state.units.filter(u =>
         u.ownerId === playerId &&
-        UNIT_ROLES[u.type] !== "civilian" &&
-        UNIT_ROLES[u.type] !== "vision"
+        isCombatUnitType(u.type)
     ).length;
 }
 

@@ -1,7 +1,7 @@
 // Defense vs expansion decision helpers for AI production.
 import { City, DiplomacyState, GameState, TechId } from "../../../core/types.js";
 import { estimateMilitaryPower } from "../../ai/goals.js";
-import { getThreatLevel } from "../../ai/units/unit-helpers.js";
+import { assessCityThreatLevel } from "../defense-situation/scoring.js";
 
 export type DefenseDecision = "defend" | "expand" | "interleave";
 
@@ -56,15 +56,15 @@ export function shouldPrioritizeDefense(
     playerId: string,
     phase: "Expand" | "Develop" | "Execute"
 ): DefenseDecision {
-    const threat = getThreatLevel(state, city, playerId);
+    const threatLevel = assessCityThreatLevel(state, city, playerId);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
 
     const { atWar, powerRatio } = getWarPowerSnapshot(state, playerId);
 
     // ==== DECISION LOGIC ====
 
-    // 1. CRITICAL THREAT: Always defend
-    if (threat === "critical") {
+    // 1. ASSAULT THREAT: Always defend
+    if (threatLevel === "assault") {
         return "defend";
     }
 
@@ -88,12 +88,12 @@ export function shouldPrioritizeDefense(
     }
 
     // 3. EARLY GAME: Expansion is critical (need cities first)
-    if (phase === "Expand" && myCities.length < 3 && threat !== "high") {
+    if (phase === "Expand" && myCities.length < 3 && (threatLevel === "none" || threatLevel === "probe")) {
         return "expand";
     }
 
-    // 4. AT WAR + HIGH THREAT: Defend urgently
-    if (atWar && threat === "high") {
+    // 4. AT WAR + RAID THREAT: Defend urgently
+    if (atWar && threatLevel === "raid") {
         return "defend";
     }
 
@@ -103,7 +103,7 @@ export function shouldPrioritizeDefense(
     }
 
     // 6. NO THREAT + PEACE: Expansion friendly
-    if (threat === "none" && !atWar) {
+    if (threatLevel === "none" && !atWar) {
         return "expand";
     }
 
