@@ -15,6 +15,7 @@ import { AiVictoryGoal, City, DiplomacyState, GameState, ProjectId, TechId, Unit
 import { getAiProfileV2 } from "./rules.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { isCombatUnitType } from "./schema.js";
+import { UNIT_ROLES } from "./capabilities.js";
 import {
     assessCapabilities,
     findCapabilityGaps,
@@ -256,11 +257,72 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     if (standardBuild) return standardBuild;
 
     // =========================================================================
-    // FALLBACK: More military
+    // FALLBACK: More military (Balanced Composition)
     // =========================================================================
-    const fallbackUnit = getBestUnitForRole("capture", unlockedUnits) ?? UnitType.SpearGuard;
+    // v8.5: Enforce 3:2:1 ratio for Starborne/others (Spear : Bow : Rider)
+    const myMilitary = context.myUnits.filter(u => isCombatUnitType(u.type));
+
+    // Count specific roles (grouping base and army variants)
+    const spearCount = myMilitary.filter(u => u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard).length;
+    const bowCount = myMilitary.filter(u => u.type === UnitType.BowGuard || u.type === UnitType.ArmyBowGuard).length;
+    const riderCount = myMilitary.filter(u => u.type === UnitType.Riders || u.type === UnitType.ArmyRiders).length;
+    const totalCount = spearCount + bowCount + riderCount;
+
+    // Ideal Ratio: 3/6 Spear, 2/6 Bow, 1/6 Rider
+    // We calculate "deficit" = Expected - Actual. Highest deficit gets priority.
+    // Scale total by a small amount to avoid div/0 and ensure growth.
+    const baseline = Math.max(6, totalCount + 1);
+
+    const targetSpear = Math.floor(baseline * (3 / 6));
+    const targetBow = Math.floor(baseline * (2 / 6));
+    const targetRider = Math.floor(baseline * (1 / 6));
+
+    const spearDeficit = targetSpear - spearCount;
+    const bowDeficit = targetBow - bowCount;
+    const riderDeficit = targetRider - riderCount;
+
+    let fallbackUnit: UnitType | null = null;
+
+    // Pick the one with highest deficit that we can actually build
+    const deficits = [
+        { type: "rider", val: riderDeficit, role: "capture" }, // Rider is capture role
+        { type: "bow", val: bowDeficit, role: "defense" },     // Bow is defense/siege role
+        { type: "spear", val: spearDeficit, role: "capture" }  // Spear is capture role
+    ].sort((a, b) => b.val - a.val);
+
+    for (const d of deficits) {
+        // Try to get best unit for this "slot"
+        if (d.type === "rider") {
+            // Specific check for Riders since they share "capture" role with Spears
+            if (unlockedUnits.includes(UnitType.ArmyRiders)) fallbackUnit = UnitType.ArmyRiders;
+            else if (unlockedUnits.includes(UnitType.Riders)) fallbackUnit = UnitType.Riders;
+        } else if (d.type === "bow") {
+            fallbackUnit = getBestUnitForRole("defense", unlockedUnits) ?? getBestUnitForRole("siege", unlockedUnits);
+            // Ensure it's a bow type if possible
+            if (fallbackUnit && !String(fallbackUnit).includes("Bow")) {
+                if (unlockedUnits.includes(UnitType.ArmyBowGuard)) fallbackUnit = UnitType.ArmyBowGuard;
+                else if (unlockedUnits.includes(UnitType.BowGuard)) fallbackUnit = UnitType.BowGuard;
+            }
+        } else {
+            // Spear (default capture)
+            fallbackUnit = getBestUnitForRole("capture", unlockedUnits);
+            // Prefer Spear if it's generic capture, unless we really want something else
+            if (fallbackUnit && !String(fallbackUnit).includes("Spear") && !String(fallbackUnit).includes("Titan") && !String(fallbackUnit).includes("Landship")) {
+                if (unlockedUnits.includes(UnitType.ArmySpearGuard)) fallbackUnit = UnitType.ArmySpearGuard;
+                else if (unlockedUnits.includes(UnitType.SpearGuard)) fallbackUnit = UnitType.SpearGuard;
+            }
+        }
+
+        if (fallbackUnit && canBuild(city, "Unit", fallbackUnit, state)) {
+            aiInfo(`[AI Build] ${profile.civName} FALLBACK (3:2:1): ${fallbackUnit} (Deficits: S:${spearDeficit} B:${bowDeficit} R:${riderDeficit})`);
+            return { type: "Unit", id: fallbackUnit };
+        }
+    }
+
+    // Ultimate fallback
+    fallbackUnit = getBestUnitForRole("capture", unlockedUnits) ?? UnitType.SpearGuard;
     if (canBuild(city, "Unit", fallbackUnit, state)) {
-        aiInfo(`[AI Build] ${profile.civName} FALLBACK: ${fallbackUnit}`);
+        aiInfo(`[AI Build] ${profile.civName} FALLBACK (Default): ${fallbackUnit}`);
         return { type: "Unit", id: fallbackUnit };
     }
 

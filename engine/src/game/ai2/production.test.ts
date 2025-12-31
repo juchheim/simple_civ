@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DiplomacyState, GameState, PlayerPhase, TechId, UnitType } from "../../core/types.js";
+import { BuildingType, DiplomacyState, GameState, PlayerPhase, TechId, UnitType } from "../../core/types.js";
 import { chooseCityBuildV2 } from "./production.js";
 
 const BASE_TECHS = [TechId.Fieldcraft, TechId.StoneworkHalls, TechId.ScriptLore];
@@ -127,5 +127,58 @@ describe("UtilityV2 AI production (characterization)", () => {
 
         const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
         expect(build).toEqual({ type: "Unit", id: UnitType.Settler });
+    });
+
+    it("prioritizes unit mix during fallback production", () => {
+        const state = baseState();
+        state.turn = 50;
+        // Remove StoneworkHalls to prevent Bulwark, Add FormationTraining to unlock BowGuard
+        state.players = [mkPlayer("p1", "StarborneSeekers", [TechId.Fieldcraft, TechId.ScriptLore, TechId.FormationTraining])];
+        // City has no current build
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true, pop: 1 }),
+        ];
+        state.cities[0].buildings = [BuildingType.Scriptorium, BuildingType.Farmstead];
+        // Player has 5 Melee units (SpearGuard) and 0 Ranged
+        state.units = [
+            mkUnit("p1", "u1", UnitType.SpearGuard, 0, 1),
+            mkUnit("p1", "u2", UnitType.SpearGuard, 0, 2),
+            mkUnit("p1", "u3", UnitType.SpearGuard, 1, 0),
+            mkUnit("p1", "u4", UnitType.SpearGuard, 1, 1),
+            mkUnit("p1", "u5", UnitType.SpearGuard, 2, 0),
+        ];
+
+        // Should normally pick capture unit (SpearGuard), but with 5:0 split, we want BowGuard if we fix it
+        // For reproduction, we assert the CURRENT behavior (which is incorrect) to verify the test setup
+        // After fix, we will update expectation to UnitType.BowGuard
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+
+        // CURRENT BUGGY BEHAVIOR: Ignores composition, picks Capture unit (SpearGuard)
+        // We will change this expectation to BowGuard after applying the fix
+        expect(build).toEqual({ type: "Unit", id: UnitType.BowGuard });
+    });
+
+    it("prioritizes unit mix with 3:2:1 ratio (Spear:Bow:Rider)", () => {
+        const state = baseState();
+        state.turn = 50;
+        // Add TrailMaps to unlock Riders
+        state.players = [mkPlayer("p1", "StarborneSeekers", [TechId.Fieldcraft, TechId.ScriptLore, TechId.FormationTraining, TechId.TrailMaps])];
+        // City has no current build
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true, pop: 1 }),
+        ];
+        state.cities[0].buildings = [BuildingType.Scriptorium, BuildingType.Farmstead];
+        // State: 3 Spears, 2 Bows, 0 Riders.
+        // Ratio 3:2:0. Riders deficit is largest (target ~1 per 6, actual 0).
+        state.units = [
+            mkUnit("p1", "u1", UnitType.SpearGuard, 0, 1),
+            mkUnit("p1", "u2", UnitType.SpearGuard, 0, 2),
+            mkUnit("p1", "u3", UnitType.SpearGuard, 1, 0),
+            mkUnit("p1", "u4", UnitType.BowGuard, 1, 1),
+            mkUnit("p1", "u5", UnitType.BowGuard, 2, 0),
+        ];
+
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+        expect(build).toEqual({ type: "Unit", id: UnitType.Riders });
     });
 });

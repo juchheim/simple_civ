@@ -172,7 +172,10 @@ function scoreUnitAttackInternal(
     score += threatScore;
     if (includeBreakdown) components.threat = threatScore;
 
-    if (isHighValueTarget(target)) {
+    if (target.type === UnitType.Settler) {
+        score += 120; // High priority to capture settlers (beats opportunity threshold)
+        if (includeBreakdown) components.settlerCapture = 120;
+    } else if (isHighValueTarget(target)) {
         score += 40;
         if (includeBreakdown) components.highValue = 40;
     }
