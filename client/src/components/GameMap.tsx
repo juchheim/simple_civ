@@ -138,6 +138,7 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
         handleTouchEnd,
         centerOnCoord,
         centerOnPoint,
+        layerGroupRef,
     } = useMapController({
         tiles: map.tiles,
         hexToPixel,
@@ -260,6 +261,7 @@ const GameMapComponent = React.forwardRef<GameMapHandle, GameMapProps>(({ gameSt
                 hoveredCoord={hoveredCoord}
                 showTileYields={showTileYields}
                 showShroud={showShroud}
+                layerGroupRef={layerGroupRef}
             />
             <EraModal
                 era={modalEra}

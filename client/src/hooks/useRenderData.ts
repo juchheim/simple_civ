@@ -213,6 +213,8 @@ export const useRenderData = ({
                     showLinkIcon: !!unit.linkedUnitId,
                     color: unit.ownerId === "natives" ? "#f97316" : (playerColorMap.get(unit.ownerId) ?? "#22d3ee"),
                     isOnCityHex,
+                    // Show indicator if: owned by player, has moves, and NOT fortified/sleeping
+                    canMove: unit.ownerId === playerId && unit.movesLeft > 0 && unit.state !== "Fortified",
                 };
             });
     }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility, citiesByCoord, playerColorMap]);

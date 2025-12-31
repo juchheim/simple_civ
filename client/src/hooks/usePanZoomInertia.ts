@@ -19,6 +19,7 @@ type UsePanZoomInertiaParams = {
     setZoom: (zoom: number) => void;
     containerRef: RefObject<HTMLDivElement>;
     isPanningRef: RefObject<boolean>;
+    layerGroupRef: RefObject<SVGGElement>;
 };
 
 /**
@@ -31,7 +32,8 @@ export function usePanZoomInertia({
     setPan,
     setZoom,
     containerRef,
-    isPanningRef
+    isPanningRef,
+    layerGroupRef
 }: UsePanZoomInertiaParams) {
     const panRef = useRef<PanState>(pan);
     const zoomRef = useRef(zoom);
@@ -70,13 +72,14 @@ export function usePanZoomInertia({
 
             if (speed <= PAN_INERTIA_MIN_VELOCITY) {
                 isInertiaActiveRef.current = false;
+                // Sync state at end of inertia
+                setPan(panRef.current);
             } else {
                 const nextPan = {
                     x: panRef.current.x + velocity.vx * deltaMs,
                     y: panRef.current.y + velocity.vy * deltaMs,
                 };
                 panRef.current = nextPan;
-                setPan(nextPan);
                 shouldContinue = true;
             }
         }
@@ -124,7 +127,6 @@ export function usePanZoomInertia({
                             y: panRef.current.y + vy * deltaMs,
                         };
                         panRef.current = nextPan;
-                        setPan(nextPan);
                         shouldContinue = true;
                     }
                 } else {
@@ -160,25 +162,44 @@ export function usePanZoomInertia({
                     y: anchor.y - (anchor.y - currentPan.y) * ratio,
                 };
                 panRef.current = zoomAdjustedPan;
-                setPan(zoomAdjustedPan);
             }
 
             zoomRef.current = nextZoom;
-            setZoom(nextZoom);
             shouldContinue = true;
         } else {
-            zoomRef.current = targetZoomRef.current;
+            // Snap to target if very close
+            if (zoomRef.current !== targetZoomRef.current) {
+                zoomRef.current = targetZoomRef.current;
+                // Sync state on zoom end
+                setZoom(targetZoomRef.current);
+                setPan(panRef.current);
+            }
             zoomAnchorRef.current = null;
         }
 
         const stillZooming = Math.abs(targetZoomRef.current - zoomRef.current) > 0.001;
+
+        // Direct DOM manipulation
+        if (layerGroupRef.current) {
+            layerGroupRef.current.setAttribute("transform", `translate(${panRef.current.x},${panRef.current.y}) scale(${zoomRef.current})`);
+        }
+
         if (shouldContinue || isInertiaActiveRef.current || stillZooming) {
             rafRef.current = requestAnimationFrame(animate);
         } else {
             rafRef.current = null;
             lastFrameTimeRef.current = null;
+
+            // Final sync to ensure React state matches visual state when everything stops
+            // compare with refs to avoid redundant updates
+            if (pan.x !== panRef.current.x || pan.y !== panRef.current.y) {
+                setPan(panRef.current);
+            }
+            if (zoom !== zoomRef.current) {
+                setZoom(zoomRef.current);
+            }
         }
-    }, [setPan, setZoom, containerRef, isPanningRef]);
+    }, [setPan, setZoom, containerRef, isPanningRef, layerGroupRef, pan, zoom]);
 
     const scheduleAnimation = useCallback(() => {
         if (rafRef.current !== null) return;

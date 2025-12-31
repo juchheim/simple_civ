@@ -29,6 +29,7 @@ type GameMapLayersProps = {
     hoveredCoord: HexCoord | null;
     showTileYields: boolean;
     showShroud: boolean;
+    layerGroupRef: React.RefObject<SVGGElement>;
 };
 
 function GameMapLayersBase({
@@ -50,6 +51,7 @@ function GameMapLayersBase({
     hoveredCoord,
     showTileYields,
     showShroud,
+    layerGroupRef,
 }: GameMapLayersProps) {
     return (
         <svg
@@ -81,7 +83,10 @@ function GameMapLayersBase({
                     </pattern>
                 ))}
             </defs>
-            <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+            <g
+                ref={layerGroupRef}
+                transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}
+            >
                 {tileRenderData.map(entry => (
                     <HexTile
                         key={`base-${entry.key}`}

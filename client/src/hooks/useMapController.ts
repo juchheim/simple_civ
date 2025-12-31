@@ -63,6 +63,7 @@ export const useMapController = ({
     const hasInitializedRef = useRef(false);
     const isPanningRef = useRef(false);
     const lastPointerRef = useRef<PointerSample | null>(null);
+    const layerGroupRef = useRef<SVGGElement>(null);
     const {
         panRef,
         zoomRef,
@@ -72,7 +73,7 @@ export const useMapController = ({
         isInertiaActiveRef,
         mousePositionRef,
         scheduleAnimation,
-    } = usePanZoomInertia({ pan, zoom, setPan, setZoom, containerRef, isPanningRef });
+    } = usePanZoomInertia({ pan, zoom, setPan, setZoom, containerRef, isPanningRef, layerGroupRef });
 
     // --- Viewport State (from GameMap) ---
     const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -83,12 +84,13 @@ export const useMapController = ({
     }, [isPanning]);
 
     // --- Helpers ---
+    // Use REFS for coordinate math to ensure freshness during animation without re-renders
     const screenToWorld = useCallback((screenX: number, screenY: number) => {
         return {
-            x: (screenX - pan.x) / zoom,
-            y: (screenY - pan.y) / zoom,
+            x: (screenX - panRef.current.x) / zoomRef.current,
+            y: (screenY - panRef.current.y) / zoomRef.current,
         };
-    }, [pan, zoom]);
+    }, [panRef, zoomRef]); // Refs are stable, but listing them as deps is fine/safe
 
     const findHexAtScreen = useCallback((screenX: number, screenY: number): HexCoord | null => {
         const world = screenToWorld(screenX, screenY);
@@ -298,8 +300,11 @@ export const useMapController = ({
             x: panStart.x + deltaX,
             y: panStart.y + deltaY,
         };
-        setPan(nextPan);
+        // DIRECT DOM UPDATE: Bypass React State!
         panRef.current = nextPan;
+        if (layerGroupRef.current) {
+            layerGroupRef.current.setAttribute("transform", `translate(${nextPan.x},${nextPan.y}) scale(${zoomRef.current})`);
+        }
     }, [findHexAtScreen, inertiaVelocityRef, isPanning, mouseDownPos, mousePositionRef, onHoverTile, panRef, panStart, scheduleAnimation]);
 
     const handleMouseUp = useCallback(() => {
@@ -311,6 +316,8 @@ export const useMapController = ({
                 scheduleAnimation();
             } else {
                 isInertiaActiveRef.current = false;
+                // Sync state at end of dragging
+                setPan(panRef.current);
             }
         } else if (clickTarget) {
             onTileClick(clickTarget);
@@ -346,6 +353,10 @@ export const useMapController = ({
 
         setPan(newPan);
         panRef.current = newPan;
+        // Direct update for programmatic centering
+        if (layerGroupRef.current) {
+            layerGroupRef.current.setAttribute("transform", `translate(${newPan.x},${newPan.y}) scale(${currentZoom})`);
+        }
     }, [panRef, zoomRef]);
 
     const centerOnCoord = useCallback((coord: HexCoord) => {
@@ -384,6 +395,8 @@ export const useMapController = ({
     }, []);
 
     // --- Viewport Calculation ---
+    // NOTE: Viewport will still re-calculate when React state updates (which we throttled)
+    // This is fine as it's used for culling logic, which doesn't need to be 60fps accurate during rapid motion
     const viewport = useMemo<MapViewport | null>(() => {
         if (viewportSize.width === 0 || viewportSize.height === 0) return null;
         const minX = (-pan.x) / zoom;
@@ -424,6 +437,7 @@ export const useMapController = ({
         isPanning,
         containerRef,
         svgRef,
+        layerGroupRef,
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,

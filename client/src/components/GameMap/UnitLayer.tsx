@@ -11,13 +11,14 @@ export type UnitDescriptor = {
     showLinkIcon: boolean;
     color: string;
     isOnCityHex?: boolean;
+    canMove: boolean;
 };
 
 type UnitLayerProps = {
     units: UnitDescriptor[];
 };
 
-const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSelected, isLinkedPartner, showLinkIcon, color }) => {
+const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSelected, isLinkedPartner, showLinkIcon, color, canMove }) => {
     const unitImageOffset = UNIT_IMAGE_SIZE / 2;
     const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
 
@@ -72,6 +73,19 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
                 >
                     <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
                 </circle>
+            )}
+
+            {/* Moves Left Indicator - Green Orb */}
+            {canMove && !isSelected && (
+                <circle
+                    cx={unitImageOffset * 0.6}
+                    cy={-unitImageOffset * 0.6}
+                    r={8}
+                    fill="#4ade80" // green-400
+                    stroke="#14532d" // green-900
+                    strokeWidth={1}
+                    className="animate-pulse-opacity"
+                />
             )}
 
             {showLinkIcon && (

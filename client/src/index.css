@@ -19,3 +19,19 @@ body {
   background-color: var(--color-bg-main);
   color: var(--color-text-main);
 }
+
+@keyframes pulse-opacity {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse-opacity {
+  animation: pulse-opacity 2s ease-in-out infinite;
+}
