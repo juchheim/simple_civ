@@ -7,9 +7,9 @@ import { EraId, GameState, PlayerPhase, TerrainType, UnitState, UnitType } from 
 describe("Titan Stats & Mechanics", () => {
     it("should have correct Titan stats (as defined in core/constants)", () => {
         const titan = UNITS[UnitType.Titan];
-        expect(titan.def).toBe(12);
-        expect(titan.hp).toBe(30);
-        expect(titan.atk).toBe(18);
+        expect(titan.def).toBe(10);
+        expect(titan.hp).toBe(25);
+        expect(titan.atk).toBe(15);
     });
 
     it("should regenerate exactly 1 HP per turn", () => {

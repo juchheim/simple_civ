@@ -140,7 +140,7 @@ const baseProfile: CivAiProfileV2 = {
                 [ProjectId.AlchemicalExperiments]: 0.2,
             },
         },
-        armyPerCity: 1.25,
+        armyPerCity: 2.5,
         settlerCap: 2,
         desiredCities: 5,
     },
@@ -270,7 +270,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 2.0,
+            armyPerCity: 3.0,
             settlerCap: 2,
             desiredCities: 8, // v6.1: Wider industrial base (was 5)
             weights: {
@@ -333,7 +333,7 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         build: {
             // v8.9: Buff expansion to match city count with Starborne
-            armyPerCity: 1.5,
+            armyPerCity: 2.5,
             settlerCap: 5,  // v8.9: Buffed from 4 - more expansion
             desiredCities: 8,  // v8.9: Buffed from 7 - want more cities
             weights: {
@@ -388,7 +388,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             }
         },
         build: {
-            armyPerCity: 1.5, // v1.7: Increased for conquest (was 1.2)
+            armyPerCity: 2.5, // v1.7: Increased for conquest (was 1.2)
             settlerCap: 4,
             desiredCities: 7,
             weights: {
@@ -440,7 +440,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 1.8, // v1.0.9: Adjusted from 2.0 to 1.8
+            armyPerCity: 2.8, // v1.0.9: Adjusted from 2.0 to 1.8
             settlerCap: 3, // v7.9: Buffed from 2 - expand after conquest
             desiredCities: 7, // v1.0.9: Buffed from 6 - more cities = more production for Titan
             weights: {
@@ -491,7 +491,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 1.5,  // v6.5: Lower than Scholar - spread focus
+            armyPerCity: 2.5,  // v6.5: Lower than Scholar - spread focus
             settlerCap: 4,  // v6.5: HIGH - wide expansion
             desiredCities: 7,  // v6.5: WIDE - more cities for SpiritObservatory spread
             weights: {
@@ -546,7 +546,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             }
         },
         build: {
-            armyPerCity: 1.6, // v7.9: Buffed from 1.3 - need more military to survive early game
+            armyPerCity: 2.6, // v7.9: Buffed from 1.3 - need more military to survive early game
             settlerCap: 5, // v7.9: Highest settler cap - Jade is THE expansion civ
             desiredCities: 8, // v7.9: High city target - leverage +3 Food/city perk
             weights: {

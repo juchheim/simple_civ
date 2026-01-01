@@ -159,7 +159,8 @@ function handleChooseTech(state: GameState, action: { type: "ChooseTech"; player
     }
 
     const savedProgress = player.researchHistory?.[action.techId] || 0;
-    if (true) console.log(`[TechDebug] Turn ${state.turn} Player ${player.id} CHOOSES ${action.techId} (Saved: ${savedProgress})`);
+    const GAME_LOG_ENABLED = typeof process !== "undefined" && process.env.DEBUG_GAME_LOGS === "true";
+    if (GAME_LOG_ENABLED) console.log(`[TechDebug] Turn ${state.turn} Player ${player.id} CHOOSES ${action.techId} (Saved: ${savedProgress})`);
     player.currentTech = {
         id: action.techId,
         progress: savedProgress,

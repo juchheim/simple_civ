@@ -65,9 +65,9 @@ function runPostWarRally(
         if (u.isTitanEscort) return false; // Escorts follow Titan
         if (u.isHomeDefender) return false; // Home defenders stay in territory
         if (myCityCoords.has(`${u.coord.q},${u.coord.r}`)) return false; // Don't pull garrisons
-        // v8.1: Don't pull ring defenders (distance 1 from any city)
-        const inRing = myCities.some(c => hexDistance(u.coord, c.coord) === 1);
-        if (inRing) return false;
+        // v8.1: Don't pull ring defenders (distance 1 from any city) - REVERTED: deadlock fix
+        // const inRing = myCities.some(c => hexDistance(u.coord, c.coord) === 1);
+        // if (inRing) return false;
         if (hexDistance(u.coord, rallyTarget) <= 3) return false; // Already close enough
         return true;
     }).sort((a, b) =>
@@ -133,9 +133,9 @@ function runPreWarRally(
             if (u.type === UnitType.Titan) return false;
             if (u.isHomeDefender) return false; // v7.1: Home defenders stay in territory
             if (cityTiles.has(`${u.coord.q},${u.coord.r}`)) return false; // don't pull garrisons off cities
-            // v8.1: Don't pull ring defenders (distance 1 from any city)
-            const inRing = myCities.some(c => hexDistance(u.coord, c.coord) === 1);
-            if (inRing) return false;
+            // v8.1: Don't pull ring defenders (distance 1 from any city) - REVERTED: deadlock fix
+            // const inRing = myCities.some(c => hexDistance(u.coord, c.coord) === 1);
+            // if (inRing) return false;
             return true;
         })
         .sort((a, b) => hexDistance(a.coord, focusCity.coord) - hexDistance(b.coord, focusCity.coord));

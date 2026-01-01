@@ -19,12 +19,19 @@ function buildPathContext(gameState: GameState, unit: Unit, externalCache?: Look
 }
 
 /**
+ * Options for pathfinding behavior
+ */
+export type PathOptions = {
+    ignoreFriendlyBlockers?: boolean;
+};
+
+/**
  * Calculates the movement cost for a unit to enter a specific tile.
  * Implements "Optimistic" pathfinding:
  * - If tile is visible: Returns actual cost (or Infinity if impassable)
  * - If tile is hidden (Fog/Shroud): Returns 1 (assumes passable)
  */
-export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState, ctx?: PathContext): number {
+export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState, ctx?: PathContext, options?: PathOptions): number {
     const stats = UNITS[unit.type];
     if (!stats) {
         console.error(`[Pathfinding Error] Unknown unit type: ${unit.type}`);
@@ -78,9 +85,24 @@ export function getMovementCost(tile: Tile, unit: Unit, gameState: GameState, ct
             }
         }
 
-        // Check for blocking units with penalty for friendly
+        // Check for blocking units
         if (blockingUnit) {
             if (blockingUnit.ownerId !== unit.ownerId) return Infinity;
+
+            // v7.3: Fix pathfinding/validation mismatch.
+            // Use strict stacking rules: Cannot pass through unit if we couldn't end turn there.
+            // (Military cannot stack with Military, Civilian cannot stack with Civilian)
+            // Unless ignoring friendly blockers (e.g. for long-range planning)
+            const blockerStats = UNITS[blockingUnit.type];
+            // TS2367 Fix: We are in 'if (stats.domain === UnitDomain.Land)', so strictly not Civilian.
+            const isMilitary = true;
+            const blockerIsMilitary = blockerStats.domain !== UnitDomain.Civilian;
+
+            if (isMilitary === blockerIsMilitary && !options?.ignoreFriendlyBlockers) {
+                return Infinity;
+            }
+
+            // Allow stacking with penalty (Civilian vs Military, or ignoring blockers)
             return (TERRAIN[tile.terrain].moveCostLand ?? Infinity) + 5;
         }
 
@@ -125,7 +147,7 @@ type Node = {
  * 
  * @param cache - Optional external cache for batch pathfinding operations
  */
-export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: GameState, cache?: LookupCache): HexCoord[] {
+export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: GameState, cache?: LookupCache, options?: PathOptions): HexCoord[] {
     const startKey = hexToString(start);
     const endKey = hexToString(end);
 
@@ -193,7 +215,7 @@ export function findPath(start: HexCoord, end: HexCoord, unit: Unit, gameState: 
             // If tile doesn't exist (off map), skip
             if (!tile) continue;
 
-            const moveCost = getMovementCost(tile, unit, gameState, ctx);
+            const moveCost = getMovementCost(tile, unit, gameState, ctx, options);
 
             // If impassable, skip
             if (moveCost === Infinity) continue;

@@ -163,7 +163,7 @@ export function processAutoMovement(state: GameState, playerId: string, specific
         while (unit.movesLeft > 0 && unit.autoMoveTarget && moves < MAX_MOVES) {
             moves++;
 
-            const path = findPath(unit.coord, unit.autoMoveTarget, unit, state);
+            const path = findPath(unit.coord, unit.autoMoveTarget, unit, state, undefined, { ignoreFriendlyBlockers: true });
 
             if (path.length === 0) {
                 if (hexEquals(unit.coord, unit.autoMoveTarget)) {
@@ -197,7 +197,7 @@ export function processAutoMovement(state: GameState, playerId: string, specific
                             }
 
                             if (bestTile && !hexEquals(bestTile, unit.coord)) {
-                                const partialPath = findPath(unit.coord, bestTile, unit, state);
+                                const partialPath = findPath(unit.coord, bestTile, unit, state, undefined, { ignoreFriendlyBlockers: true });
                                 if (partialPath.length > 0) {
                                     const nextStep = partialPath[0];
                                     try {

@@ -294,13 +294,13 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 80->70
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 65, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v6.6o: Cost 75->65
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 85, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 95->85
-    [UnitType.Titan]: { atk: 18, def: 12, rng: 1, move: 3, hp: 30, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v1.1.0: Nerfed ATK 20→18, DEF 15→12, HP 45→30
+    [UnitType.Titan]: { atk: 15, def: 10, rng: 1, move: 3, hp: 25, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v1.1.0: Nerfed ATK 18→15, DEF 12→10, HP 30→25
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     // v6.0: Aether Era Units
     // Airship: Untargetable support unit. High vision.
-    [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 150, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 }, // v6.1: Cost 120 -> 150
+    [UnitType.Airship]: { atk: 0, def: 10, rng: 0, move: 4, hp: 20, cost: 75, domain: UnitDomain.Air, canCaptureCity: false, vision: 4 }, // v6.1: Cost 150 -> 75 (Much cheaper)
     // Landship: Late game siege breaker.
     [UnitType.Landship]: { atk: 14, def: 10, rng: 1, move: 3, hp: 25, cost: 120, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.2: Cost 220 -> 120 (more attainable)
     // v7.0: Lorekeeper - Defensive ranged unit for ScholarKingdoms/StarborneSeekers
