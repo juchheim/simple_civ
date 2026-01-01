@@ -81,7 +81,8 @@ export function computeMoveCost(unit: Unit, unitStats: UnitStats, targetTile: Ti
 
 export function validateTileOccupancy(state: GameState, target: HexCoord, movers: MoveParticipant[], playerId: string, tileLookup?: Map<string, Tile>) {
     const tilesByKey = tileLookup ?? buildTileLookup(state);
-    const unitsOnTile = state.units.filter(u => hexEquals(u.coord, target));
+    const moverIds = new Set(movers.map(m => m.unit.id));
+    const unitsOnTile = state.units.filter(u => hexEquals(u.coord, target) && !moverIds.has(u.id));
     let friendlyMilitaryOnTile = unitsOnTile.filter(u => u.ownerId === playerId && UNITS[u.type].domain !== UnitDomain.Civilian).length;
     let friendlyCivilianOnTile = unitsOnTile.filter(u => u.ownerId === playerId && UNITS[u.type].domain === UnitDomain.Civilian).length;
     const enemyUnitsOnTile = unitsOnTile.filter(u => u.ownerId !== playerId);
@@ -326,8 +327,23 @@ export function expelUnitsFromTerritory(state: GameState, unitOwnerId: string, t
                 const occupied = occupiedKeys.has(key);
 
                 if (passable && isSafeTerritory && !occupied) {
-                    foundDest = current;
-                    break;
+                    // v7.11: Validate we are allowed to enter the destination tile
+                    // We can enter:
+                    // 1. Unowned tiles
+                    // 2. Our own tiles (already covered by isSafeTerritory check relative to territoryOwnerId, but explicit check matches logic)
+                    // 3. Enemy tiles IF we are at WAR
+                    let allowedEntry = true;
+                    if (tile.ownerId && tile.ownerId !== unit.ownerId) {
+                        const diplomacy = state.diplomacy[unit.ownerId]?.[tile.ownerId];
+                        if (diplomacy !== "War") {
+                            allowedEntry = false;
+                        }
+                    }
+
+                    if (allowedEntry) {
+                        foundDest = current;
+                        break;
+                    }
                 }
             }
 

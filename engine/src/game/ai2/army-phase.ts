@@ -242,6 +242,7 @@ function checkAttackOverrides(
     );
 
     if (enemies.length === 0) return false;
+    const enemyIds = new Set(enemies.map(e => e.id));
 
     // Override 1: Titan near target -> attack immediately
     if (focusCity && hasTitan(state, playerId) && titanNearTarget(state, playerId, focusCity.coord)) {
@@ -330,6 +331,20 @@ function checkAttackOverrides(
         // If we have 1.5x superiority, GO!
         // Min power 5 prevents single-scout suicide runs
         if (localPower > (targetDefense * tuning.army.localSuperiorityRatio) && localPower > tuning.army.localSuperiorityMinPower) {
+            return true;
+        }
+    }
+
+    // Override 8: Enemy Titan threatening our cities (Defensive Mobilization)
+    // If an enemy Titan is near ANY of our cities, we must switch to "attacking" phase 
+    // to unlock our units to fight it (otherwise they stay in "scattered"/"rallying" and wont attack).
+    const myCities = state.cities.filter(c => c.ownerId === playerId);
+    const enemyTitans = state.units.filter(u => enemyIds.has(u.ownerId) && u.type === UnitType.Titan);
+
+    for (const titan of enemyTitans) {
+        // Check if Titan is near any of our cities (within 5 tiles - threat range)
+        const threatening = myCities.some(c => hexDistance(titan.coord, c.coord) <= 5);
+        if (threatening) {
             return true;
         }
     }

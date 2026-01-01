@@ -15,6 +15,7 @@ import {
     hasDominatingPower,
     hasUnitType,
     isProgressThreat,
+    isConquestThreat,
     stanceDurationOk
 } from "./diplomacy/utils.js";
 
@@ -467,27 +468,35 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             profile.diplomacy.canInitiateWars &&
             (goal === "Conquest" || profile.diplomacy.warPowerRatio <= 1.35);
 
+        // Conquest Threat: Opponent has captured multiple foreign cities.
+        // We should attack them to stop their rampage, even if valid ratio is lower.
+        const conquestThreat =
+            isConquestThreat(next, other.id) &&
+            profile.diplomacy.canInitiateWars;
+
         if (progressThreat) {
             aiInfo(`[AI Diplo] ${playerId} sees Progress Threat in ${other.id} (Obs: ${next.players.find(p => p.id === other.id)?.completedProjects?.includes(ProjectId.Observatory)})`);
         }
 
-
         // If we're already at war, do NOT start additional wars (concentration wins wars),
-        // UNLESS we're finishing a weak enemy OR facing urgent progress-denial.
-        if (warsNow >= 1 && !progressThreat) continue;
+        // UNLESS we're finishing a weak enemy OR facing urgent progress-denial OR conquest-threat.
+        if (warsNow >= 1 && !progressThreat && !conquestThreat) continue;
         const hasTitanNow = hasUnitType(next, playerId, "Titan");
         const isAetherian = profile.civName === "AetherianVanguard";
         // Titan online => lower threshold: the whole point is to start capturing.
+        // Conquest Threat => lower threshold: we must fight back even if slightly weaker.
         const requiredRatio = (hasTitanNow && isAetherian)
             ? Math.min(profile.diplomacy.warPowerRatio, 0.9)
             : (progressThreat
                 ? Math.min(profile.diplomacy.warPowerRatio * 0.7, 1.0)
-                : profile.diplomacy.warPowerRatio);
+                : (conquestThreat
+                    ? 0.4 // Suicidal desperation against conquerors
+                    : profile.diplomacy.warPowerRatio));
 
         // Apply escalation factor (makes late-game wars more aggressive)
         const escalatedRatio = requiredRatio * escalationFactor;
 
-        const allowDistance = progressThreat ? Math.max(warDistanceMax, 999) : warDistanceMax;
+        const allowDistance = (progressThreat || conquestThreat) ? Math.max(warDistanceMax, 999) : warDistanceMax;
         if (dist > allowDistance) continue;
 
         if (offensiveRatio >= escalatedRatio) {
@@ -562,8 +571,8 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         }
 
         // From here, we have enough nearby forces. Apply "declare now" gates.
-        // BYPASS GATES if it's a Progress Threat OR early rush is active
-        if (!progressThreat && !earlyRushActive) {
+        // BYPASS GATES if it's a Progress Threat OR early rush OR Conquest Threat
+        if (!progressThreat && !conquestThreat && !earlyRushActive) {
             if (next.turn < profile.diplomacy.minWarTurn) continue;
             if (warsPlanned >= profile.diplomacy.maxConcurrentWars) continue;
             if (recentInitiations.length >= profile.diplomacy.maxInitiatedWarsPer50Turns) continue;

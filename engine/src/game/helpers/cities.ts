@@ -24,8 +24,12 @@ export function getClaimedRing(city: City, state: GameState): number {
     );
 }
 
+import { expelUnitsFromTerritory } from "./movement.js";
+
 export function claimCityTerritory(city: City, state: GameState, ownerId: string, maxRing: number = CITY_WORK_RADIUS_RINGS) {
     const territory = hexSpiral(city.coord, Math.min(maxRing, CITY_WORK_RADIUS_RINGS));
+    const newlyClaimedTiles: HexCoord[] = [];
+
     for (const coord of territory) {
         const tile = state.map.tiles.find(tt => hexEquals(tt.coord, coord));
         if (tile) {
@@ -37,9 +41,31 @@ export function claimCityTerritory(city: City, state: GameState, ownerId: string
             const ownedByFriendlyCity = tile.ownerCityId && tile.ownerCityId !== city.id && tile.ownerId === ownerId;
             if (ownedByFriendlyCity) continue;
 
+            if (tile.ownerId !== ownerId) {
+                newlyClaimedTiles.push(coord);
+            }
+
             tile.ownerId = ownerId;
             tile.ownerCityId = city.id;
             tile.hasCityCenter = hexEquals(coord, city.coord);
+        }
+    }
+
+    // v7.11: Trigger expulsion for any units caught in the newly claimed territory
+    // We only need to check units that are on the newly claimed tiles
+    if (newlyClaimedTiles.length > 0) {
+        const affectedUnitOwners = new Set<string>();
+        for (const u of state.units) {
+            if (u.ownerId !== ownerId && newlyClaimedTiles.some(t => hexEquals(t, u.coord))) {
+                affectedUnitOwners.add(u.ownerId);
+            }
+        }
+        for (const foreignPid of affectedUnitOwners) {
+            // Only expel if we are NOT at war (if at war, they can stay/attack)
+            const diplomacy = state.diplomacy[ownerId]?.[foreignPid];
+            if (diplomacy !== "War") {
+                expelUnitsFromTerritory(state, foreignPid, ownerId);
+            }
         }
     }
 }

@@ -243,9 +243,17 @@ function mustAttackAnyway(state: GameState, playerId: string, attack: PlannedAtt
         return { mustAttack: true, reason: "City nearly captured!" };
     }
 
-    // Override 3: Titan is attacking
+    // Override 3: Titan is attacking (attacker is Titan)
     if (attack.attacker.type === UnitType.Titan) {
         return { mustAttack: true, reason: "Titan always attacks" };
+    }
+
+    // Override 3b: Attacking a Titan (Target is Titan) - Chip damage is valuable
+    if (attack.targetType === "Unit") {
+        const target = state.units.find(u => u.id === attack.targetId);
+        if (target && target.type === UnitType.Titan) {
+            return { mustAttack: true, reason: "Always attack enemy Titan" };
+        }
     }
 
     // Override 4: Very high value target

@@ -45,7 +45,7 @@ export function handleCityAttack(state: GameState, action: { type: "CityAttack";
     if (target.ownerId === action.playerId) throw new Error("Cannot target own unit");
 
     const dist = hexDistance(city.coord, target.coord);
-    if (dist > 2) throw new Error("Target out of range");
+    if (dist > 2) throw new Error(`Target out of range (Distance: ${dist}, Max: 2)`);
     if (!hasClearLineOfSight(state, city.coord, target.coord)) throw new Error("Line of sight blocked");
 
     const targetKey = hexToString(target.coord);
@@ -90,7 +90,7 @@ export function handleCityAttack(state: GameState, action: { type: "CityAttack";
 //     if (target.ownerId === action.playerId) throw new Error("Cannot target own unit");
 
 //     const dist = hexDistance(city.coord, target.coord);
-//     if (dist > 2) throw new Error("Target out of range");
+//     if (dist > 2) throw new Error(`Target out of range (Distance: ${dist}, Max: 2)`);
 //     if (!hasClearLineOfSight(state, city.coord, target.coord)) throw new Error("Line of sight blocked");
 
 //     // v0.99 Fix: Strictly enforce visibility check

@@ -421,7 +421,15 @@ function planOpportunityAttacks(
         if (!action || action.type !== "Attack") continue;
 
         const tuning = getTacticalTuning(state, playerId);
-        if (allowOpportunityKill(wouldKill, best.score, armyPhase, tuning.army.opportunityKillScore)) {
+        const killerIsTitan = live.type === UnitType.Titan;
+        // Allow opportunity attacks if:
+        // 1. Will kill target (standard)
+        // 2. Target is Titan and score is positive (chip away at boss)
+        const targetIsTitan = best.action.targetType === "Unit" &&
+            state.units.find(u => u.id === best.action.targetId)?.type === UnitType.Titan;
+
+        if (allowOpportunityKill(wouldKill, best.score, armyPhase, tuning.army.opportunityKillScore) ||
+            (targetIsTitan && best.score > 0 && !killerIsTitan)) {
             opportunities.push({
                 attackerId: live.id,
                 action,

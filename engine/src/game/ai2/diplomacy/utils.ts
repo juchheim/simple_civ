@@ -95,6 +95,25 @@ export function isProgressThreat(state: GameState, targetPlayerId: string): bool
     return false;
 }
 
+/**
+ * Check if a player is a "Conquest Threat" (has captured significant foreign cities)
+ * A player who has captured 2+ foreign cities is considered a threat to world order.
+ */
+export function isConquestThreat(state: GameState, targetPlayerId: string): boolean {
+    const p = state.players.find(x => x.id === targetPlayerId);
+    if (!p) return false;
+
+    // Detect foreign cities captured by this player
+    // A captured city has originalOwnerId !== ownerId
+    const capturedCount = state.cities.filter(c =>
+        c.ownerId === targetPlayerId &&
+        c.originalOwnerId &&
+        c.originalOwnerId !== targetPlayerId
+    ).length;
+
+    return capturedCount >= 2;
+}
+
 export function currentWarCount(state: GameState, playerId: string): number {
     return state.players.filter(p =>
         p.id !== playerId &&
