@@ -38,6 +38,8 @@ import { isMilitary } from "./unit-roles.js";
 import { filterAttacksWithWaitDecision } from "./wait-decision.js";
 import { identifyBattleGroups, type BattleGroup } from "../ai/units/battle-groups.js";
 import { UNITS } from "../../core/constants.js";
+import { getMilitaryDoctrine } from "./military-doctrine.js"; // New
+import { planSiegeOperations } from "./siege-manager.js"; // New
 import { canPlanAttack } from "./attack-order/shared.js";
 import { scoreAttackOption } from "./attack-order/scoring.js";
 import { getTacticalTuning } from "./tuning.js";
@@ -116,7 +118,7 @@ const tacticalIntentPriority: Record<TacticalActionIntent, number> = {
     "garrison": 5,
     "support": 4,
     "attack": 3,
-    "move-attack": 2,
+    "move-attack": 2, // Must be lower than attack to prefer standing still and hitting
     "opportunity": 1,
 };
 
@@ -138,11 +140,14 @@ function isOpportunityAction(action: TacticalActionPlan): action is OpportunityP
 }
 
 function isBetterAction(candidate: TacticalActionPlan, existing: TacticalActionPlan): boolean {
-    if (tacticalSourcePriority[candidate.source] !== tacticalSourcePriority[existing.source]) {
-        return tacticalSourcePriority[candidate.source] > tacticalSourcePriority[existing.source];
+    // Fix: Intention is strict. Attacks strictly trump moves unless the move is a Retreat/Garrison (higher priority intent).
+    // Previously we allowed score comparisons to override intent, which caused units to "shimmy" (move-attack plan)
+    // instead of attacking directly, or do weird tactical moves.
+    if (tacticalIntentPriority[candidate.intent] !== tacticalIntentPriority[existing.intent]) {
+        return tacticalIntentPriority[candidate.intent] > tacticalIntentPriority[existing.intent];
     }
-    if (candidate.score !== existing.score) return candidate.score > existing.score;
-    return tacticalIntentPriority[candidate.intent] > tacticalIntentPriority[existing.intent];
+    // Only compare score if intents are equal priority
+    return candidate.score > existing.score;
 }
 
 function resolveActionConflicts(actions: TacticalActionPlan[]): TacticalActionPlan[] {
@@ -580,11 +585,42 @@ function buildOffensePlan(
     armyPhase: ArmyPhase,
     reservedUnitIds: Set<string>
 ): OffensePlan {
-    if (armyPhase === "attacking") {
-        let plannedAttacks = planAttackOrderV2(state, playerId, reservedUnitIds);
+    // CRITICAL FIX: Plan attacks during BOTH 'attacking' AND 'staged' phases
+    // Previously only 'attacking' phase got real attack plans, which is why
+    // 95-turn wars happened - units in 'staged' phase never attacked!
+    // Verify military doctrine and siege mechanics first
+    const doctrine = getMilitaryDoctrine(state, playerId);
+    const siegePlan = planSiegeOperations(state, playerId, tacticalContext.memory.focusCityId, reservedUnitIds, doctrine);
+
+    // Add Siege Cycling Moves to the actions immediately
+    const siegeActions: TacticalActionPlan[] = siegePlan.cycleMoves.map(move => ({
+        intent: "support",
+        unitId: move.unitId,
+        playerId,
+        source: "offense",
+        score: 200, // High score to ensure execution
+        action: move,
+        reason: "Cycling wounded unit"
+    }));
+
+    if (armyPhase === "attacking" || armyPhase === "staged") {
+        // Reserve units already used in siege cycling
+        // (They are already added to reservedUnitIds by planSiegeOperations, but safe to double check logic flow)
+
+        let plannedAttacks = planAttackOrderV2(state, playerId, reservedUnitIds, armyPhase === "attacking");
         const originalCount = plannedAttacks.length;
-        plannedAttacks = filterAttacksWithWaitDecision(state, playerId, plannedAttacks);
-        const waitingAttacks = originalCount - plannedAttacks.length;
+
+        // CRITICAL FIX #2: Skip wait-decision filtering during staged phase
+        // The wait conditions were too aggressive and blocking nearly all attacks
+        // During staged phase, if we have attacks planned, EXECUTE them!
+        let waitingAttacks = 0;
+        if (armyPhase === "attacking") {
+            plannedAttacks = filterAttacksWithWaitDecision(state, playerId, plannedAttacks);
+            waitingAttacks = originalCount - plannedAttacks.length;
+        }
+
+        // Enable move-attacks in BOTH phases now
+        // Previously staged phase had no move-attacks, limiting offensive pressure
         const moveAttackPlans = planMoveAndAttack(state, playerId, reservedUnitIds);
 
         const attackActions: TacticalActionPlan[] = plannedAttacks.map(attack => ({
@@ -622,9 +658,10 @@ function buildOffensePlan(
         }));
 
         return {
-            actions: resolveActionConflicts([...attackActions, ...battleGroupActions, ...moveAttackActions]),
+            actions: resolveActionConflicts([...siegeActions, ...attackActions, ...battleGroupActions, ...moveAttackActions]),
             waitingAttacks,
         };
+
     }
 
     const opportunityAttacks = planOpportunityAttacks(state, playerId, tacticalContext, armyPhase, reservedUnitIds);
@@ -658,6 +695,7 @@ export function planTacticalTurn(
 
     const preparation = runTacticsPreparation(next, playerId);
     next = preparation.state;
+
     const tacticalContext = buildTacticalContext(next, playerId);
 
     if (mode === "full") {
@@ -732,6 +770,7 @@ export function planTacticalTurn(
     }
 
     const offensePlan = buildOffensePlan(next, playerId, tacticalContext, preparation.armyPhase, offenseReservedUnitIds);
+
     const actions = resolveActionConflicts([...defenseActions, ...offensePlan.actions]);
     logTacticalScoreBreakdowns(next, playerId, actions);
 
@@ -756,6 +795,7 @@ export function executeTacticalPlan(
     plan: TacticalPlan
 ): GameState {
     let next = state;
+
     const defenseActions = plan.actions.filter(action => action.source === "defense");
     const offenseActions = plan.actions.filter(action => action.source === "offense");
 
@@ -763,7 +803,9 @@ export function executeTacticalPlan(
         next = executeTacticalActions(next, playerId, defenseActions);
     }
 
-    if (plan.armyPhase === "attacking") {
+    // CRITICAL FIX: Execute attacks during BOTH 'attacking' AND 'staged' phases
+    // Previously only 'attacking' phase executed attacks, causing 95-turn wars
+    if (plan.armyPhase === "attacking" || plan.armyPhase === "staged") {
         const attackActions = offenseActions.filter(isAttackAction);
         const moveAttackActions = offenseActions.filter(isMoveAttackAction);
 
@@ -771,9 +813,13 @@ export function executeTacticalPlan(
         aiInfo(`[ATTACK ORDER] ${playerId} planned ${attackActions.length} attacks (${killCount} kills, ${plan.offensePlan.waitingAttacks} waiting)`);
         next = executeTacticalActions(next, playerId, attackActions);
 
-        aiInfo(`[MOVE-ATTACK] ${playerId} planned ${moveAttackActions.length} move-attack combos`);
-        next = executeTacticalActions(next, playerId, moveAttackActions);
+        // Only do move-attacks in full attacking phase
+        if (plan.armyPhase === "attacking") {
+            aiInfo(`[MOVE-ATTACK] ${playerId} planned ${moveAttackActions.length} move-attack combos`);
+            next = executeTacticalActions(next, playerId, moveAttackActions);
+        }
     } else {
+        // During rallying/scattered phases, execute opportunity attacks
         const opportunityActions = offenseActions.filter(isOpportunityAction);
         next = executeTacticalActions(next, playerId, opportunityActions);
     }

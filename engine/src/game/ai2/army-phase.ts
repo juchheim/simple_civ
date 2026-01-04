@@ -28,9 +28,9 @@ type CivAggressionProfile = {
 const CIV_AGGRESSION: Record<string, CivAggressionProfile> = {
     // Aggressive civs: high riskTolerance (0.55), high forceConcentration (0.75)
     // FIXv7.5: Unleash the Hordes - lower requirements (0.6 -> 0.4) and staging time (2 -> 1)
-    ForgeClans: { exposureMultiplier: 0.6, waitThresholdMult: 0.4, maxStagingTurns: 1, requiredArmyPercent: 0.40 },
-    RiverLeague: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.45 },
-    AetherianVanguard: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.40 },
+    ForgeClans: { exposureMultiplier: 0.6, waitThresholdMult: 0.3, maxStagingTurns: 1, requiredArmyPercent: 0.35 }, // Tuned: 30% -> 35% (Avoid trickle)
+    RiverLeague: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.40 },
+    AetherianVanguard: { exposureMultiplier: 0.6, waitThresholdMult: 0.5, maxStagingTurns: 1, requiredArmyPercent: 0.35 },
     // Balanced civ: moderate riskTolerance (0.45), moderate forceConcentration (0.7)
     JadeCovenant: { exposureMultiplier: 0.8, waitThresholdMult: 0.8, maxStagingTurns: 2, requiredArmyPercent: 0.60 },
     // Defensive civs: low riskTolerance (0.2), low forceConcentration (0.55)
@@ -67,6 +67,21 @@ function hasArmyComposition(state: GameState, playerId: string, point: { q: numb
 
     const hasCapturer = nearbyUnits.some(u => UNITS[u.type].canCaptureCity);
     const hasSiege = nearbyUnits.some(u => UNITS[u.type].rng > 1);
+
+    // FIX: If the player has NO siege units in their entire army, don't require siege for composition.
+    // This prevents AI from getting stuck in rallying phase when they only built spearguards.
+    const totalSiegeUnits = state.units.filter(u =>
+        u.ownerId === playerId &&
+        isMilitary(u) &&
+        UNITS[u.type].rng > 1
+    ).length;
+
+    if (totalSiegeUnits === 0) {
+        // No siege units exist at all - just require capturers and a minimum count
+        // Tuned: Restored to 3 (was lowered to 2) to ensure we have some mass
+        // But if we have local superiority (checked elsewhere), that override will handle small elite squads
+        return hasCapturer && nearbyUnits.length >= 3;
+    }
 
     return hasCapturer && hasSiege;
 }
@@ -160,7 +175,12 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
             const nearCount = countUnitsNear(state, playerId, rallyPoint, tuning.army.rallyRadius);
             const hasComposition = hasArmyComposition(state, playerId, rallyPoint, tuning.army.rallyRadius);
 
-            if (nearCount >= requiredNear && hasComposition) {
+            // Time Limit: If we've been rallying for too long (>8 turns) and have ANY units, just go.
+            // This prevents infinite rallying if units get stuck or killed on the way.
+            const rallyingTurns = mem.armyPhaseStartTurn ? state.turn - mem.armyPhaseStartTurn : 0;
+            const forceStage = rallyingTurns > 8 && nearCount >= 2;
+
+            if ((nearCount >= requiredNear && hasComposition) || forceStage) {
                 currentPhase = 'staged';
                 readyTurn = state.turn;
             }
@@ -219,7 +239,8 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
         ...mem,
         armyPhase: currentPhase,
         armyRallyPoint: rallyPoint,
-        armyReadyTurn: readyTurn
+        armyReadyTurn: readyTurn,
+        armyPhaseStartTurn: currentPhase !== mem.armyPhase ? state.turn : mem.armyPhaseStartTurn
     });
 
     return { state: newState, phase: currentPhase };
@@ -281,6 +302,17 @@ function checkAttackOverrides(
         if (adjacentCapturers >= 2) {
             return true; // Already in siege position!
         }
+
+        // NEW: If 3+ units are within 2 tiles of ANY enemy city, force attack!
+        // This fixes the "swarm but don't attack" bug
+        const nearbyUnits = state.units.filter(u =>
+            u.ownerId === playerId &&
+            isMilitary(u) &&
+            hexDistance(u.coord, city.coord) <= 2
+        ).length;
+        if (nearbyUnits >= 3) {
+            return true;
+        }
     }
 
     // Override 6: Any unit adjacent to enemy city with low HP (finishing blow possible)
@@ -307,6 +339,14 @@ function checkAttackOverrides(
             isMilitary(u) &&
             hexDistance(u.coord, focusCity.coord) <= tuning.army.localSuperiorityRadius
         );
+
+        // Critical Override: If we have 4+ units near target (within 3 tiles), ATTACK!
+        // This solves the 'swarm but don't attack' bug where they rally at the city gates.
+        const swarmCount = localUnits.filter(u => hexDistance(u.coord, focusCity.coord) <= 3).length;
+        if (swarmCount >= 4) {
+            return true;
+        }
+
         const localPower = localUnits.reduce((sum, u) => sum + UNITS[u.type].atk, 0);
 
         // Calculate Target Defense (City + Defenders within 2 tiles)
@@ -349,6 +389,41 @@ function checkAttackOverrides(
         }
     }
 
+    // Override 9: Aggressive Civ Early Attack
+    // Aggressive civs (waitThresholdMult <= 0.5) attack with even small power advantage
+    // This makes ForgeClans/RiverLeague/Aetherian genuinely aggressive, not just "less cautious"
+    if (_civAggression.waitThresholdMult <= 0.5) {
+        // Attack with just 1.2x power advantage (vs 2.0x for normal civs)
+        if (theirPower > 0 && ourPower / theirPower >= 1.2) {
+            return true; // Aggressive civ pushes immediately!
+        }
+        // Attack if we have 3+ military units near focus target  
+        if (focusCity) {
+            const nearbyMilitary = state.units.filter(u =>
+                u.ownerId === playerId &&
+                isMilitary(u) &&
+                hexDistance(u.coord, focusCity.coord) <= 5
+            ).length;
+            if (nearbyMilitary >= 3) {
+                return true; // Don't wait, charge!
+            }
+        }
+    }
+
+    // Override 10: MELEE CONTACT - Attack when any unit is adjacent to enemy unit
+    // This is the most critical override: if units are already in combat range, FIGHT!
+    // Prevents the absurd situation where units stand next to enemies without attacking
+    const ourUnits = state.units.filter(u => u.ownerId === playerId && isMilitary(u));
+    const enemyUnits = state.units.filter(u => enemyIds.has(u.ownerId) && isMilitary(u));
+
+    for (const ourUnit of ourUnits) {
+        for (const enemyUnit of enemyUnits) {
+            if (hexDistance(ourUnit.coord, enemyUnit.coord) <= 1) {
+                return true; // In melee contact - attack NOW!
+            }
+        }
+    }
+
     return false;
 }
 
@@ -361,7 +436,22 @@ export function allowOpportunityKill(wouldKill: boolean, score: number, armyPhas
         return true; // Normal attack phase
     }
 
-    // During staging, only allow guaranteed kills with high score
+    // CRITICAL FIX: Also allow attacks during 'staged' phase
+    // The old logic only allowed attacks in 'attacking' phase, which meant
+    // civs stuck in staged/rallying phases couldn't attack at all
+    if (armyPhase === 'staged') {
+        // During staged, allow any attack with positive score
+        // This prevents the army from just sitting there while enemy cities heal
+        return score > 0;
+    }
+
+    // During rallying, allow kills OR any attack with really good score
+    if (armyPhase === 'rallying') {
+        if (wouldKill) return true;
+        if (score > threshold * 0.5) return true; // Lower bar than before
+    }
+
+    // During scattered, only allow guaranteed kills with high score
     if (wouldKill && score > threshold) {
         return true;
     }

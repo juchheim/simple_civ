@@ -20,7 +20,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "ScholarKingdoms",
         title: "Scholar Kingdoms",
         summary: "Science-focused kingdom with steadfast defensive capabilities.",
-        perk: "+1 Science (Capital) • +1 Science per City Ward • +1 Defense (all units) • Unique: Lorekeeper, Bulwark",
+        perk: "+1 Science per City Ward • Unique: Lorekeeper, Bulwark",
         color: "#0ea5e9",
     },
     {
@@ -41,7 +41,7 @@ export const CIV_OPTIONS: CivOption[] = [
         id: "StarborneSeekers",
         title: "Starborne Seekers",
         summary: "Explorers seeking cosmic enlightenment through peaceful research.",
-        perk: "+1 Science (Capital) while at peace • +1 Defense (all units) • Unique: Lorekeeper, Bulwark",
+        perk: "+1 Science (Capital) while at peace • Unique: Lorekeeper, Bulwark",
         color: "#1e3a8a",
     },
     {

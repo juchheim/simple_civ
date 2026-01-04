@@ -33,6 +33,8 @@ export type AiDiplomacyProfileV2 = {
     targetPreference: "Nearest" | "Capital" | "Finishable";
     /** Optional: RNG chance (0-1) for early military rush before turn 25. Only ForgeClans uses this. */
     earlyRushChance?: number;
+    /** Multiplier for power ratio when considering war against humans (e.g. 1.2 = treat as 20% stronger). */
+    humanBias?: number;
 };
 
 export type AiTechProfileV2 = {
@@ -103,6 +105,7 @@ const baseProfile: CivAiProfileV2 = {
         maxInitiatedWarsPer50Turns: 2,
         canInitiateWars: true,
         targetPreference: "Nearest",
+        humanBias: 1.2, // Default: Bias against humans (treat self as stronger)
     },
     tech: {
         weights: {},
@@ -241,16 +244,16 @@ const profiles: Record<string, CivAiProfileV2> = {
     ForgeClans: mergeProfile(baseProfile, {
         civName: "ForgeClans",
         diplomacy: {
-            warPowerRatio: 1.05, // v1.0.8: Bolder (was 1.2) - leverage production
+            warPowerRatio: 0.9, // v9.4: Aggressive Swarm (was 1.05) - leverage production
             peaceIfBelowRatio: 0.75,
             peacePowerThreshold: 0.9, // v6.1: Harder to appease (was 1.1)
             minStanceTurns: 10, // v1.0.8: Reduced from 12 to 10
-            minWarTurn: 15, // v1.0.8: Reduced from 20 to 15
+            minWarTurn: 10, // v9.4: Start earlier (was 15)
             maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
-            maxInitiatedWarsPer50Turns: 4, // v1.0.8: Increased from 2 to 4
+            maxInitiatedWarsPer50Turns: 6, // v9.4: Constant pressure (was 4)
             canInitiateWars: true,
-            targetPreference: "Nearest",
-            earlyRushChance: 0.7, // 70% chance to attempt early rush - leverages production advantage
+            targetPreference: "Finishable", // v9.8: Kill the weak to close out games (was Nearest)
+            earlyRushChance: 0.8, // v9.4: Even higher rush chance (was 0.7)
         },
         tech: {
             weights: {
@@ -266,12 +269,24 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.StarCharts]: 1.1,
             },
             pathsByGoal: {
-                Conquest: [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore, TechId.DrilledRanks, TechId.TimberMills, TechId.ScholarCourts, TechId.SteamForges, TechId.CompositeArmor],
+                Conquest: [
+                    TechId.FormationTraining,
+                    TechId.StoneworkHalls,
+                    TechId.Fieldcraft,
+                    TechId.ScriptLore,
+                    TechId.DrilledRanks,
+                    TechId.TimberMills,
+                    TechId.ScholarCourts,
+                    TechId.SteamForges,
+                    TechId.CompositeArmor,
+                    // v9.8: Add StarCharts to enable late-game Hybrid Pivot (Progress Win)
+                    TechId.StarCharts
+                ],
             },
         },
         build: {
-            armyPerCity: 3.0,
-            settlerCap: 2,
+            armyPerCity: 2.2, // v9.5: Reduced from 3.0 to unblock expansion. Grow economy first.
+            settlerCap: 4, // v9.5: Increased from 2 to allows rapid expansion waves.
             desiredCities: 8, // v6.1: Wider industrial base (was 5)
             weights: {
                 unit: {
@@ -284,6 +299,8 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [BuildingType.Forgeworks]: 1.6,
                     [BuildingType.StoneWorkshop]: 1.2,
                     [BuildingType.CityWard]: 0.35,
+                    [BuildingType.Scriptorium]: 1.1, // v9.6: Reduce Tech Lag
+                    [BuildingType.Academy]: 1.1,     // v9.6: Reduce Tech Lag
                     [BuildingType.TitansCore]: 2.0,
                 },
                 project: {
@@ -296,12 +313,12 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         tactics: {
             riskTolerance: 0.55, // v6.4: Fight harder (was 0.35)
-            forceConcentration: 0.9,
+            forceConcentration: 0.75, // v9.8: Swarm behavior - don't wait for perfect groups (was 0.9)
             siegeCommitment: 0.85,
             retreatHpFrac: 0.25, // v6.4: Stay in the fight (was 0.45)
             rangedCaution: 0.7,
         },
-        titan: { capitalHunt: 0.5, finisher: 0.7, momentum: 0.9 },
+        titan: { capitalHunt: 0.7, finisher: 0.8, momentum: 0.9 }, // v9.8: Hunt capitals (was 0.5/0.7)
     }),
 
     ScholarKingdoms: mergeProfile(baseProfile, {
@@ -332,8 +349,8 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            // v8.9: Buff expansion to match city count with Starborne
-            armyPerCity: 2.5,
+            // v9.9: Nerf expansion defense to make them vulnerable to conquest
+            armyPerCity: 2.2, // v9.9: Reduced from 2.5 to encourage conquest counters
             settlerCap: 5,  // v8.9: Buffed from 4 - more expansion
             desiredCities: 8,  // v8.9: Buffed from 7 - want more cities
             weights: {
@@ -350,7 +367,7 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [BuildingType.Academy]: 1.5,
                 },
                 project: {
-                    [ProjectId.Observatory]: 2.5,  // v8.6: HIGH - replaces SpiritObservatory
+                    [ProjectId.Observatory]: 2.0,  // v9.9: Nerfed from 2.5 - Slow down the runaway leader
                     [ProjectId.GrandAcademy]: 1.2,
                     [ProjectId.GrandExperiment]: 1.2,
                 },
@@ -363,7 +380,7 @@ const profiles: Record<string, CivAiProfileV2> = {
     RiverLeague: mergeProfile(baseProfile, {
         civName: "RiverLeague",
         diplomacy: {
-            warPowerRatio: 0.85, // v1.8: Even more aggressive (was 0.95) - attack weaker enemies
+            warPowerRatio: 0.9, // v9.9: Stabilized from 0.85 (Suicidal) to 0.9 (Aggressive but safe)
             warDistanceMax: 18, // Rivers extend reach
             peaceIfBelowRatio: 0.55, // v1.8: Fight harder (was 0.65)
             minWarTurn: 8, // v1.8: Start wars earlier (was 10)
@@ -419,22 +436,35 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         tech: {
             weights: {
-                // Phase 1: Beeline Titan's Core (SteamForges unlock)
-                [TechId.StoneworkHalls]: 1.8, // v7.9: Buffed - core tech for Titan beeline
-                [TechId.TimberMills]: 1.8, // v7.9: Buffed - production for Titan
-                [TechId.SteamForges]: 2.0, // v7.9: HIGHEST - unlocks Titan's Core
+                // Phase 1: HARD Beeline Titan's Core (SteamForges unlock)
+                // Remove distractions. No early science until Titan.
+                [TechId.ScriptLore]: 1.3, // v9.1: Restore Science to fuel Titan rush
+                [TechId.ScholarCourts]: 1.3, // v9.1: Restore Science to fuel Titan rush
+
+                [TechId.StoneworkHalls]: 2.0, // v9.0: CRITICAL - Prereq for SteamForges
+                [TechId.TimberMills]: 2.0,    // v9.0: CRITICAL - Prereq for SteamForges
+                [TechId.SteamForges]: 3.0,    // v9.0: HIGHEST PRIORITY - Unlocks Titan
+
+                // Support Techs (Post-Titan or during spare time)
                 [TechId.DrilledRanks]: 1.1,
                 [TechId.CompositeArmor]: 1.6, // Landships for Titan escort
                 [TechId.Aerodynamics]: 1.5, // Airship support for Titan
 
-                // Phase 2: Pivot to Progress after Titan dominance
-                [TechId.ScriptLore]: 1.5, // v7.9: Buffed - foundation for Progress
-                [TechId.ScholarCourts]: 1.5, // v7.9: Buffed - more science
-                [TechId.SignalRelay]: 1.6, // v7.9: Buffed - StarCharts prereq
-                [TechId.StarCharts]: 1.8, // v7.9: HIGH - Progress pivot after conquest
+                // Phase 2: Pivot to Progress after Titan dominance (Late game)
+                [TechId.SignalRelay]: 1.2,
+                [TechId.StarCharts]: 1.5,
             },
             pathsByGoal: {
-                Conquest: [TechId.FormationTraining, TechId.StoneworkHalls, TechId.Fieldcraft, TechId.ScriptLore, TechId.DrilledRanks, TechId.TimberMills, TechId.ScholarCourts, TechId.SteamForges, TechId.CompositeArmor],
+                Conquest: [
+                    // STRICT Path to Titan
+                    TechId.FormationTraining,
+                    TechId.StoneworkHalls,
+                    TechId.TimberMills,
+                    TechId.SteamForges,
+                    // Then Army Updates
+                    TechId.DrilledRanks,
+                    TechId.CompositeArmor
+                ],
                 // v7.9: Add Progress path for late-game pivot
                 Progress: [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts],
             },

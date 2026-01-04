@@ -216,7 +216,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
     const player = state.players.find(p => p.id === unit.ownerId);
     if (!player) return boosted;
 
-    if (player.techs.includes(TechId.FormationTraining) && (MELEE_TYPES.has(unit.type) || RANGED_TYPES.has(unit.type))) {
+    if (player.techs.includes(TechId.TimberMills) && (MELEE_TYPES.has(unit.type) || RANGED_TYPES.has(unit.type))) {
         boosted.atk += 1;
         boosted.def += 1;
     }
@@ -268,12 +268,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         }
     }
 
-    // StarborneSeekers "Celestial Guidance" - +1 Defense (global)
-    // v1.0.9: Simplified to flat bonus for all military units
-    if (player.civName === "StarborneSeekers" && UNITS[unit.type].domain !== "Civilian") {
-        const celestialBonus = getStarborneCelestialBonus(state, player, unit);
-        boosted.def += celestialBonus;
-    }
+    // v1.1.0: StarborneSeekers +1 Defense bonus REMOVED for balance
 
     // v1.0.9: AetherianVanguard "Vanguard Resilience" - +1 Defense globally
     // Helps them survive until Titan spawns (19% elimination rate was too high)
@@ -281,12 +276,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         boosted.def += 1;
     }
 
-    // ScholarKingdoms "Scholarly Fortitude" - +1 Defense (global)
-    // v1.0.9: Simplified to flat bonus for all military units
-    if (player.civName === "ScholarKingdoms" && UNITS[unit.type].domain !== "Civilian") {
-        const scholarBonus = getScholarKingdomsDefenseBonus(state, player, unit);
-        boosted.def += scholarBonus;
-    }
+    // v1.1.0: ScholarKingdoms +1 Defense bonus REMOVED for balance
 
     // v7.0: Lorekeeper "Fortified Knowledge" - +3 DEF in friendly territory or on own city
     // Also grants +50% DEF vs Army units when in territory

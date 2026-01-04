@@ -54,7 +54,7 @@ export function pickWarStagingProduction(state: GameState, playerId: string, cit
     if (nearCount >= requiredNear && capturersNear >= 1) return null;
 
     aiInfo(`[AI Build] ${profile.civName} WAR STAGING: Building offensive units (${nearCount}/${requiredNear} near target, ${capturersNear} capturers)`);
-
+    // PRIORITY 1: Ensure at least 1 capturer
     if (capturersNear < 1) {
         if (canBuild(city, "Unit", UnitType.ArmySpearGuard, state)) {
             return { type: "Unit", id: UnitType.ArmySpearGuard };
@@ -70,6 +70,32 @@ export function pickWarStagingProduction(state: GameState, playerId: string, cit
         }
     }
 
+    // PRIORITY 2: Enforce army composition - Riders for flanking/mobility
+    // Goal: ~1 rider per 3 spears. Build riders if we have 3+ spears but 0 riders.
+    const myUnits = state.units.filter(u => u.ownerId === playerId);
+    const spearCount = myUnits.filter(u =>
+        u.type === UnitType.SpearGuard || u.type === UnitType.ArmySpearGuard
+    ).length;
+    const riderCount = myUnits.filter(u =>
+        u.type === UnitType.Riders || u.type === UnitType.ArmyRiders
+    ).length;
+
+    // Aggressive civs want more riders (2:2:1.5 ratio vs 3:2:1)
+    const riderThreshold = isAggressiveCiv ? 2 : 3;
+    const needsRiders = riderCount === 0 && spearCount >= riderThreshold;
+
+    if (needsRiders) {
+        if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
+            aiInfo(`[AI Build] ${profile.civName} WAR STAGING: ArmyRiders for flanking (${riderCount} riders, ${spearCount} spears)`);
+            return { type: "Unit", id: UnitType.ArmyRiders };
+        }
+        if (canBuild(city, "Unit", UnitType.Riders, state)) {
+            aiInfo(`[AI Build] ${profile.civName} WAR STAGING: Riders for flanking (${riderCount} riders, ${spearCount} spears)`);
+            return { type: "Unit", id: UnitType.Riders };
+        }
+    }
+
+    // PRIORITY 3: Ranged support (BowGuard)
     if (canBuild(city, "Unit", UnitType.ArmyBowGuard, state)) {
         return { type: "Unit", id: UnitType.ArmyBowGuard };
     }

@@ -6,6 +6,7 @@ import { updateTacticalFocus } from "../attack-order.js";
 import { isMilitary } from "../unit-roles.js";
 import { retreatIfNeeded } from "../movement.js";
 import { runTitanPreMovement } from "../titan-flow.js";
+import { planTacticalMovements, executeTacticalMovements } from "../offense/tactical-movement.js";
 
 export type TacticsPreparationResult = {
     state: GameState;
@@ -29,17 +30,28 @@ export function runTacticsPreparation(state: GameState, playerId: string): Tacti
     }
 
     next = runTitanPreMovement(next, playerId);
-    next = aidVulnerableUnits(next, playerId);
+
+    // DISABLED: aidVulnerableUnits was consuming ALL unit moves BEFORE attack planning,
+    // preventing units from attacking. Support movements should happen AFTER attacks.
+    // next = aidVulnerableUnits(next, playerId);
 
     const armyPhaseResult = updateArmyPhase(next, playerId);
     next = armyPhaseResult.state;
     const currentArmyPhase = armyPhaseResult.phase;
     aiInfo(`[ARMY PHASE] ${playerId} is in phase: ${currentArmyPhase}`);
 
-    // Battle-group attacks are now planned through the unified tactical planner
-    // instead of being executed directly here (v1.0.3 refactor)
+    // DISABLED: executeTacticalMovements was consuming ALL unit moves BEFORE attack planning,
+    // causing the "swarm but don't attack" bug. Tactical positioning should happen AFTER attacks.
+    // if (currentArmyPhase === "attacking") {
+    //     const tacticalMoves = planTacticalMovements(next, playerId);
+    //     if (tacticalMoves.length > 0) {
+    //         aiInfo(`[TACTICAL] Planning ${tacticalMoves.length} positioning moves`);
+    //         next = executeTacticalMovements(next, playerId, tacticalMoves);
+    //     }
+    // }
 
     next = updateTacticalFocus(next, playerId);
 
     return { state: next, armyPhase: currentArmyPhase };
 }
+

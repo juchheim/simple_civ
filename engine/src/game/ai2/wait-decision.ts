@@ -266,6 +266,34 @@ function mustAttackAnyway(state: GameState, playerId: string, attack: PlannedAtt
         return { mustAttack: true, reason: "Aggressive civ" };
     }
 
+    // Override 6: Siege chip damage
+    if (attack.targetType === "City" && memory.focusCityId === attack.targetId) {
+        if (attack.score > -20) {
+            return { mustAttack: true, reason: "Siege chip damage" };
+        }
+    }
+
+    // Override 7: Melee Engagement (Use it or lose it)
+    // If we are adjacent to an enemy unit OR city, we are already exposed/engaged. 
+    // Waiting usually just lets them hit us first for free.
+    if (attack.targetType === "Unit") {
+        const target = state.units.find(u => u.id === attack.targetId);
+        if (target && hexDistance(attack.attacker.coord, target.coord) === 1) {
+            // Only if score isn't terrible (don't suicide)
+            if (attack.score > -25) {
+                return { mustAttack: true, reason: "Melee contact" };
+            }
+        }
+    } else if (attack.targetType === "City") {
+        const target = state.cities.find(c => c.id === attack.targetId);
+        if (target && hexDistance(attack.attacker.coord, target.coord) === 1) {
+            // For cities, we can accept slightly worse trades because blocking production/siege is valuable
+            if (attack.score > -30) {
+                return { mustAttack: true, reason: "City melee contact" };
+            }
+        }
+    }
+
     return { mustAttack: false, reason: "" };
 }
 

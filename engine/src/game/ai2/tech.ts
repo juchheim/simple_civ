@@ -65,17 +65,9 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
     // Note: Using explicit civ list because goal === "Conquest" is rarely true (default is "Balanced")
     // TODO: Cleaner approach would be a "playstyle" field on civ profiles
     const siegeFocusedCivs = ["ForgeClans", "RiverLeague", "JadeCovenant", "AetherianVanguard"];
-    if (siegeFocusedCivs.includes(profile.civName) && !player.techs.includes(TechId.TimberMills)) {
-        // Check if we have StoneworkHalls prereq
-        if (player.techs.includes(TechId.StoneworkHalls) && avail.includes(TechId.TimberMills)) {
-            aiInfo(`[AI Tech] ${profile.civName} SIEGE: TimberMills (enables Trebuchet)`);
-            return TechId.TimberMills;
-        }
-        // Get StoneworkHalls first if we don't have it
-        if (!player.techs.includes(TechId.StoneworkHalls) && avail.includes(TechId.StoneworkHalls)) {
-            aiInfo(`[AI Tech] ${profile.civName} SIEGE PREP: StoneworkHalls (prereq for Trebuchet)`);
-            return TechId.StoneworkHalls;
-        }
+    if (siegeFocusedCivs.includes(profile.civName) && !player.techs.includes(TechId.FormationTraining) && avail.includes(TechId.FormationTraining)) {
+        aiInfo(`[AI Tech] ${profile.civName} SIEGE: FormationTraining (enables Trebuchet)`);
+        return TechId.FormationTraining;
     }
 
     // =========================================================================

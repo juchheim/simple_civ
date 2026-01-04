@@ -29,14 +29,14 @@ export type TechUnlock = {
 
 export const TECH_UNLOCKS: Partial<Record<TechId, TechUnlock>> = {
     // Hearth Era
-    [TechId.FormationTraining]: { units: [UnitType.SpearGuard, UnitType.BowGuard] },
+    [TechId.FormationTraining]: { units: [UnitType.Trebuchet] }, // v1.1.0: Trebuchet moved to early game
     [TechId.StoneworkHalls]: { buildings: [BuildingType.StoneWorkshop] },
     [TechId.ScriptLore]: { buildings: [BuildingType.Scriptorium] },
 
     // Banner Era
     [TechId.DrilledRanks]: { units: [UnitType.ArmySpearGuard, UnitType.ArmyBowGuard] },
     [TechId.TrailMaps]: { units: [UnitType.Riders] },
-    [TechId.TimberMills]: { units: [UnitType.Trebuchet] }, // v1.0.3: Trebuchet siege unit
+    [TechId.TimberMills]: { units: [UnitType.SpearGuard, UnitType.BowGuard] }, // v1.1.0: TimberMills now gives +1/+1 passive
     [TechId.CityWards]: { buildings: [BuildingType.CityWard, BuildingType.Bulwark] },
     [TechId.ScholarCourts]: { buildings: [BuildingType.Academy] },
 
@@ -63,7 +63,7 @@ export const TECH_CHAINS: Record<string, TechId[]> = {
     Airship: [TechId.ScriptLore, TechId.ScholarCourts, TechId.TimberMills, TechId.SteamForges, TechId.Aerodynamics],
     ArmyRiders: [TechId.Fieldcraft, TechId.TrailMaps, TechId.DrilledRanks, TechId.ArmyDoctrine],
     // v1.0.3: Trebuchet siege unit - conquest civs should prioritize this
-    Trebuchet: [TechId.StoneworkHalls, TechId.TimberMills],
+    Trebuchet: [TechId.FormationTraining],
 
     // Unique buildings
     Titan: [TechId.StoneworkHalls, TechId.TimberMills, TechId.SteamForges],

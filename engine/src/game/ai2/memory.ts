@@ -33,6 +33,8 @@ export type AiPlayerMemoryV2 = {
     armyRallyPoint?: { q: number; r: number };
     /** Turn when staged condition was first met (for timeout) */
     armyReadyTurn?: number;
+    /** Turn when current army phase started (for phase timeout) */
+    armyPhaseStartTurn?: number;
 
     // Level 2: Focus Fire
     /** Current tactical unit focus for concentrated attacks */

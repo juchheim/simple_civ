@@ -3,6 +3,9 @@ import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsCity, getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
 import { scoreAttackOption } from "./scoring.js";
+import { getAiMemoryV2 } from "../memory.js";
+import { getTacticalPriorityTargets } from "../offense/advanced-tactics.js";
+import { getMilitaryDoctrine } from "../military-doctrine.js";
 
 export type PlannedAttack = {
     attacker: Unit;
@@ -12,6 +15,7 @@ export type PlannedAttack = {
     wouldKill: boolean;
     score: number;
     returnDamage: number;
+    tacticalBonus?: number;  // Bonus from advanced tactics
 };
 
 /**
@@ -20,17 +24,17 @@ export type PlannedAttack = {
 export function planAttackOrderV2(
     state: GameState,
     playerId: string,
-    excludedUnitIds: Set<string> = new Set()
+    excludedUnitIds: Set<string> = new Set(),
+    isAttackingPhase: boolean = false  // Phase 1: Enable offensive bonuses
 ): PlannedAttack[] {
     // Phase 1: Gather eligible attackers (units that can attack right now)
-    const eligibleAttackers = state.units.filter(u =>
-        u.ownerId === playerId &&
+    const allPlayerUnits = state.units.filter(u => u.ownerId === playerId && isMilitary(u));
+    const eligibleAttackers = allPlayerUnits.filter(u =>
         u.movesLeft > 0 &&
         !u.hasAttacked &&
         !excludedUnitIds.has(u.id) &&
         !isGarrisoned(u, state, playerId) && // Garrisoned units can't attack
-        !u.isTitanEscort && // v6.6h: Reserved escorts don't attack - stay with Titan
-        isMilitary(u)
+        !u.isTitanEscort // v6.6h: Reserved escorts don't attack - stay with Titan
     );
 
     // Get enemy player IDs (those we're at war with)
@@ -42,6 +46,13 @@ export function planAttackOrderV2(
     }
 
     if (enemies.size === 0) return [];
+
+    // ADVANCED TACTICS: Get tactical priority targets
+    const memory = getAiMemoryV2(state, playerId);
+    const focusCity = memory.focusCityId ? state.cities.find(c => c.id === memory.focusCityId) : undefined;
+    const tacticalPriorities = focusCity
+        ? new Map(getTacticalPriorityTargets(state, playerId, focusCity.coord).map(t => [t.unit.id, t]))
+        : new Map();
 
     // Phase 2: For each attacker, find valid targets in range
     type AttackOption = {
@@ -129,10 +140,54 @@ export function planAttackOrderV2(
                     target: opt.target,
                     damage,
                     returnDamage,
-                    targetHpOverride: simHP
+                    targetHpOverride: simHP,
+                    isAttackingPhase
                 });
 
-                return { ...opt, damage, returnDamage, wouldKill: scoredAttack.wouldKill, score: scoredAttack.score };
+                const doctrine = getMilitaryDoctrine(state, playerId); // Import this
+
+                // ADVANCED TACTICS: Add tactical priority bonus
+                let tacticalBonus = 0;
+
+                // 1. Target Priority from Advanced Tactics
+                const priority = tacticalPriorities.get(opt.targetId);
+                if (priority) {
+                    tacticalBonus = Math.min(priority.totalScore * 0.5, 150);
+                }
+
+                // 2. Doctrine-Based Bonuses
+                if (opt.targetType === "City") {
+                    // SiegeBreaker Logic: Massive bonus for city attacks to force breaches
+                    if (doctrine.type === "SiegeBreaker") {
+                        // Apply multiplier to base damage score (approx) or just flat bonus
+                        // A city attack is usually ~50-100 points. 
+                        // With 5x multi, it becomes 250-500, overriding almost any risk.
+                        tacticalBonus += 150 * doctrine.cityAttackPriorityMult;
+
+                        // Override risk penalty for city attacks
+                        if (doctrine.ignoreCityArmor) {
+                            // Add back the risk penalty that was subtracted in scoreAttackOption
+                            // (We need to inspect scoreAttackOption to know exact value, 
+                            // but adding a large flat bonus achieves similar effect of ignoring risk)
+                            tacticalBonus += 100;
+                        }
+                    } else {
+                        // Standard/Swarm logic
+                        if (priority) {
+                            tacticalBonus += 50 * doctrine.cityAttackPriorityMult;
+                        }
+                    }
+                }
+
+                return {
+                    ...opt,
+                    damage,
+                    returnDamage,
+                    wouldKill: scoredAttack.wouldKill,
+                    score: scoredAttack.score + tacticalBonus,
+                    tacticalBonus,
+                    doctrine: doctrine.type
+                };
             })
             .sort((a, b) => b.score - a.score);
 
@@ -146,7 +201,8 @@ export function planAttackOrderV2(
             damage: best.damage,
             wouldKill: best.wouldKill,
             score: best.score,
-            returnDamage: best.returnDamage
+            returnDamage: best.returnDamage,
+            tacticalBonus: best.tacticalBonus
         });
 
         usedAttackers.add(best.attacker.id);
@@ -158,3 +214,4 @@ export function planAttackOrderV2(
 
     return plannedAttacks;
 }
+

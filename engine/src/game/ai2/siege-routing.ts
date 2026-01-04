@@ -56,6 +56,18 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
         .filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u))
         .filter(u => u.type !== UnitType.Titan) // Titan handled separately
         .filter(u => !u.isTitanEscort)
+        // FIX: Don't move units that haven't attacked yet - they should attack first!
+        // If unit hasn't attacked AND is in range of focus city, let tactical planner handle it.
+        .filter(u => {
+            // If already attacked this turn, safe to move for positioning
+            if (u.hasAttacked) return true;
+            // If not adjacent to focus city, can't attack it anyway, so move them
+            const dist = hexDistance(u.coord, focusCity.coord);
+            const range = UNITS[u.type].rng;
+            if (dist > range) return true; // Can't attack, safe to move
+            // Adjacent units should NOT be moved - they should attack!
+            return false;
+        })
         .filter(u => {
             const city = next.cities.find(c => hexEquals(c.coord, u.coord));
             if (city && city.ownerId === playerId) {
@@ -69,13 +81,29 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
     const riders = units.filter(isRider);
     const others = units.filter(u => !isCapturer(u) && !isSiege(u) && !isRider(u));
 
+    const cityHpPercent = focusCity.maxHp ? focusCity.hp / focusCity.maxHp : 1;
+
+    // Phase 3: Calculate dynamic siege ring distance
+    // v9.1: FIXED - Siege units (Range 2) were moving to Range 1 when city was low HP,
+    // blocking the inner ring for Capture units (Range 1) and exposing themselves.
+    // NOW: Siege units stay at their max range (usually 2).
+
     for (const u of siege) {
         const live = next.units.find(x => x.id === u.id);
         if (!live || live.movesLeft <= 0) continue;
+
+        // Respect unit's actual range.
+        // If range is > 2 (e.g. future artillery), stay at 2 or 3? For now, stick to max range.
+        // But clamp to 2 because vision/fog might be an issue at 3+? (Vision is usually 2 or 3).
+        // Standard siege is Range 2.
+        const unitStats = UNITS[live.type];
+        const siegeDist = Math.max(2, unitStats.rng); // Default to at least 2 for siege
+
         const dist = hexDistance(live.coord, focusCity.coord);
-        if (dist <= 2) continue;
+        if (dist === siegeDist) continue;  // Already in position
+
         const cache = createCache(next);
-        const siegeRing = pickRingCoordForUnit(next, playerId, live, focusCity.coord, 2, 1200, cache);
+        const siegeRing = pickRingCoordForUnit(next, playerId, live, focusCity.coord, siegeDist, 1200, cache);
         next = moveToward(next, playerId, live, siegeRing);
     }
 
@@ -110,6 +138,16 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
     for (const u of riders) {
         const live = next.units.find(x => x.id === u.id);
         if (!live || live.movesLeft <= 0) continue;
+
+        // Phase 3: Riders engage when city is damaged instead of hovering
+        if (cityHpPercent < 0.5) {
+            // City is hurting - riders move in to help finish it
+            const approach = pickApproachTile(next, playerId, live, focusCity.coord);
+            next = moveToward(next, playerId, live, approach);
+            continue;
+        }
+
+        // Otherwise stay near anchor units
         const nearestAnchorDist = anchorUnits.length
             ? Math.min(...anchorUnits.map(a => hexDistance(a.coord, live.coord)))
             : 0;

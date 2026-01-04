@@ -1,10 +1,11 @@
 import { City, GameState, Unit, UnitType } from "../../core/types.js";
-import { hexDistance } from "../../core/hex.js";
+import { hexDistance, getNeighbors } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { countThreatsToTile } from "../ai/units/movement-safety.js";
 import { getAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { getUnitRole, isCityOnlySiegeUnitType, isSiegeRole } from "./schema.js";
+import { getTacticalTuning } from "./tuning.js";
 import { getCityValueProfile, getUnitThreatProfile } from "./tactical-threat.js";
 import { isMilitary } from "./unit-roles.js";
 import { getCombatPreviewUnitVsUnit } from "../helpers/combat-preview.js";
@@ -19,6 +20,7 @@ export type AttackScoreInput = {
     damage: number;
     returnDamage: number;
     targetHpOverride?: number;
+    isAttackingPhase?: boolean;  // Phase 1: Enables offensive bonuses
 };
 
 export type AttackScoreResult = {
@@ -200,6 +202,15 @@ function scoreUnitAttackInternal(
         if (includeBreakdown) components.focusBonus = focusBonus;
     }
 
+    // Human Bias: Prioritize attacking human players
+    const tuning = getTacticalTuning(state, playerId);
+    const targetOwner = state.players.find(p => p.id === target.ownerId);
+    if (targetOwner && !targetOwner.isAI && !targetOwner.isEliminated) {
+        const humanBonus = tuning.army.humanTargetScore;
+        score += humanBonus;
+        if (includeBreakdown) components.humanBonus = humanBonus;
+    }
+
     if (wouldKill && UNITS[attacker.type].rng > 1 && damage > targetHp + 2) {
         const overkillPenalty = 10 + (30 * profile.tactics.rangedCaution);
         score -= overkillPenalty;
@@ -214,27 +225,84 @@ function scoreUnitAttackInternal(
         if (includeBreakdown) notes.push("suicide-trade");
     }
 
-    const riskPenalty = returnDamage * (wouldKill ? 0.6 : 1.6) * (1 - profile.tactics.riskTolerance);
+    // Phase 1: Apply attack phase risk reduction if in attacking phase
+    const isAttacking = (input as any).isAttackingPhase ?? false;
+    const riskMult = isAttacking ? tuning.army.attackPhaseRiskReduction : 1.0;
+    const riskPenalty = returnDamage * (wouldKill ? 0.6 : 1.6) * (1 - profile.tactics.riskTolerance) * riskMult;
     score -= riskPenalty;
     if (includeBreakdown && riskPenalty !== 0) components.riskPenalty = -riskPenalty;
 
+    // Phase 1: Momentum bonus for attacking during attack phase
+    if (isAttacking) {
+        const momentumBonus = tuning.army.momentumBonus;
+        score += momentumBonus;
+        if (includeBreakdown) components.momentumBonus = momentumBonus;
+    }
+
+    // Phase 1: Flanking bonus - reward attacking targets we have surrounded
+    const adjacentAllies = getNeighbors(target.coord).filter(n =>
+        state.units.some(u =>
+            u.ownerId === playerId &&
+            u.id !== attacker.id &&
+            isMilitary(u) &&
+            hexDistance(u.coord, n) === 0
+        )
+    ).length;
+    if (adjacentAllies >= 3) {
+        score += tuning.army.flankingBonus3;
+        if (includeBreakdown) components.flankingBonus = tuning.army.flankingBonus3;
+    } else if (adjacentAllies >= 2) {
+        score += tuning.army.flankingBonus2;
+        if (includeBreakdown) components.flankingBonus = tuning.army.flankingBonus2;
+    }
+
+    // Phase 1: Isolated target bonus - extra reward for targets with no nearby friendly units
+    const targetHasNearbyFriendlies = state.units.some(u =>
+        u.ownerId === target.ownerId &&
+        u.id !== target.id &&
+        isMilitary(u) &&
+        hexDistance(u.coord, target.coord) <= 2
+    );
+    if (!targetHasNearbyFriendlies) {
+        score += tuning.army.isolatedTargetBonus;
+        if (includeBreakdown) components.isolatedTargetBonus = tuning.army.isolatedTargetBonus;
+    }
+
+    // OFFENSIVE MOMENTUM: During attacking phase, reduce exposure concerns (but don't ignore them)
+    const exposureMult = isAttacking ? 0.6 : 1.0;  // 40% reduction (was 75%) - Balance aggression vs suicide
+
+    // SIEGE BREAKTHROUGH: Check if focus city is low HP - if so, ignore exposure entirely
+    const siegeMemory = getAiMemoryV2(state, playerId);
+    const focusCity = siegeMemory.focusCityId ? state.cities.find(c => c.id === siegeMemory.focusCityId) : undefined;
+    const siegeBreakthrough = focusCity && focusCity.hp < focusCity.maxHp * 0.4;  // Below 40% HP
+
     if (UNITS[attacker.type].rng === 1) {
-        const threats = countThreatsToTile(state, playerId, target.coord, target.id);
-        if (threats.count >= 3 && !wouldKill) {
-            score -= 80;
-            if (includeBreakdown) components.tileThreatPenalty = -80;
-        } else if (threats.count >= 2) {
-            const penalty = (threats.totalDamage * 0.8) * (1 - profile.tactics.riskTolerance);
-            score -= penalty;
-            if (includeBreakdown) components.tileThreatPenalty = -penalty;
+        // Melee units
+        if (!siegeBreakthrough) {
+            const threats = countThreatsToTile(state, playerId, target.coord, target.id);
+            if (threats.count >= 4 && !wouldKill) {  // Raised from 3 to 4
+                const basePenalty = 50;  // Reduced from 80
+                const penalty = basePenalty * exposureMult;
+                score -= penalty;
+                if (includeBreakdown) components.tileThreatPenalty = -penalty;
+            } else if (threats.count >= 3) {  // Raised from 2 to 3
+                const basePenalty = (threats.totalDamage * 0.5) * (1 - profile.tactics.riskTolerance);
+                const penalty = basePenalty * exposureMult;
+                score -= penalty;
+                if (includeBreakdown) components.tileThreatPenalty = -penalty;
+            }
         }
     } else {
-        const threats = countThreatsToTile(state, playerId, attacker.coord, target.id);
-        if (threats.count >= 2) {
-            const cautionMult = (0.5 + profile.tactics.rangedCaution) * (1 - profile.tactics.riskTolerance);
-            const penalty = (threats.totalDamage * 0.6) * cautionMult;
-            score -= penalty;
-            if (includeBreakdown) components.rangedThreatPenalty = -penalty;
+        // Ranged units
+        if (!siegeBreakthrough) {
+            const threats = countThreatsToTile(state, playerId, attacker.coord, target.id);
+            if (threats.count >= 3) {  // Raised from 2 to 3
+                const cautionMult = (0.3 + profile.tactics.rangedCaution * 0.5) * (1 - profile.tactics.riskTolerance);
+                const basePenalty = (threats.totalDamage * 0.4) * cautionMult;
+                const penalty = basePenalty * exposureMult;
+                score -= penalty;
+                if (includeBreakdown) components.rangedThreatPenalty = -penalty;
+            }
         }
     }
 
@@ -293,6 +361,15 @@ function scoreCityAttackInternal(
         const focusBonus = 80 + (80 * siegeCommitment);
         score += focusBonus;
         if (includeBreakdown) components.focusBonus = focusBonus;
+    }
+
+    // Human Bias: Prioritize attacking human cities
+    const tuning = getTacticalTuning(state, playerId);
+    const targetOwner = state.players.find(p => p.id === target.ownerId);
+    if (targetOwner && !targetOwner.isAI && !targetOwner.isEliminated) {
+        const humanBonus = tuning.army.humanTargetScore;
+        score += humanBonus;
+        if (includeBreakdown) components.humanBonus = humanBonus;
     }
 
     const attackerRole = getUnitRole(attacker.type);

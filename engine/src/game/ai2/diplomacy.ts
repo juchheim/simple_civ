@@ -282,6 +282,17 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         const theirAnchor = theirCities.find(c => c.isCapital) ?? theirCities[0];
         const dist = (myAnchor && theirAnchor) ? hexDistance(myAnchor.coord, theirAnchor.coord) : 999;
 
+        // Human Bias: If target is human, treat ourselves as stronger (fudge the power ratio)
+        // This makes the AI more aggressive against humans.
+        const isHuman = !other.isAI;
+        const bias = isHuman ? (profile.diplomacy.humanBias ?? 1.0) : 1.0;
+
+        // Effective ratios with bias applied
+        // e.g. if I have 100 power, enemy has 100 power, ratio is 1.0.
+        // If enemy is human and bias is 1.2, effective ratio becomes 1.2 => AI thinks it's winning/stronger.
+        const effectiveRatio = ratio * bias;
+        const effectiveOffensiveRatio = offensiveRatio * bias;
+
         const warDistanceMax = next.turn >= 160 ? Math.max(profile.diplomacy.warDistanceMax, 999) : profile.diplomacy.warDistanceMax;
 
         if (stance === DiplomacyState.War) {
@@ -499,11 +510,12 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         const allowDistance = (progressThreat || conquestThreat) ? Math.max(warDistanceMax, 999) : warDistanceMax;
         if (dist > allowDistance) continue;
 
-        if (offensiveRatio >= escalatedRatio) {
+        // Apply bias to the ratio checks
+        if (effectiveOffensiveRatio >= escalatedRatio) {
             // Basic sanity gate: don't declare war with no army.
             // v7.9: Increased from 2/0.75x to 4/1.0x - require more units before attacking
             if (myMilitaryCount < Math.max(4, Math.ceil(next.cities.filter(c => c.ownerId === playerId).length * 1.0))) continue;
-        } else if (ratio >= escalatedRatio) {
+        } else if (effectiveRatio >= escalatedRatio) {
             // We have favorable total power but not enough OFFENSIVE power.
             // Set focus target so AI knows who to stage against and build offensive units.
             const focusCity = selectFocusCityAgainstTarget(next, playerId, other.id);

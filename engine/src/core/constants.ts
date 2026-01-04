@@ -364,10 +364,10 @@ export const TECHS: Record<TechId, TechData> = {
     [TechId.Fieldcraft]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Farmstead } },
     [TechId.StoneworkHalls]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Building", id: BuildingType.StoneWorkshop } },
     [TechId.ScriptLore]: { era: EraId.Hearth, cost: 25, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Scriptorium } }, // v1.0.9: +20% for Progress balance
-    [TechId.FormationTraining]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Passive", key: "+1/+1 to Melee & Ranged" } },
+    [TechId.FormationTraining]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Unit", id: UnitType.Trebuchet } },
     [TechId.TrailMaps]: { era: EraId.Hearth, cost: 20, prereqTechs: [], unlock: { type: "Unit", id: UnitType.Skiff } },
     [TechId.Wellworks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.Fieldcraft], unlock: { type: "Building", id: BuildingType.Reservoir } },
-    [TechId.TimberMills]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Unit", id: UnitType.Trebuchet } },
+    [TechId.TimberMills]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Passive", key: "+1/+1 to Melee & Ranged" } },
     [TechId.ScholarCourts]: { era: EraId.Banner, cost: 60, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } }, // v1.0.9: +20% for Progress balance
     [TechId.DrilledRanks]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } },
     [TechId.CityWards]: { era: EraId.Banner, cost: 50, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.CityWard } },
@@ -388,21 +388,21 @@ export const TECHS: Record<TechId, TechData> = {
 
 export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     [ProjectId.Observatory]: {
-        cost: 300,  // v1.0.3: 250→300 (+20%)
+        cost: 330,  // v9.7: 300->330 (+10%) - Slow down Progress Victory on Large Maps
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 400,  // v1.0.3: 330→400 (+21%)
+        cost: 450,  // v9.7: 400->450 (+12.5%)
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 500,  // v1.0.3: 410→500 (+22%)
+        cost: 600,  // v9.7: 500->600 (+20%)
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

@@ -134,8 +134,11 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         case "Conquest": {
             // Conquest: Offense-focused, scale with phase
             // v3: Increased base from 3 to 5 (adds 2 more units to attack forces)
-            const baseSiege = Math.ceil(5 * phaseMultiplier);
-            const baseCapture = Math.ceil(5 * phaseMultiplier);
+            // v5: User requested balanced siege groups (1-2 Trebuchets supported by others)
+            // Expand (0.5): 2 Siege, 4 Capture -> Wolfpack of 6
+            // Develop (1.0): 4 Siege, 7 Capture
+            const baseSiege = Math.ceil(4 * phaseMultiplier);
+            const baseCapture = Math.ceil(7 * phaseMultiplier);
             return {
                 minSiege: baseSiege,
                 minCapture: baseCapture,

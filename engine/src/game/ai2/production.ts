@@ -41,6 +41,7 @@ import { pickPhaseDefensePriorityBuild, pickPhaseDefenseSupportBuild } from "./p
 import { pickPhaseEarlyExpansionBuild, pickPhaseExpansionBuild } from "./production/phases/expansion.js";
 import { pickPhaseWarBuild } from "./production/phases/war.js";
 import { assessCityThreatLevel } from "./defense-situation/scoring.js";
+import { pickProactiveReinforcementBuild } from "./production/proactive.js";
 
 export { shouldPrioritizeDefense } from "./production/defense-priority.js";
 
@@ -152,6 +153,29 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
     }
 
     // =========================================================================
+    // PRIORITY 0.05: AetherianVanguard Titan Rush
+    // =========================================================================
+    // v9.3: HIGHEST PRIORITY - Before Victory Projects. 
+    // Aetherian relies on getting Titan early. If unlocked, build it immediately.
+    const aetherianBuild = pickAetherianVanguardBuild(state, city, context);
+    if (aetherianBuild) return aetherianBuild;
+
+
+    // =========================================================================
+    // PRIORITY 0.1: VICTORY PROJECTS
+    // =========================================================================
+    // v9.0: Moved BEFORE early defense/expansion. If we can win, we win.
+    // "Urgent" builds (City Under Attack/War Staging) still preempt this via `urgentBuild`.
+    // "War Emergency" inside `urgentBuild` handles critical survival.
+    // Double check warEmergency here just in case `urgentBuild` didn't catch it but we are low.
+    const warEmergency = isWarEmergency(state, playerId, atWar);
+
+    if (!warEmergency) {
+        const victoryProject = pickVictoryProject(state, playerId, city, goal, profile, myCities);
+        if (victoryProject) return victoryProject;
+    }
+
+    // =========================================================================
     // PRIORITY 0.3: Intelligent Expansion vs Defense Decision (v7.2)
     // =========================================================================
     // Uses shouldPrioritizeDefense() to intelligently choose between expansion
@@ -213,17 +237,8 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         return earlyBuild;
     }
 
-    // =========================================================================
-    // v1.0.8: UNIVERSAL WAR EMERGENCY - Don't build projects if army is gone!
-    // =========================================================================
-    // If we are at war and have critical military shortage (<5 units), 
-    // we must rebuild army before victory projects, regardless of civ type.
-    const warEmergency = isWarEmergency(state, playerId, atWar);
 
-    if (!warEmergency) {
-        const victoryProject = pickVictoryProject(state, playerId, city, goal, profile, myCities);
-        if (victoryProject) return victoryProject;
-    }
+
 
 
     const standardBuild = pickFirstBuild([
@@ -232,9 +247,11 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         // =========================================================================
         () => pickTechUnlockBuild(state, city, context),
         // =========================================================================
-        // PRIORITY 2: AetherianVanguard Titan Rush
+        // PRIORITY 1.8: Proactive War Reinforcements (v8.6)
         // =========================================================================
-        () => pickAetherianVanguardBuild(state, city, context),
+        // Moved here (after Victory Projects) to prevent stalemate by infinite unit spam.
+        // We still want this before "capability gaps" or "Aetherian Rush" to keep pressure up during war.
+        () => pickProactiveReinforcementBuild(state, playerId, city, context),
         // =========================================================================
         // PRIORITY 3: Garrison Undefended Cities
         // =========================================================================

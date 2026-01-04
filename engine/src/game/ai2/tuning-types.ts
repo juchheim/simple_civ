@@ -15,6 +15,14 @@ export interface TacticalTuning {
         localSuperiorityRatio: number;
         localSuperiorityMinPower: number;
         opportunityKillScore: number;
+        humanTargetScore: number;
+        // Offensive scoring parameters (Phase 1)
+        momentumBonus: number;             // Bonus for attacking during attack phase
+        attackPhaseRiskReduction: number;  // Risk penalty multiplier during attack phase (0.6 = 40% reduction)
+        finishingBlowBonus: number;        // Bonus for kills that remove last defender near city
+        flankingBonus2: number;            // Bonus for attacking with 2+ adjacent allies
+        flankingBonus3: number;            // Bonus for attacking with 3+ adjacent allies
+        isolatedTargetBonus: number;       // Bonus for attacking isolated targets (no allies within 2)
     };
     wait: {
         combatZoneRadius: number;
@@ -65,6 +73,7 @@ export interface TacticalTuning {
         earlyGameTurn: number;
         // New keys
         ringRadius: number;
+        maxDefenderDistance: number;
     };
     moveAttack: {
         survivalHpMarginal: number;

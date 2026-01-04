@@ -7,7 +7,9 @@ import { canPlanMove } from "../ai/shared/validation.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { isMilitary } from "./unit-roles.js";
 import { DefenseMovePlan, getDefenseCityValueBonus, scoreDefenseMove } from "./defense-actions.js";
+import { getTacticalTuning } from "./tuning.js";
 import { planMoveToward, moveToward } from "./movement.js";
+import { getAiMemoryV2 } from "./memory.js";
 
 // v7.2: Capital should always have 1 garrison + 3 in ring (total 4 defenders)
 // Note: Only 1 unit can be IN the city, rest must be in adjacent tiles (ring)
@@ -215,15 +217,38 @@ export function planCapitalRingDefense(
     }
 
     if (totalDefenders < CAPITAL_MIN_DEFENDERS) {
-        const available = state.units.filter(u =>
-            u.ownerId === playerId &&
-            u.movesLeft > 0 &&
-            isMilitary(u) &&
-            u.type !== UnitType.Titan &&
-            !reservedUnitIds.has(u.id) &&
-            !cityCoords.has(`${u.coord.q},${u.coord.r}`) &&
-            hexDistance(u.coord, capital.coord) > 1
-        ).sort((a, b) => hexDistance(a.coord, capital.coord) - hexDistance(b.coord, capital.coord));
+        const tuning = getTacticalTuning(state, playerId);
+        const available = state.units.filter(u => {
+            if (u.ownerId !== playerId) return false;
+            if (u.movesLeft <= 0) return false;
+            if (!isMilitary(u)) return false;
+            if (u.type === UnitType.Titan) return false;
+            if (reservedUnitIds.has(u.id)) return false;
+            if (cityCoords.has(`${u.coord.q},${u.coord.r}`)) return false;
+            if (hexDistance(u.coord, capital.coord) <= 1) return false; // Already in ring/garrison
+
+            // Fix: Don't recall units that are too far away
+            const limit = tuning.ring.maxDefenderDistance ?? 8;
+            if (hexDistance(u.coord, capital.coord) > limit) return false;
+
+            // Fix: Don't recall units that are actively sieging an enemy city (expanded radius to 4)
+            const isSieging = enemies.some(enemyId =>
+                state.cities.some(c => c.ownerId === enemyId && hexDistance(u.coord, c.coord) <= 4)
+            );
+            if (isSieging) return false;
+
+            // OFFENSIVE FIX: Don't recall units that are near the focus city (they're advancing)
+            const capitalMemory = getAiMemoryV2(state, playerId);
+            if (capitalMemory.focusCityId) {
+                const focusCityTarget = state.cities.find(c => c.id === capitalMemory.focusCityId);
+                if (focusCityTarget && focusCityTarget.ownerId !== playerId) {
+                    // Unit is within 5 tiles of focus target - don't recall, they're attacking!
+                    if (hexDistance(u.coord, focusCityTarget.coord) <= 5) return false;
+                }
+            }
+
+            return true;
+        }).sort((a, b) => hexDistance(a.coord, capital.coord) - hexDistance(b.coord, capital.coord));
 
         const needed = CAPITAL_MIN_DEFENDERS - totalDefenders;
         for (const unit of available.slice(0, needed)) {

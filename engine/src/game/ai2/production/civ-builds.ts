@@ -110,7 +110,11 @@ export function pickAetherianVanguardBuild(
     if (context.profile.civName !== "AetherianVanguard") return null;
 
     const hasTitan = context.myUnits.some(u => u.type === UnitType.Titan);
-    const hasTitansCore = context.myCities.some(c => c.buildings.includes(BuildingType.TitansCore));
+    // Check if built OR being built anywhere
+    const hasTitansCore = context.myCities.some(c =>
+        c.buildings.includes(BuildingType.TitansCore) ||
+        (c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.TitansCore)
+    );
 
     if (!hasTitan && !hasTitansCore && context.player.techs.includes(TechId.SteamForges)) {
         if (canBuild(city, "Building", BuildingType.TitansCore, state)) {

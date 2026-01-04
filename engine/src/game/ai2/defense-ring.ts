@@ -65,11 +65,32 @@ export function planDefensiveRing(
             }
         }
 
-        let available = allMilitary.filter(u =>
-            !inGarrisons.has(`${u.coord.q},${u.coord.r}`) &&
-            !inRings.has(u.id) &&
-            !reservedUnitIds.has(u.id)
-        );
+        let available = allMilitary.filter(u => {
+            if (inGarrisons.has(`${u.coord.q},${u.coord.r}`)) return false;
+            if (inRings.has(u.id)) return false;
+            if (reservedUnitIds.has(u.id)) return false;
+
+            // Distance Check: Don't pull units from across the map
+            // Unless it's the capital logic? No, even capital shouldn't recall deep strikers.
+            // If they are far away, they probably have better things to do (like attacking).
+            const dist = hexDistance(u.coord, city.coord);
+            const limit = tuning.ring.maxDefenderDistance ?? 8; // Fallback to 8 if undefined in old types
+            // console.error(`[DEBUG] Ring Check ${u.id}: dist=${dist} limit=${limit}`);
+            if (dist > limit) {
+                return false;
+            }
+
+            // Attack Check: Don't pull units that are currently adjacent to an enemy city (sieging)
+            // This prevents the "swarming but retreating" bug.
+            const isSieging = enemies.some(player =>
+                state.cities.some(c => c.ownerId === player.id && hexDistance(u.coord, c.coord) === 1)
+            );
+            if (isSieging) {
+                return false;
+            }
+
+            return true;
+        });
 
         const currentRing = allMilitary.filter(u => hexDistance(u.coord, city.coord) === 1);
         const needed = desiredRing - currentRing.length;

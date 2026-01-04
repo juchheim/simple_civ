@@ -21,29 +21,37 @@ export const DEFAULT_TUNING: TacticalTuning = {
         localSuperiorityRadius: 5,
         localSuperiorityRatio: 1.5,
         localSuperiorityMinPower: 5,
-        opportunityKillScore: 200,
+        opportunityKillScore: 50,      // Lowered from 200 - allow more attacks outside attacking phase
+        humanTargetScore: 50,
+        // Offensive scoring parameters (Phase 1)
+        momentumBonus: 30,              // Bonus for attacking during attack phase
+        attackPhaseRiskReduction: 0.6,  // Risk penalty multiplier (0.6 = 40% reduction)
+        finishingBlowBonus: 50,         // Bonus for kills removing last defender
+        flankingBonus2: 25,             // Bonus for 2+ adjacent allies
+        flankingBonus3: 40,             // Bonus for 3+ adjacent allies
+        isolatedTargetBonus: 60,        // Bonus for isolated targets
     },
     wait: {
         combatZoneRadius: 6,
         reinforcementBuffer: 3,
-        reinforcementPowerRatio: 0.3,
-        reinforcementBaseScoreMult: 0.5,
-        localPowerRatioBad: 0.6,
-        localPowerRatioPoor: 0.8,
-        noKillBaseScore: 40,
-        noKillAvgScoreThreshold: 20,
-        noKillLowValueScore: 20,
-        exposureThreatCount: 3,
-        exposureHighThreatScore: 40,
-        exposureMedThreatCount: 2,
-        exposureMedThreatDamageRatio: 0.5,
-        exposureMedThreatScore: 20,
-        terrainScore: 15,
-        waitThresholdRatio: 0.6,
-        overrideWarDurationTurns: 30,
-        overrideCityHpRatio: 0.3,
-        overrideHighValueKillScore: 200,
-        overrideAggressiveThreshold: 0.5,
+        reinforcementPowerRatio: 0.2,
+        reinforcementBaseScoreMult: 0.15,
+        localPowerRatioBad: 0.3,
+        localPowerRatioPoor: 0.5,
+        noKillBaseScore: 10,
+        noKillAvgScoreThreshold: 10,
+        noKillLowValueScore: 5,
+        exposureThreatCount: 5,
+        exposureHighThreatScore: 20,       // TUNED: 15 -> 20 (respect threats a bit more)
+        exposureMedThreatCount: 4,
+        exposureMedThreatDamageRatio: 0.7,
+        exposureMedThreatScore: 10,        // TUNED: 8 -> 10
+        terrainScore: 8,                   // TUNED: 5 -> 8
+        waitThresholdRatio: 0.85,          // TUNED: 0.95 -> 0.85 (wait if >15% disadvantage)
+        overrideWarDurationTurns: 15,
+        overrideCityHpRatio: 0.5,
+        overrideHighValueKillScore: 100,
+        overrideAggressiveThreshold: 0.6,
     },
     defense: {
         garrisonBonus: 1.5,
@@ -70,6 +78,7 @@ export const DEFAULT_TUNING: TacticalTuning = {
         enemyDistanceCap: 10,
         earlyGameTurn: 50,
         ringRadius: 2,
+        maxDefenderDistance: 8,
     },
     moveAttack: {
         survivalHpMarginal: 2,
