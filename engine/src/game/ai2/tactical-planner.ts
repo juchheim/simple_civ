@@ -28,6 +28,7 @@ import { buildDefenseAssessment } from "./defense/assessment.js";
 import { planDefenseAssignments } from "./defense/steps.js";
 import { planMutualDefenseReinforcements } from "./defense-mutual-defense.js";
 import { planDefensiveRing } from "./defense-ring.js";
+import { runTitanPreMovement, runTitanPhase } from "./titan-flow.js";
 import { DefenseAttackPlan, DefenseMovePlan } from "./defense-actions.js";
 import { selectFocusTargetV2 } from "./strategy.js";
 import { scoreAttackOptionWithBreakdown, scoreDefenseAttackOptionWithBreakdown, scoreMoveAttackOptionWithBreakdown, type ScoreBreakdown } from "./tactical-scoring.js";
@@ -832,10 +833,17 @@ export function runTacticalPlanner(
     playerId: string,
     mode: TacticalPlannerMode = "full"
 ): GameState {
-    const result = planTacticalTurn(state, playerId, mode);
+    // v9.10: Run Titan pre-movement to rally deathball before general tactics
+    let next = runTitanPreMovement(state, playerId);
+
+    const result = planTacticalTurn(next, playerId, mode);
     const hadValidationContext = isContextInitialized();
     initValidationContext(result.state, playerId);
-    const next = executeTacticalPlan(result.state, playerId, result.plan);
+    next = executeTacticalPlan(result.state, playerId, result.plan);
+
+    // v9.10: Run Titan agent after general tactics to execute Titan's attack
+    next = runTitanPhase(next, playerId, result.plan.tacticalContext);
+
     if (!hadValidationContext) {
         clearValidationContext();
     }

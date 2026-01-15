@@ -255,12 +255,11 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
 
 
     // v1.3: River League "River Guardians" - +2 Atk/Def near rivers
-    // v1.6: BUFFED from +1/+1 to +2/+2 to improve conquest competitiveness
     // v6.6m: "Trade Militia" - flat +1 Attack for all military units
-    // v1.0.4: BUFFED flat attack from +1 to +2
+    // v9.12: Nerfed flat attack from +2 to +1 (27% win rate was too high)
     if (player.civName === "RiverLeague" && UNITS[unit.type].domain !== "Civilian") {
         // Flat attack bonus for early-game presence
-        boosted.atk += 2;
+        boosted.atk += 1;
 
         if (isTileAdjacentToRiver(state.map, unit.coord)) {
             boosted.atk += 2;
@@ -279,7 +278,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
     // v1.1.0: ScholarKingdoms +1 Defense bonus REMOVED for balance
 
     // v7.0: Lorekeeper "Fortified Knowledge" - +3 DEF in friendly territory or on own city
-    // Also grants +50% DEF vs Army units when in territory
+    // v9.12: Removed anti-Army bonus for balance
     if (unit.type === UnitType.Lorekeeper) {
         // Check if on own city
         const onOwnCity = state.cities.some(c =>
@@ -291,11 +290,6 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: U
         );
         if (onOwnCity || inFriendlyTerritory) {
             boosted.def += LOREKEEPER_TERRITORY_DEFENSE_BONUS;
-
-            // v8.13: Anti-Army bonus - +25% DEF when attacked by Army units IN TERRITORY (nerfed from 50%)
-            if (attacker && attacker.type.startsWith("Army")) {
-                boosted.def = Math.floor(boosted.def * 1.25);
-            }
         }
     }
 
@@ -327,12 +321,13 @@ export function getUnitMaxMoves(unit: Unit, state: GameState): number {
     const stats = UNITS[unit.type];
     let moves = stats.move;
 
-    // Aetherian Vanguard: +1 Movement for military units if Titan's Core is built
+    // Aetherian Vanguard: +1 Movement for ALL military units (including Titan) when Titan is alive
+    // v9.13: Titan also gets bonus so deathball moves together at speed 3
     if (stats.domain !== UnitDomain.Civilian) {
         const player = state.players.find(p => p.id === unit.ownerId);
         if (player?.civName === "AetherianVanguard") {
-            const hasTitansCore = state.cities.some(c => c.ownerId === unit.ownerId && c.buildings.includes(BuildingType.TitansCore));
-            if (hasTitansCore) {
+            const hasTitan = state.units.some(u => u.ownerId === unit.ownerId && u.type === UnitType.Titan);
+            if (hasTitan) {
                 moves += 1;
             }
         }

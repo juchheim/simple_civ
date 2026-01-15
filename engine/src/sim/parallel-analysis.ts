@@ -573,7 +573,7 @@ if (isMainThread) {
     const start = Date.now();
 
     try {
-        const result = runComprehensiveSimulation(seed, config.size, 300, config.maxCivs);
+        const result = runComprehensiveSimulation(seed, config.size, 400, config.maxCivs); // v9.12: 300→400 turns
         const duration = Date.now() - start;
         parentPort?.postMessage({ ...result, duration });
     } catch (err) {

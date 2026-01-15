@@ -96,6 +96,16 @@ export function isProgressThreat(state: GameState, targetPlayerId: string): bool
 }
 
 /**
+ * v9.10: Check if a player is a "Progress Civ" (Scholar/Starborne)
+ * These civs naturally win via Progress and should be targeted early by non-progress civs.
+ */
+export function isProgressCiv(state: GameState, targetPlayerId: string): boolean {
+    const p = state.players.find(x => x.id === targetPlayerId);
+    if (!p) return false;
+    return p.civName === "ScholarKingdoms" || p.civName === "StarborneSeekers";
+}
+
+/**
  * Check if a player is a "Conquest Threat" (has captured significant foreign cities)
  * A player who has captured 2+ foreign cities is considered a threat to world order.
  */

@@ -181,6 +181,26 @@ export function aiVictoryBias(playerId: string, state: GameState): AiVictoryGoal
     }
 
     // ===========================================
+    // PRIORITY 1.5: Aetherian Post-Titan Fallback
+    // ===========================================
+    // On large/huge maps, after Titan dies and captured cities, pivot to Progress
+    // This uses the captured cities' science output to win via Progress
+    if (player.civName === "AetherianVanguard") {
+        const hasTitansCore = state.cities.some(c =>
+            c.ownerId === playerId && c.buildings?.includes(BuildingType.TitansCore)
+        );
+        const titanIsDead = hasTitansCore && !hasTitan(playerId, state);
+        const myCities = state.cities.filter(c => c.ownerId === playerId);
+        const mapSize = state.map.width * state.map.height;
+        const isLargeOrHugeMap = mapSize > 300; // Standard ~391, Large ~475, Huge ~850
+
+        if (titanIsDead && isLargeOrHugeMap) {
+            aiInfo(`[AI Goal] ${playerId} Titan dead on large map - switching to PROGRESS with ${myCities.length} cities`);
+            return "Progress";
+        }
+    }
+
+    // ===========================================
     // PRIORITY 2: Near Progress Victory - PROTECT IT
     // ===========================================
     if (progress.isNearVictory) {

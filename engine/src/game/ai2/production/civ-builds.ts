@@ -116,34 +116,59 @@ export function pickAetherianVanguardBuild(
         (c.currentBuild?.type === "Building" && c.currentBuild.id === BuildingType.TitansCore)
     );
 
-    if (!hasTitan && !hasTitansCore && context.player.techs.includes(TechId.SteamForges)) {
+    // v9.10: Count Riders specifically for deathball composition
+    const currentRiders = context.myUnits.filter(u =>
+        u.type === UnitType.Riders || u.type === UnitType.ArmyRiders
+    ).length;
+    const REQUIRED_RIDERS_FOR_TITAN = 4;
+
+    const hasSteamForges = context.player.techs.includes(TechId.SteamForges);
+
+    // v9.10: Build Titan's Core immediately after SteamForges - no Rider prerequisite
+    // Previous requirement of 4 Riders was blocking Titan spawn in 54% of games!
+    // Riders can be built in parallel from other cities
+    if (hasSteamForges && !hasTitan && !hasTitansCore) {
         if (canBuild(city, "Building", BuildingType.TitansCore, state)) {
-            aiInfo(`[AI Build] AetherianVanguard PRIORITY: TitansCore (Win Condition)`);
+            aiInfo(`[AI Build] AetherianVanguard PRIORITY: TitansCore IMMEDIATELY after SteamForges!`);
             return { type: "Building", id: BuildingType.TitansCore };
         }
     }
 
+    // After Titan's Core is started/built, continue building escorts
     const isResearchingSteamForges = context.player.currentTech?.id === TechId.SteamForges;
-    const hasSteamForges = context.player.techs.includes(TechId.SteamForges);
     const isPrepForTitan = (isResearchingSteamForges || hasSteamForges) && !hasTitan;
 
-    if (isPrepForTitan) {
-        const currentEscorts = context.myUnits.filter(u =>
-            (u.type === UnitType.ArmyRiders || u.type === UnitType.Landship || u.type === UnitType.Riders)
+    if (isPrepForTitan || hasTitan) {
+        // v9.10: Maintain minimum 4 Riders in deathball at all times
+        const RIDER_MINIMUM = 4;
+        if (currentRiders < RIDER_MINIMUM) {
+            if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
+                aiInfo(`[AI Build] AetherianVanguard DEATHBALL RIDERS: ArmyRiders (${currentRiders}/${RIDER_MINIMUM} min)`);
+                return { type: "Unit", id: UnitType.ArmyRiders };
+            }
+            if (canBuild(city, "Unit", UnitType.Riders, state)) {
+                aiInfo(`[AI Build] AetherianVanguard DEATHBALL RIDERS: Riders (${currentRiders}/${RIDER_MINIMUM} min)`);
+                return { type: "Unit", id: UnitType.Riders };
+            }
+        }
+
+        // After Rider minimum met, build additional escorts (Landships, more Riders)
+        const totalEscorts = context.myUnits.filter(u =>
+            u.type === UnitType.ArmyRiders || u.type === UnitType.Landship || u.type === UnitType.Riders
         ).length;
         const TITAN_ESCORT_TARGET = 6;
 
-        if (currentEscorts < TITAN_ESCORT_TARGET) {
-            if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
-                aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: ArmyRiders (${currentEscorts}/${TITAN_ESCORT_TARGET})`);
-                return { type: "Unit", id: UnitType.ArmyRiders };
-            }
+        if (totalEscorts < TITAN_ESCORT_TARGET) {
             if (canBuild(city, "Unit", UnitType.Landship, state)) {
-                aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: Landship (${currentEscorts}/${TITAN_ESCORT_TARGET})`);
+                aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: Landship (${totalEscorts}/${TITAN_ESCORT_TARGET})`);
                 return { type: "Unit", id: UnitType.Landship };
             }
+            if (canBuild(city, "Unit", UnitType.ArmyRiders, state)) {
+                aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: ArmyRiders (${totalEscorts}/${TITAN_ESCORT_TARGET})`);
+                return { type: "Unit", id: UnitType.ArmyRiders };
+            }
             if (canBuild(city, "Unit", UnitType.Riders, state)) {
-                aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: Riders (${currentEscorts}/${TITAN_ESCORT_TARGET})`);
+                aiInfo(`[AI Build] AetherianVanguard TITAN ESCORT: Riders (${totalEscorts}/${TITAN_ESCORT_TARGET})`);
                 return { type: "Unit", id: UnitType.Riders };
             }
         }

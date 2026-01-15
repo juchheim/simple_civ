@@ -15,6 +15,7 @@ import {
     hasDominatingPower,
     hasUnitType,
     isProgressThreat,
+    isProgressCiv,
     isConquestThreat,
     stanceDurationOk
 } from "./diplomacy/utils.js";
@@ -449,6 +450,27 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         // Peace → consider war.
         if (!profile.diplomacy.canInitiateWars) continue;
         if (dist > warDistanceMax) continue;
+
+        // v9.10: Aetherian peace-until-Titan policy
+        // Don't initiate wars until Titan is ready OR need cities for expansion
+        // But still respond to progress/conquest threats
+        const isAetherianPreTitan = profile.civName === "AetherianVanguard" && !hasUnitType(next, playerId, "Titan");
+        if (isAetherianPreTitan) {
+            const myCityCount = next.cities.filter(c => c.ownerId === playerId).length;
+            const needsCities = myCityCount < 4; // Minimum 4 cities for Titan economy
+            const targetHasWeakCity = next.cities.some(c =>
+                c.ownerId === other.id && c.hp <= 0 // Capturable city available
+            );
+
+            // Only attack pre-Titan if:
+            // 1. Need cities AND target has weak city, OR
+            // 2. Progress/Conquest threat (checked later in the flow)
+            if (!needsCities || !targetHasWeakCity) {
+                // Skip this potential war - focus on economy until Titan
+                continue;
+            }
+            aiInfo(`[AI Diplo] Aetherian ${playerId} needs cities (${myCityCount}/4), attacking for expansion`);
+        }
         // If we're overwhelmingly ahead, allow re-declaring war faster (prevents long "peace cooldown" stalls).
         const overwhelmingPeace = ratio >= 3 && !stanceDurationOk(next, playerId, other.id, Math.ceil(profile.diplomacy.minStanceTurns * 0.4), memory);
         if (overwhelmingPeace) continue;
@@ -507,8 +529,18 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
         // Apply escalation factor (makes late-game wars more aggressive)
         const escalatedRatio = requiredRatio * escalationFactor;
 
+        // v9.10: Progress Civ Targeting Priority
+        // Non-progress civs should prefer attacking progress civs (Scholar/Starborne)
+        // Treat progress civs as 6 hexes closer than they are (distance bonus)
+        // This makes them preferred targets when similarly close, but not across the map
+        const myPlayer = next.players.find(p => p.id === playerId);
+        const iAmProgressCiv = myPlayer?.civName === "ScholarKingdoms" || myPlayer?.civName === "StarborneSeekers";
+        const targetIsProgressCiv = isProgressCiv(next, other.id);
+        const progressCivDistanceBonus = (!iAmProgressCiv && targetIsProgressCiv) ? 6 : 0;
+        const effectiveDist = Math.max(1, dist - progressCivDistanceBonus);
+
         const allowDistance = (progressThreat || conquestThreat) ? Math.max(warDistanceMax, 999) : warDistanceMax;
-        if (dist > allowDistance) continue;
+        if (effectiveDist > allowDistance) continue;
 
         // Apply bias to the ratio checks
         if (effectiveOffensiveRatio >= escalatedRatio) {

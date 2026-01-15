@@ -3,6 +3,7 @@ import { hexDistance, hexEquals, hexToString } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { tryAction } from "../ai/shared/actions.js";
 import { getCombatPreviewUnitVsCity } from "../helpers/combat-preview.js";
+import { getUnitMaxMoves } from "../helpers/combat.js"; // v9.15: For actual movement with bonuses
 import { buildLookupCache } from "../helpers/lookup-cache.js";
 import { getAiProfileV2 } from "./rules.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
@@ -25,17 +26,20 @@ export function followTitan(state: GameState, playerId: string): GameState {
     const enemyCities = next.cities.filter(c => enemies.has(c.ownerId));
     if (enemyCities.length === 0) return next;
 
-    const profile = getAiProfileV2(next, playerId);
-    const targetCity = pickBest(enemyCities, c => {
-        const dist = hexDistance(titan.coord, c.coord);
-        const capital = c.isCapital ? 1 : 0;
-        const finish = c.hp <= 0 ? 1 : 0;
-        const hpFrac = c.maxHp ? c.hp / c.maxHp : 1;
-        const momentum = -dist * (1.2 + profile.titan.momentum);
-        return (capital * 25 * profile.titan.capitalHunt) + (finish * 30 * profile.titan.finisher) + ((1 - hpFrac) * 18) + momentum;
-    })?.item;
+    // v9.10: Use Titan's actual target from memory so deathball follows where Titan is actually going
+    const memory = getAiMemoryV2(next, playerId);
+    let targetCity = memory.titanFocusCityId
+        ? next.cities.find(c => c.id === memory.titanFocusCityId && enemies.has(c.ownerId))
+        : null;
 
-    const rallyPoint = targetCity?.coord ?? titan.coord;
+    // Fallback to Titan's position if no memorized target
+    if (!targetCity) {
+        targetCity = pickBest(enemyCities, c => -hexDistance(titan.coord, c.coord))?.item ?? null;
+    }
+
+    // v9.15 FIX: Escorts follow TITAN's position, not the target city
+    // This keeps escorts near Titan even when it retreats or changes direction
+    const rallyPoint = titan.coord;
     const SAFE_STAGING_DISTANCE = 3;
 
     const myCities = next.cities.filter(c => c.ownerId === playerId);
@@ -60,8 +64,12 @@ export function followTitan(state: GameState, playerId: string): GameState {
         return hexDistance(a.coord, rallyPoint) - hexDistance(b.coord, rallyPoint);
     });
 
+    // v9.15 FIX: Only clear escort flags for units that are FAR from Titan (>6 hexes)
+    // Previously all flags were cleared, causing escorts to lose their role if they fell behind
     next.units.filter(u => u.ownerId === playerId).forEach(u => {
-        u.isTitanEscort = false;
+        if (hexDistance(u.coord, titan.coord) > 6) {
+            u.isTitanEscort = false;
+        }
     });
 
     let escortsMoved = 0;
@@ -225,15 +233,52 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
     }
 
     if (!targetCityId) {
-        const best = pickBest(enemyCities, c => {
-            const dist = hexDistance(titan.coord, c.coord);
-            const capital = c.isCapital ? 1 : 0;
-            const finish = c.hp <= 0 ? 1 : 0;
-            const hpFrac = c.maxHp ? c.hp / c.maxHp : 1;
-            const momentum = -dist * (1.2 + profile.titan.momentum);
-            return (capital * 25 * profile.titan.capitalHunt) + (finish * 30 * profile.titan.finisher) + ((1 - hpFrac) * 18) + momentum;
-        });
-        targetCityId = best?.item?.id;
+        // v9.10: Capital-focused path attack strategy
+        // 1. Find the nearest enemy capital as the ultimate goal
+        // 2. Target any enemy cities along the path to that capital
+        // 3. This ensures we capture cities en route, not bypass them
+
+        const enemyCapitals = enemyCities.filter(c => c.isCapital);
+        const nearestCapital = enemyCapitals.length > 0
+            ? pickBest(enemyCapitals, c => -hexDistance(titan.coord, c.coord))?.item
+            : null;
+
+        if (nearestCapital) {
+            const distToCapital = hexDistance(titan.coord, nearestCapital.coord);
+
+            // Check if any non-capital enemy city is "on the way" to the capital
+            // A city is "on the way" if capturing it adds up to 2 extra turns (6 hexes at Titan's 3 move)
+            const MAX_DETOUR_HEXES = 6; // 2 turns × 3 move
+            const citiesOnPath = enemyCities.filter(c => {
+                if (c.isCapital) return false;
+                const distToCity = hexDistance(titan.coord, c.coord);
+                const cityToCapital = hexDistance(c.coord, nearestCapital.coord);
+                const detour = (distToCity + cityToCapital) - distToCapital;
+                return detour <= MAX_DETOUR_HEXES;
+            });
+
+            if (citiesOnPath.length > 0) {
+                // Target the closest city on the path
+                const nearestOnPath = pickBest(citiesOnPath, c => -hexDistance(titan.coord, c.coord))?.item;
+                if (nearestOnPath) {
+                    aiInfo(`[TITAN LOG] Targeting ${nearestOnPath.name} (on path to capital ${nearestCapital.name})`);
+                    targetCityId = nearestOnPath.id;
+                }
+            }
+
+            // If no cities on path, target the capital directly
+            if (!targetCityId) {
+                aiInfo(`[TITAN LOG] Targeting capital ${nearestCapital.name} directly`);
+                targetCityId = nearestCapital.id;
+            }
+        } else {
+            // No capitals left - target nearest city
+            const nearest = pickBest(enemyCities, c => -hexDistance(titan.coord, c.coord))?.item;
+            if (nearest) {
+                aiInfo(`[TITAN LOG] No capitals - targeting nearest city ${nearest.name}`);
+                targetCityId = nearest.id;
+            }
+        }
     }
 
     if (!targetCityId) return next;
@@ -245,7 +290,8 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
     const titanHpFrac = titan.maxHp ? titan.hp / titan.maxHp : (titan.hp / UNITS[titan.type].hp);
     const onFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, titan.coord));
 
-    const TITAN_HEAL_THRESHOLD = 0.8;
+    // v9.10: Lowered from 0.8 to 0.65 - Titan was waiting too long in cities
+    const TITAN_HEAL_THRESHOLD = 0.65;
     if (onFriendlyCity && titanHpFrac < TITAN_HEAL_THRESHOLD) {
         aiInfo(`[TITAN LOG] Healing holdout in city (HP: ${Math.round(titanHpFrac * 100)}% < ${TITAN_HEAL_THRESHOLD * 100}% threshold)`);
         return next;
@@ -260,23 +306,42 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
         }
     }
 
-    if (titanHpFrac < 0.2 && !onFriendlyCity) {
+    // v9.11: Raised from 0.2 to 0.4 - retreat EARLIER to survive with 40% HP
+    // 82% death rate was because Titan didn't retreat until nearly dead
+    if (titanHpFrac < 0.4 && !onFriendlyCity) {
+        aiInfo(`[TITAN LOG] Retreating early (HP: ${Math.round(titanHpFrac * 100)}% < 40%) - survival priority!`);
         const safe = nearestFriendlyCity(next, playerId, titan.coord);
         if (safe) {
             return moveTowardAllMoves(next, playerId, titan.id, safe, 6, createLookupCache(next));
         }
     }
 
+    // v9.16: Increased radius from 2 to 3 hexes - escorts 3 hexes away should count as support
     const supportCount = next.units.filter(u =>
         u.ownerId === playerId &&
         isMilitary(u) &&
         u.type !== UnitType.Titan &&
-        hexDistance(u.coord, titan.coord) <= 2
+        getUnitMaxMoves(u, next) >= 2 && // Actual movement with bonuses
+        hexDistance(u.coord, titan.coord) <= 3  // v9.16: Extended from 2 to 3
     ).length;
     const isAetherian = profile.civName === "AetherianVanguard";
 
-    const requiredSupport = isAetherian ? 5 : (titanHpFrac < 0.55 ? 4 : 3);
+    // v9.10: Reduced from 5 to 4 to match the 4 Riders built before Titan's Core
+    const requiredSupport = isAetherian ? 4 : (titanHpFrac < 0.55 ? 4 : 3);
     const allowDeepPush = supportCount >= requiredSupport;
+
+    // v9.14: BALANCED - Retreat only when BOTH alone AND damaged
+    // Previous version retreated too much, causing 0 wins on Standard/Large/Huge
+    // Now: Keep fighting unless support is critical AND we've taken damage
+    const criticalSupportLevel = 2;
+    const hasTakenDamage = titanHpFrac < 0.9; // 90% = taken some damage
+    if (supportCount < criticalSupportLevel && !onFriendlyCity && hasTakenDamage) {
+        aiInfo(`[TITAN LOG] RETREAT - Support critical (${supportCount}) AND damaged (${Math.round(titanHpFrac * 100)}%)`);
+        const safe = nearestFriendlyCity(next, playerId, titan.coord);
+        if (safe) {
+            return moveTowardAllMoves(next, playerId, titan.id, safe, 6, createLookupCache(next));
+        }
+    }
 
     if (!allowDeepPush) {
         aiInfo(`[TITAN LOG] Waiting for support (Current: ${supportCount}/${requiredSupport})`);
@@ -399,14 +464,8 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
     const path = findEngagementPath(liveTitan.coord, cityNow.coord, liveTitan, next, createLookupCache(next));
     const dest = (path && path.length > 0) ? path[path.length - 1] : cityNow.coord;
 
-    const distToTarget = hexDistance(liveTitan.coord, cityNow.coord);
-    const sprintMode = distToTarget <= 5;
-    const allowedMoves = sprintMode ? 8 : 2;
-
-    if (sprintMode) {
-        aiInfo(`[TITAN LOG] SPRINTING to target (Dist: ${distToTarget})`);
-    }
-
-    next = moveTowardAllMoves(next, playerId, liveTitan.id, dest, allowedMoves);
+    // v9.16: Removed sprint mode - obsolete with Aetherian +1 movement bonus
+    // Titan and escorts all have 3+ movement now, so just use remaining moves
+    next = moveTowardAllMoves(next, playerId, liveTitan.id, dest, liveTitan.movesLeft);
     return next;
 }

@@ -338,10 +338,9 @@ const profiles: Record<string, CivAiProfileV2> = {
             // v1.0.8: Weights are deprecated, using pathsByGoal.
             // Explicitly added StoneworkHalls/CityWards to Progress path for defense.
             pathsByGoal: {
+                // v9.12: Removed StoneworkHalls/Bulwark - Scholar relies on science, not defense
                 Progress: [
                     TechId.ScriptLore,
-                    TechId.StoneworkHalls, // Unlocks Bulwark (Scholar unique)
-                    TechId.CityWards,      // Unlocks CityWard
                     TechId.ScholarCourts,
                     TechId.SignalRelay,
                     TechId.StarCharts
@@ -361,8 +360,8 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    [BuildingType.Bulwark]: 2.0,
-                    [BuildingType.CityWard]: 1.6,
+                    // v9.12: Removed Bulwark - Scholar uses science, not defense
+                    [BuildingType.CityWard]: 1.2, // Reduced priority
                     [BuildingType.Scriptorium]: 1.5,
                     [BuildingType.Academy]: 1.5,
                 },
@@ -428,7 +427,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             warPowerRatio: 1.0, // v1.0.8: Aggressive (was 1.05)
             warDistanceMax: 20, // v1.0.8: Increased reach (was 18)
             peaceIfBelowRatio: 0.75,
-            minWarTurn: 30, // v1.0.9: Delayed from 15 to allow early expansion
+            minWarTurn: 50, // v9.10: Increased from 30 to allow more expansion
             maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
             maxInitiatedWarsPer50Turns: 4,
             canInitiateWars: true,
@@ -436,56 +435,58 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         tech: {
             weights: {
-                // Phase 1: HARD Beeline Titan's Core (SteamForges unlock)
-                // Remove distractions. No early science until Titan.
-                [TechId.ScriptLore]: 1.3, // v9.1: Restore Science to fuel Titan rush
-                [TechId.ScholarCourts]: 1.3, // v9.1: Restore Science to fuel Titan rush
+                // v9.10: Science-first Titan Rush (faster by ~8 turns)
+                // Build Scriptorium (+1 S) and Academy (+3 S) to accelerate research
+                [TechId.ScriptLore]: 2.5,      // HIGHEST - enables Scriptorium
+                [TechId.StoneworkHalls]: 2.3,  // Second - prereq for TimberMills
+                [TechId.FormationTraining]: 2.1, // Third - unlocks Banner era
+                [TechId.ScholarCourts]: 2.4,   // Banner priority - enables Academy (+3 S)
+                [TechId.TimberMills]: 2.2,     // Prereq for SteamForges
+                [TechId.SteamForges]: 3.0,     // Unlocks Titan's Core
 
-                [TechId.StoneworkHalls]: 2.0, // v9.0: CRITICAL - Prereq for SteamForges
-                [TechId.TimberMills]: 2.0,    // v9.0: CRITICAL - Prereq for SteamForges
-                [TechId.SteamForges]: 3.0,    // v9.0: HIGHEST PRIORITY - Unlocks Titan
-
-                // Support Techs (Post-Titan or during spare time)
+                // Support Techs (Post-Titan)
                 [TechId.DrilledRanks]: 1.1,
-                [TechId.CompositeArmor]: 1.6, // Landships for Titan escort
-                [TechId.Aerodynamics]: 1.5, // Airship support for Titan
+                [TechId.CompositeArmor]: 1.6,
+                [TechId.Aerodynamics]: 1.5,
 
-                // Phase 2: Pivot to Progress after Titan dominance (Late game)
+                // Late-game Progress pivot
                 [TechId.SignalRelay]: 1.2,
                 [TechId.StarCharts]: 1.5,
             },
             pathsByGoal: {
                 Conquest: [
-                    // STRICT Path to Titan
-                    TechId.FormationTraining,
-                    TechId.StoneworkHalls,
-                    TechId.TimberMills,
-                    TechId.SteamForges,
-                    // Then Army Updates
+                    // v9.10: Optimized Science-First Titan Path with ArmyRiders
+                    TechId.ScriptLore,        // 1. Enables Scriptorium (+1 S)
+                    TechId.StoneworkHalls,    // 2. Prereq for TimberMills
+                    TechId.FormationTraining, // 3. Third Hearth tech (unlocks Banner)
+                    TechId.ScholarCourts,     // 4. Enables Academy (+3 S) - research boost!
+                    TechId.ArmyDoctrine,      // 5. Unlocks ArmyRiders for deathball escorts
+                    TechId.TimberMills,       // 6. Prereq for SteamForges (unlocks Engine)
+                    TechId.SteamForges,       // 7. Unlocks Titan's Core
                     TechId.DrilledRanks,
                     TechId.CompositeArmor
                 ],
-                // v7.9: Add Progress path for late-game pivot
                 Progress: [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts],
             },
         },
         build: {
-            armyPerCity: 2.8, // v1.0.9: Adjusted from 2.0 to 1.8
-            settlerCap: 3, // v7.9: Buffed from 2 - expand after conquest
-            desiredCities: 7, // v1.0.9: Buffed from 6 - more cities = more production for Titan
+            // v9.10: Prioritize expansion to reach 4+ cities for Titan economy
+            armyPerCity: 2.0, // Reduced from 2.8 - fewer units, more settlers
+            settlerCap: 5,    // Increased from 3 - more expansion
+            desiredCities: 5, // Reduced from 7 - realistic target (avg was 3.1)
             weights: {
                 building: {
-                    [BuildingType.TitansCore]: 2.5, // v7.9: HIGHEST - beeline Titan
+                    // v9.10: Science buildings HIGHEST priority to accelerate Titan research
+                    [BuildingType.Scriptorium]: 2.5, // Build IMMEDIATELY after ScriptLore
+                    [BuildingType.Academy]: 2.5,     // Build IMMEDIATELY after ScholarCourts
+                    [BuildingType.TitansCore]: 2.8,  // Then Titan's Core
                     [BuildingType.StoneWorkshop]: 1.3,
-                    [BuildingType.Scriptorium]: 1.5, // Science for Progress pivot
-                    [BuildingType.Academy]: 1.5,
                 },
                 unit: { [UnitType.SpearGuard]: 1.1, [UnitType.BowGuard]: 1.1 },
-                // v7.9: Buffed Progress Projects for late-game pivot
                 project: {
-                    [ProjectId.Observatory]: 1.6, // v7.9: Buffed from 1.2
-                    [ProjectId.GrandAcademy]: 1.6, // v7.9: Buffed from 1.2
-                    [ProjectId.GrandExperiment]: 1.8, // v7.9: HIGH - win condition
+                    [ProjectId.Observatory]: 1.6,
+                    [ProjectId.GrandAcademy]: 1.6,
+                    [ProjectId.GrandExperiment]: 1.8,
                 },
             },
         },
@@ -509,11 +510,9 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         tech: {
             pathsByGoal: {
-                // v1.0.8: Aggressive Science Rush to SpiritObservatory
-                // Starborne relies on rapid expansion, not turtling.
+                // v9.12: Removed StoneworkHalls/Bulwark - Starborne relies on expansion, not defense
                 Progress: [
                     TechId.ScriptLore,
-                    TechId.StoneworkHalls, // Unlocks Bulwark (Unique) - Vital early defense
                     TechId.ScholarCourts,
                     TechId.SignalRelay,
                     TechId.StarCharts
@@ -523,7 +522,7 @@ const profiles: Record<string, CivAiProfileV2> = {
         build: {
             armyPerCity: 2.5,  // v6.5: Lower than Scholar - spread focus
             settlerCap: 4,  // v6.5: HIGH - wide expansion
-            desiredCities: 7,  // v6.5: WIDE - more cities for SpiritObservatory spread
+            desiredCities: 5,  // v9.10: Reduced from 7 - more focused expansion
             weights: {
                 unit: {
                     [UnitType.Settler]: 1.4,  // v6.5: HIGH - expansion focus
@@ -532,9 +531,9 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    [BuildingType.Academy]: 1.5, // Replaces SpiritObservatory role
-                    [BuildingType.Bulwark]: 2.0,  // v6.5: Lower than Scholar
-                    [BuildingType.CityWard]: 1.6,
+                    // v9.12: Removed Bulwark - Starborne focuses on science, not defense
+                    [BuildingType.Academy]: 1.5,
+                    [BuildingType.CityWard]: 1.2, // Reduced priority
                 },
                 project: {
                     [ProjectId.Observatory]: 2.0,  // High priority now (standard path)
@@ -543,7 +542,7 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
             },
         },
-        tactics: { riskTolerance: 0.15, forceConcentration: 0.5, siegeCommitment: 0.4, retreatHpFrac: 0.6, rangedCaution: 0.9 },
+        tactics: { riskTolerance: 0.15, forceConcentration: 0.5, siegeCommitment: 0.4, retreatHpFrac: 0.5, rangedCaution: 0.9 },
         titan: { capitalHunt: 0.5, finisher: 0.6, momentum: 0.5 },
     }),
 
