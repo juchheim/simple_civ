@@ -184,7 +184,7 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
     // ALL civs participate in forced peace-breaking (skip if punitive strike already triggered)
     if (next.turn >= forcedWarTriggerTurn && warsNow === 0 && warsPlanned === 0) {
 
-        // Find weakest visible enemy
+        // Find weakest visible enemy (prefer humans by treating them as 30% weaker)
         let weakestId: string | null = null;
         let weakestPower = Infinity;
 
@@ -194,8 +194,10 @@ export function decideDiplomacyActionsV2(state: GameState, playerId: string, goa
             if (theirCities.length === 0) continue;
 
             const theirPower = estimateMilitaryPower(other.id, next);
-            if (theirPower < weakestPower) {
-                weakestPower = theirPower;
+            // Apply human preference: treat human players as 30% weaker to prioritize them as targets
+            const effectivePowerForComparison = other.isAI ? theirPower : theirPower * 0.7;
+            if (effectivePowerForComparison < weakestPower) {
+                weakestPower = effectivePowerForComparison;
                 weakestId = other.id;
             }
         }

@@ -190,6 +190,9 @@ export function selectFocusTargetV2(state: GameState, playerId: string): { state
     const myAnchor = myCities.find(c => c.isCapital) ?? myCities[0];
     if (!myAnchor) return { state, focusTargetId: undefined, focusCityId: undefined };
 
+    // Check if there's a human player in the game
+    const hasHumanPlayer = state.players.some(p => !p.isAI && !p.isEliminated);
+
     const candidateTargets = enemies
         .map(e => {
             const theirPower = estimateMilitaryPower(e.id, state);
@@ -205,9 +208,12 @@ export function selectFocusTargetV2(state: GameState, playerId: string): { state
             if (profile.diplomacy.targetPreference === "Capital") pref = hasCapital ? 5 : 0;
             if (profile.diplomacy.targetPreference === "Finishable") pref = isFinishable ? 10 : 0;
 
+            // Human preference: If there's a human in the game, AI prefers to attack them
+            const humanBonus = (hasHumanPlayer && !e.isAI) ? 15 : 0;
+
             // Overall: prefer reasonable distance + weak/finishable + preference.
             const deny = (profile.diplomacy.canInitiateWars && profile.diplomacy.warPowerRatio <= 1.35 && progressThreat) ? 45 : 0;
-            const score = pref + (ratio * 5) - (nearestCityDist * 0.35) + (isFinishable ? 6 : 0) + deny;
+            const score = pref + (ratio * 5) - (nearestCityDist * 0.35) + (isFinishable ? 6 : 0) + deny + humanBonus;
             return { targetId: e.id, score };
         });
 
