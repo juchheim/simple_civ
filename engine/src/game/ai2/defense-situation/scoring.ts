@@ -6,7 +6,7 @@ import { buildDefenseSnapshot } from "./assessment.js";
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { scoreDefenseAttackOption } from "../attack-order/scoring.js";
 import { canPlanAttack, isGarrisoned } from "../attack-order/shared.js";
-import { getTacticalTuning, DEFAULT_TUNING } from "../tuning.js";
+import { getTacticalTuning } from "../tuning.js";
 
 export function computeThreatScore(
     state: GameState,
@@ -67,10 +67,11 @@ export function assessCityThreatLevel(
     city: City,
     playerId: string,
     detectionRange: number = 5,
-    ringRange: number = 2
+    ringRange: number = 2,
+    isCoordVisible?: (coord: { q: number; r: number }) => boolean
 ): ThreatLevel {
     const tuning = getTacticalTuning(state, playerId);
-    const snapshot = buildDefenseSnapshot(state, city, playerId, detectionRange, ringRange);
+    const snapshot = buildDefenseSnapshot(state, city, playerId, detectionRange, ringRange, isCoordVisible);
     const threatScore = computeThreatScore(state, city, snapshot.nearbyEnemies, detectionRange);
     // Updated call signature to include tuning
     const defenseScore = computeDefenseScore(state, city, snapshot.garrison, snapshot.ringUnits, tuning);

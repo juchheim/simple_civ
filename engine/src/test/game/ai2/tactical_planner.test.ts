@@ -146,7 +146,7 @@ describe("AI Tactical Planner", () => {
         expect(Math.min(distToC1, distToC2)).toBe(1);
     });
 
-    it("staged phase avoids attacking city targets", () => {
+    it("staged phase allows attacking city targets when in contact", () => {
         const state = baseState();
         state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
         state.cities = [mkCity("p2", "c1", 1, 0)];
@@ -168,8 +168,8 @@ describe("AI Tactical Planner", () => {
         const u1 = after.units.find(u => u.id === "u1")!;
         const c1 = after.cities.find(c => c.id === "c1")!;
 
-        expect(u1.hasAttacked).toBe(false);
-        expect(c1.hp).toBe(20);
+        expect(u1.hasAttacked).toBe(true);
+        expect(c1.hp).toBeLessThan(20);
     });
 
     it("offense-only mode does not attack units while at peace", () => {
@@ -325,7 +325,7 @@ describe("AI Tactical Planner", () => {
         }
     });
 
-    it("includes defense actions and prefers them over offense actions for the same unit", () => {
+    it("resolves conflicts by intent first, then by score (regardless of source)", () => {
         const state = baseState();
         state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
         state.cities = [mkCity("p1", "c1", 0, 0, { capital: true })];
@@ -358,7 +358,7 @@ describe("AI Tactical Planner", () => {
         const resolved = resolveTacticalActionConflicts([defenseAction, offenseAction]);
 
         expect(resolved).toHaveLength(1);
-        expect(resolved[0].source).toBe("defense");
+        expect(resolved[0].source).toBe("offense");
         expect(resolved[0].unitId).toBe(defenseAction.unitId);
     });
 
@@ -413,7 +413,7 @@ describe("AI Tactical Planner", () => {
     });
 
     // v1.0.3: Battle-group unification tests
-    it("battle-group attacks do not occur when armyPhase !== attacking", () => {
+    it("battle-group attacks can occur during staged phase when attack overrides trigger", () => {
         const state = baseState();
         state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
         state.cities = [mkCity("p1", "c1", 5, 5, { capital: true })];
@@ -438,16 +438,9 @@ describe("AI Tactical Planner", () => {
 
         const result = planTacticalTurn(state, "p1", "offense-only");
 
-        // In staged phase, only opportunity attacks (kills with high score) should occur
-        // Regular battle-group coordinated attacks should not be planned
         const attackActions = result.plan.actions.filter(a => a.intent === "attack");
-        const opportunityActions = result.plan.actions.filter(a => a.intent === "opportunity");
-
-        // Battle-group attacks with intent "attack" should not appear during staged phase
-        // (unless they qualify as opportunity kills)
-        expect(result.plan.armyPhase).toBe("staged");
-        // The key assertion: attack actions during staged phase are blocked
-        expect(attackActions.length).toBe(0);
+        expect(result.plan.armyPhase).toBe("attacking");
+        expect(attackActions.length).toBeGreaterThan(0);
     });
 
     it("battle-group attacks appear in plan with source 'offense' during attacking phase", () => {

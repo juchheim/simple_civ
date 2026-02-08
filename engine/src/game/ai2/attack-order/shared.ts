@@ -1,7 +1,4 @@
-import { GameState, Unit, UnitType } from "../../../core/types.js";
-import { hexDistance } from "../../../core/hex.js";
-import { UNITS } from "../../../core/constants.js";
-import { hasClearLineOfSight } from "../../helpers/combat.js";
+import { GameState, Unit } from "../../../core/types.js";
 import { isCombatUnitType } from "../schema.js";
 import { getUnitStrategicValue, getUnitThreatLevel } from "../tactical-threat.js";
 

@@ -8,6 +8,8 @@ import { isMilitary } from "./unit-roles.js";
 import { getAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
 import { canPlanMove } from "../ai/shared/validation.js";
+import { buildFlowField, combineCostBias, makeInfluenceBias, type FlowField } from "./flow-field.js";
+import type { InfluenceMaps } from "./influence-map.js";
 
 export function nearestFriendlyCity(state: GameState, playerId: string, from: { q: number; r: number }): { q: number; r: number } | null {
     const cities = state.cities.filter(c => c.ownerId === playerId);
@@ -34,7 +36,8 @@ export function planMoveToward(
     unit: Unit,
     dest: { q: number; r: number },
     reservedCoords?: Set<string>,
-    cache?: ReturnType<TacticalContext["createLookupCache"]>
+    cache?: ReturnType<TacticalContext["createLookupCache"]>,
+    flow?: FlowField
 ): Action | null {
     // v8.1: Ring defender guard - don't move units that are defending a threatened city
     const myCities = state.cities.filter(c => c.ownerId === playerId);
@@ -52,6 +55,20 @@ export function planMoveToward(
         );
         if (enemiesNearCity.length > 0) {
             return null;
+        }
+    }
+
+    if (flow && hexEquals(flow.target, dest)) {
+        const flowStep = flow.nextStep(unit.coord);
+        if (flowStep) {
+            const stepKey = hexToString(flowStep);
+            if (!(reservedCoords && reservedCoords.has(stepKey))) {
+                const unitAtStep = cache ? cache.unitByCoordKey.get(stepKey) : state.units.find(u => hexEquals(u.coord, flowStep));
+                const occupiedFriendlyMil = unitAtStep && unitAtStep.id !== unit.id && unitAtStep.ownerId === playerId && isMilitary(unitAtStep);
+                if (!occupiedFriendlyMil && canPlanMove(state, playerId, unit, flowStep)) {
+                    return { type: "MoveUnit", playerId, unitId: unit.id, to: flowStep };
+                }
+            }
         }
     }
 
@@ -95,8 +112,34 @@ export function planMoveToward(
     return null;
 }
 
-export function moveToward(state: GameState, playerId: string, unit: Unit, dest: { q: number; r: number }, cache?: ReturnType<TacticalContext["createLookupCache"]>): GameState {
-    const action = planMoveToward(state, playerId, unit, dest, undefined, cache);
+export function buildInfluenceWeightedFlow(
+    state: GameState,
+    playerId: string,
+    dest: { q: number; r: number },
+    influence?: InfluenceMaps,
+    baseBias?: (coord: { q: number; r: number }) => number
+): FlowField | undefined {
+    if (!influence) return undefined;
+    const influenceBias = makeInfluenceBias(
+        { threat: influence.threat, pressure: influence.pressure, control: influence.control },
+        { threat: 0.5, pressure: 0.4, control: -0.25 }
+    );
+    const costBias = combineCostBias(baseBias, influenceBias);
+
+    // Build a temporary flow field without caching when bias is present.
+    // This is a scaffolding hook; callers can later use ctx.getFlowField with a cacheKey.
+    return buildFlowField(state, dest, { costBias });
+}
+
+export function moveToward(
+    state: GameState,
+    playerId: string,
+    unit: Unit,
+    dest: { q: number; r: number },
+    cache?: ReturnType<TacticalContext["createLookupCache"]>,
+    flow?: FlowField
+): GameState {
+    const action = planMoveToward(state, playerId, unit, dest, undefined, cache, flow);
     if (action) {
         return tryAction(state, action);
     }
@@ -109,7 +152,8 @@ export function moveTowardAllMoves(
     unitId: string,
     dest: { q: number; r: number },
     maxSteps = 6,
-    _cache?: ReturnType<TacticalContext["createLookupCache"]>
+    _cache?: ReturnType<TacticalContext["createLookupCache"]>,
+    flow?: FlowField
 ): GameState {
     let next = state;
     let steps = 0;
@@ -119,7 +163,7 @@ export function moveTowardAllMoves(
         if (hexDistance(unit.coord, dest) === 0) return next;
         const before = next;
         // Note: can't reuse cache after state mutation (tryAction creates new state)
-        next = moveToward(next, playerId, unit, dest);
+        next = moveToward(next, playerId, unit, dest, undefined, flow);
         if (next === before) return next;
     }
     return next;
@@ -137,7 +181,9 @@ export function findEngagementPath(start: { q: number; r: number }, target: { q:
     return null;
 }
 
-export function retreatIfNeeded(state: GameState, playerId: string, unit: Unit): GameState {
+type GetFlowField = TacticalContext["getFlowField"];
+
+export function retreatIfNeeded(state: GameState, playerId: string, unit: Unit, getFlowField?: GetFlowField): GameState {
     const hpFrac = unit.maxHp ? unit.hp / unit.maxHp : (unit.hp / UNITS[unit.type].hp);
 
     // FIX #5: Reduce retreat threshold during active sieges.
@@ -185,7 +231,8 @@ export function retreatIfNeeded(state: GameState, playerId: string, unit: Unit):
         return tryAction(state, { type: "FortifyUnit", playerId, unitId: unit.id });
     }
 
-    const next = moveToward(state, playerId, unit, safeCity.coord);
+    const retreatFlow = getFlowField ? getFlowField(safeCity.coord, { cacheKey: "retreat" }) : undefined;
+    const next = moveToward(state, playerId, unit, safeCity.coord, undefined, retreatFlow);
     // If we arrived at safety after moving, also lock down.
     if (next !== state) {
         const movedUnit = next.units.find(u => u.id === unit.id);

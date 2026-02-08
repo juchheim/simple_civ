@@ -9,6 +9,18 @@ import { runCampClearing } from "./turn-runner/camp-clearing.js";
 import { runDiplomacy } from "./turn-runner/diplomacy.js";
 import { runDefenseAndTactics } from "./turn-runner/defense-tactics.js";
 import { runPostCombat } from "./turn-runner/post-combat.js";
+import { runTheaterManager } from "./theater-manager.js";
+import { clearInfluenceMapCache, getInfluenceMapsCached } from "./influence-map.js";
+import { clearFlowFieldCache } from "./flow-field.js";
+
+const INFLUENCE_BUDGET_EARLY = 400;
+const INFLUENCE_BUDGET_MID = 700;
+const INFLUENCE_BUDGET_LATE = 1200;
+
+function primeInfluenceCache(state: GameState, playerId: string, budget: number): void {
+    if (!state.map?.tiles || state.map.tiles.length === 0) return;
+    getInfluenceMapsCached(state, playerId, { budget });
+}
 
 /**
  * Utility/Playstyle AI v2.
@@ -16,6 +28,8 @@ import { runPostCombat } from "./turn-runner/post-combat.js";
  */
 export function runAiTurnSequenceV2(initialState: GameState, playerId: string): GameState {
     initValidationContext(initialState, playerId);
+    clearInfluenceMapCache(playerId);
+    clearFlowFieldCache(playerId);
 
     let state = initialState;
     const goal = chooseVictoryGoalV2(state, playerId);
@@ -24,6 +38,7 @@ export function runAiTurnSequenceV2(initialState: GameState, playerId: string): 
     state = runTechSelection(state, playerId, goal);
 
     // City builds
+    primeInfluenceCache(state, playerId, INFLUENCE_BUDGET_EARLY);
     state = runCityBuilds(state, playerId, goal);
 
     // Tiles
@@ -31,12 +46,18 @@ export function runAiTurnSequenceV2(initialState: GameState, playerId: string): 
 
     // Expansion (reuse existing move/found + escort mechanics; decision layer is v2)
     state = runExpansion(state, playerId);
+    clearInfluenceMapCache(playerId);
+    primeInfluenceCache(state, playerId, INFLUENCE_BUDGET_MID);
 
     // Camp clearing management (phase transitions, preparation)
     state = runCampClearing(state, playerId);
 
     // Diplomacy
     state = runDiplomacy(state, playerId, goal);
+
+    // Operational theater manager (front clustering + objective assignment)
+    primeInfluenceCache(state, playerId, INFLUENCE_BUDGET_LATE);
+    state = runTheaterManager(state, playerId);
 
     // Defense + tactics
     state = runDefenseAndTactics(state, playerId);

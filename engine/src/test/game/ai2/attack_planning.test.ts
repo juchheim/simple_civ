@@ -370,7 +370,8 @@ describe("AI Attack Planning", () => {
             const target = mkUnit("p2", "e1", UnitType.SpearGuard, 0, 2);
             const threat1 = mkUnit("p2", "e2", UnitType.SpearGuard, 1, 0);
             const threat2 = mkUnit("p2", "e3", UnitType.SpearGuard, -1, 0);
-            state.units = [attacker, target, threat1, threat2];
+            const threat3 = mkUnit("p2", "e4", UnitType.SpearGuard, 0, 1);
+            state.units = [attacker, target, threat1, threat2, threat3];
             return { state, attacker, target };
         };
 

@@ -27,8 +27,8 @@ describe("Project Cost Scaling", () => {
     it("should NOT scale static projects", () => {
         const cost0 = getProjectCost(ProjectId.Observatory, 0);
         const cost50 = getProjectCost(ProjectId.Observatory, 50);
-        expect(cost0).toBe(300);
-        expect(cost50).toBe(300);
+        expect(cost0).toBe(500);
+        expect(cost50).toBe(500);
     });
 
     it("should set scaled cost in city build", () => {

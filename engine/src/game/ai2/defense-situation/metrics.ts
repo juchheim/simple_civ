@@ -9,14 +9,14 @@ export function isMilitary(u: Unit): boolean {
 }
 
 // Estimate unit threat based on stats
-export function estimateUnitThreat(unit: Unit, state: GameState): number {
+export function estimateUnitThreat(unit: Unit, _state: GameState): number {
     const hpFrac = unit.hp / UNITS[unit.type].hp;
     const profile = getUnitThreatProfile(unit);
     return profile.totalThreat * hpFrac;
 }
 
 // Estimate unit defensive value
-export function estimateDefenseValue(unit: Unit, state: GameState): number {
+export function estimateDefenseValue(unit: Unit, _state: GameState): number {
     const hpFrac = unit.hp / UNITS[unit.type].hp;
     const role = getUnitRole(unit.type);
     const profile = getUnitThreatProfile(unit);

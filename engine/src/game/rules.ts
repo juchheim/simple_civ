@@ -199,9 +199,8 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
             total.P += 1;
         }
     } else if (trait === "JadeCovenant") {
-        // v7.9: "Bountiful Harvest" - +2 Food baseline for all cities
-        // Helps Jade grow faster to activate their pop-based combat bonus
-        total.F += 2;
+        // v7.9: "Bountiful Harvest" - REMOVED (was +1 Food/city)
+        // v8.0: Removed to balance extreme win rates.
     }
 
     // Jade Granary effect: +1 Food per city
@@ -354,9 +353,9 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
             if (player.civName !== "ScholarKingdoms" && player.civName !== "StarborneSeekers") return false;
         }
 
-        // v1.0.3: Trebuchet - Siege unit, requires Timber Mills
+        // v1.0.3: Trebuchet - Siege unit, requires Formation Training (matches TECHS definition)
         if (uId === UnitType.Trebuchet) {
-            if (!player.techs.includes(TechId.TimberMills)) return false;
+            if (!player.techs.includes(TechId.FormationTraining)) return false;
         }
 
         // v6.0: Aether Era units require their respective techs

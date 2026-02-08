@@ -1,9 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { GameState, PlayerPhase, UnitType, TerrainType, TechId, DiplomacyState, EraId, UnitState } from "../../core/types.js";
+import { GameState, PlayerPhase, UnitType, TerrainType, EraId, UnitState } from "../../core/types.js";
 import { initValidationContext, clearValidationContext, canPlanMove, isTileReserved } from "./shared/validation.js";
 import { planDefensiveRing } from "../ai2/defense-ring.js";
 import { planCityGarrisons, CityThreat } from "../ai2/defense-garrison.js";
-import { planMutualDefenseReinforcements } from "../ai2/defense-mutual-defense.js";
 
 // Helper functions inlined for isolation
 function baseState(): GameState {

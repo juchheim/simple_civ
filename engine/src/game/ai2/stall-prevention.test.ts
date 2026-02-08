@@ -1,7 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { chooseVictoryGoalV2 } from "./strategy.js"; // Adjust path as needed
-import { GameState, Player, ProjectId, TechId, UnitType } from "../../core/types.js";
+import { GameState, Player } from "../../core/types.js";
 import { evaluateBestVictoryPath } from "../ai/victory-evaluator.js";
 
 // Mock the evaluator so we can control the "Best Path"

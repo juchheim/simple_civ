@@ -3,6 +3,9 @@ import { planCapitalRingDefense } from "../defense-capital.js";
 import { planCityGarrisons, planReinforceThreatenedCities } from "../defense-garrison.js";
 import { DefenseMovePlan } from "../defense-actions.js";
 import type { DefenseAssessment } from "./assessment.js";
+import type { TacticalContext } from "../tactical-context.js";
+
+type GetFlowField = TacticalContext["getFlowField"];
 
 /**
  * Plan defense assignments via the unified planner.
@@ -13,12 +16,13 @@ export function planDefenseAssignments(
     playerId: string,
     assessment: DefenseAssessment,
     reservedUnitIds: Set<string>,
-    reservedCoords: Set<string>
+    reservedCoords: Set<string>,
+    getFlowField?: GetFlowField
 ): DefenseMovePlan[] {
     const plans: DefenseMovePlan[] = [];
 
-    plans.push(...planCityGarrisons(state, playerId, assessment.cityThreats, assessment.cityCoords, reservedUnitIds, reservedCoords));
-    plans.push(...planCapitalRingDefense(state, playerId, assessment.capital, assessment.cityCoords, reservedUnitIds, reservedCoords));
+    plans.push(...planCityGarrisons(state, playerId, assessment.cityThreats, assessment.cityCoords, reservedUnitIds, reservedCoords, getFlowField));
+    plans.push(...planCapitalRingDefense(state, playerId, assessment.capital, assessment.cityCoords, reservedUnitIds, reservedCoords, getFlowField));
     plans.push(...planReinforceThreatenedCities(state, playerId, assessment.cityThreats, assessment.cityCoords, reservedUnitIds, reservedCoords));
 
     return plans;

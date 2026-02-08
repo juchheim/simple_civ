@@ -11,7 +11,8 @@ export function bestAttackForUnit(
     state: GameState,
     playerId: string,
     unit: Unit,
-    enemyIdsOverride?: Set<string>
+    enemyIdsOverride?: Set<string>,
+    visibleTargets?: { units: Set<string>; cities: Set<string> }
 ): { action: any; score: number } | null {
     const cityAtLoc = state.cities.find(c => hexEquals(c.coord, unit.coord));
     if (cityAtLoc && cityAtLoc.ownerId === playerId && unit.type !== UnitType.Settler) {
@@ -40,6 +41,7 @@ export function bestAttackForUnit(
     const nativeUnits = canHitUnits
         ? state.units
             .filter(u => u.campId && u.ownerId !== playerId)
+            .filter(u => !visibleTargets || visibleTargets.units.has(u.id))
             .filter(u => canPlanAttack(state, unit, "Unit", u.id))
             .map(u => ({
                 kind: "Unit" as const,
@@ -62,6 +64,7 @@ export function bestAttackForUnit(
     const unitTargets = canHitUnits
         ? state.units
             .filter(u => enemies.has(u.ownerId))
+            .filter(u => !visibleTargets || visibleTargets.units.has(u.id))
             .filter(u => canPlanAttack(state, unit, "Unit", u.id))
             .map(u => ({
                 kind: "Unit" as const,
@@ -84,6 +87,7 @@ export function bestAttackForUnit(
     const cityTargets = canHitCities
         ? state.cities
             .filter(c => enemies.has(c.ownerId))
+            .filter(c => !visibleTargets || visibleTargets.cities.has(c.id))
             .filter(c => canPlanAttack(state, unit, "City", c.id))
             .map(c => ({
                 kind: "City" as const,

@@ -1,8 +1,6 @@
-import { aiInfo } from "../debug-logging.js";
 import { hexDistance, hexEquals } from "../../../core/hex.js";
 import { DiplomacyState, GameState, UnitType, Unit } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
-import { expectedDamageToUnit } from "./unit-helpers.js";
 // tryAction import removed - coordinateGroupAttack is deprecated (v1.0.3)
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { scoreAttackOption } from "../../ai2/attack-order/scoring.js";
@@ -176,29 +174,9 @@ const selectPrimaryTarget = (groupUnits: Unit[], nearbyEnemies: Unit[], state: G
     return targetCandidates[0]?.enemy ?? null;
 };
 
-const sortUnitsByRange = (units: Unit[]) => {
-    return [...units].sort((a, b) => {
-        const aRng = UNITS[a.type as UnitType].rng;
-        const bRng = UNITS[b.type as UnitType].rng;
-        return bRng - aRng;
-    });
-};
-
 const isGarrisoned = (state: GameState, playerId: string, unit: Unit): boolean => {
     return state.cities.some(c =>
         c.ownerId === playerId &&
         hexEquals(c.coord, unit.coord)
     );
-};
-
-const findReplacementTarget = (state: GameState, playerId: string, liveUnit: Unit) => {
-    const warEnemyIds = state.players
-        .filter(p => p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War)
-        .map(p => p.id);
-
-    const newTargets = state.units
-        .filter(u => warEnemyIds.includes(u.ownerId) && hexDistance(u.coord, liveUnit.coord) <= UNITS[liveUnit.type as UnitType].rng)
-        .sort((a, b) => a.hp - b.hp);
-
-    return newTargets[0];
 };

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { chooseVictoryGoalV2 } from './strategy.js';
-import { GameState, ProjectId, UnitType } from '../../core/types.js';
+import { GameState, ProjectId } from '../../core/types.js';
+import { evaluateBestVictoryPath } from '../ai/victory-evaluator.js';
 
 // Mock getAiProfileV2 and other dependencies
 vi.mock('./rules.js', () => ({
@@ -14,6 +15,17 @@ vi.mock('./rules.js', () => ({
 
 vi.mock('../ai/goals.js', () => ({
     estimateMilitaryPower: vi.fn((id) => id === 'player1' ? 200 : 100) // 2x power default
+}));
+
+vi.mock('../ai/victory-evaluator.js', () => ({
+    evaluateBestVictoryPath: vi.fn().mockReturnValue({
+        path: 'Conquest',
+        turnsToProgress: 999,
+        turnsToConquest: 1,
+        progressFaster: false,
+        confidence: 'high',
+        reason: 'mock'
+    })
 }));
 
 describe('Aetherian Vanguard Strategy', () => {
@@ -46,22 +58,18 @@ describe('Aetherian Vanguard Strategy', () => {
         expect(goal).toBe('Conquest');
     });
 
-    it('should switch to Progress if dominating but stalled for too long (>40 turns since Core)', () => {
+    it('should defer to victory evaluator after endgame crisis (turn > 225)', () => {
         const state = createTestState();
-        state.turn = 250;
-        // Mock that Titan's Core was finished way back at turn 200 (implied, or we track history)
-        // Since we don't have explicit history tracking in the function yet, 
-        // this test expects the NEW behavior we will implement.
-
-        // This test assumes we will implement a check. 
-        // For now, let's verify it currently FAILS (returns Conquest) or if we need to mock history.
-        // We likely need to spy on history or just check current turn vs completion.
-        // Since completion turn isn't stored on player, we might use a heuristic or add it.
-        // Let's assume the heuristic: Turn > 240 (late game) and still not won?
-
-        // Actually, the plan is to check turn limits.
-        // Let's force the state to be late game.
         state.turn = 300;
+
+        (evaluateBestVictoryPath as unknown as { mockReturnValue: (v: any) => void }).mockReturnValue({
+            path: 'Progress',
+            turnsToProgress: 50,
+            turnsToConquest: 80,
+            progressFaster: true,
+            confidence: 'medium',
+            reason: 'mock'
+        });
 
         const goal = chooseVictoryGoalV2(state, 'player1');
         expect(goal).toBe('Progress');

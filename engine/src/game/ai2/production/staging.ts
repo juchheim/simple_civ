@@ -3,52 +3,92 @@ import { City, GameState, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import { isDefensiveCiv } from "../../helpers/civ-helpers.js";
 import { assessCityThreatLevel } from "../defense-situation/scoring.js";
+import { buildPerception } from "../perception.js";
 import { getAiProfileV2 } from "../rules.js";
 import { getAiMemoryV2 } from "../memory.js";
+import { getReinforcedRequiredNear, getSiegeFailureCount } from "../siege-wave.js";
 import { hexDistance } from "../../../core/hex.js";
 import { canCaptureCities, isCombatUnitType } from "../schema.js";
-import type { BuildOption } from "../production.js";
+import type { BuildOption, ProductionContext } from "../production.js";
+import type { OperationalTheater } from "../memory.js";
 
 /**
  * Staging selector: builds offensive units before war declaration to meet force concentration thresholds.
  * Returns a BuildOption when staging should occur, otherwise null.
  */
-export function pickWarStagingProduction(state: GameState, playerId: string, city: City): BuildOption | null {
+function selectTheaterFocusCity(state: GameState, memory: ReturnType<typeof getAiMemoryV2>): City | null {
+    const theaters = memory.operationalTheaters ?? [];
+    const theaterFresh = memory.operationalTurn !== undefined && (state.turn - memory.operationalTurn) <= 2;
+    if (!theaterFresh || theaters.length === 0) return null;
+
+    const top = theaters[0] as OperationalTheater;
+    if (!top?.targetCityId) return null;
+    const targetCity = state.cities.find(c => c.id === top.targetCityId);
+    return targetCity ?? null;
+}
+
+export function pickWarStagingProduction(
+    state: GameState,
+    playerId: string,
+    city: City,
+    context?: ProductionContext
+): BuildOption | null {
     const profile = getAiProfileV2(state, playerId);
     const memory = getAiMemoryV2(state, playerId);
+    const perception = context?.perception ?? buildPerception(state, playerId);
     const hasFocusTarget = !!memory.focusTargetPlayerId;
     const focusCity = memory.focusCityId ? state.cities.find(c => c.id === memory.focusCityId) : null;
+    const theaterCity = selectTheaterFocusCity(state, memory);
+    const effectiveFocusCity = focusCity ?? theaterCity;
+    const visibleFocusCity = effectiveFocusCity && (!perception.visibilityKnown || perception.isCoordVisible(effectiveFocusCity.coord))
+        ? effectiveFocusCity
+        : null;
 
-    const isStaging = hasFocusTarget && !state.players.some(p =>
-        p.id === memory.focusTargetPlayerId &&
-        !p.isEliminated &&
-        state.diplomacy?.[playerId]?.[p.id] === "War"
-    );
+    if (context?.influence?.front && context.influence.front.max > 0) {
+        const frontRatio = context.influence.front.get(city.coord) / context.influence.front.max;
+        if (frontRatio < 0.15) {
+            return null;
+        }
+    }
+
+    const focusTargetId = memory.focusTargetPlayerId ?? effectiveFocusCity?.ownerId;
+    const isAlreadyAtWar = focusTargetId
+        ? state.diplomacy?.[playerId]?.[focusTargetId] === "War"
+        : false;
+
+    const canStageOnTarget = !perception.visibilityKnown || !!visibleFocusCity;
+    const isStagingBase = (hasFocusTarget || !!visibleFocusCity) && canStageOnTarget;
 
     const isAggressiveCiv = !isDefensiveCiv(profile.civName);
     const defensiveCivStagingChance = 0.30; // 30% chance defensive civs build for staging
     const stagingRoll = ((state.turn * 17 + city.id.charCodeAt(0) * 7) % 100) / 100;
-    const shouldStageForWar = isAggressiveCiv || (stagingRoll < defensiveCivStagingChance);
 
-    const thisCityThreat = assessCityThreatLevel(state, city, playerId);
+    const thisCityThreat = context?.thisCityThreat ?? assessCityThreatLevel(state, city, playerId, 5, 2, perception.isCoordVisible);
     const cityNotThreatened = thisCityThreat === "none" || thisCityThreat === "probe";
 
-    if (!isStaging || !focusCity || !shouldStageForWar || !cityNotThreatened) return null;
+    if (!isStagingBase || !visibleFocusCity || !cityNotThreatened) return null;
 
     const stageDistMax = 6;
     const nearCount = state.units.filter(u =>
         u.ownerId === playerId &&
         isCombatUnitType(u.type) &&
-        hexDistance(u.coord, focusCity.coord) <= stageDistMax
+        hexDistance(u.coord, visibleFocusCity.coord) <= stageDistMax
     ).length;
 
     const stagingProfile = getAiProfileV2(state, playerId);
-    const requiredNear = Math.max(4, Math.ceil(stagingProfile.tactics.forceConcentration * 5));
+    const baseRequired = Math.max(4, Math.ceil(stagingProfile.tactics.forceConcentration * 5));
+    const failureCount = getSiegeFailureCount(memory, visibleFocusCity.id);
+    const requiredNear = getReinforcedRequiredNear(baseRequired, failureCount);
+    const needsReinforcement = isAlreadyAtWar && failureCount > 0 && nearCount < requiredNear;
+    const isStaging = isStagingBase && (!isAlreadyAtWar || needsReinforcement);
+    const shouldStageForWar = needsReinforcement || isAggressiveCiv || (stagingRoll < defensiveCivStagingChance);
+
+    if (!isStaging || !shouldStageForWar) return null;
 
     const capturersNear = state.units.filter(u =>
         u.ownerId === playerId &&
         canCaptureCities(u.type) &&
-        hexDistance(u.coord, focusCity.coord) <= stageDistMax
+        hexDistance(u.coord, visibleFocusCity.coord) <= stageDistMax
     ).length;
 
     if (nearCount >= requiredNear && capturersNear >= 1) return null;
@@ -106,7 +146,7 @@ export function pickWarStagingProduction(state: GameState, playerId: string, cit
     const trebuchetsNear = state.units.filter(u =>
         u.ownerId === playerId &&
         u.type === UnitType.Trebuchet &&
-        hexDistance(u.coord, focusCity.coord) <= stageDistMax
+        hexDistance(u.coord, visibleFocusCity.coord) <= stageDistMax
     ).length;
     const trebuchetsTotal = state.units.filter(u =>
         u.ownerId === playerId && u.type === UnitType.Trebuchet

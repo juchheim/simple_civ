@@ -7,6 +7,9 @@ import { moveToward, planMoveToward } from "./movement.js";
 import { getUnitCapabilityProfile, isCombatUnitType } from "./schema.js";
 import { DefenseMovePlan, getDefenseCityValueBonus, scoreDefenseMove } from "./defense-actions.js";
 import { UNITS } from "../../core/constants.js";
+import type { TacticalContext } from "./tactical-context.js";
+
+type GetFlowField = TacticalContext["getFlowField"];
 
 export type CityThreat = {
     city: GameState["cities"][number];
@@ -104,13 +107,15 @@ export function planCityGarrisons(
     cityThreats: CityThreat[],
     cityCoords: Set<string>,
     reservedUnitIds: Set<string>,
-    reservedCoords: Set<string>
+    reservedCoords: Set<string>,
+    getFlowField?: GetFlowField
 ): DefenseMovePlan[] {
     const plans: DefenseMovePlan[] = [];
 
     for (const { city, threat } of cityThreats) {
         const cityKey = `${city.coord.q},${city.coord.r}`;
         const cityBonus = getDefenseCityValueBonus(state, playerId, city);
+        const cityFlow = getFlowField ? getFlowField(city.coord, { cacheKey: "defense-garrison" }) : undefined;
 
         const currentGarrison = state.units.find(u =>
             u.ownerId === playerId &&
@@ -209,7 +214,7 @@ export function planCityGarrisons(
                                 reservedCoords.add(cityKey);
                             } else {
                                 // If not adjacent, move toward
-                                const moveAction = planMoveToward(state, playerId, bestCandidate, city.coord, reservedCoords);
+                                const moveAction = planMoveToward(state, playerId, bestCandidate, city.coord, reservedCoords, undefined, cityFlow);
                                 if (moveAction && moveAction.type === "MoveUnit") {
                                     const destKey = `${moveAction.to.q},${moveAction.to.r}`;
                                     plans.push({
@@ -252,7 +257,7 @@ export function planCityGarrisons(
         }
 
         // Pure planMoveToward check
-        const moveAction = planMoveToward(state, playerId, bestCandidate, city.coord, reservedCoords);
+        const moveAction = planMoveToward(state, playerId, bestCandidate, city.coord, reservedCoords, undefined, cityFlow);
         if (moveAction && moveAction.type === "MoveUnit") {
             const destKey = `${moveAction.to.q},${moveAction.to.r}`;
 

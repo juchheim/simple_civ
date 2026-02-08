@@ -70,14 +70,14 @@ describe('Civ Balance Nerfs', () => {
     });
 
     describe('Scholar Kingdoms: Citadel Protocol', () => {
-        it('should provide +1 Science in Capital (Nerfed from +3)', () => {
+        it('should not provide capital Science bonus (removed in v1.1.0)', () => {
             player = createTestPlayer('p1', 'ScholarKingdoms');
             state.players = [player];
             city = createTestCity('c1', 'p1', { q: 0, r: 0 }, true); // Capital
             state.cities = [city];
 
             const yields = getCityYields(city, state);
-            expect(yields.S).toBe(2);
+            expect(yields.S).toBe(1);
         });
 
         it('should NOT provide capital bonus to non-capital cities', () => {

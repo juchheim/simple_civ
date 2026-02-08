@@ -10,7 +10,6 @@
 
 import { GameState, Unit, UnitType } from "../../../core/types.js";
 import { hexDistance, getNeighbors } from "../../../core/hex.js";
-import { UNITS } from "../../../core/constants.js";
 import { isMilitary } from "../unit-roles.js";
 import { getAiMemoryV2 } from "../memory.js";
 import { tryAction } from "../../ai/shared/actions.js";
@@ -341,4 +340,3 @@ export function executeTacticalMovements(
 
     return next;
 }
-

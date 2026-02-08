@@ -1,6 +1,5 @@
 import { City, GameState, Unit } from "../../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
-import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsCity, getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { createMoveContext } from "../../helpers/movement.js";
 import { getAiMemoryV2 } from "../memory.js";
@@ -133,10 +132,6 @@ function getEffectiveExposureMultiplier(state: GameState, playerId: string, unit
  * Find adjacent tiles a unit can move to and still have moves left to attack.
  */
 function findMoveAttackTiles(state: GameState, unit: Unit, minMovesAfter: number): { q: number; r: number }[] {
-    const tuning = getTacticalTuning(state, unit.ownerId); // Not used here? Ah, maybe wait.
-    // The previous code didn't use tuning for findMoveAttackTiles logic (1 move).
-    // The scanMoves logic might be relevant but here it just checks cost.
-
     return getNeighbors(unit.coord).filter(coord => {
         const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
         if (!tile) return false;
@@ -163,15 +158,24 @@ function findMoveAttackTiles(state: GameState, unit: Unit, minMovesAfter: number
 /**
  * Check if unit has any target in range
  */
-function hasAnyTargetInRange(state: GameState, unit: Unit, enemies: Set<string>): boolean {
+function hasAnyTargetInRange(
+    state: GameState,
+    unit: Unit,
+    enemies: Set<string>,
+    visibleTargets?: { units: Set<string>; cities: Set<string> }
+): boolean {
     for (const enemy of state.units) {
-        if (enemies.has(enemy.ownerId) && canPlanAttack(state, unit, "Unit", enemy.id)) {
+        if (enemies.has(enemy.ownerId) &&
+            (!visibleTargets || visibleTargets.units.has(enemy.id)) &&
+            canPlanAttack(state, unit, "Unit", enemy.id)) {
             return true;
         }
     }
 
     for (const city of state.cities) {
-        if (enemies.has(city.ownerId) && canPlanAttack(state, unit, "City", city.id)) {
+        if (enemies.has(city.ownerId) &&
+            (!visibleTargets || visibleTargets.cities.has(city.id)) &&
+            canPlanAttack(state, unit, "City", city.id)) {
             return true;
         }
     }
@@ -185,7 +189,8 @@ function hasAnyTargetInRange(state: GameState, unit: Unit, enemies: Set<string>)
 export function planMoveAndAttack(
     state: GameState,
     playerId: string,
-    excludedUnitIds: Set<string> = new Set()
+    excludedUnitIds: Set<string> = new Set(),
+    visibleTargets?: { units: Set<string>; cities: Set<string> }
 ): MoveAttackPlan[] {
     // Get enemies
     const enemies = new Set<string>();
@@ -205,7 +210,7 @@ export function planMoveAndAttack(
         !isGarrisoned(u, state, playerId) &&
         !u.isTitanEscort && // v6.6h: Reserved escorts don't attack - stay with Titan
         isMilitary(u) &&
-        !hasAnyTargetInRange(state, u, enemies)
+        !hasAnyTargetInRange(state, u, enemies, visibleTargets)
     );
 
     const plans: MoveAttackPlan[] = [];
@@ -224,14 +229,20 @@ export function planMoveAndAttack(
 
         for (const tile of reachableTiles) {
             // Unit targets from this tile
-            for (const enemy of state.units.filter(u => enemies.has(u.ownerId))) {
+            for (const enemy of state.units.filter(u =>
+                enemies.has(u.ownerId) &&
+                (!visibleTargets || visibleTargets.units.has(u.id))
+            )) {
                 if (canPlanAttack(state, unit, "Unit", enemy.id, tile)) {
                     opportunities.push({ tile, target: enemy, targetType: "Unit", targetId: enemy.id });
                 }
             }
 
             // City targets from this tile
-            for (const city of state.cities.filter(c => enemies.has(c.ownerId))) {
+            for (const city of state.cities.filter(c =>
+                enemies.has(c.ownerId) &&
+                (!visibleTargets || visibleTargets.cities.has(c.id))
+            )) {
                 if (canPlanAttack(state, unit, "City", city.id, tile)) {
                     opportunities.push({
                         tile,

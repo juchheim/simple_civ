@@ -11,6 +11,7 @@ import { pickBest } from "./util.js";
 import { moveToward, moveTowardAllMoves, findEngagementPath, nearestFriendlyCity } from "./movement.js";
 import { bestAttackForUnit } from "./combat-eval.js";
 import { TacticalContext } from "./tactical-context.js";
+import { getFlowFieldCached } from "./flow-field.js";
 import { warEnemyIds } from "./enemies.js";
 import { isMilitary } from "./unit-roles.js";
 import { aiInfo } from "../ai/debug-logging.js";
@@ -41,6 +42,7 @@ export function followTitan(state: GameState, playerId: string): GameState {
     // This keeps escorts near Titan even when it retreats or changes direction
     const rallyPoint = titan.coord;
     const SAFE_STAGING_DISTANCE = 3;
+    const escortFlow = getFlowFieldCached(next, playerId, rallyPoint, { cacheKey: "titan-escort" });
 
     const myCities = next.cities.filter(c => c.ownerId === playerId);
     const potentialEscorts = next.units.filter(u => {
@@ -85,7 +87,7 @@ export function followTitan(state: GameState, playerId: string): GameState {
         }
 
         const before = next;
-        next = moveToward(next, playerId, liveEscort, rallyPoint);
+        next = moveToward(next, playerId, liveEscort, rallyPoint, undefined, escortFlow);
         if (next !== before) {
             const movedUnit = next.units.find(u => u.id === escort.id);
             if (movedUnit) {
@@ -161,6 +163,7 @@ export function runPreTitanRally(state: GameState, playerId: string): GameState 
     if (updatedMemory.titanCoreCityId && !hasTitan) {
         const rallyCity = next.cities.find(c => c.id === updatedMemory.titanCoreCityId);
         if (rallyCity) {
+            const rallyFlow = getFlowFieldCached(next, playerId, rallyCity.coord, { cacheKey: "titan-core" });
             const garrisonIds = new Set<string>();
             for (const city of myCities) {
                 if (city.id === rallyCity.id) continue;
@@ -194,7 +197,7 @@ export function runPreTitanRally(state: GameState, playerId: string): GameState 
             for (const unit of militaryToRally) {
                 const liveUnit = next.units.find(u => u.id === unit.id);
                 if (!liveUnit || liveUnit.movesLeft <= 0) continue;
-                next = moveToward(next, playerId, liveUnit, rallyCity.coord);
+                next = moveToward(next, playerId, liveUnit, rallyCity.coord, undefined, rallyFlow);
             }
 
             aiInfo(`[DEATHBALL RALLY] ${playerId} rallying ${militaryToRally.length} units to Titan Core city (${garrisonIds.size} garrisons held back)`);
@@ -215,6 +218,7 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
     const profile = ctx?.profile ?? getAiProfileV2(next, playerId);
     const memory = ctx?.memory ?? getAiMemoryV2(next, playerId);
     const createLookupCache = ctx?.createLookupCache ?? buildLookupCache;
+    const getFlowField = ctx?.getFlowField;
 
     const enemyCities = next.cities.filter(c => enemies.has(c.ownerId));
     if (enemyCities.length === 0) return next;
@@ -312,7 +316,9 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
         aiInfo(`[TITAN LOG] Retreating early (HP: ${Math.round(titanHpFrac * 100)}% < 40%) - survival priority!`);
         const safe = nearestFriendlyCity(next, playerId, titan.coord);
         if (safe) {
-            return moveTowardAllMoves(next, playerId, titan.id, safe, 6, createLookupCache(next));
+            const cache = createLookupCache(next);
+            const flow = getFlowField ? getFlowField(safe, { cacheKey: "titan-retreat" }) : undefined;
+            return moveTowardAllMoves(next, playerId, titan.id, safe, 6, cache, flow);
         }
     }
 
@@ -339,7 +345,9 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
         aiInfo(`[TITAN LOG] RETREAT - Support critical (${supportCount}) AND damaged (${Math.round(titanHpFrac * 100)}%)`);
         const safe = nearestFriendlyCity(next, playerId, titan.coord);
         if (safe) {
-            return moveTowardAllMoves(next, playerId, titan.id, safe, 6, createLookupCache(next));
+            const cache = createLookupCache(next);
+            const flow = getFlowField ? getFlowField(safe, { cacheKey: "titan-retreat" }) : undefined;
+            return moveTowardAllMoves(next, playerId, titan.id, safe, 6, cache, flow);
         }
     }
 
@@ -388,6 +396,20 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
             if (!allowDeepPush) {
                 aiInfo(`[TITAN LOG] Holding position (Waiting for support)`);
                 break;
+            }
+            const advanceFlow = getFlowField ? getFlowField(cityNow.coord, { cacheKey: "titan-advance" }) : undefined;
+            const flowStep = advanceFlow?.nextStep(live.coord);
+            if (flowStep) {
+                const stepKey = hexToString(flowStep);
+                if (!visitedTiles.has(stepKey)) {
+                    const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: live.id, to: flowStep });
+                    if (moved !== next) {
+                        aiInfo(`[TITAN LOG] Moving to (${flowStep.q},${flowStep.r}) toward target`);
+                        next = moved;
+                        visitedTiles.add(stepKey);
+                        continue;
+                    }
+                }
             }
             const path = findEngagementPath(live.coord, cityNow.coord, live, next, createLookupCache(next));
             if (path && path.length > 0) {
@@ -461,6 +483,11 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
 
     const cityNow = next.cities.find(c => c.id === targetCityId);
     if (!cityNow) return next;
+    const advanceFlow = getFlowField ? getFlowField(cityNow.coord, { cacheKey: "titan-advance" }) : undefined;
+    if (advanceFlow) {
+        return moveTowardAllMoves(next, playerId, liveTitan.id, cityNow.coord, liveTitan.movesLeft, undefined, advanceFlow);
+    }
+
     const path = findEngagementPath(liveTitan.coord, cityNow.coord, liveTitan, next, createLookupCache(next));
     const dest = (path && path.length > 0) ? path[path.length - 1] : cityNow.coord;
 

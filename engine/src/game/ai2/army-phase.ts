@@ -12,6 +12,7 @@ import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
+import { getReinforcedArmyPercent, getReinforcedRequiredNear, getSiegeFailureCount } from "./siege-wave.js";
 import { isCombatUnitType } from "./schema.js";
 import { getTacticalTuning } from "./tuning.js";
 
@@ -142,6 +143,7 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
     let readyTurn = mem.armyReadyTurn;
 
     const focusCity = getFocusCity(state, playerId);
+    const failureCount = getSiegeFailureCount(mem, focusCity?.id);
     const militaryCount = countMilitaryUnits(state, playerId);
 
     // Check for override conditions that force attack phase
@@ -171,7 +173,8 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
                 break;
             }
 
-            const requiredNear = Math.max(tuning.army.minUnitsForEarlyAttack, Math.ceil(profile.tactics.forceConcentration * 5));
+            const baseRequired = Math.max(tuning.army.minUnitsForEarlyAttack, Math.ceil(profile.tactics.forceConcentration * 5));
+            const requiredNear = getReinforcedRequiredNear(baseRequired, failureCount);
             const nearCount = countUnitsNear(state, playerId, rallyPoint, tuning.army.rallyRadius);
             const hasComposition = hasArmyComposition(state, playerId, rallyPoint, tuning.army.rallyRadius);
 
@@ -197,12 +200,13 @@ export function updateArmyPhase(state: GameState, playerId: string): { state: Ga
             const nearRally = countUnitsNear(state, playerId, rallyPoint, tuning.army.stagedRadius);
             const armyPercent = militaryCount > 0 ? nearRally / militaryCount : 0;
             const turnsStaged = readyTurn ? state.turn - readyTurn : 0;
+            const requiredArmyPercent = getReinforcedArmyPercent(civAggression.requiredArmyPercent, failureCount);
 
             // Trigger attack when:
             // 1. Required % of army assembled
             // 2. OR been staged for max turns (anti-stall)
             // 3. OR aggressive civ with enough force
-            if (armyPercent >= civAggression.requiredArmyPercent) {
+            if (armyPercent >= requiredArmyPercent) {
                 currentPhase = 'attacking';
             } else if (turnsStaged >= civAggression.maxStagingTurns) {
                 currentPhase = 'attacking';

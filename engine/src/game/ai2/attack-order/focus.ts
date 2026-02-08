@@ -3,6 +3,7 @@ import { hexDistance } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { getAiMemoryV2, setAiMemoryV2 } from "../memory.js";
+import { buildPerception } from "../perception.js";
 import { getUnitRole, isSiegeRole } from "../schema.js";
 import { getUnitThreatProfile } from "../tactical-threat.js";
 import { scoreAttackOption } from "./scoring.js";
@@ -72,6 +73,10 @@ function scoreFocusCandidate(
  */
 export function updateTacticalFocus(state: GameState, playerId: string): GameState {
     const memory = getAiMemoryV2(state, playerId);
+    const perception = buildPerception(state, playerId);
+    const theaterFresh = memory.operationalTurn !== undefined && (state.turn - memory.operationalTurn) <= 2;
+    const theaterTargetId = theaterFresh ? memory.operationalTheaters?.[0]?.targetPlayerId : undefined;
+    const theaterTargetCoord = theaterFresh ? memory.operationalTheaters?.[0]?.targetCoord : undefined;
 
     // Check if current focus is still valid
     if (memory.tacticalFocusUnitId) {
@@ -118,6 +123,7 @@ export function updateTacticalFocus(state: GameState, playerId: string): GameSta
     // Score potential focus targets using unified attack scoring.
     const candidates = state.units
         .filter(u => enemies.has(u.ownerId))
+        .filter(u => perception.isCoordVisible(u.coord))
         .map(enemy => {
             const attackPlans: FocusAttackPlan[] = [];
             for (const attacker of attackers) {
@@ -130,7 +136,15 @@ export function updateTacticalFocus(state: GameState, playerId: string): GameSta
                 });
             }
 
-            const score = scoreFocusCandidate(state, playerId, enemy, attackPlans);
+            let score = scoreFocusCandidate(state, playerId, enemy, attackPlans);
+            if (theaterTargetId && enemy.ownerId === theaterTargetId) {
+                score += 35;
+            }
+            if (theaterTargetCoord) {
+                const dist = hexDistance(enemy.coord, theaterTargetCoord);
+                if (dist <= 3) score += 20;
+                else if (dist <= 6) score += 10;
+            }
             return { enemy, score };
         })
         .filter(c => c.score > 0)

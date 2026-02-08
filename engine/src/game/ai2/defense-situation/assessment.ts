@@ -15,14 +15,16 @@ export function buildDefenseSnapshot(
     city: City,
     playerId: string,
     detectionRange: number,
-    ringRange: number
+    ringRange: number,
+    isCoordVisible?: (coord: { q: number; r: number }) => boolean
 ): DefenseSnapshot {
     const warEnemyIds = getWarEnemyIds(state, playerId);
 
     const nearbyEnemies = state.units.filter(u =>
         warEnemyIds.has(u.ownerId) &&
         isMilitary(u) &&
-        hexDistance(u.coord, city.coord) <= detectionRange
+        hexDistance(u.coord, city.coord) <= detectionRange &&
+        (!isCoordVisible || isCoordVisible(u.coord))
     );
 
     const nearbyFriendlies = state.units.filter(u =>

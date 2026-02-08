@@ -7,8 +7,8 @@ import { EraId, GameState, PlayerPhase, TerrainType, UnitState, UnitType } from 
 describe("Titan Stats & Mechanics", () => {
     it("should have correct Titan stats (as defined in core/constants)", () => {
         const titan = UNITS[UnitType.Titan];
-        expect(titan.def).toBe(10);
-        expect(titan.hp).toBe(25);
+        expect(titan.def).toBe(15);
+        expect(titan.hp).toBe(40);
         expect(titan.atk).toBe(15);
     });
 
@@ -29,7 +29,7 @@ describe("Titan Stats & Mechanics", () => {
                     ownerId: "p1",
                     coord: { q: 0, r: 0 },
                     hp: 10, // Damaged Titan
-                    maxHp: 30,
+                    maxHp: 40,
                     movesLeft: 0,
                     state: UnitState.Normal,
                     hasAttacked: false,

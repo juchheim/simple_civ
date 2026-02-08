@@ -1,23 +1,25 @@
 // Defensive ring positioning for cities under threat.
 import { DiplomacyState, GameState } from "../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../core/hex.js";
-import { tryAction } from "../ai/shared/actions.js";
 import { canPlanMove } from "../ai/shared/validation.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { getAiProfileV2 } from "./rules.js";
 import { isPerimeterCity } from "./defense-perimeter.js";
 import { isMilitary } from "./unit-roles.js";
-import { moveToward, planMoveToward } from "./movement.js";
+import { planMoveToward } from "./movement.js";
 import { DefenseMovePlan, getDefenseCityValueBonus, scoreDefenseMove } from "./defense-actions.js";
 import { getTacticalTuning } from "./tuning.js";
+import type { TacticalContext } from "./tactical-context.js";
 
+type GetFlowField = TacticalContext["getFlowField"];
 
 
 export function planDefensiveRing(
     state: GameState,
     playerId: string,
     reservedUnitIds: Set<string>,
-    reservedCoords: Set<string>
+    reservedCoords: Set<string>,
+    getFlowField?: GetFlowField
 ): DefenseMovePlan[] {
     const plans: DefenseMovePlan[] = [];
 
@@ -145,7 +147,8 @@ export function planDefensiveRing(
                     available = available.filter(u => u.id !== closest.id);
                 }
             } else {
-                const moveAction = planMoveToward(state, playerId, closest, target.coord, reservedCoords);
+                const flow = getFlowField ? getFlowField(target.coord, { cacheKey: "defense-ring" }) : undefined;
+                const moveAction = planMoveToward(state, playerId, closest, target.coord, reservedCoords, undefined, flow);
                 if (moveAction && moveAction.type === "MoveUnit") {
                     const destKey = `${moveAction.to.q},${moveAction.to.r}`;
                     plans.push({

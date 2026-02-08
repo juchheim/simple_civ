@@ -1,22 +1,24 @@
 // Mutual defense reinforcement routing across cities.
 import { DiplomacyState, GameState } from "../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../core/hex.js";
-import { tryAction } from "../ai/shared/actions.js";
 import { canPlanMove } from "../ai/shared/validation.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { assessCityThreatLevel } from "./defense-situation/scoring.js";
 import { isPerimeterCity } from "./defense-perimeter.js";
 import { isMilitary } from "./unit-roles.js";
-import { moveToward, planMoveToward } from "./movement.js";
+import { planMoveToward } from "./movement.js";
 import { DefenseMovePlan, getDefenseCityValueBonus, scoreDefenseMove } from "./defense-actions.js";
+import type { TacticalContext } from "./tactical-context.js";
 
+type GetFlowField = TacticalContext["getFlowField"];
 
 
 export function planMutualDefenseReinforcements(
     state: GameState,
     playerId: string,
     reservedUnitIds: Set<string>,
-    reservedCoords: Set<string>
+    reservedCoords: Set<string>,
+    getFlowField?: GetFlowField
 ): DefenseMovePlan[] {
     const plans: DefenseMovePlan[] = [];
 
@@ -134,7 +136,8 @@ export function planMutualDefenseReinforcements(
                             aiInfo(`[MUTUAL DEFENSE] ${playerId} ${liveUnit.type} from ${helper.city.name} reinforcing ${needy.city.name} (threat:${needy.threatLevel})`);
                         }
                     } else {
-                        const moveAction = planMoveToward(state, playerId, liveUnit, closest, reservedCoords);
+                        const flow = getFlowField ? getFlowField(closest, { cacheKey: "defense-mutual" }) : undefined;
+                        const moveAction = planMoveToward(state, playerId, liveUnit, closest, reservedCoords, undefined, flow);
                         if (moveAction && moveAction.type === "MoveUnit") {
                             const destKey = `${moveAction.to.q},${moveAction.to.r}`;
                             plans.push({

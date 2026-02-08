@@ -1,5 +1,4 @@
 import { City, GameState, Unit } from "../../../core/types.js";
-import { UNITS } from "../../../core/constants.js";
 import { getCombatPreviewUnitVsCity, getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
 import { scoreAttackOption } from "./scoring.js";
@@ -25,7 +24,8 @@ export function planAttackOrderV2(
     state: GameState,
     playerId: string,
     excludedUnitIds: Set<string> = new Set(),
-    isAttackingPhase: boolean = false  // Phase 1: Enable offensive bonuses
+    isAttackingPhase: boolean = false,  // Phase 1: Enable offensive bonuses
+    visibleTargets?: { units: Set<string>; cities: Set<string> }
 ): PlannedAttack[] {
     // Phase 1: Gather eligible attackers (units that can attack right now)
     const allPlayerUnits = state.units.filter(u => u.ownerId === playerId && isMilitary(u));
@@ -68,6 +68,7 @@ export function planAttackOrderV2(
         // Unit targets
         const unitTargets = state.units.filter(u =>
             enemies.has(u.ownerId) &&
+            (!visibleTargets || visibleTargets.units.has(u.id)) &&
             canPlanAttack(state, attacker, "Unit", u.id)
         );
         for (const target of unitTargets) {
@@ -77,6 +78,7 @@ export function planAttackOrderV2(
         // City targets
         const cityTargets = state.cities.filter(c =>
             enemies.has(c.ownerId) &&
+            (!visibleTargets || visibleTargets.cities.has(c.id)) &&
             canPlanAttack(state, attacker, "City", c.id)
         );
         for (const city of cityTargets) {
@@ -214,4 +216,3 @@ export function planAttackOrderV2(
 
     return plannedAttacks;
 }
-

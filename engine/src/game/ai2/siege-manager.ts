@@ -1,11 +1,8 @@
-import { GameState, Unit, UnitType } from "../../core/types.js";
-import { hexDistance, getNeighbors, hexEquals } from "../../core/hex.js";
+import { GameState, Unit } from "../../core/types.js";
+import { getNeighbors, hexEquals } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
-import { isMilitary, isGarrisoned } from "./attack-order/shared.js";
-import { getTacticalPriorityTargets, TacticalPriorityTarget } from "./offense/advanced-tactics.js";
+import { isMilitary } from "./attack-order/shared.js";
 import { MilitaryDoctrine } from "./military-doctrine.js";
-import { createMoveContext } from "../helpers/movement.js";
-import { getUnitStrategicValue } from "./tactical-threat.js";
 
 // Reusing types from tactical-planner for compatibility
 type MoveAction = { type: "MoveUnit"; playerId: string; unitId: string; to: { q: number; r: number } };

@@ -65,7 +65,13 @@ export function runAttackPhase(
             }
         }
 
-        let plannedAttacks = planAttackOrderV2(next, playerId, new Set(), true /* isAttackingPhase */);
+        let plannedAttacks = planAttackOrderV2(
+            next,
+            playerId,
+            new Set(),
+            true /* isAttackingPhase */,
+            tacticalContext.perception.visibleTargets
+        );
 
         const originalCount = plannedAttacks.length;
         plannedAttacks = filterAttacksWithWaitDecision(next, playerId, plannedAttacks);
@@ -98,7 +104,13 @@ export function runAttackPhase(
     for (const unit of attackers) {
         const live = next.units.find(u => u.id === unit.id);
         if (!live || live.hasAttacked) continue;
-        const best = bestAttackForUnit(next, playerId, live, tacticalContext.enemyIds);
+        const best = bestAttackForUnit(
+            next,
+            playerId,
+            live,
+            tacticalContext.enemyIds,
+            tacticalContext.perception.visibleTargets
+        );
         if (best && best.score > 0) {
             const preview = getCombatPreviewUnitVsUnit(next, live,
                 next.units.find(u => u.id === best.action.targetId) ?? live);

@@ -37,13 +37,14 @@ import { runTacticsPreparation } from "./tactics/prep.js";
 import { runPostAttackPhase } from "./tactics/post-attack.js";
 import { isMilitary } from "./unit-roles.js";
 import { filterAttacksWithWaitDecision } from "./wait-decision.js";
-import { identifyBattleGroups, type BattleGroup } from "../ai/units/battle-groups.js";
+import { identifyBattleGroups } from "../ai/units/battle-groups.js";
 import { UNITS } from "../../core/constants.js";
 import { getMilitaryDoctrine } from "./military-doctrine.js"; // New
 import { planSiegeOperations } from "./siege-manager.js"; // New
 import { canPlanAttack } from "./attack-order/shared.js";
 import { scoreAttackOption } from "./attack-order/scoring.js";
 import { getTacticalTuning } from "./tuning.js";
+import { clamp01 } from "./util.js";
 
 export type TacticalPlannerMode = "offense-only" | "full";
 
@@ -123,9 +124,27 @@ const tacticalIntentPriority: Record<TacticalActionIntent, number> = {
     "opportunity": 1,
 };
 
-const tacticalSourcePriority: Record<TacticalActionSource, number> = {
-    "defense": 2,
-    "offense": 1,
+const tacticalIntentUtilityBase: Record<TacticalActionIntent, number> = {
+    "retreat": 0.92,
+    "garrison": 0.82,
+    "support": 0.72,
+    "attack": 0.62,
+    "move-attack": 0.52,
+    "opportunity": 0.42,
+};
+
+const tacticalSourceUtilityBias: Record<TacticalActionSource, number> = {
+    "defense": 0,
+    "offense": 0,
+};
+
+const TACTICAL_SCORE_SCALE = 400;
+const TACTICAL_SCORE_WEIGHT = 0.06;
+
+type TacticalUtilityBreakdown = {
+    total: number;
+    components: Record<string, number>;
+    notes?: string[];
 };
 
 function isAttackAction(action: TacticalActionPlan): action is AttackPlanAction {
@@ -140,15 +159,78 @@ function isOpportunityAction(action: TacticalActionPlan): action is OpportunityP
     return action.intent === "opportunity";
 }
 
+function normalizeTacticalScore(score: number): number {
+    if (!Number.isFinite(score)) return 0;
+    return clamp01(score / TACTICAL_SCORE_SCALE);
+}
+
+function scoreTacticalActionUtility(action: TacticalActionPlan): TacticalUtilityBreakdown {
+    const intentBase = tacticalIntentUtilityBase[action.intent] ?? 0;
+    const scoreNorm = normalizeTacticalScore(action.score);
+    const sourceBias = tacticalSourceUtilityBias[action.source] ?? 0;
+    const total = clamp01(intentBase + (scoreNorm * TACTICAL_SCORE_WEIGHT) + sourceBias);
+    return {
+        total,
+        components: {
+            intent: intentBase,
+            score: scoreNorm * TACTICAL_SCORE_WEIGHT,
+            source: sourceBias,
+        },
+    };
+}
+
 function isBetterAction(candidate: TacticalActionPlan, existing: TacticalActionPlan): boolean {
-    // Fix: Intention is strict. Attacks strictly trump moves unless the move is a Retreat/Garrison (higher priority intent).
-    // Previously we allowed score comparisons to override intent, which caused units to "shimmy" (move-attack plan)
-    // instead of attacking directly, or do weird tactical moves.
+    const candidateUtility = scoreTacticalActionUtility(candidate).total;
+    const existingUtility = scoreTacticalActionUtility(existing).total;
+
+    if (Math.abs(candidateUtility - existingUtility) > 0.0001) {
+        return candidateUtility > existingUtility;
+    }
+    if (candidate.score !== existing.score) {
+        return candidate.score > existing.score;
+    }
     if (tacticalIntentPriority[candidate.intent] !== tacticalIntentPriority[existing.intent]) {
         return tacticalIntentPriority[candidate.intent] > tacticalIntentPriority[existing.intent];
     }
-    // Only compare score if intents are equal priority
-    return candidate.score > existing.score;
+    return false;
+}
+
+type ScoredTacticalAction = {
+    action: TacticalActionPlan;
+    utility: number;
+    order: number;
+};
+
+function getTacticalActionBudget(state: GameState, playerId: string, totalActions: number): number {
+    const totalMilitary = state.units.filter(u => u.ownerId === playerId && isMilitary(u)).length;
+    // Placeholder: keep full budget for now (one action per unit). This enables a future cap
+    // without changing ordering/selection semantics today.
+    return Math.max(totalActions, totalMilitary);
+}
+
+function applyTacticalUtilityBudget(
+    state: GameState,
+    playerId: string,
+    actions: TacticalActionPlan[]
+): TacticalActionPlan[] {
+    if (actions.length <= 1) return actions;
+
+    const scored: ScoredTacticalAction[] = actions.map((action, order) => ({
+        action,
+        order,
+        utility: scoreTacticalActionUtility(action).total
+    }));
+
+    const budget = getTacticalActionBudget(state, playerId, scored.length);
+    const selected = scored
+        .sort((a, b) => b.utility - a.utility || a.order - b.order)
+        .slice(0, budget);
+
+    // Preserve defense-first ordering for execution stability.
+    const defense = selected.filter(entry => entry.action.source === "defense").sort((a, b) => a.order - b.order);
+    const offense = selected.filter(entry => entry.action.source === "offense").sort((a, b) => a.order - b.order);
+
+    return [...defense, ...offense].map(entry => entry.action);
 }
 
 function resolveActionConflicts(actions: TacticalActionPlan[]): TacticalActionPlan[] {
@@ -407,11 +489,12 @@ function planOpportunityAttacks(
     );
 
     const opportunities: PlannedOpportunityAttack[] = [];
+    const visibleTargets = tacticalContext.perception.visibleTargets;
 
     for (const unit of attackers) {
         const live = state.units.find(u => u.id === unit.id);
         if (!live || live.hasAttacked) continue;
-        const best = bestAttackForUnit(state, playerId, live, tacticalContext.enemyIds);
+        const best = bestAttackForUnit(state, playerId, live, tacticalContext.enemyIds, visibleTargets);
         if (!best || best.score <= 0) continue;
 
         let wouldKill = false;
@@ -608,7 +691,8 @@ function buildOffensePlan(
         // Reserve units already used in siege cycling
         // (They are already added to reservedUnitIds by planSiegeOperations, but safe to double check logic flow)
 
-        let plannedAttacks = planAttackOrderV2(state, playerId, reservedUnitIds, armyPhase === "attacking");
+        const visibleTargets = tacticalContext.perception.visibleTargets;
+        let plannedAttacks = planAttackOrderV2(state, playerId, reservedUnitIds, armyPhase === "attacking", visibleTargets);
         const originalCount = plannedAttacks.length;
 
         // CRITICAL FIX #2: Skip wait-decision filtering during staged phase
@@ -622,7 +706,7 @@ function buildOffensePlan(
 
         // Enable move-attacks in BOTH phases now
         // Previously staged phase had no move-attacks, limiting offensive pressure
-        const moveAttackPlans = planMoveAndAttack(state, playerId, reservedUnitIds);
+        const moveAttackPlans = planMoveAndAttack(state, playerId, reservedUnitIds, visibleTargets);
 
         const attackActions: TacticalActionPlan[] = plannedAttacks.map(attack => ({
             intent: "attack",
@@ -694,7 +778,8 @@ export function planTacticalTurn(
     const focused = selectFocusTargetV2(next, playerId);
     next = focused.state;
 
-    const preparation = runTacticsPreparation(next, playerId);
+    const preContext = buildTacticalContext(next, playerId);
+    const preparation = runTacticsPreparation(next, playerId, preContext.getFlowField);
     next = preparation.state;
 
     const tacticalContext = buildTacticalContext(next, playerId);
@@ -706,13 +791,13 @@ export function planTacticalTurn(
             const defenseAttackPlans: DefenseAttackPlan[] = [];
 
             defenseMovePlans.push(
-                ...planDefenseAssignments(next, playerId, assessment, reservedUnitIds, reservedCoords)
+                ...planDefenseAssignments(next, playerId, assessment, reservedUnitIds, reservedCoords, tacticalContext.getFlowField)
             );
             defenseMovePlans.push(
-                ...planDefensiveRing(next, playerId, reservedUnitIds, reservedCoords)
+                ...planDefensiveRing(next, playerId, reservedUnitIds, reservedCoords, tacticalContext.getFlowField)
             );
             defenseMovePlans.push(
-                ...planMutualDefenseReinforcements(next, playerId, reservedUnitIds, reservedCoords)
+                ...planMutualDefenseReinforcements(next, playerId, reservedUnitIds, reservedCoords, tacticalContext.getFlowField)
             );
 
             defenseAttackPlans.push(
@@ -772,7 +857,11 @@ export function planTacticalTurn(
 
     const offensePlan = buildOffensePlan(next, playerId, tacticalContext, preparation.armyPhase, offenseReservedUnitIds);
 
-    const actions = resolveActionConflicts([...defenseActions, ...offensePlan.actions]);
+    const actions = applyTacticalUtilityBudget(
+        next,
+        playerId,
+        resolveActionConflicts([...defenseActions, ...offensePlan.actions])
+    );
     logTacticalScoreBreakdowns(next, playerId, actions);
 
     return {

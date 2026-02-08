@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GameState, PlayerPhase, UnitType, TechId, DiplomacyState } from "../../../core/types.js";
 import { planTacticalDefense } from "../../../game/ai2/defense-combat/tactical-defense.js";
-import { assessDefenseSituation } from "../../../game/ai2/defense-situation.js";
 
 function baseState(): GameState {
     return {
@@ -354,4 +353,3 @@ describe("Last Stand - Retreat Detection Fix", () => {
         expect(attackerIds.has("u1")).toBe(true);
     });
 });
-

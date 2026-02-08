@@ -54,9 +54,10 @@ export function shouldPrioritizeDefense(
     state: GameState,
     city: City,
     playerId: string,
-    phase: "Expand" | "Develop" | "Execute"
+    phase: "Expand" | "Develop" | "Execute",
+    isCoordVisible?: (coord: { q: number; r: number }) => boolean
 ): DefenseDecision {
-    const threatLevel = assessCityThreatLevel(state, city, playerId);
+    const threatLevel = assessCityThreatLevel(state, city, playerId, 5, 2, isCoordVisible);
     const myCities = state.cities.filter(c => c.ownerId === playerId);
 
     const { atWar, powerRatio } = getWarPowerSnapshot(state, playerId);

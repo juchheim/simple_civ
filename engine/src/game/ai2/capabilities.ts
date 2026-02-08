@@ -8,7 +8,7 @@
  */
 
 import { TechId, UnitType, BuildingType } from "../../core/types.js";
-import { UnitRole, UNIT_ROLE_MAP, isSiegeRole, type UnitCapabilityProfile, getUnitCapabilityProfile } from "./schema.js";
+import { UnitRole, UNIT_ROLE_MAP, isSiegeRole, getUnitCapabilityProfile } from "./schema.js";
 
 // =============================================================================
 // UNIT ROLES

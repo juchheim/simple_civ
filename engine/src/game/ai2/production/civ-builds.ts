@@ -120,7 +120,6 @@ export function pickAetherianVanguardBuild(
     const currentRiders = context.myUnits.filter(u =>
         u.type === UnitType.Riders || u.type === UnitType.ArmyRiders
     ).length;
-    const REQUIRED_RIDERS_FOR_TITAN = 4;
 
     const hasSteamForges = context.player.techs.includes(TechId.SteamForges);
 

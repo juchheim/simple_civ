@@ -102,7 +102,7 @@ describe("UtilityV2 AI (behavior sanity)", () => {
         expect(mem.focusCityId).toBe("e1");
     });
 
-    it("Titan agent prefers capital targets when available", () => {
+    it("Titan agent targets cities on the path to the nearest capital", () => {
         const state = baseState();
         state.players = [mkPlayer("p1", "AetherianVanguard"), mkPlayer("p2", "RiverLeague")];
         state.cities = [
@@ -117,7 +117,7 @@ describe("UtilityV2 AI (behavior sanity)", () => {
 
         const after = runTacticsV2(state, "p1");
         const mem = getAiMemoryV2(after, "p1");
-        expect(mem.titanFocusCityId).toBe("cap");
+        expect(mem.titanFocusCityId).toBe("town");
     });
 
     it("Post-war rally: units move toward focus city on war declaration turn", () => {
@@ -167,4 +167,3 @@ describe("UtilityV2 AI (behavior sanity)", () => {
         expect(u1MovedCloser || u2MovedCloser || u3MovedCloser).toBe(true);
     });
 });
-

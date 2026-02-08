@@ -5,7 +5,9 @@ import { UNITS } from "../../core/constants.js";
 import { aiInfo } from "../ai/debug-logging.js";
 import { getAiMemoryV2 } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
+import { getReinforcedRequiredNear, getSiegeFailureCount, SIEGE_WAVE_RADIUS } from "./siege-wave.js";
 import { buildTacticalContext } from "./tactical-context.js";
+import type { TacticalContext } from "./tactical-context.js";
 import { runFocusSiegeAndCapture } from "./siege-routing.js";
 import { isMilitary } from "./unit-roles.js";
 import { moveToward, moveTowardAllMoves } from "./movement.js";
@@ -18,35 +20,59 @@ import { moveToward, moveTowardAllMoves } from "./movement.js";
 export function runSiegeAndRally(state: GameState, playerId: string): GameState {
     let next = state;
 
-    // Main siege/capture behavior: coordinate a combined-arms push on the focused city.
     let tacticalContext = buildTacticalContext(next, playerId);
-    next = runFocusSiegeAndCapture(next, playerId, tacticalContext);
+    const memory = tacticalContext.memory;
+    const focusCity = memory.focusCityId ? next.cities.find(c => c.id === memory.focusCityId) : undefined;
+    if (!focusCity) return next;
+
+    const profile = tacticalContext.profile;
+    const failureCount = getSiegeFailureCount(memory, focusCity.id);
+    const baseRequired = Math.max(2, Math.ceil(profile.tactics.forceConcentration * 4));
+    const requiredNear = getReinforcedRequiredNear(baseRequired, failureCount);
+    const nearCount = next.units.filter(u =>
+        u.ownerId === playerId &&
+        isMilitary(u) &&
+        hexDistance(u.coord, focusCity.coord) <= SIEGE_WAVE_RADIUS
+    ).length;
+    const reinforceHold = tacticalContext.enemyIds.size > 0 && failureCount > 0 && nearCount < requiredNear;
+
+    // Main siege/capture behavior: coordinate a combined-arms push on the focused city.
+    // If we failed a wave and are rebuilding, hold the push and stage instead.
+    if (!reinforceHold || focusCity.hp <= 0) {
+        next = runFocusSiegeAndCapture(next, playerId, tacticalContext);
+    }
 
     // Rally logic depends on the latest tactical state.
     tacticalContext = buildTacticalContext(next, playerId);
     const enemies = tacticalContext.enemyIds;
     const inWar = enemies.size > 0;
 
-    const memory = getAiMemoryV2(next, playerId);
-    const focusCity = memory.focusCityId ? next.cities.find(c => c.id === memory.focusCityId) : undefined;
-    if (!focusCity) return next;
+    const updatedMemory = getAiMemoryV2(next, playerId);
+    const updatedFocusCity = updatedMemory.focusCityId ? next.cities.find(c => c.id === updatedMemory.focusCityId) : undefined;
+    if (!updatedFocusCity) return next;
 
-    const profile = getAiProfileV2(next, playerId);
+    const updatedProfile = getAiProfileV2(next, playerId);
     const myCities = next.cities.filter(c => c.ownerId === playerId);
 
-    next = runPostWarRally(next, playerId, focusCity, myCities, memory, inWar);
-    next = runPreWarRally(next, playerId, focusCity, myCities, profile, memory, inWar);
+    next = runPostWarRally(next, playerId, updatedFocusCity, myCities, updatedMemory, inWar, tacticalContext.getFlowField);
+    next = runPreWarRally(next, playerId, updatedFocusCity, myCities, updatedProfile, updatedMemory, inWar, tacticalContext.getFlowField);
+    if (reinforceHold) {
+        next = runReinforcementRally(next, playerId, updatedFocusCity, updatedMemory, tacticalContext.getFlowField);
+    }
 
     return next;
 }
 
+type GetFlowField = TacticalContext["getFlowField"];
+
 function runPostWarRally(
     state: GameState,
     playerId: string,
-    focusCity: { coord: Unit["coord"]; name: string },
+    focusCity: { coord: Unit["coord"]; name: string; id: string },
     myCities: { coord: Unit["coord"] }[],
     memory: ReturnType<typeof getAiMemoryV2>,
-    inWar: boolean
+    inWar: boolean,
+    getFlowField?: GetFlowField
 ): GameState {
     let next = state;
     const justDeclaredWar = memory.focusSetTurn === next.turn && inWar;
@@ -55,6 +81,7 @@ function runPostWarRally(
     aiInfo(`[POST-WAR RALLY] ${playerId} just declared war - rallying all forces to ${focusCity.name}`);
 
     const rallyTarget = focusCity.coord;
+    const rallyFlow = getFlowField ? getFlowField(rallyTarget, { cacheKey: "rally-post" }) : undefined;
     const myCityCoords = new Set(myCities.map(c => `${c.coord.q},${c.coord.r}`));
 
     const militaryToRally = next.units.filter(u => {
@@ -81,7 +108,7 @@ function runPostWarRally(
 
         // Use ALL movement to get there fast
         const before = next;
-        next = moveTowardAllMoves(next, playerId, liveUnit.id, rallyTarget, 6);
+        next = moveTowardAllMoves(next, playerId, liveUnit.id, rallyTarget, 6, undefined, rallyFlow);
         if (next !== before) rallied++;
     }
 
@@ -95,11 +122,12 @@ function runPostWarRally(
 function runPreWarRally(
     state: GameState,
     playerId: string,
-    focusCity: { coord: Unit["coord"] },
+    focusCity: { coord: Unit["coord"]; id: string },
     myCities: { coord: Unit["coord"] }[],
     profile: ReturnType<typeof getAiProfileV2>,
     memory: ReturnType<typeof getAiMemoryV2>,
-    inWar: boolean
+    inWar: boolean,
+    getFlowField?: GetFlowField
 ): GameState {
     let next = state;
 
@@ -115,7 +143,9 @@ function runPreWarRally(
         profile.tactics.forceConcentration >= 0.65;
 
     // Force concentration / staging: if we don't have enough units near the focus city, rally at a staging ring instead of trickling in.
-    const requiredNear = Math.max(2, Math.ceil(profile.tactics.forceConcentration * 4));
+    const failureCount = getSiegeFailureCount(memory, focusCity.id);
+    const baseRequired = Math.max(2, Math.ceil(profile.tactics.forceConcentration * 4));
+    const requiredNear = getReinforcedRequiredNear(baseRequired, failureCount);
     const nearCount = next.units.filter(u =>
         u.ownerId === playerId &&
         isMilitary(u) &&
@@ -148,14 +178,55 @@ function runPreWarRally(
         const live = next.units.find(u => u.id === unit.id);
         if (!live || live.movesLeft <= 0) continue;
         if (hexDistance(live.coord, focusCity.coord) <= UNITS[live.type].rng) continue; // already in range-ish
-        const dest = (shouldStage || canPreWarRally) ? pickStagingCoord(next, focusCity.coord, live) : focusCity.coord;
+        const isStaging = shouldStage || canPreWarRally;
+        const dest = isStaging ? pickStagingCoord(next, focusCity.coord, live) : focusCity.coord;
+        const flow = getFlowField
+            ? getFlowField(dest, { cacheKey: isStaging ? "rally-stage" : "rally-pre" })
+            : undefined;
 
         const before = next;
-        next = moveToward(before, playerId, live, dest);
+        next = moveToward(before, playerId, live, dest, undefined, flow);
         if (next !== before) {
             movedCount += 1;
             if (canPreWarRally && movedCount >= maxPreWarMovers) break;
         }
+    }
+
+    return next;
+}
+
+function runReinforcementRally(
+    state: GameState,
+    playerId: string,
+    focusCity: { coord: Unit["coord"]; id: string },
+    memory: ReturnType<typeof getAiMemoryV2>,
+    getFlowField?: GetFlowField
+): GameState {
+    let next = state;
+    const failureCount = getSiegeFailureCount(memory, focusCity.id);
+    if (failureCount <= 0) return next;
+
+    const cityTiles = new Set(next.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`));
+    const movers = next.units
+        .filter(u => {
+            if (u.ownerId !== playerId) return false;
+            if (u.movesLeft <= 0) return false;
+            if (!isMilitary(u)) return false;
+            if (u.type === UnitType.Titan) return false;
+            if (u.isHomeDefender) return false;
+            if (cityTiles.has(`${u.coord.q},${u.coord.r}`)) return false;
+            return true;
+        })
+        .sort((a, b) => hexDistance(a.coord, focusCity.coord) - hexDistance(b.coord, focusCity.coord));
+
+    for (const unit of movers) {
+        const live = next.units.find(u => u.id === unit.id);
+        if (!live || live.movesLeft <= 0) continue;
+        const dest = pickStagingCoord(next, focusCity.coord, live);
+        const flow = getFlowField
+            ? getFlowField(dest, { cacheKey: "rally-reinforce" })
+            : undefined;
+        next = moveToward(next, playerId, live, dest, undefined, flow);
     }
 
     return next;

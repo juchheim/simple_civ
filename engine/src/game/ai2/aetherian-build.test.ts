@@ -1,13 +1,14 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { chooseCityBuildV2 } from './production.js';
-import { GameState, City, ProjectId, BuildingType, TechId, UnitType } from '../../core/types.js';
+import { GameState, City } from '../../core/types.js';
 
 // 1. Mock logging
 vi.mock('../ai/debug-logging.js', () => ({
     aiInfo: vi.fn(),
     aiError: vi.fn(),
     aiWarn: vi.fn(),
+    isAiDebugEnabled: () => false,
 }));
 
 // 2. Mock ALL sub-pickers referenced in production.ts to control the test
@@ -15,11 +16,17 @@ vi.mock('../ai/debug-logging.js', () => ({
 
 vi.mock('./production/emergency.js', () => ({
     isWarEmergency: () => false,
-    pickCityUnderAttackBuild: () => null
+    pickCityUnderAttackBuild: () => null,
+    pickGarrisonReplenishmentBuild: () => null,
+    pickWarEmergencyBuild: () => null
 }));
 
-vi.mock('./production/phases/war.js', () => ({
-    pickPhaseWarBuild: () => null
+vi.mock('./production/staging.js', () => ({
+    pickWarStagingProduction: () => null
+}));
+
+vi.mock('./production/war.js', () => ({
+    pickTrebuchetProduction: () => null
 }));
 
 vi.mock('./production/defense-priority.js', () => ({
@@ -82,14 +89,20 @@ vi.mock('./rules.js', () => ({
 vi.mock('./strategic-plan.js', () => ({
     getGamePhase: () => 'Expand',
     assessCapabilities: () => ({}),
-    findCapabilityGaps: () => [],
+    findCapabilityGaps: () => ({
+        needSiege: 0,
+        needCapture: 0,
+        needDefense: 0,
+        needVision: 0,
+        needGarrison: 0,
+        priority: 'capture'
+    }),
     getGoalRequirements: () => ({}),
-    getBestUnitForRole: () => null,
-    getUnlockedUnits: () => []
+    getBestUnitForRole: () => null
 }));
 
 vi.mock('./defense-situation/scoring.js', () => ({
-    assessCityThreatLevel: () => ({ threatLevel: 'Safe' })
+    assessCityThreatLevel: () => 'none'
 }));
 
 describe('Aetherian Vanguard Build Priority Integration', () => {

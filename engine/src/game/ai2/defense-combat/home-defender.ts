@@ -1,10 +1,8 @@
 import { DiplomacyState, GameState } from "../../../core/types.js";
 import { hexDistance, hexEquals, getNeighbors } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
-import { tryAction } from "../../ai/shared/actions.js";
 import { canPlanMove } from "../../ai/shared/validation.js";
 import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
-import { aiInfo } from "../../ai/debug-logging.js";
 import { scoreAttackOption } from "../attack-order/scoring.js";
 import { canPlanAttack } from "../attack-order/shared.js";
 import { isMilitary } from "../unit-roles.js";

@@ -1,19 +1,20 @@
 import { GameState, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
-import { aidVulnerableUnits } from "../../ai/units/defense.js";
 import { updateArmyPhase, type ArmyPhase } from "../army-phase.js";
 import { updateTacticalFocus } from "../attack-order.js";
 import { isMilitary } from "../unit-roles.js";
 import { retreatIfNeeded } from "../movement.js";
+import type { TacticalContext } from "../tactical-context.js";
 import { runTitanPreMovement } from "../titan-flow.js";
-import { planTacticalMovements, executeTacticalMovements } from "../offense/tactical-movement.js";
 
 export type TacticsPreparationResult = {
     state: GameState;
     armyPhase: ArmyPhase;
 };
 
-export function runTacticsPreparation(state: GameState, playerId: string): TacticsPreparationResult {
+type GetFlowField = TacticalContext["getFlowField"];
+
+export function runTacticsPreparation(state: GameState, playerId: string, getFlowField?: GetFlowField): TacticsPreparationResult {
     let next = state;
 
     const unitsForRetreat = next.units.filter(u =>
@@ -26,7 +27,7 @@ export function runTacticsPreparation(state: GameState, playerId: string): Tacti
     for (const unit of unitsForRetreat) {
         const live = next.units.find(u => u.id === unit.id);
         if (!live || live.movesLeft <= 0) continue;
-        next = retreatIfNeeded(next, playerId, live);
+        next = retreatIfNeeded(next, playerId, live, getFlowField);
     }
 
     next = runTitanPreMovement(next, playerId);
@@ -54,4 +55,3 @@ export function runTacticsPreparation(state: GameState, playerId: string): Tacti
 
     return { state: next, armyPhase: currentArmyPhase };
 }
-

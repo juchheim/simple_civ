@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GameState, PlayerPhase, DiplomacyState, UnitType, TerrainType, TechId } from "../../core/types.js";
 import { setAiMemoryV2, getAiMemoryV2 } from "./memory.js";
-import { hexDistance } from "../../core/hex.js";
 import { runAiTurnSequenceV2 } from "./turn-runner.js";
 
 function baseState(): GameState {

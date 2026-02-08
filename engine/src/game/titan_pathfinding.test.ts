@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from "vitest";
-import { GameState, UnitType, UnitDomain, UnitState, TerrainType, PlayerPhase, DiplomacyState } from "../core/types.js";
-import { validateTileOccupancy, createMoveContext } from "./helpers/movement.js";
+import { GameState, UnitType, UnitState, TerrainType, PlayerPhase } from "../core/types.js";
+import { validateTileOccupancy } from "./helpers/movement.js";
 import { UNITS } from "../core/constants.js";
 
 function createGameState(): GameState {

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { DiplomacyState, GameState, PlayerPhase, TechId, UnitType } from "../../core/types.js";
 import { decideDiplomacyActionsV2 } from "./diplomacy.js";
 import { scoreUnitAttack } from "./tactical-scoring.js";
-import { getAiProfileV2 } from "./rules.js";
 
 const BASE_TECHS = [TechId.Fieldcraft];
 
@@ -109,8 +108,6 @@ describe("Human Bias", () => {
             state.diplomacy = { p1: { p2: DiplomacyState.Peace }, p2: { p1: DiplomacyState.Peace } };
             // Ensure peace has lasted long enough
             state.aiMemoryV2 = { p1: { lastStanceTurn: { p2: 10 } } };
-
-            const profile = getAiProfileV2(state, "p1");
 
             const result = decideDiplomacyActionsV2(state, "p1", "Balanced");
 

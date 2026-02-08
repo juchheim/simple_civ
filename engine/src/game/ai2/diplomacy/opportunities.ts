@@ -4,6 +4,8 @@ import { estimateMilitaryPower } from "../../ai/goals.js";
 import { getAiProfileV2 } from "../rules.js";
 import { canDeclareWar } from "../../helpers/diplomacy.js";
 import { isCombatUnitType } from "../schema.js";
+import { type InfluenceMaps } from "../influence-map.js";
+import { clamp01 } from "../util.js";
 
 // ============================================================================
 // v8.0: COMPLEX TACTICAL OPPORTUNITY DETECTION
@@ -25,7 +27,17 @@ function isMilitaryUnit(u: { type: UnitType }): boolean {
  * When this returns false but a target is identified, the AI should set focusTargetPlayerId
  * which triggers the pre-war rally behavior in tactics.ts (lines 1247-1315) to stage units.
  */
-export function hasUnitsStaged(state: GameState, playerId: string, targetId: string): boolean {
+function getInfluenceRatio(layer: InfluenceMaps["threat"] | undefined, coord: { q: number; r: number }): number {
+    if (!layer || layer.max <= 0) return 0;
+    return clamp01(layer.get(coord) / layer.max);
+}
+
+export function hasUnitsStaged(
+    state: GameState,
+    playerId: string,
+    targetId: string,
+    influence?: InfluenceMaps
+): boolean {
     const targetCities = state.cities.filter(c => c.ownerId === targetId);
     const focusCity = targetCities.find(c => c.isCapital) ?? targetCities[0];
     if (!focusCity) return false;
@@ -33,13 +45,22 @@ export function hasUnitsStaged(state: GameState, playerId: string, targetId: str
     const STAGING_DISTANCE = 5;
     const MIN_STAGED_UNITS = 3;
 
+    let stagingDistance = STAGING_DISTANCE;
+    let minStagedUnits = MIN_STAGED_UNITS;
+    if (influence) {
+        const frontRatio = getInfluenceRatio(influence.front, focusCity.coord);
+        const pressureRatio = getInfluenceRatio(influence.pressure, focusCity.coord);
+        stagingDistance = STAGING_DISTANCE + Math.round(frontRatio * 2);
+        minStagedUnits = Math.max(2, Math.round(MIN_STAGED_UNITS + (pressureRatio < 0.2 ? 1 : 0) - (frontRatio > 0.6 ? 1 : 0)));
+    }
+
     const stagedMilitary = state.units.filter(u =>
         u.ownerId === playerId &&
         isMilitaryUnit(u) &&
-        hexDistance(u.coord, focusCity.coord) <= STAGING_DISTANCE
+        hexDistance(u.coord, focusCity.coord) <= stagingDistance
     );
 
-    return stagedMilitary.length >= MIN_STAGED_UNITS;
+    return stagedMilitary.length >= minStagedUnits;
 }
 
 /**

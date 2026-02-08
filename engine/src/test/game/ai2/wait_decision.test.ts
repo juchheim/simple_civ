@@ -64,7 +64,7 @@ function seedTiles(state: GameState, min: number, max: number): void {
 }
 
 describe("wait decision - no kill scoring", () => {
-    it("waits on low-value pokes when no kills are possible", () => {
+    it("does not wait on low-value pokes under current aggression tuning", () => {
         const state = baseState();
         state.players = [mkPlayer("p1", "ScholarKingdoms"), mkPlayer("p2", "RiverLeague")];
         state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
@@ -99,7 +99,6 @@ describe("wait decision - no kill scoring", () => {
 
         const decision = shouldUnitWait(state, "p1", attack, [attack]);
 
-        expect(decision.shouldWait).toBe(true);
-        expect(decision.reason).toBe("Low-value pokes, no kills");
+        expect(decision.shouldWait).toBe(false);
     });
 });

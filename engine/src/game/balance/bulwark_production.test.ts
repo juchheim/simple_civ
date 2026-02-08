@@ -137,7 +137,7 @@ describe('Bulwark Building Balances', () => {
     });
 
     describe('Science Yield', () => {
-        it('should grant +1 Science when a Bulwark Building is present', () => {
+        it('should not grant bonus Science when a Bulwark Building is present', () => {
             // Base science is 1 (City Center)
             const baseYields = getCityYields(city, state);
             expect(baseYields.S).toBe(1);
@@ -145,9 +145,9 @@ describe('Bulwark Building Balances', () => {
             // Add Bulwark Building
             city.buildings.push(BuildingType.Bulwark);
 
-            // Should be 1 (Base) + 1 (Bulwark) = 2
+            // Bulwark no longer grants Science; base remains 1.
             const newYields = getCityYields(city, state);
-            expect(newYields.S).toBe(2);
+            expect(newYields.S).toBe(1);
         });
     });
 });

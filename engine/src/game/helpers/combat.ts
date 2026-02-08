@@ -1,4 +1,4 @@
-import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, BuildingType, UnitState, UnitDomain } from "../../core/types.js";
+import { GameState, HexCoord, Player, Tile, Unit, UnitType, EraId, TerrainType, UnitState, UnitDomain } from "../../core/types.js";
 import {
     UNITS,
     TERRAIN,
@@ -199,7 +199,7 @@ import { isTileAdjacentToRiver } from "../../map/rivers.js";
  * @param state Current game state
  * @param attacker Optional - if provided, enables context-aware bonuses (e.g., Lorekeeper anti-Army)
  */
-export function getEffectiveUnitStats(unit: Unit, state: GameState, attacker?: Unit) {
+export function getEffectiveUnitStats(unit: Unit, state: GameState, _attacker?: Unit) {
     const base = UNITS[unit.type];
     const boosted = { ...base };
 

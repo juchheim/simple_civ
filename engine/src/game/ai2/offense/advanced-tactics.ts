@@ -11,10 +11,10 @@
  * 6. HAMMER AND ANVIL - Pin with infantry, strike with cavalry
  */
 
-import { GameState, Unit, UnitType } from "../../../core/types.js";
+import { GameState, Unit } from "../../../core/types.js";
 import { hexDistance, getNeighbors } from "../../../core/hex.js";
 import { UNITS } from "../../../core/constants.js";
-import { getCombatPreviewUnitVsUnit, getCombatPreviewUnitVsCity } from "../../helpers/combat-preview.js";
+import { getCombatPreviewUnitVsUnit } from "../../helpers/combat-preview.js";
 import { isMilitary } from "../unit-roles.js";
 import { getAiMemoryV2 } from "../memory.js";
 

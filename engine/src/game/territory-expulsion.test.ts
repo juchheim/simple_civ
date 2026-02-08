@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { GameState, PlayerPhase, TerrainType, UnitType, UnitState, DiplomacyState } from "../core/types.js";
 import { claimCityTerritory } from "./helpers/cities.js";
-import { UNITS } from "../core/constants.js";
 
 const hex = (q: number, r: number) => ({ q, r });
 

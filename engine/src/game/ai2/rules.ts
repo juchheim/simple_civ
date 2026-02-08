@@ -338,8 +338,10 @@ const profiles: Record<string, CivAiProfileV2> = {
             // v1.0.8: Weights are deprecated, using pathsByGoal.
             // Explicitly added StoneworkHalls/CityWards to Progress path for defense.
             pathsByGoal: {
-                // v9.12: Removed StoneworkHalls/Bulwark - Scholar relies on science, not defense
+                // v9.13: Re-enabled StoneworkHalls/Bulwark for win rate testing
                 Progress: [
+                    TechId.StoneworkHalls,
+                    TechId.CityWards,
                     TechId.ScriptLore,
                     TechId.ScholarCourts,
                     TechId.SignalRelay,
@@ -360,8 +362,9 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    // v9.12: Removed Bulwark - Scholar uses science, not defense
-                    [BuildingType.CityWard]: 1.2, // Reduced priority
+                    // v9.13: Re-enabled Bulwark for win rate testing
+                    [BuildingType.Bulwark]: 2.0,
+                    [BuildingType.CityWard]: 1.5,
                     [BuildingType.Scriptorium]: 1.5,
                     [BuildingType.Academy]: 1.5,
                 },
@@ -510,8 +513,10 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         tech: {
             pathsByGoal: {
-                // v9.12: Removed StoneworkHalls/Bulwark - Starborne relies on expansion, not defense
+                // v9.13: Re-enabled StoneworkHalls/Bulwark for win rate testing
                 Progress: [
+                    TechId.StoneworkHalls,
+                    TechId.CityWards,
                     TechId.ScriptLore,
                     TechId.ScholarCourts,
                     TechId.SignalRelay,
@@ -531,9 +536,10 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    // v9.12: Removed Bulwark - Starborne focuses on science, not defense
+                    // v9.13: Re-enabled Bulwark for win rate testing
+                    [BuildingType.Bulwark]: 2.0,
+                    [BuildingType.CityWard]: 1.5,
                     [BuildingType.Academy]: 1.5,
-                    [BuildingType.CityWard]: 1.2, // Reduced priority
                 },
                 project: {
                     [ProjectId.Observatory]: 2.0,  // High priority now (standard path)

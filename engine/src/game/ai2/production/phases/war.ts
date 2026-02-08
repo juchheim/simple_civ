@@ -10,7 +10,7 @@ function pickWarBuilds(
     city: City,
     context: ProductionContext
 ): BuildOption | null {
-    return pickWarStagingProduction(state, playerId, city)
+    return pickWarStagingProduction(state, playerId, city, context)
         ?? pickTrebuchetProduction(state, city, context)
         ?? pickGarrisonReplenishmentBuild(state, city, context)
         ?? pickWarEmergencyBuild(state, playerId, city, context);

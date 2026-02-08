@@ -97,7 +97,7 @@ export const GROWTH_FACTORS = [
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
 // v0.97 balance: JadeCovenant passive "Verdant Growth" - faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 0.85; // v7.9: Buffed to 15% discount (was 10%)
+export const JADE_COVENANT_GROWTH_MULT = 0.95; // v7.9: Buffed to 5% discount (was 15%)
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -113,11 +113,11 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 
 // v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
-export const JADE_COVENANT_SETTLER_DISCOUNT = 0.80; // v7.9: Buffed to 20% (was 10%)
+export const JADE_COVENANT_SETTLER_DISCOUNT = 1.00; // v7.9: Refunded to 100% (was 10% discount)
 export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
 
 // v7.9: Re-added Jade Covenant "Population Power" - +1 Atk/Def per X total population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 16; // v1.0.9: Nerfed from 10 to 16
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 20; // v1.0.9: Nerfed from 16 to 20
 
 
 
@@ -364,19 +364,19 @@ export const TECHS: Record<TechId, TechData> = {
     // Progress chain: +100% cost increase (ScriptLore, ScholarCourts, SignalRelay, StarCharts)
     [TechId.Fieldcraft]: { era: EraId.Hearth, cost: 30, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Farmstead } }, // 20 → 30
     [TechId.StoneworkHalls]: { era: EraId.Hearth, cost: 30, prereqTechs: [], unlock: { type: "Building", id: BuildingType.StoneWorkshop } }, // 20 → 30
-    [TechId.ScriptLore]: { era: EraId.Hearth, cost: 50, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Scriptorium } }, // 25 → 50 (PROGRESS)
+    [TechId.ScriptLore]: { era: EraId.Hearth, cost: 40, prereqTechs: [], unlock: { type: "Building", id: BuildingType.Scriptorium } }, // 25 → 50 -> 40 (PROGRESS)
     [TechId.FormationTraining]: { era: EraId.Hearth, cost: 30, prereqTechs: [], unlock: { type: "Unit", id: UnitType.Trebuchet } }, // 20 → 30
     [TechId.TrailMaps]: { era: EraId.Hearth, cost: 30, prereqTechs: [], unlock: { type: "Unit", id: UnitType.Skiff } }, // 20 → 30
     [TechId.Wellworks]: { era: EraId.Banner, cost: 75, prereqTechs: [TechId.Fieldcraft], unlock: { type: "Building", id: BuildingType.Reservoir } }, // 50 → 75
     [TechId.TimberMills]: { era: EraId.Banner, cost: 75, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Passive", key: "+1/+1 to Melee & Ranged" } }, // 50 → 75
-    [TechId.ScholarCourts]: { era: EraId.Banner, cost: 120, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } }, // 60 → 120 (PROGRESS)
+    [TechId.ScholarCourts]: { era: EraId.Banner, cost: 100, prereqTechs: [TechId.ScriptLore], unlock: { type: "Building", id: BuildingType.Academy } }, // 60 → 120 -> 100 (PROGRESS)
     [TechId.DrilledRanks]: { era: EraId.Banner, cost: 75, prereqTechs: [TechId.FormationTraining], unlock: { type: "Passive", key: "Enable Form Army projects" } }, // 50 → 75
     [TechId.CityWards]: { era: EraId.Banner, cost: 75, prereqTechs: [TechId.StoneworkHalls], unlock: { type: "Building", id: BuildingType.CityWard } }, // 50 → 75
     [TechId.SteamForges]: { era: EraId.Engine, cost: 150, prereqTechs: [TechId.TimberMills], unlock: { type: "Building", id: BuildingType.Forgeworks } }, // 100 → 150
-    [TechId.SignalRelay]: { era: EraId.Engine, cost: 240, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+2 Science per city" } }, // 120 → 240 (PROGRESS)
+    [TechId.SignalRelay]: { era: EraId.Engine, cost: 200, prereqTechs: [TechId.ScholarCourts], unlock: { type: "Passive", key: "+2 Science per city" } }, // 120 → 240 -> 200 (PROGRESS)
     [TechId.UrbanPlans]: { era: EraId.Engine, cost: 150, prereqTechs: [TechId.Wellworks], unlock: { type: "Building", id: BuildingType.CitySquare } }, // 100 → 150
     [TechId.ArmyDoctrine]: { era: EraId.Engine, cost: 150, prereqTechs: [TechId.DrilledRanks], unlock: { type: "Passive", key: "+1/+1 to Armies" } }, // 100 → 150
-    [TechId.StarCharts]: { era: EraId.Engine, cost: 240, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } }, // 120 → 240 (PROGRESS)
+    [TechId.StarCharts]: { era: EraId.Engine, cost: 200, prereqTechs: [TechId.SignalRelay], unlock: { type: "Project", id: ProjectId.Observatory } }, // 120 → 240 -> 200 (PROGRESS)
     // Aether Era
     [TechId.Aerodynamics]: { era: EraId.Aether, cost: 300, prereqTechs: [TechId.SteamForges], unlock: { type: "Unit", id: UnitType.Airship } }, // 200 → 300
     [TechId.ZeroPointEnergy]: { era: EraId.Aether, cost: 300, prereqTechs: [TechId.UrbanPlans], unlock: { type: "Building", id: BuildingType.AetherReactor } }, // 200 → 300
@@ -390,21 +390,21 @@ export const TECHS: Record<TechId, TechData> = {
 export const PROJECTS: Record<ProjectId, ProjectDefinition> = {
     // v9.12: Major project cost increases to slow Progress victory
     [ProjectId.Observatory]: {
-        cost: 500,  // v9.12: 330→500 (+50%) - Extended Progress chain
+        cost: 400,  // v9.12: 330→500 -> 400 (-20%) - Extended Progress chain
         prereqTechs: [TechId.StarCharts],
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusCity: 1, unlock: ProjectId.GrandAcademy } },
     },
     [ProjectId.GrandAcademy]: {
-        cost: 700,  // v9.12: 450→700 (+55%)
+        cost: 550,  // v9.12: 450→700 -> 550 (-21%)
         prereqMilestone: ProjectId.Observatory,
         oncePerCiv: true,
         oneCityAtATime: true,
         onComplete: { type: "Milestone", payload: { scienceBonusPerCity: 1, unlock: ProjectId.GrandExperiment } },
     },
     [ProjectId.GrandExperiment]: {
-        cost: 900,  // v9.12: 600→900 (+50%)
+        cost: 700,  // v9.12: 600→900 -> 700 (-22%)
         prereqMilestone: ProjectId.GrandAcademy,
         oncePerCiv: true,
         oneCityAtATime: true,

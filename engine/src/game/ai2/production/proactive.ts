@@ -1,9 +1,7 @@
 import { canBuild } from "../../rules.js";
 import { City, GameState, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
-import { getAiProfileV2 } from "../rules.js";
 import { getAiMemoryV2 } from "../memory.js";
-import { isCombatUnitType } from "../schema.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 
 /**
@@ -19,7 +17,7 @@ export function pickProactiveReinforcementBuild(
     city: City,
     context: ProductionContext
 ): BuildOption | null {
-    const { phase, atWar } = context;
+    const { atWar } = context;
     const memory = getAiMemoryV2(state, playerId);
 
     // Condition 1: Must be effectively at war (actual war state OR staging for an attack)

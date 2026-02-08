@@ -2,10 +2,13 @@ import { AiVictoryGoal, City, DiplomacyState, GameState, ProjectId, TechId, Unit
 import { hexDistance } from "../../core/hex.js";
 import { estimateMilitaryPower } from "../ai/goals.js";
 import { evaluateBestVictoryPath } from "../ai/victory-evaluator.js";
-import { getAiMemoryV2, setAiMemoryV2 } from "./memory.js";
+import { getAiMemoryV2, setAiMemoryV2, type OperationalTheater } from "./memory.js";
 import { getAiProfileV2 } from "./rules.js";
+import { buildPerception } from "./perception.js";
+import { type InfluenceMaps } from "./influence-map.js";
 import { getCityValueProfile } from "./tactical-threat.js";
-import { pickBest } from "./util.js";
+import { aiInfo, isAiDebugEnabled } from "../ai/debug-logging.js";
+import { clamp01, pickBest } from "./util.js";
 
 function isProgressThreat(state: GameState, targetPlayerId: string): boolean {
     const p = state.players.find(x => x.id === targetPlayerId);
@@ -34,107 +37,218 @@ export function isAtWarV2(state: GameState, playerId: string): boolean {
     );
 }
 
+type GoalScoreBreakdown = {
+    total: number;
+    components: Record<string, number>;
+    notes?: string[];
+};
+
+type GoalCandidate = {
+    goal: AiVictoryGoal;
+    score: number;
+    breakdown: GoalScoreBreakdown;
+};
+
+const GOAL_BASE: Record<AiVictoryGoal, number> = {
+    Conquest: 0.35,
+    Progress: 0.35,
+    Balanced: 0.4,
+};
+
+const AGGRESSIVE_CIVS = new Set(["ForgeClans", "RiverLeague", "JadeCovenant"]);
+const CONQUEST_FIRST_CIVS = new Set(["ForgeClans", "AetherianVanguard"]);
+
+const PROGRESS_PROJECTS = [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment];
+
+function formatGoalBreakdown(breakdown: GoalScoreBreakdown): string {
+    const parts = Object.entries(breakdown.components)
+        .filter(([, value]) => Math.abs(value) >= 0.01)
+        .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+        .map(([key, value]) => `${key}:${value.toFixed(2)}`);
+    if (breakdown.notes && breakdown.notes.length > 0) {
+        parts.push(`notes:${breakdown.notes.join("|")}`);
+    }
+    return parts.join(", ");
+}
+
+function makeGoalCandidate(goal: AiVictoryGoal, components: Record<string, number>, notes?: string[]): GoalCandidate {
+    const total = clamp01(Object.values(components).reduce((sum, value) => sum + value, 0));
+    return {
+        goal,
+        score: total,
+        breakdown: {
+            total,
+            components,
+            notes: notes && notes.length > 0 ? notes : undefined,
+        },
+    };
+}
+
+function getInfluenceRatio(layer: InfluenceMaps["threat"] | undefined, coord: { q: number; r: number }): number {
+    if (!layer || layer.max <= 0) return 0;
+    return clamp01(layer.get(coord) / layer.max);
+}
+
+function getStrongestEnemyPower(state: GameState, playerId: string): number {
+    let maxPower = 0;
+    for (const enemy of state.players) {
+        if (enemy.id === playerId || enemy.isEliminated) continue;
+        const power = estimateMilitaryPower(enemy.id, state);
+        if (power > maxPower) maxPower = power;
+    }
+    return Math.max(1, maxPower);
+}
+
+type ForcedGoal = {
+    goal: AiVictoryGoal;
+    reason: string;
+    notes?: string[];
+};
+
+function computeForcedGoal(state: GameState, playerId: string, player: GameState["players"][number]): ForcedGoal | null {
+    // v9.10: Endgame crisis overrides all other logic.
+    if (state.turn > 225) {
+        const evaluation = evaluateBestVictoryPath(state, playerId);
+        const notes = [
+            evaluation.reason ? `eval:${evaluation.reason}` : "eval",
+            `turnsP:${evaluation.turnsToProgress}`,
+            `turnsC:${evaluation.turnsToConquest}`,
+        ];
+        return { goal: evaluation.path, reason: "endgame-crisis", notes };
+    }
+
+    // Aetherian Titan presence = commit to Conquest.
+    if (player.civName === "AetherianVanguard") {
+        const hasTitan = state.units.some(u => u.ownerId === playerId && u.type === UnitType.Titan);
+        if (hasTitan) {
+            return { goal: "Conquest", reason: "aetherian-titan" };
+        }
+
+        const completedProjects = player.completedProjects ?? [];
+        const hasTitansCore = completedProjects.includes(ProjectId.TitansCoreComplete);
+        if (hasTitansCore) {
+            const completedScience = PROGRESS_PROJECTS.filter(id => completedProjects.includes(id)).length;
+            if (completedScience >= 2) {
+                return { goal: "Progress", reason: "aetherian-science-pivot" };
+            }
+            if (state.turn > 250) {
+                return { goal: "Progress", reason: "aetherian-stall-pivot" };
+            }
+
+            const myPower = estimateMilitaryPower(playerId, state);
+            const strongestEnemyPower = getStrongestEnemyPower(state, playerId);
+            const powerRatio = strongestEnemyPower > 0 ? myPower / strongestEnemyPower : 2;
+            if (powerRatio >= 1.5) {
+                return { goal: "Conquest", reason: "aetherian-dominance", notes: [`ratio:${powerRatio.toFixed(2)}`] };
+            }
+            return { goal: "Progress", reason: "aetherian-underdog", notes: [`ratio:${powerRatio.toFixed(2)}`] };
+        }
+    }
+
+    return null;
+}
+
 export function chooseVictoryGoalV2(state: GameState, playerId: string): AiVictoryGoal {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return "Balanced";
 
     const profile = getAiProfileV2(state, playerId);
-
-    // Hard triggers:
-    // v9.10: Global Stall Breaker "Endgame Crisis"
-    // If game drags past Turn 225, force ALL civs to commit to their best victory path.
-    // This overrides personality to prevent "Balanced" dithering in stalemates.
-    if (state.turn > 225) {
-        // Use the evaluator to find the fastest path mathematically
-        const evaluation = evaluateBestVictoryPath(state, playerId);
-        return evaluation.path;
-    }
-
-    const hasTitan = state.units.some(u => u.ownerId === playerId && u.type === UnitType.Titan);
-    if (hasTitan && player.civName === "AetherianVanguard") return "Conquest";
-
-    // v7.9: Aetherian post-Titan's Core decision
-    // After building Titan's Core, decide whether to push Conquest (Landships) or pivot to Progress
-    // Decision: If power > 1.5x strongest enemy, stay Conquest. Otherwise, pivot to Progress.
-    const hasTitansCore = player.completedProjects.includes(ProjectId.TitansCoreComplete);
-    if (hasTitansCore && player.civName === "AetherianVanguard") {
-        // v9.2: Aetherian Fix - Break strategic paralysis
-        const scienceProjects = [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment];
-        const completedScience = scienceProjects.filter(id => player.completedProjects.includes(id)).length;
-
-        // 1. Science Priority: If we are close to science win (2/3 done), always push Progress
-        if (completedScience >= 2) return "Progress";
-
-        // 2. Stall Breaker: If game is dragging on (Turn > 250) and we haven't won yet, switch to Progress
-        if (state.turn > 250) return "Progress";
-
-        const myPower = estimateMilitaryPower(playerId, state);
-        const enemies = state.players.filter(p => p.id !== playerId && !p.isEliminated);
-        const strongestEnemyPower = Math.max(...enemies.map(e => estimateMilitaryPower(e.id, state)), 1);
-        const powerRatio = myPower / strongestEnemyPower;
-
-        // If we dominate (1.5x+ power), stay Conquest for the kill
-        if (powerRatio >= 1.5) {
-            return "Conquest";
+    const forced = computeForcedGoal(state, playerId, player);
+    if (forced) {
+        const candidates = (["Conquest", "Progress", "Balanced"] as AiVictoryGoal[]).map(goal => {
+            const components = {
+                override: goal === forced.goal ? 1 : 0,
+            };
+            return makeGoalCandidate(goal, components, goal === forced.goal ? [forced.reason, ...(forced.notes ?? [])] : undefined);
+        });
+        const bestForced = pickBest(candidates, c => c.score)?.item?.goal ?? forced.goal;
+        if (isAiDebugEnabled()) {
+            const chosen = candidates.find(c => c.goal === bestForced);
+            if (chosen) {
+                const breakdown = formatGoalBreakdown(chosen.breakdown);
+                aiInfo(`[AI Goal] Forced ${bestForced} (${chosen.score.toFixed(2)}) | ${breakdown}`);
+            }
         }
-        // Otherwise, pivot to Progress - safer bet with science-on-kill advantage
-        return "Progress";
+        return bestForced;
     }
 
     const hasStarCharts = player.techs.includes(TechId.StarCharts);
-
-    // Prefer progress if profile invests heavily AND we have path unlocked.
-    const progressAffinity =
-        (profile.build.weights.project[ProjectId.Observatory] ?? 0) +
-        (profile.build.weights.project[ProjectId.GrandAcademy] ?? 0) +
-        (profile.build.weights.project[ProjectId.GrandExperiment] ?? 0);
-
-    if (hasStarCharts && (progressAffinity >= 2.5 || profile.tactics.riskTolerance < 0.3)) {
-        const conquestFirstCivs = ["ForgeClans", "AetherianVanguard"];
-        if (conquestFirstCivs.includes(profile.civName)) {
-            // Stay on Conquest but can still build Progress projects concurrently.
-            return "Conquest";
-        }
-        return "Progress";
-    }
-
-    // If currently at war, lean Conquest unless civ is very peace-biased.
+    const hasCompositeArmor = player.techs.includes(TechId.CompositeArmor);
+    const myCities = state.cities.filter(c => c.ownerId === playerId).length;
     const inWar = isAtWarV2(state, playerId);
-    if (inWar && profile.diplomacy.warPowerRatio <= 1.2) return "Conquest";
+    const isAggressive = AGGRESSIVE_CIVS.has(profile.civName);
+    const conquestFirst = CONQUEST_FIRST_CIVS.has(profile.civName);
 
-    // If we are an aggressive civ and a progress threat exists, treat it as Conquest mode (deny the win).
-    if (profile.diplomacy.canInitiateWars && profile.diplomacy.warPowerRatio <= 1.35) {
-        const threatExists = state.players.some(p => p.id !== playerId && !p.isEliminated && isProgressThreat(state, p.id));
-        if (threatExists) return "Conquest";
+    const projectWeights = profile.build?.weights?.project ?? {};
+    const progressAffinity =
+        (projectWeights[ProjectId.Observatory] ?? 0) +
+        (projectWeights[ProjectId.GrandAcademy] ?? 0) +
+        (projectWeights[ProjectId.GrandExperiment] ?? 0);
+    const progressAffinityScore = clamp01(progressAffinity / 2.5);
+    const riskAverseScore = clamp01((0.35 - profile.tactics.riskTolerance) / 0.35);
+    const progressLean = hasStarCharts ? Math.max(progressAffinityScore, riskAverseScore) : 0;
+
+    const warBias = inWar ? clamp01((1.35 - profile.diplomacy.warPowerRatio) / 0.35) * 0.2 : 0;
+
+    const progressThreatExists = profile.diplomacy.canInitiateWars &&
+        profile.diplomacy.warPowerRatio <= 1.35 &&
+        state.players.some(p => p.id !== playerId && !p.isEliminated && isProgressThreat(state, p.id));
+    const denyThreatBias = progressThreatExists ? 0.2 : 0;
+
+    const aggressiveBias = isAggressive ? 0.25 : 0;
+    const aggressivePivot = isAggressive && myCities >= 8 && hasCompositeArmor && hasStarCharts;
+    const aggressivePivotBias = aggressivePivot ? 0.35 : 0;
+
+    let progressLeanBias = progressLean * 0.25;
+    let conquestFirstBias = 0;
+    if (hasStarCharts && progressLean > 0 && conquestFirst) {
+        conquestFirstBias = 0.25 + (progressLean * 0.2);
+        progressLeanBias = 0;
     }
 
-    // v1.1.0: Aggressive civs should default to Conquest to drive early military buildup
-    // This ensures they build siege units (Trebuchets) in the Expand phase
-    // v9.8: Aggressive civs default to Conquest, BUT pivot if they dominate.
-    const aggressiveCivs = ["ForgeClans", "RiverLeague", "JadeCovenant"];
-    if (aggressiveCivs.includes(profile.civName)) {
-        // If we have a massive empire (captured cities), pivot to Hybrid/Progress
-        const myCities = state.cities.filter(c => c.ownerId === playerId).length;
-        // If we have > 8 cities, our science output from captures qualifies us for Progress.
-        // Also if we have Titanium/Landships (CompositeArmor), we can afford to divert production.
-        const hasCompositeArmor = player.techs.includes(TechId.CompositeArmor);
+    const candidates: GoalCandidate[] = [
+        makeGoalCandidate("Conquest", {
+            base: GOAL_BASE.Conquest,
+            aggressive: aggressiveBias,
+            war: warBias,
+            deny: denyThreatBias,
+            conquestFirst: conquestFirstBias,
+        }),
+        makeGoalCandidate("Progress", {
+            base: GOAL_BASE.Progress,
+            progressLean: progressLeanBias,
+            pivot: aggressivePivotBias,
+        }),
+        makeGoalCandidate("Balanced", {
+            base: GOAL_BASE.Balanced,
+        }),
+    ];
 
-        if (myCities >= 8 && hasCompositeArmor && hasStarCharts) {
-            return "Progress"; // Hybrid Win: Conquest Military + Science Finish
-        }
-        return "Conquest";
+    const best = pickBest(candidates, c => c.score)?.item ?? candidates[0];
+    if (isAiDebugEnabled()) {
+        const breakdown = formatGoalBreakdown(best.breakdown);
+        aiInfo(`[AI Goal] ${best.goal} (${best.score.toFixed(2)}) | ${breakdown}`);
     }
-
-    // Otherwise Balanced.
-    return "Balanced";
+    return best.goal;
 }
 
 export function selectFocusTargetV2(state: GameState, playerId: string): { state: GameState; focusTargetId?: string; focusCityId?: string } {
     const memory = getAiMemoryV2(state, playerId);
     const profile = getAiProfileV2(state, playerId);
     const myPower = estimateMilitaryPower(playerId, state);
+    const perception = buildPerception(state, playerId);
+
+    const theaters = memory.operationalTheaters ?? [];
+    const theaterFresh = memory.operationalTurn !== undefined && (state.turn - memory.operationalTurn) <= 2;
+    const primaryTheater: OperationalTheater | null = theaterFresh && theaters.length > 0 ? theaters[0] : null;
 
     const enemies = state.players.filter(p => p.id !== playerId && !p.isEliminated);
+    const visibleEnemies = perception.visibilityKnown
+        ? enemies.filter(e => perception.visibleEnemyIds.has(e.id))
+        : enemies;
+    const candidateEnemies = perception.visibilityKnown && visibleEnemies.length > 0
+        ? visibleEnemies
+        : enemies;
     if (enemies.length === 0) return { state, focusTargetId: undefined, focusCityId: undefined };
 
     // If our stored focus city is no longer an enemy city (captured / flipped), clear it so we can roll forward.
@@ -193,7 +307,7 @@ export function selectFocusTargetV2(state: GameState, playerId: string): { state
     // Check if there's a human player in the game
     const hasHumanPlayer = state.players.some(p => !p.isAI && !p.isEliminated);
 
-    const candidateTargets = enemies
+    const candidateTargets = candidateEnemies
         .map(e => {
             const theirPower = estimateMilitaryPower(e.id, state);
             const ratio = theirPower > 0 ? myPower / theirPower : Infinity;
@@ -211,9 +325,17 @@ export function selectFocusTargetV2(state: GameState, playerId: string): { state
             // Human preference: If there's a human in the game, AI prefers to attack them
             const humanBonus = (hasHumanPlayer && !e.isAI) ? 15 : 0;
 
+            // Operational theater bias: steer toward top theater objective if available.
+            let theaterBonus = 0;
+            if (primaryTheater && primaryTheater.targetPlayerId === e.id) {
+                theaterBonus += 10 + (primaryTheater.priority * 25);
+                if (primaryTheater.objective === "deny-progress") theaterBonus += 20;
+                if (primaryTheater.objective === "capture-capital") theaterBonus += 12;
+            }
+
             // Overall: prefer reasonable distance + weak/finishable + preference.
             const deny = (profile.diplomacy.canInitiateWars && profile.diplomacy.warPowerRatio <= 1.35 && progressThreat) ? 45 : 0;
-            const score = pref + (ratio * 5) - (nearestCityDist * 0.35) + (isFinishable ? 6 : 0) + deny + humanBonus;
+            const score = pref + (ratio * 5) - (nearestCityDist * 0.35) + (isFinishable ? 6 : 0) + deny + humanBonus + theaterBonus;
             return { targetId: e.id, score };
         });
 
@@ -232,16 +354,30 @@ export function selectFocusTargetV2(state: GameState, playerId: string): { state
     return { state: next, focusTargetId: bestTarget, focusCityId: focusCity?.id };
 }
 
-export function selectFocusCityAgainstTarget(state: GameState, playerId: string, targetId: string): City | undefined {
+export function selectFocusCityAgainstTarget(
+    state: GameState,
+    playerId: string,
+    targetId: string,
+    influence?: InfluenceMaps
+): City | undefined {
     const profile = getAiProfileV2(state, playerId);
+    const memory = getAiMemoryV2(state, playerId);
+    const perception = buildPerception(state, playerId);
+    const theaterFresh = memory.operationalTurn !== undefined && (state.turn - memory.operationalTurn) <= 2;
+    const theaterForTarget = theaterFresh ? (memory.operationalTheaters ?? []).find(t => t.targetPlayerId === targetId) : undefined;
+
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     const anchor = myCities.find(c => c.isCapital) ?? myCities[0];
     if (!anchor) return undefined;
 
     const enemyCities = state.cities.filter(c => c.ownerId === targetId);
     if (enemyCities.length === 0) return undefined;
+    const visibleEnemyCities = enemyCities.filter(c => perception.isCoordVisible(c.coord));
+    const candidateCities = perception.visibilityKnown && visibleEnemyCities.length > 0
+        ? visibleEnemyCities
+        : enemyCities;
 
-    const scored = enemyCities.map(c => {
+    const scored = candidateCities.map(c => {
         const dist = hexDistance(anchor.coord, c.coord);
         const cityValue = getCityValueProfile(state, playerId, c);
         const progressProject =
@@ -249,10 +385,21 @@ export function selectFocusCityAgainstTarget(state: GameState, playerId: string,
             (c.currentBuild.id === ProjectId.Observatory || c.currentBuild.id === ProjectId.GrandAcademy || c.currentBuild.id === ProjectId.GrandExperiment);
         const denyScore = progressProject ? 2000 : 0;
         const siegeCommitmentScore = profile.tactics.siegeCommitment * 6 * (1 - cityValue.hpFrac);
+        let theaterBonus = 0;
+        if (theaterForTarget && theaterForTarget.targetCityId === c.id) {
+            theaterBonus += 150 + (theaterForTarget.priority * 100);
+            if (theaterForTarget.objective === "deny-progress") theaterBonus += 120;
+            if (theaterForTarget.objective === "capture-capital") theaterBonus += 80;
+        }
+        const frontRatio = getInfluenceRatio(influence?.front, c.coord);
+        const pressureRatio = getInfluenceRatio(influence?.pressure, c.coord);
+        const influenceBonus = (frontRatio * 30) + (pressureRatio * 24);
         const score =
             denyScore +
             cityValue.totalValue +
             siegeCommitmentScore +
+            theaterBonus +
+            influenceBonus +
             (-dist * 0.45);
         return { c, score };
     });

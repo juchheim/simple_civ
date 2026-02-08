@@ -1,9 +1,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { runFocusSiegeAndCapture } from './siege-routing.js';
-import { GameState, Unit, UnitType, UnitDomain, City } from '../../core/types.js';
-import { UNITS } from '../../core/constants.js';
+import { GameState, Unit, UnitType, City } from '../../core/types.js';
 import { TacticalContext } from './tactical-context.js';
+import { buildFlowField } from './flow-field.js';
 
 // Mock dependencies
 vi.mock('../../core/constants.js', async (importOriginal) => {
@@ -94,7 +94,8 @@ describe('runFocusSiegeAndCapture', () => {
         const ctx: TacticalContext = {
             enemyIds: new Set(['enemy']),
             memory: { focusCityId: 'city1' },
-            createLookupCache: () => createLookupCacheMock(state, 'player1')
+            createLookupCache: () => createLookupCacheMock(state, 'player1'),
+            getFlowField: (target) => buildFlowField(state, target)
         } as any;
 
         const nextState = runFocusSiegeAndCapture(state, 'player1', ctx);
@@ -122,7 +123,8 @@ describe('runFocusSiegeAndCapture', () => {
         const ctx: TacticalContext = {
             enemyIds: new Set(['enemy']),
             memory: { focusCityId: 'city1' },
-            createLookupCache: () => createLookupCacheMock(state, 'player1')
+            createLookupCache: () => createLookupCacheMock(state, 'player1'),
+            getFlowField: (target) => buildFlowField(state, target)
         } as any;
 
         const nextState = runFocusSiegeAndCapture(state, 'player1', ctx);
@@ -149,7 +151,8 @@ describe('runFocusSiegeAndCapture', () => {
         const ctx: TacticalContext = {
             enemyIds: new Set(['enemy']),
             memory: { focusCityId: 'city1' },
-            createLookupCache: () => createLookupCacheMock(state, 'player1')
+            createLookupCache: () => createLookupCacheMock(state, 'player1'),
+            getFlowField: (target) => buildFlowField(state, target)
         } as any;
 
         const nextState = runFocusSiegeAndCapture(state, 'player1', ctx);
@@ -164,5 +167,44 @@ describe('runFocusSiegeAndCapture', () => {
         if (movedSpear) {
             expect(movedSpear.coord.q + movedSpear.coord.r).toBeLessThan(2);
         }
+    });
+
+    it("consults flow fields for siege approach routing", () => {
+        const state = createTestState();
+
+        const spear: Unit = {
+            id: "spear1",
+            type: UnitType.SpearGuard,
+            ownerId: "player1",
+            coord: { q: 2, r: 0 },
+            movesLeft: 1,
+            hp: 10
+        } as Unit;
+
+        state.units = [spear];
+
+        const getFlowField = vi.fn(() => ({
+            width: 0,
+            height: 0,
+            target: { q: 0, r: 0 },
+            indexByCoord: new Map(),
+            costs: new Float32Array(0),
+            getCost: () => 0,
+            nextStep: () => null
+        }));
+
+        const ctx: TacticalContext = {
+            enemyIds: new Set(["enemy"]),
+            memory: { focusCityId: "city1" },
+            createLookupCache: () => createLookupCacheMock(state, "player1"),
+            getFlowField
+        } as any;
+
+        runFocusSiegeAndCapture(state, "player1", ctx);
+
+        expect(getFlowField).toHaveBeenCalledWith(
+            expect.objectContaining({ q: expect.any(Number), r: expect.any(Number) }),
+            { cacheKey: "siege-approach" }
+        );
     });
 });

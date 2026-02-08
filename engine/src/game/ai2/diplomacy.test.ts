@@ -174,4 +174,34 @@ describe("UtilityV2 AI diplomacy (characterization)", () => {
         const result = decideDiplomacyActionsV2(state, "p1", "Balanced");
         expect(result.actions.some(a => a.type === "ProposePeace" && a.targetPlayerId === "p2")).toBe(true);
     });
+
+    it("proposes peace after repeated siege stalemate", () => {
+        const state = baseState();
+        state.turn = 80;
+        state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true }),
+            mkCity("p1", "c2", 0, 2),
+            mkCity("p2", "e1", 10, 0, { capital: true }),
+            mkCity("p2", "e2", 10, 2),
+        ];
+        state.units = [
+            mkUnit("p1", "u1", UnitType.SpearGuard, 6, 0),
+            mkUnit("p1", "u2", UnitType.BowGuard, 6, 1),
+            mkUnit("p2", "eU1", UnitType.SpearGuard, 11, 0),
+            mkUnit("p2", "eU2", UnitType.BowGuard, 11, 1),
+        ];
+        state.diplomacy = { p1: { p2: DiplomacyState.War }, p2: { p1: DiplomacyState.War } };
+        state.aiMemoryV2 = {
+            p1: {
+                focusCityId: "e1",
+                siegeFailureCount: { e1: 2 },
+                lastStanceTurn: { p2: state.turn - 35 },
+                lastCityCaptureTurn: { p2: state.turn - 35 },
+            },
+        };
+
+        const result = decideDiplomacyActionsV2(state, "p1", "Balanced");
+        expect(result.actions.some(a => a.type === "ProposePeace" && a.targetPlayerId === "p2")).toBe(true);
+    });
 });

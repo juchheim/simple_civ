@@ -4,6 +4,7 @@ import { UNITS } from "../../core/constants.js";
 import { pickBest } from "./util.js";
 import { TacticalContext } from "./tactical-context.js";
 import { pickApproachTile, pickRallyCoord, pickRingCoordForUnit } from "./targeting.js";
+import { buildPerception } from "./perception.js";
 import { isCapturer, isMilitary, isRider, isSiege } from "./unit-roles.js";
 import { moveToward, moveTowardAllMoves } from "./movement.js";
 
@@ -33,8 +34,9 @@ export function routeCityCapturesV2(state: GameState, playerId: string, ctx: Tac
         if (!live) continue;
         const cache = ctx.createLookupCache(next);
         const approach = pickApproachTile(next, playerId, live, city.coord, cache);
+        const flow = ctx.getFlowField(approach, { cacheKey: "capture" });
         const before = next;
-        next = moveTowardAllMoves(next, playerId, unit.id, approach, 8);
+        next = moveTowardAllMoves(next, playerId, unit.id, approach, 8, cache, flow);
         if (next !== before) assigned.add(unit.id);
     }
     return next;
@@ -46,11 +48,21 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
     if (enemies.size === 0) return next;
 
     const mem = ctx.memory;
-    const focusCity = mem.focusCityId ? next.cities.find(c => c.id === mem.focusCityId) : undefined;
+    const perception = ctx.perception ?? buildPerception(next, playerId);
+    const theaterFresh = mem.operationalTurn !== undefined && (next.turn - mem.operationalTurn) <= 2;
+    const theaterCityId = theaterFresh ? mem.operationalTheaters?.[0]?.targetCityId : undefined;
+    const focusCity = mem.focusCityId
+        ? next.cities.find(c => c.id === mem.focusCityId)
+        : theaterCityId
+            ? next.cities.find(c => c.id === theaterCityId)
+            : undefined;
     if (!focusCity || !enemies.has(focusCity.ownerId)) return next;
+    if (perception.visibilityKnown && !perception.isCoordVisible(focusCity.coord)) return next;
 
     const rally = pickRallyCoord(next, focusCity.coord, 3);
+    const rallyFlow = ctx.getFlowField(rally, { cacheKey: "siege-rally" });
     const createCache = ctx.createLookupCache;
+    const getFlowField = ctx.getFlowField;
 
     const units = next.units
         .filter(u => u.ownerId === playerId && u.movesLeft > 0 && isMilitary(u))
@@ -104,7 +116,8 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
 
         const cache = createCache(next);
         const siegeRing = pickRingCoordForUnit(next, playerId, live, focusCity.coord, siegeDist, 1200, cache);
-        next = moveToward(next, playerId, live, siegeRing);
+        const flow = getFlowField(siegeRing, { cacheKey: "siege" });
+        next = moveToward(next, playerId, live, siegeRing, cache, flow);
     }
 
     for (const u of capturers) {
@@ -115,7 +128,8 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
         if (dist === 1) continue;
 
         if (focusCity.hp <= 0) {
-            next = moveToward(next, playerId, live, focusCity.coord);
+            const flow = getFlowField(focusCity.coord, { cacheKey: "siege-capture" });
+            next = moveToward(next, playerId, live, focusCity.coord, undefined, flow);
             continue;
         }
 
@@ -128,9 +142,10 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
 
         if (focusCity.isCapital || focusCity.hp <= 12 || shouldAssault) {
             const approach = pickApproachTile(next, playerId, live, focusCity.coord);
-            next = moveToward(next, playerId, live, approach);
+            const flow = getFlowField(approach, { cacheKey: "siege-approach" });
+            next = moveToward(next, playerId, live, approach, undefined, flow);
         } else {
-            next = moveToward(next, playerId, live, rally);
+            next = moveToward(next, playerId, live, rally, undefined, rallyFlow);
         }
     }
 
@@ -143,7 +158,8 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
         if (cityHpPercent < 0.5) {
             // City is hurting - riders move in to help finish it
             const approach = pickApproachTile(next, playerId, live, focusCity.coord);
-            next = moveToward(next, playerId, live, approach);
+            const flow = getFlowField(approach, { cacheKey: "siege-rider" });
+            next = moveToward(next, playerId, live, approach, undefined, flow);
             continue;
         }
 
@@ -152,14 +168,14 @@ export function runFocusSiegeAndCapture(state: GameState, playerId: string, ctx:
             ? Math.min(...anchorUnits.map(a => hexDistance(a.coord, live.coord)))
             : 0;
         if (nearestAnchorDist > 2) {
-            next = moveToward(next, playerId, live, rally);
+            next = moveToward(next, playerId, live, rally, undefined, rallyFlow);
         }
     }
 
     for (const u of others) {
         const live = next.units.find(x => x.id === u.id);
         if (!live || live.movesLeft <= 0) continue;
-        next = moveToward(next, playerId, live, rally);
+        next = moveToward(next, playerId, live, rally, undefined, rallyFlow);
     }
 
     return next;

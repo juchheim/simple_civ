@@ -62,6 +62,8 @@ describe('AI Siege Logic', () => {
                 state.map.tiles.push(createTestTile({ q, r }, 'p1'));
             }
         }
+        // Ensure full visibility for deterministic AI behavior in tests.
+        state.visibility['p1'] = state.map.tiles.map(t => `${t.coord.q},${t.coord.r}`);
 
         // Set up war
         state.diplomacy['p1'] = { 'p2': DiplomacyState.War };

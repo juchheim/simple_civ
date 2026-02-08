@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { GameState, PlayerPhase, DiplomacyState, UnitType, TechId } from "../../../core/types.js";
-import { hexDistance } from "../../../core/hex.js";
 import { isPerimeterCity } from "../../../game/ai2/defense-perimeter.js";
 import { shouldPrioritizeDefense } from "../../../game/ai2/production.js";
 

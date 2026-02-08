@@ -19,6 +19,16 @@ export type AiPlayerMemoryV2 = {
     warUnitsCount?: Record<string, number>;
     /** Last turn a city was captured in war with each opponent (for stalemate detection) */
     lastCityCaptureTurn?: Record<string, number>;
+    /** Siege wave currently active (if any) */
+    siegeWaveActive?: boolean;
+    /** Turn when current siege wave started */
+    siegeWaveStartTurn?: number;
+    /** Last turn focus city HP dropped during current wave */
+    siegeLastProgressTurn?: number;
+    /** Lowest HP reached by focus city in current wave */
+    siegeMinHpThisWave?: number;
+    /** Failed siege waves per focus city */
+    siegeFailureCount?: Record<string, number>;
     /** War preparation phase per target: 'buildup' | 'gathering' | 'positioning' | 'ready' */
     warPrepPhase?: Record<string, 'buildup' | 'gathering' | 'positioning' | 'ready'>;
     /** Turn when war prep started for each target */
@@ -39,6 +49,28 @@ export type AiPlayerMemoryV2 = {
     // Level 2: Focus Fire
     /** Current tactical unit focus for concentrated attacks */
     tacticalFocusUnitId?: string;
+
+    // Operational layer: theater management
+    operationalTheaters?: OperationalTheater[];
+    operationalTurn?: number;
+};
+
+export type OperationalObjective = "capture-capital" | "deny-progress" | "pressure" | "defend-border";
+
+export type OperationalTheater = {
+    id: string;
+    targetPlayerId: string;
+    targetCityId?: string;
+    anchorCityId?: string;
+    anchorCoord: { q: number; r: number };
+    targetCoord: { q: number; r: number };
+    objective: OperationalObjective;
+    priority: number;
+    threat: number;
+    friendly: number;
+    distance: number;
+    atWar: boolean;
+    cityCount: number;
 };
 
 export function getAiMemoryV2(state: GameState, playerId: string): AiPlayerMemoryV2 {
@@ -55,5 +87,3 @@ export function setAiMemoryV2(state: GameState, playerId: string, memory: AiPlay
         },
     };
 }
-
-

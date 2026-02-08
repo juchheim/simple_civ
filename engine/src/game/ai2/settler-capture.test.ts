@@ -27,27 +27,6 @@ function baseState(): GameState {
     };
 }
 
-function mkCity(ownerId: string, id: string, q: number, r: number, opts?: { capital?: boolean; hp?: number }): any {
-    return {
-        id,
-        name: id,
-        ownerId,
-        coord: { q, r },
-        pop: 3,
-        storedFood: 0,
-        storedProduction: 0,
-        buildings: [],
-        workedTiles: [{ q, r }],
-        currentBuild: null,
-        buildProgress: 0,
-        hp: opts?.hp ?? 20,
-        maxHp: 20,
-        isCapital: !!opts?.capital,
-        hasFiredThisTurn: false,
-        milestones: [],
-    };
-}
-
 function mkUnit(ownerId: string, id: string, type: UnitType, q: number, r: number, opts?: { hp?: number }): any {
     return {
         id,

@@ -10,11 +10,14 @@ import { DefenseMovePlan, getDefenseCityValueBonus, scoreDefenseMove } from "./d
 import { getTacticalTuning } from "./tuning.js";
 import { planMoveToward, moveToward } from "./movement.js";
 import { getAiMemoryV2 } from "./memory.js";
+import type { TacticalContext } from "./tactical-context.js";
 
 // v7.2: Capital should always have 1 garrison + 3 in ring (total 4 defenders)
 // Note: Only 1 unit can be IN the city, rest must be in adjacent tiles (ring)
 // Capitals ALWAYS get full defense regardless of perimeter status
 const CAPITAL_MIN_DEFENDERS = 4; // 1 inside + 3 in ring
+
+type GetFlowField = TacticalContext["getFlowField"];
 
 export function defendCapitalRing(
     state: GameState,
@@ -138,13 +141,15 @@ export function planCapitalRingDefense(
     capital: GameState["cities"][number] | null,
     cityCoords: Set<string>,
     reservedUnitIds: Set<string>,
-    reservedCoords: Set<string>
+    reservedCoords: Set<string>,
+    getFlowField?: GetFlowField
 ): DefenseMovePlan[] {
     if (!capital) return [];
 
     const plans: DefenseMovePlan[] = [];
     const capitalBonus = getDefenseCityValueBonus(state, playerId, capital);
     const capitalKey = `${capital.coord.q},${capital.coord.r}`;
+    const capitalFlow = getFlowField ? getFlowField(capital.coord, { cacheKey: "defense-capital" }) : undefined;
 
     const capitalGarrison = state.units.find(u =>
         u.ownerId === playerId &&
@@ -285,7 +290,7 @@ export function planCapitalRingDefense(
 
             if (!planned) {
                 // Use pure planMoveToward
-                const moveAction = planMoveToward(state, playerId, unit, capital.coord, reservedCoords);
+                const moveAction = planMoveToward(state, playerId, unit, capital.coord, reservedCoords, undefined, capitalFlow);
                 if (moveAction && moveAction.type === "MoveUnit") {
                     const destKey = `${moveAction.to.q},${moveAction.to.r}`;
                     plans.push({

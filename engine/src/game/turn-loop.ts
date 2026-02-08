@@ -29,6 +29,8 @@ import {
 } from "./actions/diplomacy.js";
 import { handleEndTurn, finalizeVictory } from "./turn-lifecycle.js";
 import { enforceLinkedUnitIntegrity } from "./helpers/movement.js";
+import { clearInfluenceMapCache } from "./ai2/influence-map.js";
+import { clearFlowFieldCache } from "./ai2/flow-field.js";
 
 export function applyAction(state: GameState, action: Action): GameState {
     const nextState = JSON.parse(JSON.stringify(state)) as GameState;
@@ -44,16 +46,28 @@ export function applyAction(state: GameState, action: Action): GameState {
     }
 
     let updatedState: GameState;
+    let shouldInvalidateInfluence = false;
+    const affectedPlayers = new Set<string>();
 
     switch (action.type) {
         case "MoveUnit":
             updatedState = handleMoveUnit(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "Attack":
+            if (action.targetType === "Unit") {
+                const targetUnit = nextState.units.find(u => u.id === action.targetId);
+                if (targetUnit?.ownerId) affectedPlayers.add(targetUnit.ownerId);
+            } else {
+                const targetCity = nextState.cities.find(c => c.id === action.targetId);
+                if (targetCity?.ownerId) affectedPlayers.add(targetCity.ownerId);
+            }
             updatedState = handleAttack(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "FoundCity":
             updatedState = handleFoundCity(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "ChooseTech":
             updatedState = handleChooseTech(nextState, action);
@@ -62,13 +76,20 @@ export function applyAction(state: GameState, action: Action): GameState {
             updatedState = handleSetCityBuild(nextState, action);
             break;
         case "RazeCity":
+            {
+                const targetCity = nextState.cities.find(c => c.id === action.cityId);
+                if (targetCity?.ownerId) affectedPlayers.add(targetCity.ownerId);
+            }
             updatedState = handleRazeCity(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "SetWorkedTiles":
             updatedState = handleSetWorkedTiles(nextState, action);
             break;
         case "SetDiplomacy":
+            affectedPlayers.add(action.targetPlayerId);
             updatedState = handleSetDiplomacy(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "ProposePeace":
             updatedState = handleProposePeace(nextState, action);
@@ -83,10 +104,14 @@ export function applyAction(state: GameState, action: Action): GameState {
             updatedState = handleProposeVisionShare(nextState, action);
             break;
         case "AcceptVisionShare":
+            affectedPlayers.add(action.targetPlayerId);
             updatedState = handleAcceptVisionShare(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "RevokeVisionShare":
+            affectedPlayers.add(action.targetPlayerId);
             updatedState = handleRevokeVisionShare(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "LinkUnits":
             updatedState = handleLinkUnits(nextState, action);
@@ -111,12 +136,14 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "SwapUnits":
             updatedState = handleSwapUnits(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "EndTurn":
             updatedState = handleEndTurn(nextState, action);
             break;
         case "Resign":
             updatedState = handleResign(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         default:
             updatedState = nextState;
@@ -124,6 +151,13 @@ export function applyAction(state: GameState, action: Action): GameState {
     }
 
     enforceLinkedUnitIntegrity(updatedState);
+    if (shouldInvalidateInfluence) {
+        affectedPlayers.add(action.playerId);
+        for (const playerId of affectedPlayers) {
+            clearInfluenceMapCache(playerId);
+            clearFlowFieldCache(playerId);
+        }
+    }
     return updatedState;
 }
 
