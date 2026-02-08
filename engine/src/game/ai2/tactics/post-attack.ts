@@ -12,7 +12,7 @@ export function runPostAttackPhase(
     playerId: string,
     tacticalContext: TacticalContext
 ): GameState {
-    const next = state;
+    let next = state;
     const ownersBefore = new Map(state.cities.map(c => [c.id, c.ownerId]));
 
     next = updateSiegeWaveMemory(next, playerId, tacticalContext);
