@@ -1,6 +1,5 @@
-import { City, GameState, HexCoord } from "../../core/types.js";
+import { BuildingType, City, GameState, HexCoord, OverlayType, TerrainType } from "../../core/types.js";
 import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, CITY_NAMES } from "../../core/constants.js";
-import { TerrainType } from "../../core/types.js";
 import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
 import { getTileYields } from "../rules.js";
 import { isTileAdjacentToRiver } from "../../map/rivers.js";
@@ -170,6 +169,7 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
     let food = base.F;
     let production = base.P;
     const science = base.S;
+    let gold = base.G;
 
     const adjRiver = isTileAdjacentToRiver(state.map, coord);
     if (adjRiver) {
@@ -184,10 +184,30 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
         production += 1;
     }
 
-    const total = food + production + science;
+    const isMarketHallGrowthPush = city.pop < 5 && (
+        city.buildings.includes(BuildingType.MarketHall) ||
+        (city.currentBuild?.type === "Building" && city.currentBuild.id === BuildingType.MarketHall)
+    );
+    if (isMarketHallGrowthPush) {
+        food += 1;
+    }
 
-    // Prioritize overall yield; tie-breaker prefers Food, then Production, then Science.
-    return total * 100 + food * 10 + production * 2 + science;
+    const hasOrBuildingBank = city.buildings.includes(BuildingType.Bank) ||
+        (city.currentBuild?.type === "Building" && city.currentBuild.id === BuildingType.Bank);
+    if (hasOrBuildingBank && tile.overlays.includes(OverlayType.OreVein)) {
+        production += 0.5;
+        gold += 2;
+    }
+
+    const netGold = player?.netGold ?? 0;
+    const treasury = player?.treasury ?? 0;
+    const underEconomicPressure = !!player?.austerityActive || netGold < 0 || treasury <= 20;
+    const goldWeight = underEconomicPressure ? 2 : 1;
+
+    const total = food + production + science + (gold * goldWeight);
+
+    // Prioritize overall yield; tie-breaker prefers Food, then Production, then Gold, then Science.
+    return total * 100 + food * 10 + production * 2 + gold * 2 + science;
 }
 
 export function captureCity(state: GameState, city: City, newOwnerId: string) {
@@ -272,9 +292,8 @@ export function createCity(
         ? options.name
         : getCityName(state, player?.civName || "", ownerId);
 
-    // JadeCovenant "Bountiful Harvest" passive: Cities start with +3 stored Food
-    // v6.6: Nerfed from 5 to 3 (was contributing to 40% win rate dominance)
-    const startingFood = options.startingFood ?? (player?.civName === "JadeCovenant" ? 2 : 0);
+    // Jade start-food bonus disabled; handled via other civ balance levers.
+    const startingFood = options.startingFood ?? 0;
 
     // v6.8: Calculate isCapital BEFORE setting hasFoundedFirstCity
     // The first city for a player is their capital

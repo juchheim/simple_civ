@@ -12,6 +12,7 @@ import { getAiProfileV2 } from "./rules.js";
 import { getGoalRequirements, getNextTechInChain, getGamePhase } from "./strategic-plan.js";
 import { evaluateBestVictoryPath } from "../ai/victory-evaluator.js";
 import { clamp01, pickBest } from "./util.js";
+import { computeEconomySnapshot } from "./economy/budget.js";
 
 // =============================================================================
 // TECH AVAILABILITY
@@ -69,13 +70,21 @@ const SIEGE_FOCUSED_CIVS = new Set([
 ]);
 
 const TECH_SCORE_WEIGHTS: Record<string, number> = {
-    goalChain: 0.45,
-    progressPivot: 0.18,
-    siegeUnlock: 0.12,
+    goalChain: 0.42,
+    progressPivot: 0.17,
+    siegeUnlock: 0.11,
     pathAffinity: 0.08,
-    profileWeight: 0.07,
+    profileWeight: 0.06,
     phaseFit: 0.06,
     cost: 0.04,
+    economySupport: 0.06,
+};
+
+const ECONOMY_UNLOCK_TECH_SCORES: Partial<Record<TechId, number>> = {
+    [TechId.Fieldcraft]: 1.0,
+    [TechId.Wellworks]: 0.95,
+    [TechId.UrbanPlans]: 0.85,
+    [TechId.ZeroPointEnergy]: 0.55,
 };
 
 function phaseFitScore(techId: TechId, phase: ReturnType<typeof getGamePhase>, goal: AiVictoryGoal): number {
@@ -124,6 +133,24 @@ function pathAffinityScore(techId: TechId, playerTechs: TechId[], path: TechId[]
     if (next && techId === next) return 1;
     if (path.includes(techId)) return 0.5;
     return 0;
+}
+
+function economySupportScore(techId: TechId, playerTechs: TechId[], economyPressure: boolean): number {
+    if (!economyPressure) return 0;
+    const score = ECONOMY_UNLOCK_TECH_SCORES[techId] ?? 0;
+    if (score <= 0) return 0;
+
+    if (techId === TechId.Wellworks && !playerTechs.includes(TechId.Fieldcraft)) {
+        return 0.7;
+    }
+    if (techId === TechId.UrbanPlans && !playerTechs.includes(TechId.Wellworks)) {
+        return 0.6;
+    }
+    if (techId === TechId.ZeroPointEnergy && !playerTechs.includes(TechId.UrbanPlans)) {
+        return 0.45;
+    }
+
+    return score;
 }
 
 type ProgressPivot = {
@@ -179,6 +206,7 @@ function scoreTechCandidate(input: {
     profileWeight: number;
     progressPivotScore: number;
     siegeUnlockActive: boolean;
+    economyPressure: boolean;
     minCost: number;
     maxCost: number;
 }): TechCandidateScore {
@@ -192,6 +220,7 @@ function scoreTechCandidate(input: {
         profileWeight,
         progressPivotScore,
         siegeUnlockActive,
+        economyPressure,
         minCost,
         maxCost,
     } = input;
@@ -204,6 +233,7 @@ function scoreTechCandidate(input: {
         profileWeight: clamp01(profileWeight / 2),
         phaseFit: phaseFitScore(techId, phase, goal),
         cost: computeCostScore(techId, minCost, maxCost),
+        economySupport: economySupportScore(techId, playerTechs, economyPressure),
     };
 
     const notes: string[] = [];
@@ -211,6 +241,7 @@ function scoreTechCandidate(input: {
     if (components.progressPivot > 0) notes.push("progress-pivot");
     if (components.siegeUnlock > 0) notes.push("siege-unlock");
     if (components.pathAffinity >= 1) notes.push("goal-path-next");
+    if (components.economySupport > 0) notes.push("econ-support");
 
     let weightedSum = 0;
     let totalWeight = 0;
@@ -252,6 +283,12 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
 
     const goalPath = profile.tech.pathsByGoal?.[goal] ?? [];
     const pivot = computeProgressPivotScore(state, playerId, player.techs);
+    const economySnapshot = computeEconomySnapshot(state, playerId);
+    const economyPressure = economySnapshot.economyState === "Strained"
+        || economySnapshot.economyState === "Crisis"
+        || economySnapshot.netGold <= 5
+        || economySnapshot.upkeepRatio > profile.economy.upkeepRatioLimit
+        || economySnapshot.usedSupply >= (economySnapshot.freeSupply - 1);
 
     const siegeUnlockActive =
         SIEGE_FOCUSED_CIVS.has(profile.civName) && !player.techs.includes(TechId.FormationTraining);
@@ -271,6 +308,7 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
             profileWeight: profile.tech.weights[techId] ?? 0,
             progressPivotScore: pivot.score,
             siegeUnlockActive,
+            economyPressure,
             minCost,
             maxCost,
         })

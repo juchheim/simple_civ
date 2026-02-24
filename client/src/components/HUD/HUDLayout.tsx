@@ -44,10 +44,13 @@ type TopRowProps = {
     isMyTurn: boolean;
     showCodex: boolean;
     onToggleCodex: (show: boolean) => void;
+    showEconomy: boolean;
+    onToggleEconomy: (show: boolean) => void;
     showDiplomacy: boolean;
     onToggleDiplomacy: (show: boolean) => void;
     showResearch: boolean;
     onToggleResearch: (show: boolean) => void;
+    playerEconomy: HUDLayoutProps["meta"]["playerEconomy"];
     diplomacyRows: DiplomacyRow[];
     playerId: string;
     onAction: (action: Action) => void;
@@ -64,10 +67,13 @@ export const TopRow: React.FC<TopRowProps> = ({
     isMyTurn,
     showCodex,
     onToggleCodex,
+    showEconomy,
+    onToggleEconomy,
     showDiplomacy,
     onToggleDiplomacy,
     showResearch,
     onToggleResearch,
+    playerEconomy,
     diplomacyRows,
     playerId,
     onAction,
@@ -112,6 +118,15 @@ export const TopRow: React.FC<TopRowProps> = ({
                 >
                     <Codex />
                 </ToggleCard>
+                <ToggleCard
+                    label="Economy"
+                    isOpen={showEconomy}
+                    onOpen={() => onToggleEconomy(true)}
+                    onClose={() => onToggleEconomy(false)}
+                    cardStyle={{ width: "420px", maxWidth: "90vw" }}
+                >
+                    <EconomySummary playerEconomy={playerEconomy} />
+                </ToggleCard>
                 {isMyTurn && (
                     <ToggleCard
                         label="Diplomacy"
@@ -144,6 +159,50 @@ export const TopRow: React.FC<TopRowProps> = ({
     );
 };
 
+type EconomySummaryProps = {
+    playerEconomy: HUDLayoutProps["meta"]["playerEconomy"];
+};
+
+const EconomySummary: React.FC<EconomySummaryProps> = ({ playerEconomy }) => (
+    <>
+        <p className="hud-section-title">Economy</p>
+        <div className="hud-economy-stack">
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Treasury</span>
+                <span className="hud-pill">{playerEconomy.treasury}G</span>
+            </div>
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Net</span>
+                <span className={`hud-pill ${playerEconomy.net >= 0 ? "success" : "warn"}`}>
+                    {playerEconomy.net >= 0 ? "+" : ""}{playerEconomy.net}G/turn
+                </span>
+            </div>
+            <div className="hud-economy-divider" />
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Income</span>
+                <span className="hud-economy-value">+{playerEconomy.income}G</span>
+            </div>
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Building Upkeep</span>
+                <span className="hud-economy-value">-{playerEconomy.buildingUpkeep}G</span>
+            </div>
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Military Upkeep</span>
+                <span className="hud-economy-value">-{playerEconomy.militaryUpkeep}G</span>
+            </div>
+            <div className="hud-economy-divider" />
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Used Supply</span>
+                <span className="hud-economy-value">{playerEconomy.usedSupply}</span>
+            </div>
+            <div className="hud-economy-row">
+                <span className="hud-economy-label">Free Supply</span>
+                <span className="hud-economy-value">{playerEconomy.freeSupply}</span>
+            </div>
+        </div>
+    </>
+);
+
 
 type TopLeftMenuProps = {
     showGameMenu: boolean;
@@ -159,7 +218,13 @@ type TopLeftMenuProps = {
     onToggleYields: () => void;
     showCombatPreview: boolean;
     onToggleCombatPreview: () => void;
+    musicEnabled?: boolean;
+    onToggleMusic?: () => void;
+    musicVolume?: number;
+    onMusicVolumeChange?: (volume: number) => void;
+    musicStatusLabel?: string;
     empireYields: EmpireYields;
+    playerEconomy: HUDLayoutProps["meta"]["playerEconomy"];
 };
 
 export const TopLeftMenu: React.FC<TopLeftMenuProps> = ({
@@ -176,7 +241,13 @@ export const TopLeftMenu: React.FC<TopLeftMenuProps> = ({
     onToggleYields,
     showCombatPreview,
     onToggleCombatPreview,
+    musicEnabled,
+    onToggleMusic,
+    musicVolume,
+    onMusicVolumeChange,
+    musicStatusLabel,
     empireYields,
+    playerEconomy,
 }) => (
     <div className="hud-top-left">
         <ToggleCard
@@ -197,12 +268,18 @@ export const TopLeftMenu: React.FC<TopLeftMenuProps> = ({
                 onToggleYields={onToggleYields}
                 showCombatPreview={showCombatPreview}
                 onToggleCombatPreview={onToggleCombatPreview}
+                musicEnabled={musicEnabled}
+                onToggleMusic={onToggleMusic}
+                musicVolume={musicVolume}
+                onMusicVolumeChange={onMusicVolumeChange}
+                musicStatusLabel={musicStatusLabel}
             />
         </ToggleCard>
         <div className="hud-empire-yields">
             <span className="hud-yield hud-yield--food" title="Food per turn"><img src="/ui/Food.png" alt="Food" className="hud-yield-icon" /> {empireYields.F}</span>
             <span className="hud-yield hud-yield--prod" title="Production per turn"><img src="/ui/Production.png" alt="Production" className="hud-yield-icon" /> {empireYields.P}</span>
             <span className="hud-yield hud-yield--science" title="Science per turn"><img src="/ui/Science.png" alt="Science" className="hud-yield-icon" /> {empireYields.S}</span>
+            <span className="hud-yield hud-yield--gold" title="Net gold per turn after upkeep"><img src="/ui/Gold.png" alt="Gold" className="hud-yield-icon" /> {playerEconomy.net >= 0 ? "+" : ""}{playerEconomy.net}</span>
         </div>
     </div>
 );
@@ -217,12 +294,14 @@ type SelectionStackProps = {
     onFoundCity: () => void;
     onToggleAutoExplore: () => void;
     onFortifyUnit: () => void;
+    onDisbandUnit: () => void;
     onCancelMovement: () => void;
     gameState: GameState;
     onSelectUnit: (unitId: string | null) => void;
     playerId: string;
     cityBuildOptions: CityBuildOptions;
     onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
+    onRushBuy: (cityId: string) => void;
     onRazeCity: () => void;
     onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
     onSelectCoord: (coord: HexCoord | null) => void;
@@ -239,12 +318,14 @@ export const SelectionStack: React.FC<SelectionStackProps> = ({
     onFoundCity,
     onToggleAutoExplore,
     onFortifyUnit,
+    onDisbandUnit,
     onCancelMovement,
     gameState,
     onSelectUnit,
     playerId,
     cityBuildOptions,
     onBuild,
+    onRushBuy,
     onRazeCity,
     onSetWorkedTiles,
     onSelectCoord,
@@ -269,6 +350,7 @@ export const SelectionStack: React.FC<SelectionStackProps> = ({
                             onFoundCity={onFoundCity}
                             onToggleAutoExplore={onToggleAutoExplore}
                             onFortifyUnit={onFortifyUnit}
+                            onDisbandUnit={onDisbandUnit}
                             onCancelMovement={onCancelMovement}
                             gameState={gameState}
                         />
@@ -292,6 +374,7 @@ export const SelectionStack: React.FC<SelectionStackProps> = ({
                         units={units}
                         buildOptions={cityBuildOptions}
                         onBuild={onBuild}
+                        onRushBuy={onRushBuy}
                         onRazeCity={onRazeCity}
                         onSetWorkedTiles={onSetWorkedTiles}
                         onSelectUnit={onSelectUnit}
@@ -311,6 +394,7 @@ type FriendlyCityPanelCardProps = {
     units: GameState["units"];
     buildOptions: CityBuildOptions;
     onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
+    onRushBuy: (cityId: string) => void;
     onRazeCity: () => void;
     onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
     onSelectUnit: (unitId: string | null) => void;
@@ -325,6 +409,7 @@ export const FriendlyCityPanelCard: React.FC<FriendlyCityPanelCardProps> = ({
     units,
     buildOptions,
     onBuild,
+    onRushBuy,
     onRazeCity,
     onSetWorkedTiles,
     onSelectUnit,
@@ -341,6 +426,7 @@ export const FriendlyCityPanelCard: React.FC<FriendlyCityPanelCardProps> = ({
                 units={units}
                 buildOptions={buildOptions}
                 onBuild={onBuild}
+                onRushBuy={onRushBuy}
                 onRazeCity={onRazeCity}
                 onSetWorkedTiles={onSetWorkedTiles}
                 onSelectUnit={onSelectUnit}
@@ -407,6 +493,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             isMyTurn,
             diplomacyRows,
             empireYields,
+            playerEconomy,
             mapView,
         },
         selection: {
@@ -425,6 +512,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             showResearch,
             showDiplomacy,
             showCodex,
+            showEconomy,
             showGameMenu,
             showShroud,
             showYields,
@@ -434,6 +522,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             setShowResearch,
             setShowDiplomacy,
             setShowCodex,
+            setShowEconomy,
             setShowGameMenu,
             onToggleShroud,
             onToggleYields,
@@ -447,6 +536,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             onQuit,
             onResign,
             onBuild,
+            onRushBuy,
             onRazeCity,
             onSetWorkedTiles,
             onLinkUnits,
@@ -454,9 +544,15 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             onFoundCity,
             onToggleAutoExplore,
             onFortifyUnit,
+            onDisbandUnit,
             onCancelMovement,
             onEndTurn,
             onShowTechTree,
+            musicEnabled,
+            onToggleMusic,
+            musicVolume,
+            onMusicVolumeChange,
+            musicStatusLabel,
         },
         tasks: {
             blockingTasks,
@@ -479,10 +575,13 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 isMyTurn={isMyTurn}
                 showCodex={showCodex}
                 onToggleCodex={setShowCodex}
+                showEconomy={showEconomy}
+                onToggleEconomy={setShowEconomy}
                 showDiplomacy={showDiplomacy}
                 onToggleDiplomacy={setShowDiplomacy}
                 showResearch={showResearch}
                 onToggleResearch={setShowResearch}
+                playerEconomy={playerEconomy}
                 diplomacyRows={diplomacyRows}
                 playerId={playerId}
                 onAction={onAction}
@@ -509,7 +608,13 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 onToggleYields={onToggleYields}
                 showCombatPreview={showCombatPreview}
                 onToggleCombatPreview={onToggleCombatPreview}
+                musicEnabled={musicEnabled}
+                onToggleMusic={onToggleMusic}
+                musicVolume={musicVolume}
+                onMusicVolumeChange={onMusicVolumeChange}
+                musicStatusLabel={musicStatusLabel}
                 empireYields={empireYields}
+                playerEconomy={playerEconomy}
             />
 
             <SelectionStack
@@ -532,12 +637,14 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 onFoundCity={onFoundCity}
                 onToggleAutoExplore={onToggleAutoExplore}
                 onFortifyUnit={onFortifyUnit}
+                onDisbandUnit={onDisbandUnit}
                 onCancelMovement={onCancelMovement}
                 gameState={gameState}
                 onSelectUnit={onSelectUnit}
                 playerId={playerId}
                 cityBuildOptions={buildOptions}
                 onBuild={onBuild}
+                onRushBuy={onRushBuy}
                 onRazeCity={onRazeCity}
                 onSetWorkedTiles={onSetWorkedTiles}
                 onSelectCoord={onSelectCoord}
@@ -552,6 +659,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 units={gameState.units}
                 buildOptions={buildOptions}
                 onBuild={onBuild}
+                onRushBuy={onRushBuy}
                 onRazeCity={onRazeCity}
                 onSetWorkedTiles={onSetWorkedTiles}
                 onSelectUnit={onSelectUnit}

@@ -21,7 +21,9 @@ export function buildLookupCache(state: GameState): LookupCache {
     const tileByKey = new Map<string, Tile>();
     const tilesByOwner = new Map<string, HexCoord[]>();
 
-    for (const tile of state.map.tiles) {
+    const mapTiles = Array.isArray(state.map?.tiles) ? state.map.tiles : [];
+    for (const tile of mapTiles) {
+        if (!tile.coord) continue;
         const key = hexToString(tile.coord);
         tileByKey.set(key, tile);
 
@@ -37,6 +39,7 @@ export function buildLookupCache(state: GameState): LookupCache {
 
     const unitByCoordKey = new Map<string, Unit>();
     for (const unit of state.units) {
+        if (!unit.coord) continue;
         const key = hexToString(unit.coord);
         // If multiple units on same tile, keep the first (shouldn't happen normally)
         if (!unitByCoordKey.has(key)) {
@@ -46,12 +49,13 @@ export function buildLookupCache(state: GameState): LookupCache {
 
     const cityByCoordKey = new Map<string, City>();
     for (const city of state.cities) {
+        if (!city.coord) continue;
         const key = hexToString(city.coord);
         cityByCoordKey.set(key, city);
     }
 
     const visibilitySet = new Map<string, Set<string>>();
-    for (const [playerId, visibleKeys] of Object.entries(state.visibility)) {
+    for (const [playerId, visibleKeys] of Object.entries(state.visibility ?? {})) {
         visibilitySet.set(playerId, new Set(visibleKeys));
     }
 

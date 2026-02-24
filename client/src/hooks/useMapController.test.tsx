@@ -88,6 +88,8 @@ describe("useMapController", () => {
 
         // Mock svg ref
         const mockSvg = {
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
             getBoundingClientRect: () => ({ left: 0, top: 0 }),
         };
         Object.defineProperty(result.current.svgRef, "current", {
@@ -113,7 +115,12 @@ describe("useMapController", () => {
         });
 
         expect(result.current.isPanning).toBe(true);
-        expect(result.current.pan.x).toBeGreaterThan(0); // Should have moved
+
+        act(() => {
+            result.current.handleMouseUp();
+        });
+
+        expect(result.current.pan.x).toBeGreaterThan(0);
     });
 
     it("pans when mouse is near edge after delay", async () => {
@@ -139,7 +146,13 @@ describe("useMapController", () => {
 
         // Mock svg ref
         Object.defineProperty(result.current.svgRef, "current", {
-            value: { clientWidth: 800, clientHeight: 600, getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+            value: {
+                clientWidth: 800,
+                clientHeight: 600,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                getBoundingClientRect: () => ({ left: 0, top: 0 }),
+            },
             writable: true,
         });
 
@@ -162,6 +175,15 @@ describe("useMapController", () => {
                 vi.advanceTimersByTime(20);
             });
         }
+
+        // End edge-pan loop and flush final state sync from ref -> React state.
+        act(() => {
+            result.current.handleMouseLeave();
+        });
+        fakeTime += 20;
+        await act(async () => {
+            vi.advanceTimersByTime(20);
+        });
 
         // Should have panned right (pan.x increases to move view left)
         expect(result.current.pan.x).toBeGreaterThan(initialPanX);

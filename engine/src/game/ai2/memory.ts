@@ -53,6 +53,8 @@ export type AiPlayerMemoryV2 = {
     // Operational layer: theater management
     operationalTheaters?: OperationalTheater[];
     operationalTurn?: number;
+    /** Last turn this civ executed at least one economic rush-buy. */
+    lastEconomicRushBuyTurn?: number;
 };
 
 export type OperationalObjective = "capture-capital" | "deny-progress" | "pressure" | "defend-border";

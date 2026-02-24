@@ -1,6 +1,6 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
-import { MapSize, UnitType, DiplomacyState, ProjectId } from "../core/types.js";
+import { BuildingType, DiplomacyState, MapSize, OverlayType, ProjectId, TechId, UnitType } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
@@ -18,6 +18,425 @@ import {
 
 // Disable AI debug logging for simulation performance
 setAiDebug(false);
+
+const GOLD_BUILDINGS_FOR_TELEMETRY: BuildingType[] = [
+    BuildingType.TradingPost,
+    BuildingType.MarketHall,
+    BuildingType.Bank,
+    BuildingType.Exchange,
+];
+
+type EconomyPhase = "early" | "mid" | "late";
+
+type EconomyPhaseAccumulator = {
+    samples: number;
+    grossGoldTotal: number;
+    buildingUpkeepTotal: number;
+    militaryUpkeepTotal: number;
+    netGoldTotal: number;
+    treasuryTotal: number;
+    deficitTurns: number;
+    austerityTurns: number;
+};
+
+type EconomyAccumulator = {
+    civId: string;
+    civName: string;
+    samples: number;
+    grossGoldTotal: number;
+    buildingUpkeepTotal: number;
+    militaryUpkeepTotal: number;
+    netGoldTotal: number;
+    treasuryTotal: number;
+    treasuryMin: number;
+    treasuryMax: number;
+    usedSupplyTotal: number;
+    freeSupplyTotal: number;
+    upkeepRatioTotal: number;
+    deficitTurns: number;
+    positiveNetTurns: number;
+    austerityTurns: number;
+    enteredAusterityCount: number;
+    recoveredFromAusterityCount: number;
+    maxConsecutiveAusterity: number;
+    currentConsecutiveAusterity: number;
+    supplyPressureTurns: number;
+    zeroTreasuryDeficitTurns: number;
+    atWarTurns: number;
+    atWarNetGoldTotal: number;
+    atWarDeficitTurns: number;
+    atWarAusterityTurns: number;
+    bankConditionalCitySamples: number;
+    bankConditionalActiveSamples: number;
+    rushBuyCount: number;
+    rushBuyGoldSpent: number;
+    rushBuyGoldSaved: number;
+    lastRushBuyCount: number;
+    lastRushBuyGoldSpent: number;
+    lastRushBuyGoldSaved: number;
+    exchangeUnlockTurn: number | null;
+    exchangeFirstBuildTurn: number | null;
+    exchangeUnlockToFirstBuildDelay: number | null;
+    goldBuildingFirstCompletionTurn: Partial<Record<BuildingType, number>>;
+    phase: Record<EconomyPhase, EconomyPhaseAccumulator>;
+    lastAusterityActive: boolean;
+};
+
+type EconomyPhaseSummary = {
+    samples: number;
+    grossGoldTotal: number;
+    buildingUpkeepTotal: number;
+    militaryUpkeepTotal: number;
+    netGoldTotal: number;
+    treasuryTotal: number;
+    deficitTurns: number;
+    austerityTurns: number;
+    avgGrossGold: number;
+    avgBuildingUpkeep: number;
+    avgMilitaryUpkeep: number;
+    avgNetGold: number;
+    avgTreasury: number;
+    deficitTurnRate: number;
+    austerityTurnRate: number;
+};
+
+type EconomySummaryEntry = {
+    civId: string;
+    civName: string;
+    samples: number;
+    grossGoldTotal: number;
+    buildingUpkeepTotal: number;
+    militaryUpkeepTotal: number;
+    netGoldTotal: number;
+    treasuryTotal: number;
+    avgGrossGold: number;
+    avgBuildingUpkeep: number;
+    avgMilitaryUpkeep: number;
+    avgTotalUpkeep: number;
+    avgNetGold: number;
+    avgTreasury: number;
+    treasuryMin: number;
+    treasuryMax: number;
+    avgUsedSupply: number;
+    avgFreeSupply: number;
+    avgUpkeepRatio: number;
+    deficitTurns: number;
+    positiveNetTurns: number;
+    deficitTurnRate: number;
+    austerityTurns: number;
+    austerityTurnRate: number;
+    enteredAusterityCount: number;
+    recoveredFromAusterityCount: number;
+    maxConsecutiveAusterity: number;
+    supplyPressureTurns: number;
+    supplyPressureRate: number;
+    zeroTreasuryDeficitTurns: number;
+    atWarTurns: number;
+    atWarTurnRate: number;
+    avgAtWarNetGold: number;
+    atWarDeficitTurnRate: number;
+    atWarAusterityTurnRate: number;
+    bankConditionalCitySamples: number;
+    bankConditionalActiveSamples: number;
+    bankConditionalUptimeRate: number;
+    rushBuyCount: number;
+    rushBuyGoldSpent: number;
+    rushBuyGoldSaved: number;
+    rushBuyDiscountUtilizationRate: number;
+    avgRushBuyGoldSaved: number;
+    exchangeUnlockTurn: number | null;
+    exchangeFirstBuildTurn: number | null;
+    exchangeUnlockToFirstBuildDelay: number | null;
+    goldBuildingFirstCompletionTurn: Partial<Record<BuildingType, number>>;
+    phase: Record<EconomyPhase, EconomyPhaseSummary>;
+};
+
+type EconomySummary = Record<string, EconomySummaryEntry>;
+
+function createPhaseAccumulator(): EconomyPhaseAccumulator {
+    return {
+        samples: 0,
+        grossGoldTotal: 0,
+        buildingUpkeepTotal: 0,
+        militaryUpkeepTotal: 0,
+        netGoldTotal: 0,
+        treasuryTotal: 0,
+        deficitTurns: 0,
+        austerityTurns: 0,
+    };
+}
+
+function createEconomyAccumulator(civId: string, civName: string): EconomyAccumulator {
+    return {
+        civId,
+        civName,
+        samples: 0,
+        grossGoldTotal: 0,
+        buildingUpkeepTotal: 0,
+        militaryUpkeepTotal: 0,
+        netGoldTotal: 0,
+        treasuryTotal: 0,
+        treasuryMin: Number.POSITIVE_INFINITY,
+        treasuryMax: Number.NEGATIVE_INFINITY,
+        usedSupplyTotal: 0,
+        freeSupplyTotal: 0,
+        upkeepRatioTotal: 0,
+        deficitTurns: 0,
+        positiveNetTurns: 0,
+        austerityTurns: 0,
+        enteredAusterityCount: 0,
+        recoveredFromAusterityCount: 0,
+        maxConsecutiveAusterity: 0,
+        currentConsecutiveAusterity: 0,
+        supplyPressureTurns: 0,
+        zeroTreasuryDeficitTurns: 0,
+        atWarTurns: 0,
+        atWarNetGoldTotal: 0,
+        atWarDeficitTurns: 0,
+        atWarAusterityTurns: 0,
+        bankConditionalCitySamples: 0,
+        bankConditionalActiveSamples: 0,
+        rushBuyCount: 0,
+        rushBuyGoldSpent: 0,
+        rushBuyGoldSaved: 0,
+        lastRushBuyCount: 0,
+        lastRushBuyGoldSpent: 0,
+        lastRushBuyGoldSaved: 0,
+        exchangeUnlockTurn: null,
+        exchangeFirstBuildTurn: null,
+        exchangeUnlockToFirstBuildDelay: null,
+        goldBuildingFirstCompletionTurn: {},
+        phase: {
+            early: createPhaseAccumulator(),
+            mid: createPhaseAccumulator(),
+            late: createPhaseAccumulator(),
+        },
+        lastAusterityActive: false,
+    };
+}
+
+function getEconomyPhase(turn: number): EconomyPhase {
+    if (turn <= 100) return "early";
+    if (turn <= 200) return "mid";
+    return "late";
+}
+
+function isPlayerAtWar(state: ReturnType<typeof generateWorld>, playerId: string): boolean {
+    for (const other of state.players) {
+        if (other.id === playerId || other.isEliminated) continue;
+        if (state.diplomacy[playerId]?.[other.id] === DiplomacyState.War) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function ratio(part: number, total: number): number {
+    return total > 0 ? part / total : 0;
+}
+
+function cityHasWorkedOreVein(state: ReturnType<typeof generateWorld>, cityId: string): boolean {
+    const city = state.cities.find(c => c.id === cityId);
+    if (!city) return false;
+    for (const coord of city.workedTiles) {
+        const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
+        if (tile?.overlays.includes(OverlayType.OreVein)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function recordEconomySample(
+    economyByCiv: Map<string, EconomyAccumulator>,
+    state: ReturnType<typeof generateWorld>,
+    playerId: string
+): void {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const acc = economyByCiv.get(playerId);
+    if (!acc) return;
+
+    const grossGold = player.grossGold ?? 0;
+    const buildingUpkeep = player.buildingUpkeep ?? 0;
+    const militaryUpkeep = player.militaryUpkeep ?? 0;
+    const netGold = player.netGold ?? 0;
+    const treasury = player.treasury ?? 0;
+    const usedSupply = player.usedSupply ?? 0;
+    const freeSupply = player.freeSupply ?? 0;
+    const austerityActive = player.austerityActive ?? false;
+    const totalUpkeep = buildingUpkeep + militaryUpkeep;
+    const upkeepRatio = grossGold > 0 ? totalUpkeep / grossGold : (totalUpkeep > 0 ? 1 : 0);
+    const atWar = isPlayerAtWar(state, playerId);
+
+    acc.samples += 1;
+    acc.grossGoldTotal += grossGold;
+    acc.buildingUpkeepTotal += buildingUpkeep;
+    acc.militaryUpkeepTotal += militaryUpkeep;
+    acc.netGoldTotal += netGold;
+    acc.treasuryTotal += treasury;
+    acc.treasuryMin = Math.min(acc.treasuryMin, treasury);
+    acc.treasuryMax = Math.max(acc.treasuryMax, treasury);
+    acc.usedSupplyTotal += usedSupply;
+    acc.freeSupplyTotal += freeSupply;
+    acc.upkeepRatioTotal += upkeepRatio;
+
+    if (netGold < 0) acc.deficitTurns += 1;
+    if (netGold >= 0) acc.positiveNetTurns += 1;
+    if (usedSupply > freeSupply) acc.supplyPressureTurns += 1;
+    if (treasury === 0 && netGold < 0) acc.zeroTreasuryDeficitTurns += 1;
+
+    if (austerityActive) {
+        acc.austerityTurns += 1;
+        acc.currentConsecutiveAusterity += 1;
+        acc.maxConsecutiveAusterity = Math.max(acc.maxConsecutiveAusterity, acc.currentConsecutiveAusterity);
+    } else {
+        acc.currentConsecutiveAusterity = 0;
+    }
+
+    if (!acc.lastAusterityActive && austerityActive) {
+        acc.enteredAusterityCount += 1;
+    } else if (acc.lastAusterityActive && !austerityActive) {
+        acc.recoveredFromAusterityCount += 1;
+    }
+    acc.lastAusterityActive = austerityActive;
+
+    if (atWar) {
+        acc.atWarTurns += 1;
+        acc.atWarNetGoldTotal += netGold;
+        if (netGold < 0) acc.atWarDeficitTurns += 1;
+        if (austerityActive) acc.atWarAusterityTurns += 1;
+    }
+
+    const ownedCities = state.cities.filter(city => city.ownerId === playerId);
+    const bankCities = ownedCities.filter(city => city.buildings.includes(BuildingType.Bank));
+    if (bankCities.length > 0) {
+        acc.bankConditionalCitySamples += bankCities.length;
+        for (const bankCity of bankCities) {
+            if (cityHasWorkedOreVein(state, bankCity.id)) {
+                acc.bankConditionalActiveSamples += 1;
+            }
+        }
+    }
+
+    const cumulativeRushBuyCount = player.rushBuyCount ?? 0;
+    const cumulativeRushBuySpent = player.rushBuyGoldSpent ?? 0;
+    const cumulativeRushBuySaved = player.rushBuyGoldSaved ?? 0;
+    const rushBuyCountDelta = Math.max(0, cumulativeRushBuyCount - acc.lastRushBuyCount);
+    const rushBuySpentDelta = Math.max(0, cumulativeRushBuySpent - acc.lastRushBuyGoldSpent);
+    const rushBuySavedDelta = Math.max(0, cumulativeRushBuySaved - acc.lastRushBuyGoldSaved);
+    acc.rushBuyCount += rushBuyCountDelta;
+    acc.rushBuyGoldSpent += rushBuySpentDelta;
+    acc.rushBuyGoldSaved += rushBuySavedDelta;
+    acc.lastRushBuyCount = cumulativeRushBuyCount;
+    acc.lastRushBuyGoldSpent = cumulativeRushBuySpent;
+    acc.lastRushBuyGoldSaved = cumulativeRushBuySaved;
+
+    if (acc.exchangeUnlockTurn === null && player.techs.includes(TechId.SignalRelay)) {
+        acc.exchangeUnlockTurn = state.turn;
+    }
+    if (acc.exchangeFirstBuildTurn === null && ownedCities.some(city => city.buildings.includes(BuildingType.Exchange))) {
+        acc.exchangeFirstBuildTurn = state.turn;
+    }
+    if (acc.exchangeUnlockToFirstBuildDelay === null && acc.exchangeUnlockTurn !== null && acc.exchangeFirstBuildTurn !== null) {
+        acc.exchangeUnlockToFirstBuildDelay = Math.max(0, acc.exchangeFirstBuildTurn - acc.exchangeUnlockTurn);
+    }
+
+    const phase = getEconomyPhase(state.turn);
+    const phaseAcc = acc.phase[phase];
+    phaseAcc.samples += 1;
+    phaseAcc.grossGoldTotal += grossGold;
+    phaseAcc.buildingUpkeepTotal += buildingUpkeep;
+    phaseAcc.militaryUpkeepTotal += militaryUpkeep;
+    phaseAcc.netGoldTotal += netGold;
+    phaseAcc.treasuryTotal += treasury;
+    if (netGold < 0) phaseAcc.deficitTurns += 1;
+    if (austerityActive) phaseAcc.austerityTurns += 1;
+}
+
+function summarizePhase(acc: EconomyPhaseAccumulator): EconomyPhaseSummary {
+    return {
+        samples: acc.samples,
+        grossGoldTotal: acc.grossGoldTotal,
+        buildingUpkeepTotal: acc.buildingUpkeepTotal,
+        militaryUpkeepTotal: acc.militaryUpkeepTotal,
+        netGoldTotal: acc.netGoldTotal,
+        treasuryTotal: acc.treasuryTotal,
+        deficitTurns: acc.deficitTurns,
+        austerityTurns: acc.austerityTurns,
+        avgGrossGold: ratio(acc.grossGoldTotal, acc.samples),
+        avgBuildingUpkeep: ratio(acc.buildingUpkeepTotal, acc.samples),
+        avgMilitaryUpkeep: ratio(acc.militaryUpkeepTotal, acc.samples),
+        avgNetGold: ratio(acc.netGoldTotal, acc.samples),
+        avgTreasury: ratio(acc.treasuryTotal, acc.samples),
+        deficitTurnRate: ratio(acc.deficitTurns, acc.samples),
+        austerityTurnRate: ratio(acc.austerityTurns, acc.samples),
+    };
+}
+
+function finalizeEconomySummary(economyByCiv: Map<string, EconomyAccumulator>): EconomySummary {
+    const summary: EconomySummary = {};
+    economyByCiv.forEach(acc => {
+        const samples = acc.samples;
+        const rushBuyVolume = acc.rushBuyGoldSpent + acc.rushBuyGoldSaved;
+        summary[acc.civId] = {
+            civId: acc.civId,
+            civName: acc.civName,
+            samples,
+            grossGoldTotal: acc.grossGoldTotal,
+            buildingUpkeepTotal: acc.buildingUpkeepTotal,
+            militaryUpkeepTotal: acc.militaryUpkeepTotal,
+            netGoldTotal: acc.netGoldTotal,
+            treasuryTotal: acc.treasuryTotal,
+            avgGrossGold: ratio(acc.grossGoldTotal, samples),
+            avgBuildingUpkeep: ratio(acc.buildingUpkeepTotal, samples),
+            avgMilitaryUpkeep: ratio(acc.militaryUpkeepTotal, samples),
+            avgTotalUpkeep: ratio(acc.buildingUpkeepTotal + acc.militaryUpkeepTotal, samples),
+            avgNetGold: ratio(acc.netGoldTotal, samples),
+            avgTreasury: ratio(acc.treasuryTotal, samples),
+            treasuryMin: Number.isFinite(acc.treasuryMin) ? acc.treasuryMin : 0,
+            treasuryMax: Number.isFinite(acc.treasuryMax) ? acc.treasuryMax : 0,
+            avgUsedSupply: ratio(acc.usedSupplyTotal, samples),
+            avgFreeSupply: ratio(acc.freeSupplyTotal, samples),
+            avgUpkeepRatio: ratio(acc.upkeepRatioTotal, samples),
+            deficitTurns: acc.deficitTurns,
+            positiveNetTurns: acc.positiveNetTurns,
+            deficitTurnRate: ratio(acc.deficitTurns, samples),
+            austerityTurns: acc.austerityTurns,
+            austerityTurnRate: ratio(acc.austerityTurns, samples),
+            enteredAusterityCount: acc.enteredAusterityCount,
+            recoveredFromAusterityCount: acc.recoveredFromAusterityCount,
+            maxConsecutiveAusterity: acc.maxConsecutiveAusterity,
+            supplyPressureTurns: acc.supplyPressureTurns,
+            supplyPressureRate: ratio(acc.supplyPressureTurns, samples),
+            zeroTreasuryDeficitTurns: acc.zeroTreasuryDeficitTurns,
+            atWarTurns: acc.atWarTurns,
+            atWarTurnRate: ratio(acc.atWarTurns, samples),
+            avgAtWarNetGold: ratio(acc.atWarNetGoldTotal, acc.atWarTurns),
+            atWarDeficitTurnRate: ratio(acc.atWarDeficitTurns, acc.atWarTurns),
+            atWarAusterityTurnRate: ratio(acc.atWarAusterityTurns, acc.atWarTurns),
+            bankConditionalCitySamples: acc.bankConditionalCitySamples,
+            bankConditionalActiveSamples: acc.bankConditionalActiveSamples,
+            bankConditionalUptimeRate: ratio(acc.bankConditionalActiveSamples, acc.bankConditionalCitySamples),
+            rushBuyCount: acc.rushBuyCount,
+            rushBuyGoldSpent: acc.rushBuyGoldSpent,
+            rushBuyGoldSaved: acc.rushBuyGoldSaved,
+            rushBuyDiscountUtilizationRate: ratio(acc.rushBuyGoldSaved, rushBuyVolume),
+            avgRushBuyGoldSaved: ratio(acc.rushBuyGoldSaved, acc.rushBuyCount),
+            exchangeUnlockTurn: acc.exchangeUnlockTurn,
+            exchangeFirstBuildTurn: acc.exchangeFirstBuildTurn,
+            exchangeUnlockToFirstBuildDelay: acc.exchangeUnlockToFirstBuildDelay,
+            goldBuildingFirstCompletionTurn: acc.goldBuildingFirstCompletionTurn,
+            phase: {
+                early: summarizePhase(acc.phase.early),
+                mid: summarizePhase(acc.phase.mid),
+                late: summarizePhase(acc.phase.late),
+            },
+        };
+    });
+    return summary;
+}
 
 function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
     // Pass seed to civList for randomized civ selection
@@ -45,6 +464,10 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     const warsLoggedThisTurn = new Set<string>();
     const peaceLoggedThisTurn = new Set<string>();
     const eliminationsLogged = new Set<string>();
+    const economyByCiv = new Map<string, EconomyAccumulator>();
+    state.players.forEach(player => {
+        economyByCiv.set(player.id, createEconomyAccumulator(player.id, player.civName));
+    });
 
     let winTurn: number | null = null;
 
@@ -53,7 +476,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 
         // Capture snapshot BEFORE turn
         const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, hp: u.hp }]));
-        if (state.currentPlayerId === state.players[0].id) {
+        if (state.currentPlayerId === state.players[0].id && process.env.SIM_QUIET !== "true") {
             console.log(`--- TURN ${state.turn} ---`);
         }
         const beforeCities = new Map(state.cities.map(c => [c.id, { ownerId: c.ownerId, pop: c.pop, buildings: [...c.buildings] }]));
@@ -76,6 +499,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         });
 
         state = runAiTurn(state, actingPlayerId);
+        recordEconomySample(economyByCiv, state, actingPlayerId);
 
         // Detect changes and log events
 
@@ -228,6 +652,12 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                             owner: currentCity.ownerId,
                             building,
                         });
+                        if (GOLD_BUILDINGS_FOR_TELEMETRY.includes(building)) {
+                            const economyAcc = economyByCiv.get(currentCity.ownerId);
+                            if (economyAcc && economyAcc.goldBuildingFirstCompletionTurn[building] === undefined) {
+                                economyAcc.goldBuildingFirstCompletionTurn[building] = state.turn;
+                            }
+                        }
                     }
                 });
             }
@@ -399,6 +829,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         civName: p.civName,
         isEliminated: p.isEliminated || false,
     }));
+    const economySummary = finalizeEconomySummary(economyByCiv);
 
     return {
         seed,
@@ -411,6 +842,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         turnSnapshots,
         finalState: createTurnSnapshot(state),
         participatingCivs,
+        economySummary,
     };
 }
 

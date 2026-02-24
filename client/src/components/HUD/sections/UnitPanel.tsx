@@ -14,6 +14,7 @@ type UnitPanelProps = {
     onFoundCity: () => void;
     onToggleAutoExplore: () => void;
     onFortifyUnit: () => void;
+    onDisbandUnit: () => void;
     onCancelMovement: () => void;
     gameState: GameState;
 };
@@ -29,6 +30,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
     onFoundCity,
     onToggleAutoExplore,
     onFortifyUnit,
+    onDisbandUnit,
     onCancelMovement,
     gameState,
 }) => {
@@ -81,6 +83,7 @@ export const UnitPanel: React.FC<UnitPanelProps> = ({
                     onFoundCity={onFoundCity}
                     onToggleAutoExplore={onToggleAutoExplore}
                     onCancelMovement={onCancelMovement}
+                    onDisbandUnit={onDisbandUnit}
                     tutorial={tutorial}
                 />
             )}
@@ -123,6 +126,7 @@ type UnitActionsProps = {
     onFoundCity: () => void;
     onToggleAutoExplore: () => void;
     onFortifyUnit: () => void;
+    onDisbandUnit: () => void;
     onCancelMovement: () => void;
     tutorial: ReturnType<typeof useTutorial>;
 };
@@ -138,6 +142,7 @@ const UnitActions: React.FC<UnitActionsProps> = ({
     onFoundCity,
     onToggleAutoExplore,
     onFortifyUnit,
+    onDisbandUnit,
     onCancelMovement,
     tutorial,
 }) => {
@@ -187,36 +192,39 @@ const UnitActions: React.FC<UnitActionsProps> = ({
                     Fortify
                 </button>
             </div>
-            {unit.type === UnitType.Settler && isMyTurn && (
-                <button
-                    className={`hud-button small primary ${tutorial.shouldPulse("foundedFirstCity") ? "pulse" : ""}`}
-                    style={{ marginTop: 8 }}
-                    onClick={handleFoundCity}
-                    title={tutorial.getTooltip("selectedSettler")}
-                >
-                    Found City
-                </button>
-            )}
-            {(unit.type === UnitType.Scout || UNITS[unit.type].domain === UnitDomain.Naval) && isMyTurn && (
-                <button
-                    className={`hud-button small ${tutorial.shouldPulse("usedAutoExplore") ? "pulse" : ""}`}
-                    style={{ marginTop: 8 }}
-                    onClick={handleAutoExplore}
-                    title={tutorial.getTooltip("usedAutoExplore")}
-                >
-                    {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
-                </button>
-            )}
-            {unit.autoMoveTarget && isMyTurn && (
-                <button className="hud-button small ghost" style={{ marginTop: 8 }} onClick={onCancelMovement}>
-                    Cancel Movement
-                </button>
+            {isMyTurn && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                    {unit.type === UnitType.Settler && (
+                        <button
+                            className={`hud-button small primary ${tutorial.shouldPulse("foundedFirstCity") ? "pulse" : ""}`}
+                            onClick={handleFoundCity}
+                            title={tutorial.getTooltip("selectedSettler")}
+                        >
+                            Found City
+                        </button>
+                    )}
+                    {(unit.type === UnitType.Scout || UNITS[unit.type].domain === UnitDomain.Naval) && (
+                        <button
+                            className={`hud-button small ${tutorial.shouldPulse("usedAutoExplore") ? "pulse" : ""}`}
+                            onClick={handleAutoExplore}
+                            title={tutorial.getTooltip("usedAutoExplore")}
+                        >
+                            {unit.isAutoExploring ? "Stop Auto Explore" : "Auto Explore"}
+                        </button>
+                    )}
+                    {unit.autoMoveTarget && (
+                        <button className="hud-button small ghost" onClick={onCancelMovement}>
+                            Cancel Movement
+                        </button>
+                    )}
+                    <button className="hud-button small danger" onClick={onDisbandUnit}>
+                        Disband
+                    </button>
+                </div>
             )}
         </>
     );
 };
-
-
 
 
 

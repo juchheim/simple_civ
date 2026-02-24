@@ -13,6 +13,11 @@ type GameMenuProps = {
     onToggleYields: () => void;
     showCombatPreview: boolean;
     onToggleCombatPreview: () => void;
+    musicEnabled?: boolean;
+    onToggleMusic?: () => void;
+    musicVolume?: number;
+    onMusicVolumeChange?: (volume: number) => void;
+    musicStatusLabel?: string;
 };
 
 export const GameMenu: React.FC<GameMenuProps> = ({
@@ -27,6 +32,11 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     onToggleYields,
     showCombatPreview,
     onToggleCombatPreview,
+    musicEnabled,
+    onToggleMusic,
+    musicVolume,
+    onMusicVolumeChange,
+    musicStatusLabel,
 }) => {
     const [showPreferences, setShowPreferences] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -150,6 +160,42 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                             />
                             Show combat preview
                         </label>
+                        {onToggleMusic && (
+                            <>
+                                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={musicEnabled ?? true}
+                                        onChange={() => onToggleMusic()}
+                                        style={{ width: 16, height: 16, cursor: "pointer" }}
+                                    />
+                                    Play background music
+                                </label>
+                                {onMusicVolumeChange && (
+                                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "#e5e7eb" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <span>Music volume</span>
+                                            <span style={{ opacity: 0.75 }}>{Math.round((musicVolume ?? 0.35) * 100)}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={1}
+                                            step={0.05}
+                                            value={musicVolume ?? 0.35}
+                                            onChange={e => onMusicVolumeChange(Number(e.target.value))}
+                                            disabled={!(musicEnabled ?? true)}
+                                            style={{ width: "100%" }}
+                                        />
+                                    </label>
+                                )}
+                                {musicStatusLabel && (
+                                    <div style={{ fontSize: 12, color: "rgba(229, 231, 235, 0.75)" }}>
+                                        {musicStatusLabel}
+                                    </div>
+                                )}
+                            </>
+                        )}
                         <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 0" }} />
                         <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
                             <input

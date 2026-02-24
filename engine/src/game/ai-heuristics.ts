@@ -1,4 +1,4 @@
-import { CITY_CENTER_MIN_FOOD, CITY_CENTER_MIN_PROD, TERRAIN } from "../core/constants.js";
+import { CITY_CENTER_MIN_FOOD, CITY_CENTER_MIN_GOLD, CITY_CENTER_MIN_PROD, TERRAIN } from "../core/constants.js";
 import { getTileYields } from "./rules.js";
 import { hexSpiral, hexDistance, hexEquals } from "../core/hex.js";
 import { GameState, OverlayType, Tile, TerrainType } from "../core/types.js";
@@ -28,31 +28,40 @@ function tileValue(
     tile: Tile,
     state: GameState | { map: { tiles: Tile[]; rivers?: { a: Tile["coord"]; b: Tile["coord"] }[] } },
     asCenter: boolean,
+    playerId?: string,
 ): number {
     const y = getTileYields(tile);
     const adjRiver = isTileAdjacentToRiver(state.map as GameState["map"], tile.coord);
+    let goldWeight = 1;
+    if (playerId && "players" in state) {
+        const player = (state as GameState).players.find(p => p.id === playerId);
+        const underPressure = !!player?.austerityActive || (player?.netGold ?? 0) < 0 || (player?.treasury ?? 0) <= 20;
+        goldWeight = underPressure ? 2 : 1;
+    }
     const val = {
         F: y.F + (adjRiver ? 1 : 0),
         P: y.P,
         S: y.S,
+        G: y.G,
     };
 
     if (asCenter) {
         val.F = Math.max(val.F, CITY_CENTER_MIN_FOOD);
         val.P = Math.max(val.P, CITY_CENTER_MIN_PROD);
+        val.G = Math.max(val.G, CITY_CENTER_MIN_GOLD);
     }
 
-    return val.F + val.P + val.S;
+    return val.F + val.P + val.S + (val.G * goldWeight);
 }
 
-function bestNearbyTiles(tile: Tile, state: GameState | { map: { tiles: Tile[] } }, count: number): Tile[] {
+function bestNearbyTiles(tile: Tile, state: GameState | { map: { tiles: Tile[] } }, count: number, playerId?: string): Tile[] {
     const nearby = hexSpiral(tile.coord, 2)
         .filter(c => !hexEquals(c, tile.coord))
         .map(coord => state.map.tiles.find(t => hexEquals(t.coord, coord)))
         .filter((t): t is Tile => !!t && TERRAIN[t.terrain].workable);
 
     const scored = nearby
-        .map(t => ({ t, v: tileValue(t, state, false) }))
+        .map(t => ({ t, v: tileValue(t, state, false, playerId) }))
         .sort((a, b) => b.v - a.v);
     return scored.slice(0, count).map(s => s.t);
 }
@@ -105,8 +114,8 @@ export function scoreCitySite(
     playerId?: string,
     personality?: AiPersonality
 ): number {
-    const centerY = tileValue(tile, state, true);
-    const best3 = bestNearbyTiles(tile, state, 3).reduce((s, t) => s + tileValue(t, state, false), 0);
+    const centerY = tileValue(tile, state, true, playerId);
+    const best3 = bestNearbyTiles(tile, state, 3, playerId).reduce((s, t) => s + tileValue(t, state, false, playerId), 0);
     const riverBonus = isRiverCity(tile, state) ? 1 : 0;
     const overlayBonus = countNearbyOverlays(tile, state, 2);
     const distancePenalty = cityDistancePenalty(tile, state, playerId);

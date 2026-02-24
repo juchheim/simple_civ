@@ -1,0 +1,21 @@
+[
+    {
+        "era": "Aether",
+        "fileName": "aether-loop.wav",
+        "prompt": "Aether era soundtrack loop, futuristic neoclassical acoustic trio, shimmering felt piano arpeggios, airy guitar textures, bowed and pizzicato upright bass, elegant and mysterious, restrained dynamics.",
+        "input": {
+            "steps": 130,
+            "cfg_scale": 7,
+            "sampler_type": "dpmpp-3m-sde",
+            "sigma_min": 0.03,
+            "sigma_max": 500,
+            "init_noise_level": 1,
+            "batch_size": 1,
+            "prompt": "Aether era soundtrack loop, futuristic neoclassical acoustic trio, shimmering felt piano arpeggios, airy guitar textures, bowed and pizzicato upright bass, elegant and mysterious, restrained dynamics. Instrumental only. Primary instruments must be felt piano, acoustic guitar, and upright bass. Keep clear melody, harmony, and groove. No cinematic impacts, no synthetic sound design, no vocals. Seamless loop with no intro or outro tail.",
+            "negative_prompt": "lyrics, vocals, spoken word, atonal noise, distortion, glitch, harsh dissonance, sound effects, trailer hit, abrupt ending, hard stop",
+            "seconds_start": 0,
+            "seconds_total": 24
+        },
+        "outputUrl": "https://replicate.delivery/xezq/Ql9YY5Qtyv6uA1GBoMDTUAHnht7xagacRmFxc7xVffE4R5KWA/output.wav"
+    }
+]

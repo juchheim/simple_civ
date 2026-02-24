@@ -1,4 +1,4 @@
-export { handleMoveUnit, handleLinkUnits, handleUnlinkUnits, handleFortifyUnit, handleSwapUnits } from "./unit-movement.js";
+export { handleMoveUnit, handleLinkUnits, handleUnlinkUnits, handleFortifyUnit, handleDisbandUnit, handleSwapUnits } from "./unit-movement.js";
 export { handleAttack } from "./unit-combat.js";
 export {
     handleSetAutoMoveTarget,

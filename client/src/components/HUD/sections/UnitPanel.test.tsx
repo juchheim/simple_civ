@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { UnitPanel } from "./UnitPanel";
 import { GameState, PlayerPhase, Unit, UnitState, UnitType, EraId } from "@simple-civ/engine";
+import { TutorialProvider } from "../../../contexts/TutorialContext";
 
 const createUnit = (overrides: Partial<Unit> = {}): Unit => ({
     id: "unit-1",
@@ -35,10 +36,13 @@ const mockGameState: GameState = {
     nativeCamps: [],
 };
 
+const renderWithTutorial = (ui: Parameters<typeof render>[0]) =>
+    render(ui, { wrapper: TutorialProvider });
+
 describe("UnitPanel", () => {
     it("reflects link button enablement and hides found city when not my turn", () => {
         const unit = createUnit({ type: UnitType.Scout });
-        render(
+        renderWithTutorial(
             <UnitPanel
                 unit={unit}
                 linkedPartner={null}
@@ -50,6 +54,7 @@ describe("UnitPanel", () => {
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={vi.fn()}
+                onDisbandUnit={vi.fn()}
                 onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
@@ -58,6 +63,7 @@ describe("UnitPanel", () => {
         expect(screen.getByRole("button", { name: "Link" })).toBeDisabled();
         expect(screen.getByRole("button", { name: "Unlink" })).toBeEnabled();
         expect(screen.queryByText("Found City")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Disband" })).not.toBeInTheDocument();
     });
 
     it("fires callbacks when actions are enabled", () => {
@@ -65,9 +71,10 @@ describe("UnitPanel", () => {
         const onUnlink = vi.fn();
         const onFoundCity = vi.fn();
         const onFortify = vi.fn();
+        const onDisband = vi.fn();
         const unit = createUnit();
 
-        render(
+        renderWithTutorial(
             <UnitPanel
                 unit={unit}
                 linkedPartner={null}
@@ -79,6 +86,7 @@ describe("UnitPanel", () => {
                 onFoundCity={onFoundCity}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={onFortify}
+                onDisbandUnit={onDisband}
                 onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
@@ -87,17 +95,19 @@ describe("UnitPanel", () => {
         fireEvent.click(screen.getByRole("button", { name: "Link" }));
         fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
         fireEvent.click(screen.getByText("Found City"));
+        fireEvent.click(screen.getByRole("button", { name: "Disband" }));
 
         expect(onLink).toHaveBeenCalledTimes(1);
         expect(onUnlink).toHaveBeenCalledTimes(1);
         expect(onFoundCity).toHaveBeenCalledTimes(1);
+        expect(onDisband).toHaveBeenCalledTimes(1);
     });
 
     it("enables Fortify button for eligible units", () => {
         const onFortify = vi.fn();
         const unit = createUnit({ type: UnitType.Scout, movesLeft: 1, state: UnitState.Normal });
 
-        render(
+        renderWithTutorial(
             <UnitPanel
                 unit={unit}
                 linkedPartner={null}
@@ -109,6 +119,7 @@ describe("UnitPanel", () => {
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={onFortify}
+                onDisbandUnit={vi.fn()}
                 onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
@@ -123,7 +134,7 @@ describe("UnitPanel", () => {
     it("disables Fortify button for Settlers", () => {
         const unit = createUnit({ type: UnitType.Settler, movesLeft: 1 });
 
-        render(
+        renderWithTutorial(
             <UnitPanel
                 unit={unit}
                 linkedPartner={null}
@@ -135,6 +146,7 @@ describe("UnitPanel", () => {
                 onFoundCity={vi.fn()}
                 onToggleAutoExplore={vi.fn()}
                 onFortifyUnit={vi.fn()}
+                onDisbandUnit={vi.fn()}
                 onCancelMovement={vi.fn()}
                 gameState={mockGameState}
             />,
@@ -143,4 +155,3 @@ describe("UnitPanel", () => {
         expect(screen.getByRole("button", { name: "Fortify" })).toBeDisabled();
     });
 });
-

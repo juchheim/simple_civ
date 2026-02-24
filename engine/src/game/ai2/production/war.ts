@@ -3,7 +3,7 @@ import { City, GameState, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 
-const SIEGE_FOCUSED_CIVS = ["ForgeClans", "RiverLeague", "JadeCovenant", "AetherianVanguard"];
+const SIEGE_FOCUSED_CIVS = ["ForgeClans", "RiverLeague", "AetherianVanguard"];
 
 export function pickTrebuchetProduction(
     state: GameState,

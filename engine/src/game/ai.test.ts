@@ -80,8 +80,41 @@ describe("ai heuristics", () => {
             { a: center.coord, b: best3.coord },
         ];
         const score = scoreCitySite(center as any, state as any);
-        // With river adjacency on nearby tiles: center 5 + best tiles (3 + 4 + 3) + river bonus 1 + overlay bonus 3 = 19
-        expect(score).toBeCloseTo(19);
+        // With city-center min gold and nearby river tiles: center 5 + best tiles (5 + 5 + 3) + river bonus 1 + overlay bonus 3 = 22
+        expect(score).toBeCloseTo(22);
+    });
+
+    it("increases gold-heavy settlement valuation under economic pressure", () => {
+        const state = baseState();
+        state.players = [{
+            id: "p",
+            civName: "ForgeClans",
+            techs: [],
+            currentTech: null,
+            completedProjects: [],
+            isEliminated: false,
+            currentEra: "Hearth",
+            netGold: -4,
+            treasury: 0,
+            austerityActive: true,
+        }] as any;
+
+        const center = { coord: hex(0, 0), terrain: TerrainType.Desert, overlays: [OverlayType.SacredSite] };
+        const neighbors = [
+            { coord: hex(1, 0), terrain: TerrainType.Plains, overlays: [] },
+            { coord: hex(1, -1), terrain: TerrainType.Plains, overlays: [] },
+            { coord: hex(0, -1), terrain: TerrainType.Plains, overlays: [] },
+            { coord: hex(-1, 0), terrain: TerrainType.Plains, overlays: [] },
+        ];
+        state.map.tiles = [center, ...neighbors] as any;
+
+        const pressured = scoreCitySite(center as any, state as any, "p");
+        state.players[0].netGold = 4;
+        state.players[0].treasury = 100;
+        state.players[0].austerityActive = false;
+        const stable = scoreCitySite(center as any, state as any, "p");
+
+        expect(pressured).toBeGreaterThan(stable);
     });
 
     it("orders tile working priority per goal and behind-curve food bias", () => {

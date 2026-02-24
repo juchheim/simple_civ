@@ -169,7 +169,7 @@ export const HexTile: React.FC<HexTileProps> = React.memo(({ tile, hexPoints, he
             {showTileYields && (isVisible || isFogged) && (
                 <g style={{ pointerEvents: "none" }}>
                     {(() => {
-                        const label = `${yields.F}F ${yields.P}P ${yields.S}S`;
+                        const label = `${yields.F}F ${yields.P}P ${yields.S}S ${yields.G}G`;
                         const labelWidth = Math.max(60, label.length * 7);
                         const labelHeight = 18;
                         const labelY = hexSize * 0.55;

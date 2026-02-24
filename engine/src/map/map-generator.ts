@@ -17,7 +17,7 @@ import {
     NativeCamp,
     AiSystem,
 } from "../core/types.js";
-import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS, FORGE_CLANS_EXTRA_STARTING_UNITS, NATIVE_CAMP_COUNTS, NATIVE_CAMP_MIN_DISTANCE_FROM_START, NATIVE_CAMP_MIN_DISTANCE_BETWEEN } from "../core/constants.js";
+import { MAP_DIMS, UNITS, AETHERIAN_EXTRA_STARTING_UNITS, FORGE_CLANS_EXTRA_STARTING_UNITS, NATIVE_CAMP_COUNTS, NATIVE_CAMP_MIN_DISTANCE_FROM_START, NATIVE_CAMP_MIN_DISTANCE_BETWEEN, STARTING_TREASURY } from "../core/constants.js";
 import { hexEquals, hexToString, hexSpiral, getNeighbors, hexDistance } from "../core/hex.js";
 import { getTileYields } from "../game/rules.js";
 import { scoreCitySite } from "../game/ai-heuristics.js";
@@ -217,6 +217,14 @@ function createPlayers(rawPlayers: WorldGenSettings["players"]): Player[] {
         completedProjects: [],
         isEliminated: false,
         currentEra: EraId.Primitive,
+        treasury: STARTING_TREASURY,
+        grossGold: 0,
+        buildingUpkeep: 0,
+        militaryUpkeep: 0,
+        netGold: 0,
+        usedSupply: 0,
+        freeSupply: 0,
+        austerityActive: false,
     }));
 }
 

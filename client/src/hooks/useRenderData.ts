@@ -69,6 +69,7 @@ export const useRenderData = ({
         let food = base.F;
         let production = base.P;
         const science = base.S;
+        const gold = base.G;
 
         const adjRiver = Array.isArray((gameState.map as any)?.rivers)
             ? isTileAdjacentToRiver(gameState.map, tile.coord)
@@ -76,7 +77,7 @@ export const useRenderData = ({
         if (civ === "RiverLeague" && adjRiver) food += 1;
         if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) production += 1;
 
-        return { F: food, P: production, S: science };
+        return { F: food, P: production, S: science, G: gold };
     }, [gameState.map, playerId, playersById]);
 
     const citiesByCoord = useMemo(() => {

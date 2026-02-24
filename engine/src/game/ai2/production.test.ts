@@ -74,6 +74,7 @@ function mkPlayer(id: string, civName: string, techs: TechId[] = BASE_TECHS): an
         completedProjects: [],
         isEliminated: false,
         currentEra: "Hearth",
+        treasury: 200,
     };
 }
 
@@ -138,7 +139,7 @@ describe("UtilityV2 AI production (characterization)", () => {
         state.cities = [
             mkCity("p1", "c1", 0, 0, { capital: true, pop: 1 }),
         ];
-        state.cities[0].buildings = [BuildingType.Scriptorium, BuildingType.Farmstead];
+        state.cities[0].buildings = [BuildingType.Scriptorium, BuildingType.Farmstead, BuildingType.TradingPost];
         // Player has 5 Melee units (SpearGuard) and 0 Ranged
         state.units = [
             mkUnit("p1", "u1", UnitType.SpearGuard, 0, 1),
@@ -151,7 +152,22 @@ describe("UtilityV2 AI production (characterization)", () => {
         // Should normally pick capture unit (SpearGuard), but with 5:0 split, we want BowGuard if we fix it
         // For reproduction, we assert the CURRENT behavior (which is incorrect) to verify the test setup
         // After fix, we will update expectation to UnitType.BowGuard
-        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+        const neutralEconomy: any = {
+            grossGold: 14,
+            buildingUpkeep: 4,
+            militaryUpkeep: 0,
+            netGold: 10,
+            treasury: 200,
+            reserveFloor: 40,
+            deficitRiskTurns: Number.POSITIVE_INFINITY,
+            economyState: "Healthy",
+            spendableTreasury: 160,
+            usedSupply: 3,
+            freeSupply: 6,
+            upkeepRatio: 0.29,
+            atWar: false,
+        };
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced", neutralEconomy);
 
         // CURRENT BUGGY BEHAVIOR: Ignores composition, picks Capture unit (SpearGuard)
         // We will change this expectation to BowGuard after applying the fix
@@ -167,7 +183,7 @@ describe("UtilityV2 AI production (characterization)", () => {
         state.cities = [
             mkCity("p1", "c1", 0, 0, { capital: true, pop: 1 }),
         ];
-        state.cities[0].buildings = [BuildingType.Scriptorium, BuildingType.Farmstead];
+        state.cities[0].buildings = [BuildingType.Scriptorium, BuildingType.Farmstead, BuildingType.TradingPost];
         // State: 3 Spears, 2 Bows, 0 Riders.
         // Ratio 3:2:0. Riders deficit is largest (target ~1 per 6, actual 0).
         state.units = [
@@ -178,7 +194,22 @@ describe("UtilityV2 AI production (characterization)", () => {
             mkUnit("p1", "u5", UnitType.BowGuard, 2, 0),
         ];
 
-        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+        const neutralEconomy: any = {
+            grossGold: 14,
+            buildingUpkeep: 4,
+            militaryUpkeep: 0,
+            netGold: 10,
+            treasury: 200,
+            reserveFloor: 40,
+            deficitRiskTurns: Number.POSITIVE_INFINITY,
+            economyState: "Healthy",
+            spendableTreasury: 160,
+            usedSupply: 3,
+            freeSupply: 6,
+            upkeepRatio: 0.29,
+            atWar: false,
+        };
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced", neutralEconomy);
         expect(build).toEqual({ type: "Unit", id: UnitType.Riders });
     });
 });

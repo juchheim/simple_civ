@@ -37,16 +37,69 @@ interface HUDProps {
     onNavigateMap: (point: { x: number; y: number }) => void;
     showGameMenu: boolean;
     onToggleGameMenu: (show: boolean) => void;
+    musicEnabled?: boolean;
+    onToggleMusic?: () => void;
+    musicVolume?: number;
+    onMusicVolumeChange?: (volume: number) => void;
+    musicStatusLabel?: string;
 }
 
-export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnitId, onAction, onSelectUnit, onSelectCoord, onShowTechTree, playerId, onSave, onLoad, onRestart, onQuit, onResign, showShroud, onToggleShroud, showYields, onToggleYields, showCombatPreview, onToggleCombatPreview, onCenterCity, mapView, onNavigateMap, showGameMenu, onToggleGameMenu }) => {
+export const HUD: React.FC<HUDProps> = ({
+    gameState,
+    selectedCoord,
+    selectedUnitId,
+    onAction,
+    onSelectUnit,
+    onSelectCoord,
+    onShowTechTree,
+    playerId,
+    onSave,
+    onLoad,
+    onRestart,
+    onQuit,
+    onResign,
+    showShroud,
+    onToggleShroud,
+    showYields,
+    onToggleYields,
+    showCombatPreview,
+    onToggleCombatPreview,
+    onCenterCity,
+    mapView,
+    onNavigateMap,
+    showGameMenu,
+    onToggleGameMenu,
+    musicEnabled,
+    onToggleMusic,
+    musicVolume,
+    onMusicVolumeChange,
+    musicStatusLabel,
+}) => {
     const { units, cities, currentPlayerId } = gameState;
     const isMyTurn = currentPlayerId === playerId;
     const player = React.useMemo(() => gameState.players.find(p => p.id === playerId), [gameState.players, playerId]);
     const empireYields = React.useMemo(() => calculateEmpireYields(cities, playerId, gameState), [cities, gameState, playerId]);
+    const playerEconomy = React.useMemo(() => {
+        const income = player?.grossGold ?? empireYields.G;
+        const buildingUpkeep = player?.buildingUpkeep ?? 0;
+        const militaryUpkeep = player?.militaryUpkeep ?? 0;
+        const usedSupply = player?.usedSupply ?? 0;
+        const freeSupply = player?.freeSupply ?? 0;
+        const net = player?.netGold ?? (income - buildingUpkeep - militaryUpkeep);
+        return {
+            treasury: player?.treasury ?? 0,
+            income,
+            buildingUpkeep,
+            militaryUpkeep,
+            usedSupply,
+            freeSupply,
+            net,
+        };
+    }, [empireYields.G, player]);
     const [showResearch, setShowResearch] = React.useState(false);
     const [showDiplomacy, setShowDiplomacy] = React.useState(false);
     const [showCodex, setShowCodex] = React.useState(false);
+    const [showEconomy, setShowEconomy] = React.useState(false);
 
     const { unitsOnTile, selectedUnit, linkedPartner, linkCandidate } = useSelectedUnits({
         selectedCoord,
@@ -57,7 +110,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         onSelectUnit,
     });
 
-    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore, handleFortifyUnit, handleCancelMovement } = useUnitActions({
+    const { canLinkUnits, canUnlinkUnits, handleLinkUnits, handleUnlinkUnits, handleFoundCity, handleToggleAutoExplore, handleFortifyUnit, handleDisbandUnit, handleCancelMovement } = useUnitActions({
         isMyTurn,
         selectedUnit,
         linkCandidate,
@@ -95,6 +148,13 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
         if (!window.confirm("Raze this city? This will remove it permanently.")) return;
         onAction({ type: "RazeCity", playerId, cityId: selectedCity.id });
     }, [selectedCity, onAction, playerId]);
+
+    const handleRushBuy = React.useCallback(
+        (cityId: string) => {
+            onAction({ type: "RushBuyProduction", playerId, cityId });
+        },
+        [onAction, playerId],
+    );
 
 
 
@@ -162,6 +222,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             isMyTurn,
             diplomacyRows,
             empireYields,
+            playerEconomy,
             mapView,
         },
         selection: {
@@ -180,6 +241,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             showResearch,
             showDiplomacy,
             showCodex,
+            showEconomy,
             showGameMenu,
             showShroud,
             showYields,
@@ -189,6 +251,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             setShowResearch,
             setShowDiplomacy,
             setShowCodex,
+            setShowEconomy,
             setShowGameMenu: onToggleGameMenu,
             onToggleShroud,
             onToggleYields,
@@ -202,6 +265,7 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             onQuit,
             onResign,
             onBuild: handleBuild,
+            onRushBuy: handleRushBuy,
             onRazeCity: handleRazeCity,
             onSetWorkedTiles: handleSetWorkedTiles,
             onLinkUnits: handleLinkUnits,
@@ -209,9 +273,15 @@ export const HUD: React.FC<HUDProps> = ({ gameState, selectedCoord, selectedUnit
             onFoundCity: handleFoundCity,
             onToggleAutoExplore: handleToggleAutoExplore,
             onFortifyUnit: handleFortifyUnit,
+            onDisbandUnit: handleDisbandUnit,
             onCancelMovement: handleCancelMovement,
             onEndTurn: handleEndTurn,
             onShowTechTree,
+            musicEnabled,
+            onToggleMusic,
+            musicVolume,
+            onMusicVolumeChange,
+            musicStatusLabel,
         },
         tasks: {
             blockingTasks,

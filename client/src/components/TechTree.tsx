@@ -65,10 +65,32 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         if (building.yieldFlat?.F) parts.push(`+${building.yieldFlat.F}F`);
         if (building.yieldFlat?.P) parts.push(`+${building.yieldFlat.P}P`);
         if (building.yieldFlat?.S) parts.push(`+${building.yieldFlat.S}S`);
+        const baseGold = building.yieldFlat?.G ?? 0;
+        const upkeep = building.maintenance ?? 0;
+        if (baseGold > 0 && upkeep > 0) {
+            const netGold = baseGold - upkeep;
+            parts.push(`${netGold >= 0 ? "+" : ""}${netGold}G net`);
+        } else if (baseGold > 0) {
+            parts.push(`+${baseGold}G`);
+        } else if (upkeep > 0) {
+            parts.push(`-${upkeep}G`);
+        }
         if (building.defenseBonus) parts.push(`+${building.defenseBonus}Def`);
         if (building.cityAttackBonus) parts.push(`+${building.cityAttackBonus}Atk`);
         if (building.growthMult) parts.push(`+${Math.round((1 - building.growthMult) * 100)}%Gro`);
         return parts.join(" ");
+    };
+
+    const getAdditionalBuildingUnlocks = (techId: TechId, primaryUnlock?: string): Array<{ name: string; stats: string }> => {
+        return Object.entries(BUILDINGS)
+            .filter(([buildingId, data]) => data.techReq === techId && buildingId !== primaryUnlock)
+            .map(([buildingId]) => {
+                const id = buildingId as BuildingType;
+                return {
+                    name: formatName(id),
+                    stats: getCompactBuildingStats(id),
+                };
+            });
     };
 
     // Get civ-specific unique building for a tech
@@ -116,6 +138,10 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         const isCurrent = state === "current";
         const unlock = getUnlockInfo(tech);
         const civUnique = getCivUniqueBuilding(techId);
+        const additionalBuildingUnlocks = getAdditionalBuildingUnlocks(
+            techId,
+            tech.unlock.type === "Building" ? tech.unlock.id : undefined
+        );
 
         const handleClick = () => {
             if (state === "available") {
@@ -162,6 +188,19 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                     <span className="tech-card-unlock-type">{unlock.type}:</span> {unlock.name}
                     {unlock.stats && <span className="tech-card-unlock-stats">{unlock.stats}</span>}
                 </div>
+
+                {additionalBuildingUnlocks.length > 0 && (
+                    <div className="tech-card-unlock">
+                        <span className="tech-card-unlock-type">Also:</span>{" "}
+                        {additionalBuildingUnlocks.map((unlockData, index) => (
+                            <span key={`${techId}-also-${unlockData.name}`}>
+                                {index > 0 ? ", " : ""}
+                                {unlockData.name}
+                                {unlockData.stats ? ` (${unlockData.stats})` : ""}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 {/* Civ-specific unique */}
                 {civUnique && (

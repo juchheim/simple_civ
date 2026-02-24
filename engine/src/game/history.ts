@@ -1,7 +1,8 @@
 
 import { GameState, HistoryEventType, TurnStats, HexCoord } from "../core/types.js";
-import { getCityYields } from "./rules.js";
+import { getCityYields, getPlayerGoldLedger } from "./rules.js";
 import { UNITS } from "../core/constants.js";
+import { buildLookupCache } from "./helpers/lookup-cache.js";
 
 /**
  * Logs a significant game event to the history.
@@ -38,13 +39,16 @@ export function recordTurnStats(state: GameState, playerId: string) {
     const cities = state.cities.filter(c => c.ownerId === playerId);
     let totalScience = 0;
     let totalProduction = 0;
+    const cache = buildLookupCache(state);
 
     cities.forEach(c => {
         if (!c.coord) return;
-        const yields = getCityYields(c, state);
+        const yields = getCityYields(c, state, cache);
         totalScience += yields.S;
         totalProduction += yields.P;
     });
+
+    const goldLedger = getPlayerGoldLedger(state, playerId, cache);
 
     // Military Strength estimation
     const units = state.units.filter(u => u.ownerId === playerId);
@@ -54,7 +58,7 @@ export function recordTurnStats(state: GameState, playerId: string) {
     }, 0);
 
     // Territory
-    const territory = state.map.tiles.filter(t => t.ownerId === playerId).length;
+    const territory = (state.map?.tiles ?? []).filter(t => t.ownerId === playerId).length;
 
     // Score (Simple aggregate for now)
     const score = (cities.length * 10) + (player.techs.length * 5) + (territory) + (militaryScore * 0.5);
@@ -66,6 +70,7 @@ export function recordTurnStats(state: GameState, playerId: string) {
             science: totalScience,
             production: totalProduction,
             military: Math.floor(militaryScore),
+            gold: goldLedger.netGold,
             territory,
             score: Math.floor(score),
         }

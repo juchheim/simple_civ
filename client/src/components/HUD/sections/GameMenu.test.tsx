@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { GameMenu } from "./GameMenu";
+import { TutorialProvider } from "../../../contexts/TutorialContext";
+
+const renderWithTutorial = (ui: Parameters<typeof render>[0]) =>
+    render(ui, { wrapper: TutorialProvider });
 
 describe("GameMenu", () => {
     const defaultProps = {
@@ -18,7 +22,7 @@ describe("GameMenu", () => {
     };
 
     it("renders all menu options", () => {
-        render(<GameMenu {...defaultProps} />);
+        renderWithTutorial(<GameMenu {...defaultProps} />);
 
         expect(screen.getByText("Preferences")).toBeInTheDocument();
         expect(screen.getByText("Save Game")).toBeInTheDocument();
@@ -28,28 +32,28 @@ describe("GameMenu", () => {
     });
 
     it("calls onRestart when Restart Game is clicked", () => {
-        render(<GameMenu {...defaultProps} />);
+        renderWithTutorial(<GameMenu {...defaultProps} />);
 
         fireEvent.click(screen.getByText("Restart Game"));
         expect(defaultProps.onRestart).toHaveBeenCalled();
     });
 
     it("calls onSave when Save Game is clicked", () => {
-        render(<GameMenu {...defaultProps} />);
+        renderWithTutorial(<GameMenu {...defaultProps} />);
 
         fireEvent.click(screen.getByText("Save Game"));
         expect(defaultProps.onSave).toHaveBeenCalled();
     });
 
     it("calls onLoad when Load Game is clicked", () => {
-        render(<GameMenu {...defaultProps} />);
+        renderWithTutorial(<GameMenu {...defaultProps} />);
 
         fireEvent.click(screen.getByText("Load Game"));
         expect(defaultProps.onLoad).toHaveBeenCalled();
     });
 
     it("calls onQuit when Quit is clicked", () => {
-        render(<GameMenu {...defaultProps} />);
+        renderWithTutorial(<GameMenu {...defaultProps} />);
 
         fireEvent.click(screen.getByText("Quit to Main Menu"));
         expect(defaultProps.onQuit).toHaveBeenCalled();

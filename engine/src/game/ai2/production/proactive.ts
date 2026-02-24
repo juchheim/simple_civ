@@ -24,22 +24,19 @@ export function pickProactiveReinforcementBuild(
     const isStaging = !!memory.focusTargetPlayerId;
     if (!atWar && !isStaging) return null;
 
-    // Condition 2: Don't bankrupt the civ
-    // (Assuming standard resource structure, if not, skip check to avoid lints)
-    const pAny = context.player as any;
-    const gold = pAny.resources ? pAny.resources.gold : 100;
-    const income = pAny.yields ? pAny.yields.gold : 10;
+    // Condition 2: Respect economy state and civ-specific deficit tolerance.
+    const economy = context.economy;
+    if (economy.economyState === "Crisis") return null;
+    if (economy.netGold < 0 && economy.deficitRiskTurns <= context.profile.economy.deficitToleranceTurns) return null;
+    if (!isStaging && economy.upkeepRatio > context.profile.economy.upkeepRatioLimit) return null;
 
-    if (gold < 50 && income < 5) return null;
-
-    // Condition 3: Context-Sensitive Cap (v9.0)
-    // Defensive civs (Scholar/Starborne) were turtling too hard with 3.5 units/city.
-    // Aggressive civs (Forge/Jade/River) need MORE units to break through.
-
-    // Aggressive: ForgeClans, JadeCovenant, RiverLeague, AetherianVanguard
-    // Defensive: ScholarKingdoms, StarborneSeekers (and defaults)
-    const isDefensive = ["ScholarKingdoms", "StarborneSeekers"].includes(context.profile.civName);
-    const capPerCity = isDefensive ? 2.5 : 6.0; // v9.0: Buffed aggressors to 6.0 (was 4.0)
+    // Condition 3: Context-sensitive military cap.
+    // Jade runs wide and can over-spend if treated like full conquest aggressors.
+    const civName = context.profile.civName;
+    const isDefensive = ["ScholarKingdoms", "StarborneSeekers"].includes(civName);
+    const capPerCity = civName === "JadeCovenant"
+        ? 3.8
+        : (isDefensive ? 2.5 : 6.0);
 
     const militaryCount = context.myMilitaryUnits.length;
     const cityCount = context.myCities.length;
@@ -59,12 +56,12 @@ export function pickProactiveReinforcementBuild(
     const riderCount = context.myMilitaryUnits.filter(u => u.type === UnitType.Riders || u.type === UnitType.ArmyRiders).length;
 
     // Target ratios vary by civ type:
-    // - Aggressive civs (Forge/Jade/River/Aetherian): 2:2:1.5 (more riders for flanking)
-    // - Defensive civs (Scholar/Starborne): 3:2:1 (standard)
+    // - Conquest-heavy civs (Forge/River/Aetherian): 2:2:1.5 (more riders for flanking)
+    // - Others, including Jade: 3:2:1 (standard)
     // We just pick the one that is most "behind" relative to the others
     // Normalize: Spear/ratio, Bow/ratio, Rider/ratio. Lowest number needs the most help.
 
-    const isAggressive = ["ForgeClans", "JadeCovenant", "RiverLeague", "AetherianVanguard"].includes(profile.civName);
+    const isAggressive = ["ForgeClans", "RiverLeague", "AetherianVanguard"].includes(profile.civName);
     const spearRatio = isAggressive ? 2.0 : 3.0;
     const bowRatio = 2.0;
     const riderRatio = isAggressive ? 1.5 : 1.0; // More riders for aggressive civs

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { HUD } from "../HUD";
+import { TutorialProvider } from "../../contexts/TutorialContext";
 import {
     GameState,
     Unit,
@@ -116,6 +117,9 @@ const mockMapView: MapViewport = {
     center: { x: 0, y: 0 },
 };
 
+const renderWithTutorial = (ui: Parameters<typeof render>[0]) =>
+    render(ui, { wrapper: TutorialProvider });
+
 describe("HUD", () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -127,7 +131,7 @@ describe("HUD", () => {
         const gameState = createGameState({
             units: [selectedUnit, partner],
         });
-        render(
+        renderWithTutorial(
             <HUD
                 gameState={gameState}
                 selectedCoord={{ q: 0, r: 0 }}
@@ -169,7 +173,7 @@ describe("HUD", () => {
         });
         const onAction = vi.fn();
 
-        render(
+        renderWithTutorial(
             <HUD
                 gameState={gameState}
                 selectedCoord={city.coord}
@@ -222,7 +226,7 @@ describe("HUD", () => {
         });
         const onAction = vi.fn();
 
-        render(
+        renderWithTutorial(
             <HUD
                 gameState={gameState}
                 selectedCoord={null}
@@ -286,7 +290,7 @@ describe("HUD", () => {
 
         const onAction = vi.fn();
 
-        render(
+        renderWithTutorial(
             <HUD
                 gameState={gameState}
                 selectedCoord={null}
@@ -322,5 +326,90 @@ describe("HUD", () => {
         // Should allow updating turn
         // Note: The "End Turn" button is inside TurnSummary, which we can't easily click here without more setup,
         // but checking blocking count is sufficient for this logic unit test.
+    });
+
+    it("shows supply usage and separated military upkeep in the economy ledger", () => {
+        const gameState = createGameState({
+            players: [
+                {
+                    id: "p1",
+                    civName: "Alpha",
+                    color: "#fff",
+                    techs: [],
+                    currentTech: { id: TechId.Fieldcraft, progress: 4, cost: 20 },
+                    completedProjects: [],
+                    isEliminated: false,
+                    currentEra: EraId.Primitive,
+                    treasury: 42,
+                    grossGold: 18,
+                    buildingUpkeep: 5,
+                    militaryUpkeep: 3,
+                    netGold: 10,
+                    usedSupply: 7,
+                    freeSupply: 5,
+                },
+                {
+                    id: "p2",
+                    civName: "Beta",
+                    color: "#0ff",
+                    techs: [],
+                    currentTech: null,
+                    completedProjects: [],
+                    isEliminated: false,
+                    currentEra: EraId.Primitive,
+                },
+            ],
+            cities: [createCity()],
+            currentPlayerId: "p1",
+        });
+
+        renderWithTutorial(
+            <HUD
+                gameState={gameState}
+                selectedCoord={null}
+                selectedUnitId={null}
+                onAction={vi.fn()}
+                onSelectUnit={vi.fn()}
+                onShowTechTree={vi.fn()}
+                playerId="p1"
+                onSave={vi.fn()}
+                onLoad={vi.fn()}
+                onRestart={vi.fn()}
+                onResign={vi.fn()}
+                onQuit={vi.fn()}
+                showShroud={true}
+                onToggleShroud={vi.fn()}
+                showYields={false}
+                onToggleYields={vi.fn()}
+                showCombatPreview={true}
+                onToggleCombatPreview={vi.fn()}
+                onSelectCoord={vi.fn()}
+                onCenterCity={vi.fn()}
+                mapView={mockMapView}
+                onNavigateMap={vi.fn()}
+                showGameMenu={false}
+                onToggleGameMenu={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByTitle("Net gold per turn after upkeep")).toHaveTextContent("+10");
+        expect(screen.queryByText("Income")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Economy" }));
+
+        expect(screen.getByText("Treasury")).toBeInTheDocument();
+        expect(screen.getByText("42G")).toBeInTheDocument();
+        expect(screen.getByText("Net")).toBeInTheDocument();
+        expect(screen.getByText("+10G/turn")).toBeInTheDocument();
+        expect(screen.getByText("Income")).toBeInTheDocument();
+        expect(screen.getByText("+18G")).toBeInTheDocument();
+        expect(screen.getByText("Building Upkeep")).toBeInTheDocument();
+        expect(screen.getByText("-5G")).toBeInTheDocument();
+        expect(screen.getByText("Military Upkeep")).toBeInTheDocument();
+        expect(screen.getByText("-3G")).toBeInTheDocument();
+        expect(screen.getByText("Used Supply")).toBeInTheDocument();
+        expect(screen.getByText("Free Supply")).toBeInTheDocument();
+        expect(screen.getByText("7")).toBeInTheDocument();
+        expect(screen.getByText("5")).toBeInTheDocument();
     });
 });

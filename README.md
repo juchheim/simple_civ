@@ -16,6 +16,7 @@ Simple Civ is a turn-based strategy game that distills the core "4X" experience 
 *   **Procedural Worlds**: Every game features a new map with varied terrain (Plains, Forests, Mountains, Rivers) and strategic resources.
 *   **Smart AI**: Challenge AI opponents capable of planning wars, managing economies, and pursuing different victory conditions.
 *   **Persistence**: Game state is automatically saved to your browser's local storage (`localStorage`), allowing you to resume later.
+*   **Era-Based Music**: In-game loop music changes automatically by era (Primitive, Hearth, Banner, Engine, Aether).
 
 ## 🏗️ Architecture
 
@@ -93,6 +94,12 @@ npm test -w engine
 **Run Linting:**
 ```bash
 npm run lint
+```
+
+**Generate Era Music Tracks (Stable Audio Open pipeline):**
+```bash
+npm run music:generate:dry-run
+npm run music:generate
 ```
 
 ## 📚 Documentation

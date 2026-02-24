@@ -66,11 +66,14 @@ export enum BuildingType {
     Farmstead = "Farmstead",
     StoneWorkshop = "StoneWorkshop",
     Scriptorium = "Scriptorium",
+    TradingPost = "TradingPost",
     Reservoir = "Reservoir",
+    MarketHall = "MarketHall",
     LumberMill = "LumberMill",
     Academy = "Academy",
     CityWard = "CityWard",
     Forgeworks = "Forgeworks",
+    Bank = "Bank",
     CitySquare = "CitySquare",
     TitansCore = "TitansCore",
 
@@ -78,6 +81,7 @@ export enum BuildingType {
     Bulwark = "Bulwark",
     // v6.0: Aether Era
     AetherReactor = "AetherReactor",
+    Exchange = "Exchange",
     ShieldGenerator = "ShieldGenerator",
 }
 
@@ -138,6 +142,7 @@ export type Yields = {
     F: number; // Food
     P: number; // Production
     S: number; // Science
+    G: number; // Gold
 };
 
 export type Tile = {
@@ -229,6 +234,18 @@ export type Player = {
         // v6.6j: Per-capture breakdown
         supportByCapture: number[];      // Support count at 1st, 2nd, 3rd... city capture
     };
+    // Gold economy fields (defaults are normalized on turn advance / world generation)
+    treasury?: number;
+    grossGold?: number;
+    buildingUpkeep?: number;
+    militaryUpkeep?: number;
+    netGold?: number;
+    usedSupply?: number;
+    freeSupply?: number;
+    austerityActive?: boolean;
+    rushBuyCount?: number;
+    rushBuyGoldSpent?: number;
+    rushBuyGoldSaved?: number;
 };
 
 export type ProjectDefinition = {
@@ -408,6 +425,7 @@ export type Action =
     | { type: "FoundCity"; playerId: string; unitId: string; name: string }
     | { type: "ChooseTech"; playerId: string; techId: TechId }
     | { type: "SetCityBuild"; playerId: string; cityId: string; buildType: "Unit" | "Building" | "Project"; buildId: string; markAsHomeDefender?: boolean }
+    | { type: "RushBuyProduction"; playerId: string; cityId: string }
     | { type: "RazeCity"; playerId: string; cityId: string }
     // | { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }
     | { type: "SetWorkedTiles"; playerId: string; cityId: string; tiles: HexCoord[] }
@@ -423,6 +441,7 @@ export type Action =
     | { type: "SetAutoExplore"; playerId: string; unitId: string }
     | { type: "ClearAutoExplore"; playerId: string; unitId: string }
     | { type: "FortifyUnit"; playerId: string; unitId: string }
+    | { type: "DisbandUnit"; playerId: string; unitId: string }
     | { type: "SwapUnits"; playerId: string; unitId: string; targetUnitId: string }
     | { type: "Resign"; playerId: string }
     | { type: "EndTurn"; playerId: string };

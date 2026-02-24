@@ -49,6 +49,14 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
         onAction({ type: "FortifyUnit", playerId, unitId: selectedUnit.id });
     }, [selectedUnit, playerId, onAction]);
 
+    const handleDisbandUnit = React.useCallback(() => {
+        if (!selectedUnit) return;
+        const linkedNote = selectedUnit.linkedUnitId ? " This will unlink its partner." : "";
+        const confirmed = window.confirm(`Disband this unit?${linkedNote}`);
+        if (!confirmed) return;
+        onAction({ type: "DisbandUnit", playerId, unitId: selectedUnit.id });
+    }, [selectedUnit, playerId, onAction]);
+
     const handleCancelMovement = React.useCallback(() => {
         if (!selectedUnit) return;
         onAction({ type: "ClearAutoMoveTarget", playerId, unitId: selectedUnit.id });
@@ -62,6 +70,7 @@ export const useUnitActions = ({ isMyTurn, selectedUnit, linkCandidate, linkedPa
         handleFoundCity,
         handleToggleAutoExplore,
         handleFortifyUnit,
+        handleDisbandUnit,
         handleCancelMovement,
     };
 };
@@ -77,7 +86,6 @@ const buildLinkAction = (playerId: string, unit: Unit, partner: Unit): Action =>
     unitId: unit.id,
     partnerId: partner.id,
 });
-
 
 
 

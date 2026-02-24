@@ -1,24 +1,28 @@
 import { expect, test, describe } from "vitest";
 import { GameState, BuildingType, TechId } from "../../core/types.js";
-import { JADE_COVENANT_GROWTH_MULT, JADE_COVENANT_SETTLER_DISCOUNT, JADE_COVENANT_POP_COMBAT_BONUS_PER } from "../../core/constants.js";
+import {
+    JADE_COVENANT_GROWTH_MULT,
+    JADE_COVENANT_SETTLER_DISCOUNT,
+    JADE_COVENANT_POP_COMBAT_BONUS_PER,
+    JADE_COVENANT_POP_COMBAT_BONUS_CAP,
+    JADE_COVENANT_SETTLER_MOVEMENT,
+} from "../../core/constants.js";
 import { getGrowthCost, canBuild } from "../rules.js";
 
 describe("JadeCovenant Balance Changes", () => {
     test("Constants reflect new nerf values", () => {
         expect(JADE_COVENANT_GROWTH_MULT).toBe(0.95);
-        expect(JADE_COVENANT_SETTLER_DISCOUNT).toBe(1.00); // Reset to 100%
-        expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(20);
+        expect(JADE_COVENANT_SETTLER_DISCOUNT).toBe(0.90);
+        expect(JADE_COVENANT_SETTLER_MOVEMENT).toBe(1);
+        expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(29);
+        expect(JADE_COVENANT_POP_COMBAT_BONUS_CAP).toBe(2);
     });
 
-    test("City Yields give +0 Food (Removed baseline)", () => {
-        // We verified the code removal visually.
-        // To test logically: ensure no implicit additions.
-        // Since we removed the block, it naturally adds 0.
-        // We'll trust the constant check mostly, but let's keep the structure.
+    test("Growth discount remains modest", () => {
         const cost = getGrowthCost(10, false, false, "JadeCovenant");
         const base = getGrowthCost(10, false, false, "OtherCiv");
 
-        // Base growth for pop 10 is complex, but Jade should be ~95% of Base.
+        // Jade keeps a modest global growth discount.
         expect(cost).toBe(Math.ceil(base * 0.95));
     });
 });

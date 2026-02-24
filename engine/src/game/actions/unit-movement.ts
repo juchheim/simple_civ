@@ -20,9 +20,11 @@ import {
     SwapUnitsAction,
     UnlinkUnitsAction,
     FortifyUnitAction,
+    DisbandUnitAction,
 } from "./unit-action-types.js";
 import { refreshPlayerVision } from "../vision.js";
 import { buildTileLookup } from "../helpers/combat.js";
+import { getPlayerGoldLedger } from "../rules.js";
 
 export function handleMoveUnit(state: GameState, action: MoveUnitAction): GameState {
     const unit = getUnitOrThrow(state, action.unitId);
@@ -140,6 +142,32 @@ export function handleFortifyUnit(state: GameState, action: FortifyUnitAction): 
     unit.state = UnitState.Fortified;
     unit.movesLeft = 0; // Consumes all moves
     unit.isAutoExploring = false;
+    return state;
+}
+
+function refreshPlayerEconomySnapshot(state: GameState, playerId: string): void {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const ledger = getPlayerGoldLedger(state, playerId);
+    player.grossGold = ledger.grossGold;
+    player.buildingUpkeep = ledger.buildingUpkeep;
+    player.militaryUpkeep = ledger.militaryUpkeep;
+    player.usedSupply = ledger.usedSupply;
+    player.freeSupply = ledger.freeSupply;
+    player.netGold = ledger.netGold;
+}
+
+export function handleDisbandUnit(state: GameState, action: DisbandUnitAction): GameState {
+    const unit = getUnitOrThrow(state, action.unitId);
+    assertOwnership(unit, action.playerId);
+
+    const partner = resolveLinkedPartner(state, unit);
+    unlinkPair(unit, partner);
+
+    state.units = state.units.filter(u => u.id !== unit.id);
+    refreshPlayerVision(state, action.playerId);
+    refreshPlayerEconomySnapshot(state, action.playerId);
     return state;
 }
 

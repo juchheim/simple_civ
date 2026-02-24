@@ -33,13 +33,13 @@
 
 ## 1. Vision & Pillars
 - **One-more-turn, zero bloat**: fast, board-game-paced 4X on a compact hex map.
-- **Clarity over crunch**: only three yields (Food, Production, Science); no upkeep, no hidden multipliers.
+- **Clarity over crunch**: four yields (Food, Production, Science, Gold) with visible upkeep and clear economy levers.
 - **Short campaign, real arc**: ~150 turns on Standard maps.
 - **Safety nets**: every city defends itself; recovery is possible after setbacks.
 - **Board-game readability**: few numbers, clear effects, deterministic structure with limited randomness in combat.
 
 ## 2. How to Read & Terminology
-- **F/P/S**: Food, Production, Science.
+- **F/P/S/G**: Food, Production, Science, Gold.
 - **Pop**: population of a city; equals number of worked tiles.
 - **City Center**: founding tile; always worked; enforces minimum yields (2F/1P).
 - **Garrison**: any friendly unit on the city tile; enables city attack.
@@ -48,10 +48,11 @@
 - **Vision states**: Visible (bright), Revealed/Fogged (seen but not visible), Shroud (never seen).
 
 ## 3. Core Loop & Victory
-- Cities work tiles → generate F/P/S.
+- Cities work tiles → generate F/P/S/G.
 - Food grows Pop → more tiles worked.
 - Production completes Units/Buildings/Projects.
 - Science unlocks Techs that improve everything else.
+- Gold funds upkeep and enables rush-buy timing plays.
 - Victory paths:
   - **Conquest**: control a majority of founded capitals (>50%) or be last with cities/settlers.
   - **Progress**: complete Observatory → Grand Academy → Grand Experiment.
@@ -67,7 +68,9 @@
 
 ## 5. Turn Structure
 - **Start of Turn (Upkeep & Yields)**:
-  - For each city: add F/P/S yields; apply growth if stored Food ≥ cost; apply build progress if stored Production ≥ cost; heal city if eligible; reset city fire flag if applicable.
+  - For each city: add F/P/S/G yields; apply growth if stored Food ≥ cost; apply build progress if stored Production ≥ cost; heal city if eligible; reset city fire flag if applicable.
+  - Update economy ledger: `grossGold - buildingUpkeep - militaryUpkeep = netGold`, then apply to treasury (treasury cannot go below 0).
+  - If treasury is 0 and netGold is negative, austerity activates; it clears once netGold is non-negative.
   - Add Science to current tech; if completed, apply unlock.
   - Reset per-turn unit flags (attacks, movement already tracked via movesLeft).
 - **Planning Phase**:
@@ -82,23 +85,45 @@
 - **End of Round**: native camps take their turn (patrol/aggro/retreat, attacks, heal) before victory/ties/elimination checks.
 
 ## 6. Yields & Economy
-- **Only three yields**: Food (growth), Production (build progress), Science (research). No gold/happiness/upkeep/trade.
-- **City center minimums**: enforce ≥2 Food and ≥1 Production after terrain/overlay/civ modifiers; base city Science +1 per city.
+- **Four yields**:
+  - **Food**: growth.
+  - **Production**: build progress.
+  - **Science**: research.
+  - **Gold**: treasury flow, upkeep coverage, and rush-buy spending.
+- **City center minimums**: enforce ≥2 Food, ≥1 Production, and ≥1 Gold after terrain/overlay/civ modifiers; base city Science +1 and base city Gold +1 per city.
 - **Storage & overflow**: Food and Production overflow carry after growth/completion.
 - **Growth cost**: base 30 for Pop 2; scales by Pop range multipliers:
   - Pop 2–4: ×1.35, Pop 5–6: ×1.45, Pop 7–8: ×1.85, Pop 9–10: ×2.10, Pop 11+: ×2.60.
   - Modifiers (multiplicative): Farmstead ×0.90; Jade Granary ×0.85; Jade Covenant passive ×0.80.
-- **Production**: stored per city; switching builds discards current progress.
+- **Production**: stored per city; switching builds preserves progress per build item in that city.
 - **Science**: global per turn; applied only to selected tech; pauses if none selected.
+- **Gold ledger**:
+  - `grossGold`: total city gold yield.
+  - `buildingUpkeep`: sum of building maintenance.
+  - `militaryUpkeep`: upkeep from supply over-cap (`usedSupply > freeSupply`).
+  - `netGold = grossGold - buildingUpkeep - militaryUpkeep`.
+- **Supply pressure**:
+  - Free supply = base + city count + supply from economic buildings.
+  - Economic buildings are part of military infrastructure because they increase free supply.
+  - Military upkeep scales with excess supply above free supply.
+- **Austerity**:
+  - Trigger: treasury is 0 and netGold is negative.
+  - Effects: reduced production and science until netGold recovers to non-negative.
+- **Rush-buy**:
+  - Spend Gold to complete current city production instantly.
+  - Disabled during austerity.
+  - Progress victory chain projects and unique once-per-civ completions cannot be rush-bought.
+  - Gold buildings apply city-local rush-buy discounts:
+    - Trading Post 5%, Market Hall 10%, Bank 15%, Exchange 20% (highest completed tier applies).
 
 ## 7. Cities
 - **Founding**:
   - Settler may found on valid land (not Mountain, not Coast/Deep Sea).
-  - Starts at Pop 1, 0 stored yields (Jade Covenant starts with +2 stored Food), working center.
+  - Starts at Pop 1, 0 stored Food/Production (Jade Covenant starts with +2 stored Food), working center.
   - Territory: center + Ring 1; at Pop 3+ auto-claims Ring 2 (no shrink if Pop drops).
-  - Tiles are exclusive to one city; auto-claim picks highest yield (Food > Production > Science tie-breaker).
+  - Tiles are exclusive to one city; auto-claim prioritizes overall yield with tactical weighting (including Gold under economy pressure).
 - **City Center Yield Calculation**:
-  - Start with terrain yields; add overlay bonuses; apply minimums (2F/1P); apply civ trait effects.
+  - Start with terrain yields; add overlay bonuses; apply minimums (2F/1P/1G); apply civ trait effects.
 - **Worked Tiles**:
   - Pop = number of worked tiles (center always counted).
   - Assign only owned tiles within Ring 2, visible or revealed; cannot exceed Pop; center mandatory.
@@ -107,7 +132,7 @@
   - At Start of Turn: add Food; if stored Food ≥ cost → Pop +1, subtract cost (overflow kept), recompute cost for next Pop.
 - **Production & Builds**:
   - At Start of Turn: add Production; if stored Production ≥ build cost, complete build, consume cost, keep overflow.
-  - Build categories: Unit, Building, Project (one active slot). Switching clears progress.
+  - Build categories: Unit, Building, Project (one active slot). Switching stores progress for later return to that same build item.
   - **Spawning**: If city center is occupied, new units spawn on the nearest valid adjacent tile (spiraling out).
 - **Defense & HP**:
   - Base city HP 20 (resets to 10 on capture). Base defense strength 3.
@@ -123,17 +148,17 @@
   - Non-capitals may be razed by owner if a garrison is present (removes city). Capitals cannot be razed.
 
 ## 8. Terrain & Features
-- **Terrain (yield F/P/S | move cost | defense | LoS | workable)**:
-  - Plains: 1/1/0 | land 1 | 0 | clear | yes.
-  - Hills: 0/2/0 | land 2 | +2 | blocks LoS | yes.
-  - Forest: 1/1/0 | land 2 | +1 | blocks LoS | yes.
-  - Marsh: 2/0/0 | land 2 | -1 | clear | yes.
-  - Desert: 0/1/0 | land 1 | -1 | clear | yes.
-  - Mountain: 0/0/0 | impassable land | 0 | blocks LoS | not workable.
-  - Coast: 1/0/0 | naval 1 | 0 | clear | yes (naval domain).
-  - Deep Sea: 1/0/0 | naval 1 | 0 | clear | yes (naval domain).
+- **Terrain (yield F/P/S/G | move cost | defense | LoS | workable)**:
+  - Plains: 1/1/0/0 | land 1 | 0 | clear | yes.
+  - Hills: 0/2/0/0 | land 2 | +2 | blocks LoS | yes.
+  - Forest: 1/1/0/0 | land 2 | +1 | blocks LoS | yes.
+  - Marsh: 2/0/0/0 | land 2 | -1 | clear | yes.
+  - Desert: 0/1/0/1 | land 1 | -1 | clear | yes.
+  - Mountain: 0/0/0/0 | impassable land | 0 | blocks LoS | not workable.
+  - Coast: 1/0/0/1 | naval 1 | 0 | clear | yes (naval domain).
+  - Deep Sea: 1/0/0/1 | naval 1 | 0 | clear | yes (naval domain).
 - **Overlays**:
-  - River Edge (adjacency marker), Rich Soil (+1F), Ore Vein (+1P), Sacred Site (+1S).
+  - River Edge (adjacency marker), Rich Soil (+1F), Ore Vein (+1P/+1G), Sacred Site (+1S/+1G).
   - **Goodie Hut**: One-time discovery reward (removed on collection). Rewards are 25% each:
     - **Food**: +10 Food to nearest city if Pop < 3, otherwise +5.
     - **Production**: +10 Production to nearest city if idle, otherwise +5.
@@ -245,6 +270,14 @@
   - **Farmstead** (40, Fieldcraft): +1 Food; growth 10% cheaper.
   - **Stone Workshop** (40, Stonework Halls): +1 Production.
   - **Scriptorium** (40, Script Lore): +1 Science.
+  - **Trading Post** (40, Fieldcraft): +4 Gold, 2 upkeep; +1 Gold if river-adjacent; +1 free supply; rush-buy discount 5%.
+    - Tactical role: early treasury stabilizer and low-cost military supply support.
+  - **Market Hall** (56, Wellworks): +6 Gold, 3 upkeep; +1 Gold at Pop 5+; +1 free supply; rush-buy discount 10%.
+    - Tactical role: rewards food-first growth planning to hit Pop 5 breakpoints.
+  - **Bank** (72, Urban Plans): +8 Gold, 4 upkeep; +1 Gold if working any Ore Vein; +2 free supply; rush-buy discount 15%.
+    - Tactical role: turns ore control into sustained war economy and faster emergency production.
+  - **Exchange** (108, Signal Relay, requires Bank in same city): +10 Gold, 5 upkeep; +2 free supply; rush-buy discount 20%.
+    - Tactical role: late-midgame tempo city anchor for high-priority rush-buy turns.
   - **Reservoir** (50, Wellworks): +2 Food (+1 extra if river city).
   - **Lumber Mill** (60, Timber Mills): +1 Production (+1 extra if any Forest worked).
   - **Academy** (50, Scholar Courts): +3 Science.
@@ -373,4 +406,3 @@
   - Tech progression: ChooseTech required to spend Science.
   - Vision sharing/diplomacy stored in gameState.sharedVision/diplomacy/diplomacyOffers.
   - Progress tracking: milestones stored via projects (Observatory, Grand Academy, Grand Experiment, JadeGranaryComplete).
-

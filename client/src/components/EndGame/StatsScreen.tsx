@@ -7,7 +7,7 @@ interface StatsScreenProps {
     playerId: string;
 }
 
-type StatType = "score" | "science" | "production" | "military" | "territory";
+type StatType = "score" | "science" | "production" | "military" | "gold" | "territory";
 
 export const StatsScreen: React.FC<StatsScreenProps> = ({ gameState, playerId }) => {
     const [activeTab, setActiveTab] = useState<StatType>("score");
@@ -100,6 +100,7 @@ export const StatsScreen: React.FC<StatsScreenProps> = ({ gameState, playerId })
                 <button style={tabStyle(activeTab === "science")} onClick={() => setActiveTab("science")}>Science</button>
                 <button style={tabStyle(activeTab === "production")} onClick={() => setActiveTab("production")}>Production</button>
                 <button style={tabStyle(activeTab === "military")} onClick={() => setActiveTab("military")}>Military</button>
+                <button style={tabStyle(activeTab === "gold")} onClick={() => setActiveTab("gold")}>Gold</button>
                 <button style={tabStyle(activeTab === "territory")} onClick={() => setActiveTab("territory")}>Territory</button>
             </div>
 

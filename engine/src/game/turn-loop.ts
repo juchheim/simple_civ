@@ -10,11 +10,13 @@ import {
     handleSetAutoExplore,
     handleClearAutoExplore,
     handleFortifyUnit,
+    handleDisbandUnit,
     handleSwapUnits,
 } from "./actions/units.js";
 import {
     handleFoundCity,
     handleRazeCity,
+    handleRushBuyProduction,
     handleSetCityBuild,
     handleSetWorkedTiles,
 } from "./actions/cities.js";
@@ -75,6 +77,9 @@ export function applyAction(state: GameState, action: Action): GameState {
         case "SetCityBuild":
             updatedState = handleSetCityBuild(nextState, action);
             break;
+        case "RushBuyProduction":
+            updatedState = handleRushBuyProduction(nextState, action);
+            break;
         case "RazeCity":
             {
                 const targetCity = nextState.cities.find(c => c.id === action.cityId);
@@ -133,6 +138,10 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "FortifyUnit":
             updatedState = handleFortifyUnit(nextState, action);
+            break;
+        case "DisbandUnit":
+            updatedState = handleDisbandUnit(nextState, action);
+            shouldInvalidateInfluence = true;
             break;
         case "SwapUnits":
             updatedState = handleSwapUnits(nextState, action);

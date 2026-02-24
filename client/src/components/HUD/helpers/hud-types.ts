@@ -4,7 +4,17 @@ import type { CityBuildOptions } from "../hooks";
 import type { DiplomacyRow } from "./diplomacy";
 import type { AttentionTask, BlockingTask } from "./hud-utils";
 
-export type EmpireYields = { F: number; P: number; S: number };
+export type EmpireYields = { F: number; P: number; S: number; G: number };
+
+export type PlayerEconomySummary = {
+    treasury: number;
+    income: number;
+    buildingUpkeep: number;
+    militaryUpkeep: number;
+    usedSupply: number;
+    freeSupply: number;
+    net: number;
+};
 
 export type HUDSelectionState = {
     selectedCoord: HexCoord | null;
@@ -33,6 +43,7 @@ export type HUDMeta = {
     isMyTurn: boolean;
     diplomacyRows: DiplomacyRow[];
     empireYields: EmpireYields;
+    playerEconomy: PlayerEconomySummary;
     mapView: MapViewport | null;
 };
 
@@ -44,6 +55,7 @@ export type HUDLayoutProps = {
         showResearch: boolean;
         showDiplomacy: boolean;
         showCodex: boolean;
+        showEconomy: boolean;
         showGameMenu: boolean;
         showShroud: boolean;
         showYields: boolean;
@@ -53,6 +65,7 @@ export type HUDLayoutProps = {
         setShowResearch: (show: boolean) => void;
         setShowDiplomacy: (show: boolean) => void;
         setShowCodex: (show: boolean) => void;
+        setShowEconomy: (show: boolean) => void;
         setShowGameMenu: (show: boolean) => void;
         onToggleShroud: () => void;
         onToggleYields: () => void;
@@ -66,6 +79,7 @@ export type HUDLayoutProps = {
         onQuit: () => void;
         onResign: () => void;
         onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
+        onRushBuy: (cityId: string) => void;
         onRazeCity: () => void;
         onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
         onLinkUnits: () => void;
@@ -73,9 +87,15 @@ export type HUDLayoutProps = {
         onFoundCity: () => void;
         onToggleAutoExplore: () => void;
         onFortifyUnit: () => void;
+        onDisbandUnit: () => void;
         onCancelMovement: () => void;
         onEndTurn: () => void;
         onShowTechTree: () => void;
+        musicEnabled?: boolean;
+        onToggleMusic?: () => void;
+        musicVolume?: number;
+        onMusicVolumeChange?: (volume: number) => void;
+        musicStatusLabel?: string;
     };
     tasks: {
         blockingTasks: BlockingTask[];

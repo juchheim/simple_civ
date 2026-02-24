@@ -8,9 +8,9 @@ export const calculateEmpireYields = (cities: GameState["cities"], playerId: str
     return playerCities.reduce(
         (acc, city) => {
             const yields = getCityYields(city, gameState);
-            return { F: acc.F + yields.F, P: acc.P + yields.P, S: acc.S + yields.S };
+            return { F: acc.F + yields.F, P: acc.P + yields.P, S: acc.S + yields.S, G: acc.G + yields.G };
         },
-        { F: 0, P: 0, S: 0 }
+        { F: 0, P: 0, S: 0, G: 0 }
     );
 };
 

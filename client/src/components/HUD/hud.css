@@ -83,6 +83,10 @@
     color: #bfdbfe;
 }
 
+.hud-yield--gold {
+    color: #fcd34d;
+}
+
 .hud-menu-card {
     min-width: 260px;
     pointer-events: auto;
@@ -505,6 +509,37 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+
+.hud-economy-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 320px;
+}
+
+.hud-economy-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.hud-economy-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.hud-economy-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.hud-economy-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 2px 0;
 }
 
 .hud-chip-button {

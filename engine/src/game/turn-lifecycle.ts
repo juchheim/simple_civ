@@ -1,6 +1,8 @@
 
 import { Action, BuildingType, City, GameState, Player, PlayerPhase, ProjectId, TechId, UnitState, UnitType, EraId, HistoryEventType } from "../core/types.js";
 import {
+    AUSTERITY_PRODUCTION_MULTIPLIER,
+    AUSTERITY_SCIENCE_MULTIPLIER,
     BASE_CITY_HP,
     CITY_HEAL_PER_TURN,
     HEAL_FRIENDLY_CITY,
@@ -11,7 +13,7 @@ import {
     TITAN_REGEN_TERRITORY,
     TITAN_REGEN_CITY,
 } from "../core/constants.js";
-import { getCityYields, getGrowthCost } from "./rules.js";
+import { getCityYields, getGrowthCost, getPlayerGoldLedger } from "./rules.js";
 import { buildLookupCache } from "./helpers/lookup-cache.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
 import { expelUnitsFromTerritory } from "./helpers/movement.js";
@@ -83,6 +85,7 @@ export function advancePlayerTurn(state: GameState, playerId: string): GameState
     processPlayerCities(state, player);
 
     processResearch(state, player);
+    updatePlayerEconomy(state, player);
 
     // Refresh vision AFTER city processing so newly expanded territory is visible immediately
     refreshPlayerVision(state, player.id);
@@ -154,6 +157,7 @@ export function startPlayerTurn(state: GameState, player: Player): void {
     if (state.winnerId) return;
 
     state.phase = PlayerPhase.StartOfTurn;
+    ensurePlayerEconomyState(player);
 
     ensureTechSelected(state, player);
 
@@ -238,7 +242,9 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
     }
 
     if (city.currentBuild) {
-        processCityBuild(state, city, player, yields.P);
+        const productionMult = player.austerityActive ? AUSTERITY_PRODUCTION_MULTIPLIER : 1;
+        const effectiveProduction = Math.max(0, Math.floor(yields.P * productionMult));
+        processCityBuild(state, city, player, effectiveProduction);
     }
 }
 
@@ -446,6 +452,10 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
 
     let totalScience = baseScience + signalRelayBonus + grandAcademyBonus;
 
+    if (player?.austerityActive) {
+        totalScience = Math.floor(totalScience * AUSTERITY_SCIENCE_MULTIPLIER);
+    }
+
     // Difficulty bonus for AI players
     if (player?.isAI && state.difficulty) {
         const difficultyMultipliers: Record<string, number> = {
@@ -458,6 +468,41 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     }
 
     return totalScience;
+}
+
+function ensurePlayerEconomyState(player: Player): void {
+    if (player.treasury === undefined) player.treasury = 0;
+    if (player.grossGold === undefined) player.grossGold = 0;
+    if (player.buildingUpkeep === undefined) player.buildingUpkeep = 0;
+    if (player.militaryUpkeep === undefined) player.militaryUpkeep = 0;
+    if (player.netGold === undefined) player.netGold = 0;
+    if (player.usedSupply === undefined) player.usedSupply = 0;
+    if (player.freeSupply === undefined) player.freeSupply = 0;
+    if (player.austerityActive === undefined) player.austerityActive = false;
+}
+
+function updatePlayerEconomy(state: GameState, player: Player): void {
+    ensurePlayerEconomyState(player);
+    const cache = buildLookupCache(state);
+    const ledger = getPlayerGoldLedger(state, player.id, cache);
+    const currentTreasury = player.treasury ?? 0;
+    const nextTreasury = Math.max(0, currentTreasury + ledger.netGold);
+
+    let austerityActive = player.austerityActive ?? false;
+    if (nextTreasury === 0 && ledger.netGold < 0) {
+        austerityActive = true;
+    } else if (ledger.netGold >= 0) {
+        austerityActive = false;
+    }
+
+    player.grossGold = ledger.grossGold;
+    player.buildingUpkeep = ledger.buildingUpkeep;
+    player.militaryUpkeep = ledger.militaryUpkeep;
+    player.usedSupply = ledger.usedSupply;
+    player.freeSupply = ledger.freeSupply;
+    player.netGold = ledger.netGold;
+    player.treasury = nextTreasury;
+    player.austerityActive = austerityActive;
 }
 
 /**

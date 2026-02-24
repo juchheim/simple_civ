@@ -3,6 +3,7 @@ import {
     City,
     DiplomacyState,
     GameState,
+    OverlayType,
     TerrainType,
     Tile,
     Yields,
@@ -12,14 +13,21 @@ import {
     ProjectId,
 } from "../core/types.js";
 import {
+    BASE_CITY_GOLD,
+    BASE_CITY_SCIENCE,
     BASECOST_POP2,
     BUILDINGS,
+    CITY_CENTER_MIN_GOLD,
     CITY_CENTER_MIN_FOOD,
     CITY_CENTER_MIN_PROD,
+    ECONOMIC_BUILDING_SUPPLY_BONUS,
     FARMSTEAD_GROWTH_MULT,
     JADE_GRANARY_GROWTH_MULT,
     JADE_COVENANT_GROWTH_MULT,
     GROWTH_FACTORS,
+    MILITARY_FREE_SUPPLY_BASE,
+    MILITARY_FREE_SUPPLY_PER_CITY,
+    MILITARY_UPKEEP_PER_EXCESS_SUPPLY,
     OVERLAY,
     TERRAIN,
     PROJECTS,
@@ -33,11 +41,12 @@ import { LookupCache } from "./helpers/lookup-cache.js";
  * Determines the minimum distance required between cities for a given player.
  * @param state - The current game state.
  * @param playerId - The ID of the player founding a city.
- * @returns The minimum hex distance (usually 3, but 2 for JadeCovenant).
+ * @returns The minimum hex distance between city centers.
  */
 export function getMinimumCityDistance(state: GameState, playerId: string): number {
-    const player = state.players.find(p => p.id === playerId);
-    return player?.civName === "JadeCovenant" ? 2 : 3;
+    void state;
+    void playerId;
+    return 3;
 }
 
 // --- Yields ---
@@ -57,6 +66,7 @@ export function getTileYields(tile: Tile): Yields {
             if (bonus.F) base.F += bonus.F;
             if (bonus.P) base.P += bonus.P;
             if (bonus.S) base.S += bonus.S;
+            if (bonus.G) base.G += bonus.G;
         }
     }
     return base;
@@ -75,6 +85,7 @@ export function getCityCenterYields(city: City, tile: Tile): Yields {
     // Minimums
     y.F = Math.max(y.F, CITY_CENTER_MIN_FOOD);
     y.P = Math.max(y.P, CITY_CENTER_MIN_PROD);
+    y.G = Math.max(y.G, CITY_CENTER_MIN_GOLD);
 
     return y;
 }
@@ -87,7 +98,7 @@ export function getCityCenterYields(city: City, tile: Tile): Yields {
  * @returns The total yields (Food, Production, Science).
  */
 export function getCityYields(city: City, state: GameState, cache?: LookupCache): Yields {
-    const total: Yields = { F: 0, P: 0, S: 0 };
+    const total: Yields = { F: 0, P: 0, S: 0, G: 0 };
     const cityCoord = city.coord ?? { q: 0, r: 0 };
     const workedTiles = Array.isArray(city.workedTiles) ? city.workedTiles : [];
 
@@ -111,16 +122,19 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         total.F += tileY.F;
         total.P += tileY.P;
         total.S += tileY.S;
+        total.G += tileY.G;
     }
 
     // 2. Buildings
     const isRiverCity = isTileAdjacentToRiver(state.map, cityCoord);
 
     let worksForest = false;
+    let worksOreVein = false;
     for (const coord of workedTiles) {
         const tKey = hexToString(coord);
         const t = cache ? cache.tileByKey.get(tKey) : state.map.tiles.find(tile => hexEquals(tile.coord, coord));
         if (t && t.terrain === TerrainType.Forest) worksForest = true;
+        if (t && t.overlays.includes(OverlayType.OreVein)) worksOreVein = true;
     }
 
     for (const b of city.buildings) {
@@ -129,15 +143,20 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
             if (data.yieldFlat.F) total.F += data.yieldFlat.F;
             if (data.yieldFlat.P) total.P += data.yieldFlat.P;
             if (data.yieldFlat.S) total.S += data.yieldFlat.S;
+            if (data.yieldFlat.G) total.G += data.yieldFlat.G;
         }
 
         // Conditionals
         if (b === BuildingType.Reservoir && isRiverCity) total.F += 1;
         if (b === BuildingType.LumberMill && worksForest) total.P += 1;
+        if (b === BuildingType.TradingPost && isRiverCity) total.G += 1;
+        if (b === BuildingType.MarketHall && city.pop >= 5) total.G += 1;
+        if (b === BuildingType.Bank && worksOreVein) total.G += 1;
     }
 
-    // 3. Base Science (1 per city)
-    total.S += 1;
+    // 3. Base yields per city
+    total.S += BASE_CITY_SCIENCE;
+    total.G += BASE_CITY_GOLD;
 
     // Project bonuses (Observatory grants +1 Science in that city)
     if (city.milestones?.includes(ProjectId.Observatory)) {
@@ -216,6 +235,89 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
     return total;
 }
 
+export type PlayerSupplyUsage = {
+    usedSupply: number;
+    freeSupply: number;
+    militaryUpkeep: number;
+};
+
+export type GoldLedger = {
+    grossGold: number;
+    buildingUpkeep: number;
+    militaryUpkeep: number;
+    usedSupply: number;
+    freeSupply: number;
+    netGold: number;
+};
+
+export function getBuildingMaintenance(building: BuildingType): number {
+    return BUILDINGS[building]?.maintenance ?? 0;
+}
+
+export function getCityBuildingUpkeep(city: City): number {
+    return city.buildings.reduce((sum, building) => sum + getBuildingMaintenance(building), 0);
+}
+
+export function getPlayerBuildingUpkeep(state: GameState, playerId: string): number {
+    return state.cities
+        .filter(city => city.ownerId === playerId)
+        .reduce((sum, city) => sum + getCityBuildingUpkeep(city), 0);
+}
+
+export function getPlayerSupplyUsage(state: GameState, playerId: string): PlayerSupplyUsage {
+    const usedSupply = state.units.filter(unit =>
+        unit.ownerId === playerId &&
+        unit.type !== UnitType.Settler &&
+        UNITS[unit.type].domain !== UnitDomain.Civilian
+    ).length;
+    const ownedCities = state.cities.filter(city => city.ownerId === playerId);
+    const cityCount = ownedCities.length;
+    const economySupplyBonus = ownedCities.reduce((sum, city) => {
+        const cityBonus = city.buildings.reduce((citySum, building) => {
+            return citySum + (ECONOMIC_BUILDING_SUPPLY_BONUS[building] ?? 0);
+        }, 0);
+        return sum + cityBonus;
+    }, 0);
+    const freeSupply = MILITARY_FREE_SUPPLY_BASE + (cityCount * MILITARY_FREE_SUPPLY_PER_CITY) + economySupplyBonus;
+    const excessSupply = Math.max(0, usedSupply - freeSupply);
+    const militaryUpkeep = excessSupply * MILITARY_UPKEEP_PER_EXCESS_SUPPLY;
+    return { usedSupply, freeSupply, militaryUpkeep };
+}
+
+export function getPlayerGoldLedger(state: GameState, playerId: string, cache?: LookupCache): GoldLedger {
+    const cities = state.cities.filter(city => city.ownerId === playerId);
+    const grossGold = cities.reduce((sum, city) => sum + getCityYields(city, state, cache).G, 0);
+    const buildingUpkeep = cities.reduce((sum, city) => sum + getCityBuildingUpkeep(city), 0);
+    const supply = getPlayerSupplyUsage(state, playerId);
+    const netGold = grossGold - buildingUpkeep - supply.militaryUpkeep;
+
+    return {
+        grossGold,
+        buildingUpkeep,
+        militaryUpkeep: supply.militaryUpkeep,
+        usedSupply: supply.usedSupply,
+        freeSupply: supply.freeSupply,
+        netGold,
+    };
+}
+
+export function getCityRushBuyDiscount(city: City): number {
+    return city.buildings.reduce((maxDiscount, building) => {
+        return Math.max(maxDiscount, BUILDINGS[building]?.rushBuyDiscountPct ?? 0);
+    }, 0);
+}
+
+export function getRushBuyGoldCost(city: City, remainingProduction: number): number {
+    const remaining = Math.max(0, Math.floor(remainingProduction));
+    if (remaining <= 0) return 0;
+
+    const discountPct = getCityRushBuyDiscount(city);
+    if (discountPct <= 0) return remaining;
+
+    const discountedCost = remaining * (1 - discountPct / 100);
+    return Math.max(0, Math.ceil(discountedCost));
+}
+
 function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "ScholarKingdoms" | "RiverLeague" | "StarborneSeekers" | "AetherianVanguard" | "JadeCovenant" | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return null;
@@ -288,6 +390,7 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
 
         // Tech check
         if (!player.techs.includes(data.techReq)) return false;
+        if (data.requiresBuilding && !city.buildings.includes(data.requiresBuilding)) return false;
 
         // Civ-specific unique wonders (consumed on completion, once per civ)
         if (bId === BuildingType.TitansCore && player.civName !== "AetherianVanguard") return false;

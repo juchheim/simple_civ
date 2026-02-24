@@ -33,11 +33,14 @@ const BUILDING_OPTIONS: BuildOption<BuildingType>[] = [
     { id: BuildingType.Farmstead, name: "Farmstead" },
     { id: BuildingType.StoneWorkshop, name: "Stone Workshop" },
     { id: BuildingType.Scriptorium, name: "Scriptorium" },
+    { id: BuildingType.TradingPost, name: "Trading Post" },
     { id: BuildingType.Reservoir, name: "Reservoir" },
+    { id: BuildingType.MarketHall, name: "Market Hall" },
     { id: BuildingType.LumberMill, name: "Lumber Mill" },
     { id: BuildingType.Academy, name: "Academy" },
     { id: BuildingType.CityWard, name: "City Ward" },
     { id: BuildingType.Forgeworks, name: "Forgeworks" },
+    { id: BuildingType.Bank, name: "Bank" },
     { id: BuildingType.CitySquare, name: "City Square" },
     { id: BuildingType.TitansCore, name: "Titan's Core" },
 
@@ -45,6 +48,7 @@ const BUILDING_OPTIONS: BuildOption<BuildingType>[] = [
     { id: BuildingType.Bulwark, name: "Bulwark" },
     // v6.0: Aether Era buildings
     { id: BuildingType.AetherReactor, name: "Aether Reactor" },
+    { id: BuildingType.Exchange, name: "Exchange" },
     { id: BuildingType.ShieldGenerator, name: "Shield Generator" },
 ];
 
@@ -73,4 +77,3 @@ export const useCityBuildOptions = (city: City | null, gameState: GameState): Ci
         };
     }, [city, gameState]);
 };
-

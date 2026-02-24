@@ -21,15 +21,18 @@ import {
     DAMAGE_MIN,
     TERRAIN,
     BUILDINGS,
+    PROJECTS,
     UNITS,
     FORGE_CLANS_MILITARY_DISCOUNT,
+    JADE_COVENANT_SETTLER_DISCOUNT,
 } from "../../core/constants.js";
 import { hexEquals, hexDistance, hexSpiral, hexToString } from "../../core/hex.js";
 import { getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { claimCityTerritory, clearCityTerritory, createCity, ensureWorkedTiles } from "../helpers/cities.js";
 import { expelUnitsFromTerritory } from "../helpers/movement.js";
-import { canBuild, getMinimumCityDistance, getProjectCost } from "../rules.js";
+import { canBuild, getMinimumCityDistance, getProjectCost, getRushBuyGoldCost } from "../rules.js";
 import { getUnitCost } from "../units.js";
+import { completeBuild } from "../helpers/builds.js";
 
 export function handleCityAttack(state: GameState, action: { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }): GameState {
     const city = state.cities.find(c => c.id === action.cityId);
@@ -204,9 +207,9 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
             cost = Math.floor(cost * FORGE_CLANS_MILITARY_DISCOUNT);
         }
 
-        // v1.7: JadeCovenant "Swift Settlers" - 30% cheaper settlers
+        // JadeCovenant "Swift Settlers" settler cost modifier.
         if (player?.civName === "JadeCovenant" && unitType === UnitType.Settler) {
-            cost = Math.floor(cost * 0.70);
+            cost = Math.floor(cost * JADE_COVENANT_SETTLER_DISCOUNT);
         }
     }
     if (action.buildType === "Building") cost = BUILDINGS[action.buildId as BuildingType].cost;
@@ -238,6 +241,57 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
     city.buildProgress = savedProgress;
     city.lastCompletedBuild = undefined; // Clear since we're starting new production
 
+    return state;
+}
+
+function isProgressProject(projectId: string): boolean {
+    return projectId === ProjectId.Observatory || projectId === ProjectId.GrandAcademy || projectId === ProjectId.GrandExperiment;
+}
+
+function isUniqueCompletionBuild(type: "Unit" | "Building" | "Project", id: string): boolean {
+    if (type === "Building") {
+        return id === BuildingType.JadeGranary || id === BuildingType.Bulwark || id === BuildingType.TitansCore;
+    }
+    if (type === "Project") {
+        const data = PROJECTS[id as ProjectId];
+        return !!data?.oncePerCiv;
+    }
+    return false;
+}
+
+export function handleRushBuyProduction(state: GameState, action: { type: "RushBuyProduction"; playerId: string; cityId: string }): GameState {
+    const city = state.cities.find(c => c.id === action.cityId);
+    if (!city) throw new Error("City not found");
+    if (city.ownerId !== action.playerId) throw new Error("Not your city");
+    if (!city.currentBuild) throw new Error("City is not building anything");
+
+    const player = state.players.find(p => p.id === action.playerId);
+    if (!player) throw new Error("Player not found");
+    if (player.austerityActive) throw new Error("Rush-buy is disabled during austerity");
+
+    if (city.currentBuild.type === "Project" && isProgressProject(city.currentBuild.id)) {
+        throw new Error("Progress projects cannot be rush-bought");
+    }
+    if (isUniqueCompletionBuild(city.currentBuild.type, city.currentBuild.id)) {
+        throw new Error("Unique completion builds cannot be rush-bought");
+    }
+
+    const remainingProduction = Math.max(0, city.currentBuild.cost - city.buildProgress);
+    if (remainingProduction <= 0) throw new Error("Current build is already complete");
+    const rushBuyCost = getRushBuyGoldCost(city, remainingProduction);
+
+    const treasury = player.treasury ?? 0;
+    if (treasury < rushBuyCost) {
+        throw new Error("Not enough gold to rush-buy");
+    }
+
+    const goldSaved = Math.max(0, remainingProduction - rushBuyCost);
+    player.rushBuyCount = (player.rushBuyCount ?? 0) + 1;
+    player.rushBuyGoldSpent = (player.rushBuyGoldSpent ?? 0) + rushBuyCost;
+    player.rushBuyGoldSaved = (player.rushBuyGoldSaved ?? 0) + goldSaved;
+    player.treasury = treasury - rushBuyCost;
+    city.buildProgress = city.currentBuild.cost;
+    completeBuild(state, city);
     return state;
 }
 

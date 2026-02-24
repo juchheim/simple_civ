@@ -60,6 +60,21 @@ export type AiBuildProfileV2 = {
     desiredCities: number;
 };
 
+export type AiEconomyProfileV2 = {
+    /** Reserve multiplier applied to the base reserve formula. */
+    reserveMultiplier: number;
+    /** Optional reserve multiplier override after Titan's Core completion. */
+    reserveMultiplierPostTitan?: number;
+    /** How long deficits are tolerated before hard corrective behavior. */
+    deficitToleranceTurns: number;
+    /** Preference multiplier for gold-producing buildings. */
+    goldBuildBias: number;
+    /** Aggression multiplier for opportunistic rush-buy spending. */
+    rushBuyAggression: number;
+    /** Upkeep-to-gross ratio where expansion should be curtailed. */
+    upkeepRatioLimit: number;
+};
+
 export type AiTacticsProfileV2 = {
     /** 0..1. Lower => retreat earlier, avoid unfavorable trades. */
     riskTolerance: number;
@@ -87,6 +102,7 @@ export type CivAiProfileV2 = {
     diplomacy: AiDiplomacyProfileV2;
     tech: AiTechProfileV2;
     build: AiBuildProfileV2;
+    economy: AiEconomyProfileV2;
     tactics: AiTacticsProfileV2;
     titan: AiTitanProfileV2;
     tacticalTuning?: TacticalTuning; // Optional override for low-level constants
@@ -147,6 +163,13 @@ const baseProfile: CivAiProfileV2 = {
         settlerCap: 2,
         desiredCities: 5,
     },
+    economy: {
+        reserveMultiplier: 0.95,
+        deficitToleranceTurns: 3,
+        goldBuildBias: 1.65,
+        rushBuyAggression: 1.2,
+        upkeepRatioLimit: 0.4,
+    },
     tactics: {
         riskTolerance: 0.35,
         forceConcentration: 0.55,
@@ -183,6 +206,7 @@ type CivAiProfilePatch = {
         settlerCap?: number;
         desiredCities?: number;
     };
+    economy?: Partial<AiEconomyProfileV2>;
     tactics?: Partial<AiTacticsProfileV2>;
     titan?: Partial<AiTitanProfileV2>;
     tacticalTuning?: DeepPartial<TacticalTuning>;
@@ -208,6 +232,7 @@ function mergeProfile(base: CivAiProfileV2, patch: CivAiProfilePatch): CivAiProf
                 project: { ...base.build.weights.project, ...(patch.build?.weights?.project ?? {}) },
             },
         },
+        economy: { ...base.economy, ...(patch.economy ?? {}) },
         tactics: { ...base.tactics, ...(patch.tactics ?? {}) },
         titan: { ...base.titan, ...(patch.titan ?? {}) },
         tacticalTuning: mergeTacticalTuning(base.tacticalTuning, patch.tacticalTuning),
@@ -285,7 +310,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 2.2, // v9.5: Reduced from 3.0 to unblock expansion. Grow economy first.
+            armyPerCity: 2.1, // v1.4: Slightly lower standing army to reduce runaway upkeep spikes.
             settlerCap: 4, // v9.5: Increased from 2 to allows rapid expansion waves.
             desiredCities: 8, // v6.1: Wider industrial base (was 5)
             weights: {
@@ -310,6 +335,13 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [ProjectId.GrandExperiment]: 1.2,
                 },
             },
+        },
+        economy: {
+            reserveMultiplier: 0.9,
+            deficitToleranceTurns: 4,
+            goldBuildBias: 1.65,
+            rushBuyAggression: 1.2,
+            upkeepRatioLimit: 0.44,
         },
         tactics: {
             riskTolerance: 0.55, // v6.4: Fight harder (was 0.35)
@@ -351,7 +383,7 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         build: {
             // v9.9: Nerf expansion defense to make them vulnerable to conquest
-            armyPerCity: 2.2, // v9.9: Reduced from 2.5 to encourage conquest counters
+            armyPerCity: 2.0, // v1.4: Reduce upkeep pressure from oversized standing armies.
             settlerCap: 5,  // v8.9: Buffed from 4 - more expansion
             desiredCities: 8,  // v8.9: Buffed from 7 - want more cities
             weights: {
@@ -374,6 +406,13 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [ProjectId.GrandExperiment]: 1.2,
                 },
             },
+        },
+        economy: {
+            reserveMultiplier: 1.3,
+            deficitToleranceTurns: 2,
+            goldBuildBias: 2.05,
+            rushBuyAggression: 1.0,
+            upkeepRatioLimit: 0.34,
         },
         tactics: { riskTolerance: 0.15, forceConcentration: 0.5, siegeCommitment: 0.4, retreatHpFrac: 0.6, rangedCaution: 0.9 },
         titan: { capitalHunt: 0.5, finisher: 0.6, momentum: 0.5 },
@@ -407,7 +446,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             }
         },
         build: {
-            armyPerCity: 2.5, // v1.7: Increased for conquest (was 1.2)
+            armyPerCity: 2.3, // v1.4: Trim military saturation to slow runaway conquest snowball.
             settlerCap: 4,
             desiredCities: 7,
             weights: {
@@ -419,6 +458,13 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [ProjectId.GrandExperiment]: 1.0,
                 },
             },
+        },
+        economy: {
+            reserveMultiplier: 1.0,
+            deficitToleranceTurns: 4,
+            goldBuildBias: 1.9,
+            rushBuyAggression: 1.0,
+            upkeepRatioLimit: 0.36,
         },
         tactics: { riskTolerance: 0.55, forceConcentration: 0.75, siegeCommitment: 0.75, retreatHpFrac: 0.35, rangedCaution: 0.6 }, // v1.7: Much more aggressive
         titan: { capitalHunt: 0.75, finisher: 0.9, momentum: 0.85 }, // v1.7: Close out games
@@ -493,6 +539,14 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
             },
         },
+        economy: {
+            reserveMultiplier: 1.15,
+            reserveMultiplierPostTitan: 1.0,
+            deficitToleranceTurns: 3,
+            goldBuildBias: 1.6,
+            rushBuyAggression: 1.15,
+            upkeepRatioLimit: 0.44,
+        },
         tactics: { riskTolerance: 0.55, forceConcentration: 0.75, siegeCommitment: 0.9, retreatHpFrac: 0.3, rangedCaution: 0.6 },
         titan: { capitalHunt: 0.9, finisher: 0.9, momentum: 0.75 },
     }),
@@ -548,6 +602,13 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
             },
         },
+        economy: {
+            reserveMultiplier: 1.45,
+            deficitToleranceTurns: 2,
+            goldBuildBias: 1.7,
+            rushBuyAggression: 0.7,
+            upkeepRatioLimit: 0.35,
+        },
         tactics: { riskTolerance: 0.15, forceConcentration: 0.5, siegeCommitment: 0.4, retreatHpFrac: 0.5, rangedCaution: 0.9 },
         titan: { capitalHunt: 0.5, finisher: 0.6, momentum: 0.5 },
     }),
@@ -556,12 +617,12 @@ const profiles: Record<string, CivAiProfileV2> = {
         civName: "JadeCovenant",
         diplomacy: {
             // v8.11: Balanced settings - rely on pop bonus nerf instead
-            warPowerRatio: 0.95, // v1.0.8: Attack even if slightly weaker (was 1.0)
+            warPowerRatio: 1.1,
             warDistanceMax: 16, // v1.0.8: Increased (was 14)
-            peaceIfBelowRatio: 0.75,
-            minWarTurn: 12, // v1.0.8: Reduced (was 15)
-            maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 2?)
-            maxInitiatedWarsPer50Turns: 4, // v1.0.8: Increased from 3
+            peaceIfBelowRatio: 0.85,
+            minWarTurn: 24,
+            maxConcurrentWars: 1,
+            maxInitiatedWarsPer50Turns: 1,
             canInitiateWars: true,
             targetPreference: "Finishable",
         },
@@ -581,18 +642,25 @@ const profiles: Record<string, CivAiProfileV2> = {
             }
         },
         build: {
-            armyPerCity: 2.6, // v7.9: Buffed from 1.3 - need more military to survive early game
-            settlerCap: 5, // v7.9: Highest settler cap - Jade is THE expansion civ
-            desiredCities: 8, // v7.9: High city target - leverage +3 Food/city perk
+            armyPerCity: 1.8,
+            settlerCap: 4,
+            desiredCities: 7,
             weights: {
                 building: { [BuildingType.JadeGranary]: 2.0, [BuildingType.Farmstead]: 1.3 },
-                unit: { [UnitType.Settler]: 1.8, [UnitType.SpearGuard]: 1.2, [UnitType.BowGuard]: 1.2 }, // v7.9: Highest Settler priority
+                unit: { [UnitType.Settler]: 1.7, [UnitType.SpearGuard]: 1.0, [UnitType.BowGuard]: 1.0 },
                 project: {
                     [ProjectId.Observatory]: 1.4, // v1.6: Higher for Progress path
                     [ProjectId.GrandAcademy]: 1.4,
                     [ProjectId.GrandExperiment]: 1.4,
                 },
             },
+        },
+        economy: {
+            reserveMultiplier: 1.2,
+            deficitToleranceTurns: 3,
+            goldBuildBias: 1.9,
+            rushBuyAggression: 0.65,
+            upkeepRatioLimit: 0.42,
         },
         tactics: {
             riskTolerance: 0.55, // v7.9: Buffed from 0.45 - fight harder like ForgeClans

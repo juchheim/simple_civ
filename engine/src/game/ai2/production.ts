@@ -46,6 +46,7 @@ import { pickProactiveReinforcementBuild } from "./production/proactive.js";
 import { pickWarStagingProduction } from "./production/staging.js";
 import { pickTrebuchetProduction } from "./production/war.js";
 import { clamp, clamp01, pickBest } from "./util.js";
+import { computeEconomySnapshot, type EconomySnapshot } from "./economy/budget.js";
 
 export { shouldPrioritizeDefense } from "./production/defense-priority.js";
 
@@ -74,13 +75,15 @@ export type ProductionContext = {
     aliveEnemyIds: Set<string>;
     atWar: boolean;
     thisCityThreat: ReturnType<typeof assessCityThreatLevel>;
+    economy: EconomySnapshot;
 };
 
 function buildProductionContext(
     state: GameState,
     playerId: string,
     city: City,
-    goal: AiVictoryGoal
+    goal: AiVictoryGoal,
+    sharedEconomySnapshot?: EconomySnapshot
 ): ProductionContext | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return null;
@@ -90,6 +93,7 @@ function buildProductionContext(
     const primaryTheater = theaterFresh ? memory.operationalTheaters?.[0] : undefined;
 
     const profile = getAiProfileV2(state, playerId);
+    const economy = sharedEconomySnapshot ?? computeEconomySnapshot(state, playerId);
     const perception = buildPerception(state, playerId);
     const influence = state.map?.tiles
         ? (getInfluenceMapsCached(state, playerId, { budget: 600 }).maps ?? undefined)
@@ -134,6 +138,7 @@ function buildProductionContext(
         aliveEnemyIds,
         atWar,
         thisCityThreat,
+        economy,
     };
 }
 
@@ -173,7 +178,7 @@ const PRODUCTION_BASE_SCORES = {
     defenseSupport: 0.62,
     capabilityGap: 0.60,
     expansion: 0.58,
-    economy: 0.56,
+    economy: 0.54,
     fallbackMix: 0.50,
     fallbackDefault: 0.46,
 };
@@ -339,10 +344,16 @@ function addFallbackCandidates(
 // MAIN PRODUCTION SELECTION
 // =============================================================================
 
-export function chooseCityBuildV2(state: GameState, playerId: string, city: City, goal: AiVictoryGoal): BuildOption | null {
+export function chooseCityBuildV2(
+    state: GameState,
+    playerId: string,
+    city: City,
+    goal: AiVictoryGoal,
+    sharedEconomySnapshot?: EconomySnapshot
+): BuildOption | null {
     if (city.currentBuild) return null;
 
-    const context = buildProductionContext(state, playerId, city, goal);
+    const context = buildProductionContext(state, playerId, city, goal, sharedEconomySnapshot);
     if (!context) return null;
     const {
         player,
@@ -350,9 +361,18 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         phase,
         myCities,
         atWar,
+        economy,
     } = context;
 
     const warEmergency = isWarEmergency(state, playerId, atWar);
+    const supplyGap = economy.usedSupply - economy.freeSupply;
+    const supplyNearCap = economy.usedSupply >= (economy.freeSupply - 1);
+    const hasSupplyPressure = supplyGap >= 1;
+    const isEconomyRecoveryState = economy.economyState === "Strained"
+        || economy.economyState === "Crisis"
+        || hasSupplyPressure
+        || (economy.atWar && supplyGap >= 0);
+    const isCrisis = economy.economyState === "Crisis";
 
     // v7.2: PROGRESS BYPASS - If we have StarCharts and NO city is building Progress,
     // skip defense for this city so it can build Progress projects.
@@ -431,7 +451,7 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         base: PRODUCTION_BASE_SCORES.aetherianRush,
     });
 
-    if (!warEmergency) {
+    if (!warEmergency && !isEconomyRecoveryState) {
         addCandidate(candidates, {
             option: pickVictoryProject(state, playerId, city, goal, profile, myCities),
             reason: "victory-project",
@@ -465,7 +485,12 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         option: pickPhaseEarlyExpansionBuild(state, playerId, city, context, defenseDecision),
         reason: "early-expansion",
         base: PRODUCTION_BASE_SCORES.earlyExpansion,
-        components: { safety: safetyMod, expansion: expansionMod },
+        components: {
+            safety: safetyMod,
+            expansion: expansionMod,
+            recoveryPenalty: isEconomyRecoveryState ? -0.03 : 0,
+            supplyPressurePenalty: supplyGap >= 2 ? -0.08 : supplyGap >= 1 ? -0.05 : (economy.atWar && supplyGap >= 0 ? -0.03 : 0),
+        },
     });
 
     addCandidate(candidates, {
@@ -475,12 +500,14 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         components: { threat: threatMod },
     });
 
-    addCandidate(candidates, {
-        option: pickDefensiveArmyBuild(state, city, context),
-        reason: "defensive-army",
-        base: PRODUCTION_BASE_SCORES.defensiveArmy,
-        components: { threat: threatMod },
-    });
+    if (!isEconomyRecoveryState) {
+        addCandidate(candidates, {
+            option: pickDefensiveArmyBuild(state, city, context),
+            reason: "defensive-army",
+            base: PRODUCTION_BASE_SCORES.defensiveArmy,
+            components: { threat: threatMod },
+        });
+    }
 
     addCandidate(candidates, {
         option: pickTechUnlockBuild(state, city, context),
@@ -513,14 +540,32 @@ export function chooseCityBuildV2(state: GameState, playerId: string, city: City
         option: pickPhaseExpansionBuild(state, playerId, city, context, defenseDecision),
         reason: "expansion",
         base: PRODUCTION_BASE_SCORES.expansion,
-        components: { safety: safetyMod, expansion: expansionMod, pressure: -pressureMod },
+        components: {
+            safety: safetyMod,
+            expansion: expansionMod,
+            pressure: -pressureMod,
+            recoveryPenalty: isEconomyRecoveryState ? -0.04 : 0,
+            supplyPressurePenalty: supplyGap >= 2 ? -0.10 : supplyGap >= 1 ? -0.06 : (economy.atWar && supplyGap >= 0 ? -0.03 : 0),
+        },
     });
 
     addCandidate(candidates, {
-        option: pickEconomyBuilding(state, playerId, city, profile.civName),
+        option: pickEconomyBuilding(state, playerId, city, profile.civName, economy, profile.economy.goldBuildBias),
         reason: "economy",
         base: PRODUCTION_BASE_SCORES.economy,
-        components: { safety: safetyMod },
+        components: {
+            safety: safetyMod,
+            recoveryBoost: isCrisis ? 0.20 : (isEconomyRecoveryState ? 0.10 : 0),
+            upkeepPressureBoost: economy.upkeepRatio > profile.economy.upkeepRatioLimit ? 0.10 : 0,
+            militaryPressureBoost: supplyGap >= 3
+                ? 0.20
+                : supplyGap >= 1
+                    ? 0.14
+                    : (economy.atWar && supplyGap >= 0)
+                        ? 0.08
+                        : (supplyNearCap ? 0.04 : 0),
+        },
+        notes: [`economy:${economy.economyState}`],
     });
 
     addFallbackCandidates(candidates, state, city, context);

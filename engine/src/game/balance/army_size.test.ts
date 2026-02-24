@@ -15,10 +15,10 @@ function createMockState(civName: string): GameState {
 }
 
 describe('Peacetime Army Size Checks', () => {
-    it('should have armyPerCity = 2.2 for ScholarKingdoms', () => {
+    it('should have armyPerCity = 2.0 for ScholarKingdoms', () => {
         const state = createMockState("ScholarKingdoms");
         const profile = getAiProfileV2(state, "p1");
-        expect(profile.build.armyPerCity).toBe(2.2);
+        expect(profile.build.armyPerCity).toBe(2.0);
     });
 
     it('should have armyPerCity = 2.5 for StarborneSeekers', () => {

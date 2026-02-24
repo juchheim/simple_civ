@@ -22,6 +22,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ tile }) => {
             if (overlayData.yieldBonus.F) totalYields.F += overlayData.yieldBonus.F;
             if (overlayData.yieldBonus.P) totalYields.P += overlayData.yieldBonus.P;
             if (overlayData.yieldBonus.S) totalYields.S += overlayData.yieldBonus.S;
+            if (overlayData.yieldBonus.G) totalYields.G += overlayData.yieldBonus.G;
         }
     });
 
@@ -45,6 +46,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ tile }) => {
                 {totalYields.F > 0 && <span className="hud-chip">Food: {totalYields.F}</span>}
                 {totalYields.P > 0 && <span className="hud-chip">Prod: {totalYields.P}</span>}
                 {totalYields.S > 0 && <span className="hud-chip">Sci: {totalYields.S}</span>}
+                {totalYields.G > 0 && <span className="hud-chip">Gold: {totalYields.G}</span>}
             </div>
 
             {tile.overlays.length > 0 && (

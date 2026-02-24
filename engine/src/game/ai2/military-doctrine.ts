@@ -53,9 +53,9 @@ export function getMilitaryDoctrine(state: GameState, playerId: string): Militar
     // Assign doctrine based on Civilization personality/name
     switch (profile.civName) {
         case "ForgeClans":
-        case "JadeCovenant":
             return SIEGE_BREAKER;
 
+        case "JadeCovenant":
         case "RiverLeague":
         case "AetherianVanguard":
             return SWARM;

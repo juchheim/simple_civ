@@ -1,5 +1,5 @@
 import React from "react";
-import { City, GameState, HexCoord, Unit, getCityYields, getTileYields, getCityCenterYields, isTileAdjacentToRiver, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType, ProjectId, getProjectCost, getUnitCost } from "@simple-civ/engine";
+import { City, GameState, HexCoord, Unit, getCityYields, getTileYields, getCityCenterYields, isTileAdjacentToRiver, UNITS, BUILDINGS, PROJECTS, UnitType, BuildingType, ProjectId, getProjectCost, getUnitCost, ECONOMIC_BUILDING_SUPPLY_BONUS, OverlayType } from "@simple-civ/engine";
 import { hexDistance } from "../../../utils/hex";
 import { getTerrainColor, hexToPixel } from "../../GameMap/geometry";
 import { CityBuildOptions } from "../hooks";
@@ -10,6 +10,39 @@ const formatBuildId = (id: string) => {
         .replace(/_/g, " ")
         .replace(/([A-Z])/g, " $1")
         .trim();
+};
+
+const getCityUpkeep = (city: City): number => {
+    return city.buildings.reduce((sum, building) => sum + (BUILDINGS[building]?.maintenance ?? 0), 0);
+};
+
+const getCityRushBuyDiscountPct = (city: City): number => {
+    return city.buildings.reduce((maxDiscount, building) => {
+        return Math.max(maxDiscount, BUILDINGS[building]?.rushBuyDiscountPct ?? 0);
+    }, 0);
+};
+
+const getCityRushBuyGoldCost = (city: City, remainingProduction: number): number => {
+    const remaining = Math.max(0, Math.floor(remainingProduction));
+    if (remaining <= 0) return 0;
+    const discountPct = getCityRushBuyDiscountPct(city);
+    if (discountPct <= 0) return remaining;
+    return Math.max(0, Math.ceil(remaining * (1 - discountPct / 100)));
+};
+
+const isProgressProject = (projectId: string): boolean => {
+    return projectId === ProjectId.Observatory || projectId === ProjectId.GrandAcademy || projectId === ProjectId.GrandExperiment;
+};
+
+const isUniqueCompletionBuild = (type: "Unit" | "Building" | "Project", id: string): boolean => {
+    if (type === "Building") {
+        return id === BuildingType.JadeGranary || id === BuildingType.Bulwark || id === BuildingType.TitansCore;
+    }
+    if (type === "Project") {
+        const data = PROJECTS[id as ProjectId];
+        return !!data?.oncePerCiv;
+    }
+    return false;
 };
 
 const buildUnitTooltip = (unitId: UnitType, turn: number): string => {
@@ -28,19 +61,60 @@ const buildUnitTooltip = (unitId: UnitType, turn: number): string => {
     return lines.join("\n");
 };
 
-const buildBuildingTooltip = (buildingId: BuildingType): string => {
+const getGoldConditionalBonus = (buildingId: BuildingType, city: City, gameState: GameState): { active: boolean; bonus: number } | null => {
+    if (buildingId === BuildingType.TradingPost) {
+        const active = isTileAdjacentToRiver(gameState.map, city.coord);
+        return { active, bonus: active ? 1 : 0 };
+    }
+    if (buildingId === BuildingType.MarketHall) {
+        const active = city.pop >= 5;
+        return { active, bonus: active ? 1 : 0 };
+    }
+    if (buildingId === BuildingType.Bank) {
+        const active = city.workedTiles.some(coord => {
+            const tile = gameState.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
+            return !!tile?.overlays.includes(OverlayType.OreVein);
+        });
+        return { active, bonus: active ? 1 : 0 };
+    }
+    return null;
+};
+
+const buildBuildingTooltip = (buildingId: BuildingType, city: City, gameState: GameState): string => {
     const data = BUILDINGS[buildingId];
     if (!data) return "";
     const lines = [`Cost: ${data.cost} Production`];
+    const baseGold = data.yieldFlat?.G ?? 0;
+    const upkeep = data.maintenance ?? 0;
     const yields = [];
     if (data.yieldFlat?.F) yields.push(`+${data.yieldFlat.F} Food`);
     if (data.yieldFlat?.P) yields.push(`+${data.yieldFlat.P} Production`);
     if (data.yieldFlat?.S) yields.push(`+${data.yieldFlat.S} Science`);
     if (yields.length > 0) lines.push(yields.join(", "));
+    if (baseGold > 0) {
+        const baseNetGold = baseGold - upkeep;
+        lines.push(`Gold: ${baseNetGold >= 0 ? "+" : ""}${baseNetGold} net/turn`);
+        if (upkeep > 0) {
+            lines.push(`Breakdown: +${baseGold} income, -${upkeep} upkeep`);
+        }
+    } else if (upkeep > 0) {
+        lines.push(`Upkeep: ${upkeep} Gold/turn`);
+    }
+    const supplyBonus = ECONOMIC_BUILDING_SUPPLY_BONUS[buildingId] ?? 0;
+    if (supplyBonus > 0) lines.push(`+${supplyBonus} Free Military Supply`);
+    if (data.rushBuyDiscountPct) lines.push(`Rush-Buy Discount: -${data.rushBuyDiscountPct}% in this city`);
     if (data.defenseBonus) lines.push(`+${data.defenseBonus} City Defense`);
     if (data.cityAttackBonus) lines.push(`+${data.cityAttackBonus} City Attack`);
     if (data.growthMult) lines.push(`${Math.round((1 - data.growthMult) * 100)}% faster growth`);
     if (data.conditional) lines.push(data.conditional);
+
+    const conditional = getGoldConditionalBonus(buildingId, city, gameState);
+    if (conditional) {
+        lines.push(`Conditional now: ${conditional.active ? "Active" : "Inactive"} (${conditional.bonus > 0 ? "+" : ""}${conditional.bonus} Gold)`);
+        const netGoldNow = baseGold + conditional.bonus - upkeep;
+        lines.push(`Gold now: ${netGoldNow >= 0 ? "+" : ""}${netGoldNow} net/turn`);
+    }
+
     return lines.join("\n");
 };
 
@@ -90,6 +164,7 @@ type CityPanelProps = {
     units: Unit[];
     buildOptions: CityBuildOptions;
     onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
+    onRushBuy: (cityId: string) => void;
     onRazeCity: () => void;
     // onCityAttack: (targetUnitId: string) => void;
     onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
@@ -105,6 +180,7 @@ export const CityPanel: React.FC<CityPanelProps> = ({
     units,
     buildOptions,
     onBuild,
+    onRushBuy,
     onRazeCity,
     // onCityAttack,
     onSetWorkedTiles,
@@ -128,6 +204,8 @@ export const CityPanel: React.FC<CityPanelProps> = ({
     const yields = getCityYields(city, gameState);
     const civ = gameState.players.find(p => p.id === city.ownerId)?.civName;
     const scholarActive = civ === "ScholarKingdoms" && city.pop >= 3;
+    const activePlayer = gameState.players.find(p => p.id === playerId);
+    const cityUpkeep = getCityUpkeep(city);
 
     const garrison = units.find(u => u.ownerId === playerId && u.coord.q === city.coord.q && u.coord.r === city.coord.r);
 
@@ -157,7 +235,9 @@ export const CityPanel: React.FC<CityPanelProps> = ({
             />
 
             <div className="city-panel__stats">
-                <span className="hud-chip">Yields: {yields.F}F / {yields.P}P / {yields.S}S</span>
+                <span className="hud-chip">Yields: {yields.F}F / {yields.P}P / {yields.S}S / {yields.G}G</span>
+                <span className="hud-chip">Upkeep: -{cityUpkeep}G</span>
+                <span className="hud-chip">Treasury: {activePlayer?.treasury ?? 0}G</span>
                 <span className="hud-chip">Worked: {workedCount}/{city.pop}</span>
                 <span className="hud-chip">Build: {city.currentBuild ? formatBuildId(city.currentBuild.id) : "Idle"}</span>
             </div>
@@ -166,11 +246,15 @@ export const CityPanel: React.FC<CityPanelProps> = ({
                 <ProductionSection
                     city={city}
                     isMyTurn={isMyTurn}
+                    gameState={gameState}
                     buildOptions={buildOptions}
                     onBuild={onBuild}
+                    onRushBuy={onRushBuy}
                     turn={gameState.turn}
                     tutorial={tutorial}
                     productionPerTurn={yields.P}
+                    treasury={activePlayer?.treasury ?? 0}
+                    austerityActive={!!activePlayer?.austerityActive}
                 />
                 <WorkedTilesSection
                     city={city}
@@ -287,14 +371,30 @@ const CityInfoHeader: React.FC<CityInfoHeaderProps> = ({ city, civ, scholarActiv
 type ProductionSectionProps = {
     city: City;
     isMyTurn: boolean;
+    gameState: GameState;
     buildOptions: CityBuildOptions;
     onBuild: (type: "Unit" | "Building" | "Project", id: string) => void;
+    onRushBuy: (cityId: string) => void;
     turn: number;
     tutorial: ReturnType<typeof useTutorial>;
     productionPerTurn: number;
+    treasury: number;
+    austerityActive: boolean;
 };
 
-const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, buildOptions, onBuild, turn, tutorial, productionPerTurn }) => {
+const ProductionSection: React.FC<ProductionSectionProps> = ({
+    city,
+    isMyTurn,
+    gameState,
+    buildOptions,
+    onBuild,
+    onRushBuy,
+    turn,
+    tutorial,
+    productionPerTurn,
+    treasury,
+    austerityActive,
+}) => {
     const handleBuild = (type: "Unit" | "Building" | "Project", id: string) => {
         tutorial.markComplete("startedProduction");
         if (type === "Project") {
@@ -312,6 +412,28 @@ const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, b
     // Pulse the first available production option if no build is set
     const shouldPulseProduction = !city.currentBuild && tutorial.shouldPulse("startedProduction");
     const hasAnyOptions = buildOptions.units.length > 0 || buildOptions.buildings.length > 0 || buildOptions.projects.length > 0;
+    const remainingProduction = city.currentBuild
+        ? Math.max(0, city.currentBuild.cost - city.buildProgress)
+        : 0;
+    const rushBuyDiscountPct = city.currentBuild ? getCityRushBuyDiscountPct(city) : 0;
+    const rushBuyGoldCost = city.currentBuild ? getCityRushBuyGoldCost(city, remainingProduction) : 0;
+    const rushBuyLabel = rushBuyDiscountPct > 0 ? `${rushBuyGoldCost}G (-${rushBuyDiscountPct}%)` : `${rushBuyGoldCost}G`;
+
+    const rushBuyDisabledReason = (() => {
+        if (!isMyTurn) return "You can only rush-buy on your turn.";
+        if (!city.currentBuild) return "City is not currently building anything.";
+        if (austerityActive) return "Rush-buy is disabled during austerity.";
+        if (city.currentBuild.type === "Project" && isProgressProject(city.currentBuild.id)) {
+            return "Progress projects cannot be rush-bought.";
+        }
+        if (isUniqueCompletionBuild(city.currentBuild.type, city.currentBuild.id)) {
+            return "Unique completion builds cannot be rush-bought.";
+        }
+        if (remainingProduction <= 0) return "Current build is already complete.";
+        if (treasury < rushBuyGoldCost) return `Need ${rushBuyGoldCost}G (Treasury: ${treasury}G).`;
+        return null;
+    })();
+    const canRushBuy = !rushBuyDisabledReason;
 
     return (
         <div className="city-panel__section">
@@ -335,6 +457,19 @@ const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, b
                             return `${turnsText} (${city.buildProgress}/${city.currentBuild.cost})`;
                         })()}
                     </div>
+                    <button
+                        className="hud-button small"
+                        style={{ marginTop: 8, width: "100%", opacity: canRushBuy ? 1 : 0.65 }}
+                        onClick={() => onRushBuy(city.id)}
+                        disabled={!canRushBuy}
+                        title={rushBuyDisabledReason ?? (
+                            rushBuyDiscountPct > 0
+                                ? `Spend ${rushBuyGoldCost} Gold to complete instantly (base ${remainingProduction}G, -${rushBuyDiscountPct}% discount).`
+                                : `Spend ${rushBuyGoldCost} Gold to complete instantly.`
+                        )}
+                    >
+                        Rush-Buy ({rushBuyLabel})
+                    </button>
                 </>
             ) : (
                 <div className="hud-subtext" style={{ marginBottom: 6 }}>
@@ -381,7 +516,7 @@ const ProductionSection: React.FC<ProductionSectionProps> = ({ city, isMyTurn, b
                                     Construct {building.name}
                                     {saved ? <span style={{ fontSize: "0.8em", opacity: 0.7, marginLeft: 4 }}>({saved} prod)</span> : null}
                                 </button>
-                                <div className="production-tooltip">{buildBuildingTooltip(building.id as BuildingType)}</div>
+                                <div className="production-tooltip">{buildBuildingTooltip(building.id as BuildingType, city, gameState)}</div>
                             </div>
                         );
                     })}
@@ -539,7 +674,7 @@ const HEX_PADDING = 30;
 
 type WorkedTileNode = {
     tile: GameState["map"]["tiles"][number];
-    yields: { F: number; P: number; S: number };
+    yields: { F: number; P: number; S: number; G: number };
     isWorked: boolean;
     isCenter: boolean;
     isLocked: boolean;
@@ -658,6 +793,7 @@ const WorkedTilesMap: React.FC<WorkedTilesMapProps> = ({ city, map, tiles, worke
                                 <span className="city-panel__yield city-panel__yield--food">F{yields.F}</span>
                                 <span className="city-panel__yield city-panel__yield--prod">P{yields.P}</span>
                                 <span className="city-panel__yield city-panel__yield--science">S{yields.S}</span>
+                                <span className="city-panel__yield">G{yields.G}</span>
                             </div>
                         </button>
                     );

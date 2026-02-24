@@ -74,9 +74,9 @@ describe("Victory Evaluator", () => {
         });
 
         it("should sum costs correctly for full StarCharts path", () => {
-            // ScriptLore (50) + ScholarCourts (120) + SignalRelay (240) + StarCharts (240) = 650
+            // ScriptLore (40) + ScholarCourts (100) + SignalRelay (200) + StarCharts (200) = 540
             const path = [TechId.ScriptLore, TechId.ScholarCourts, TechId.SignalRelay, TechId.StarCharts];
-            expect(calculateTechPathCost(path)).toBe(650);
+            expect(calculateTechPathCost(path)).toBe(540);
         });
     });
 

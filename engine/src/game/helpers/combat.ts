@@ -23,6 +23,8 @@ import {
     NATIVE_CHAMPION_CAMP_BONUS_DEF,
     NATIVE_CHAMPION_CAMP_BONUS_RADIUS,
     JADE_COVENANT_POP_COMBAT_BONUS_PER,
+    JADE_COVENANT_POP_COMBAT_BONUS_CAP,
+    JADE_COVENANT_SETTLER_MOVEMENT,
 } from "../../core/constants.js";
 import { TechId } from "../../core/types.js";
 import { hexLine, hexToString, hexDistance, hexEquals } from "../../core/hex.js";
@@ -107,13 +109,16 @@ export function getTotalPopulation(state: GameState, playerId: string): number {
 }
 
 /**
- * v7.9: Re-added Jade Covenant "Population Power" combat bonus.
- * +1 Atk/Def per 12 total population.
+ * Jade Covenant "Population Power" combat bonus.
+ * +1 Atk/Def per JADE_COVENANT_POP_COMBAT_BONUS_PER total population, capped.
  */
 export function getJadeCovenantCombatBonus(state: GameState, player: Player): number {
     if (player.civName !== "JadeCovenant") return 0;
     const totalPop = getTotalPopulation(state, player.id);
-    return Math.floor(totalPop / JADE_COVENANT_POP_COMBAT_BONUS_PER);
+    return Math.min(
+        JADE_COVENANT_POP_COMBAT_BONUS_CAP,
+        Math.floor(totalPop / JADE_COVENANT_POP_COMBAT_BONUS_PER)
+    );
 }
 
 
@@ -333,11 +338,11 @@ export function getUnitMaxMoves(unit: Unit, state: GameState): number {
         }
     }
 
-    // v1.7: JadeCovenant "Swift Settlers" - Settlers have 3 movement
+    // JadeCovenant "Swift Settlers" settler movement override.
     if (unit.type === UnitType.Settler) {
         const player = state.players.find(p => p.id === unit.ownerId);
         if (player?.civName === "JadeCovenant") {
-            moves = 2; // Override to 2 movement
+            moves = JADE_COVENANT_SETTLER_MOVEMENT;
         }
     }
 

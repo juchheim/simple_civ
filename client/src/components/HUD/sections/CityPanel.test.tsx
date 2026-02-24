@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType, UnitState, EraId } from "@simple-civ/engine";
+import { BuildingType, City, DiplomacyState, GameState, PlayerPhase, TechId, TerrainType, Unit, UnitType, UnitState, EraId } from "@simple-civ/engine";
 import React from "react";
 import { applyAction } from "@simple-civ/engine";
 import { CityPanel } from "./CityPanel";
 import { CityBuildOptions } from "../hooks";
+import { TutorialProvider } from "../../../contexts/TutorialContext";
 
 const tile = (q: number, r: number, extras: Partial<GameState["map"]["tiles"][number]> = {}) => ({
     coord: { q, r },
@@ -90,11 +91,14 @@ const defaultBuildOptions: CityBuildOptions = {
     projects: [],
 };
 
+const renderWithTutorial = (ui: Parameters<typeof render>[0]) =>
+    render(ui, { wrapper: TutorialProvider });
+
 describe("CityPanel", () => {
     it("renders build buttons and fires onBuild when clicked", () => {
         const city = baseCity();
         const onBuild = vi.fn();
-        render(
+        renderWithTutorial(
             <CityPanel
                 city={city}
                 isMyTurn={true}
@@ -103,6 +107,7 @@ describe("CityPanel", () => {
                 units={[]}
                 buildOptions={defaultBuildOptions}
                 onBuild={onBuild}
+                onRushBuy={vi.fn()}
                 onRazeCity={vi.fn()}
 
                 onSetWorkedTiles={vi.fn()}
@@ -119,7 +124,7 @@ describe("CityPanel", () => {
         const city = baseCity();
         const onSetWorkedTiles = vi.fn();
 
-        render(
+        renderWithTutorial(
             <CityPanel
                 city={city}
                 isMyTurn={true}
@@ -128,6 +133,7 @@ describe("CityPanel", () => {
                 units={[]}
                 buildOptions={defaultBuildOptions}
                 onBuild={vi.fn()}
+                onRushBuy={vi.fn()}
                 onRazeCity={vi.fn()}
 
                 onSetWorkedTiles={onSetWorkedTiles}
@@ -159,6 +165,7 @@ describe("CityPanel", () => {
                     units={[]}
                     buildOptions={defaultBuildOptions}
                     onBuild={vi.fn()}
+                    onRushBuy={vi.fn()}
                     onRazeCity={vi.fn()}
 
                     onSetWorkedTiles={(cityId, tiles) => {
@@ -175,7 +182,7 @@ describe("CityPanel", () => {
             );
         };
 
-        render(<Wrapper />);
+        renderWithTutorial(<Wrapper />);
 
         const workedTileButton = screen.getByLabelText("Tile 0,1 (Plains)");
         expect(workedTileButton).toHaveClass("is-worked");
@@ -202,7 +209,7 @@ describe("CityPanel", () => {
         ];
         const gameState = baseGameState(city, units);
 
-        render(
+        renderWithTutorial(
             <CityPanel
                 city={city}
                 isMyTurn={true}
@@ -211,6 +218,7 @@ describe("CityPanel", () => {
                 units={units}
                 buildOptions={defaultBuildOptions}
                 onBuild={vi.fn()}
+                onRushBuy={vi.fn()}
                 onRazeCity={vi.fn()}
                 onSetWorkedTiles={vi.fn()}
                 onSelectUnit={vi.fn()}
@@ -231,5 +239,39 @@ describe("CityPanel", () => {
         expect(screen.queryByText("Worked Tiles")).not.toBeInTheDocument();
         expect(screen.queryByText(/Yields:/)).not.toBeInTheDocument();
         expect(screen.queryByText("Stored Food:")).not.toBeInTheDocument();
+    });
+
+    it("shows discounted rush-buy cost from city gold buildings", () => {
+        const city = {
+            ...baseCity(),
+            buildings: [BuildingType.TradingPost],
+            currentBuild: { type: "Building" as const, id: BuildingType.Farmstead, cost: 40 },
+            buildProgress: 0,
+        };
+        const gameState = baseGameState(city);
+        gameState.players[0].treasury = 38;
+        const onRushBuy = vi.fn();
+
+        renderWithTutorial(
+            <CityPanel
+                city={city}
+                isMyTurn={true}
+                playerId="p1"
+                gameState={gameState}
+                units={[]}
+                buildOptions={defaultBuildOptions}
+                onBuild={vi.fn()}
+                onRushBuy={onRushBuy}
+                onRazeCity={vi.fn()}
+                onSetWorkedTiles={vi.fn()}
+                onSelectUnit={vi.fn()}
+                onClose={vi.fn()}
+            />,
+        );
+
+        const rushBuy = screen.getByRole("button", { name: "Rush-Buy (38G (-5%))" });
+        expect(rushBuy).toBeEnabled();
+        fireEvent.click(rushBuy);
+        expect(onRushBuy).toHaveBeenCalledWith("city-1");
     });
 });

@@ -1,6 +1,6 @@
 {
   "name": "simple-civ-v1.0",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "workspaces": [
     "engine",
@@ -11,11 +11,15 @@
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "music:generate": "node scripts/generate-era-music.mjs",
+    "music:generate:dry-run": "node scripts/generate-era-music.mjs --dry-run",
+    "music:transcode:ogg": "node scripts/transcode-era-loops-ogg.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
     "eslint": "^8.56.0",
-    "prettier": "^3.2.5"
+    "ffmpeg-static": "^5.3.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
   }
 }

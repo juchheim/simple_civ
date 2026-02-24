@@ -39,10 +39,36 @@ export const MAX_CIVS_BY_MAP_SIZE: Record<string, number> = {
 // Yields
 /** Base science yield for every city (before buildings/modifiers). */
 export const BASE_CITY_SCIENCE = 1;
+/** Base gold yield for every city (before buildings/modifiers). */
+export const BASE_CITY_GOLD = 1;
 /** Minimum food yield for a city center tile. */
 export const CITY_CENTER_MIN_FOOD = 2;
 /** Minimum production yield for a city center tile. */
 export const CITY_CENTER_MIN_PROD = 1;
+/** Minimum gold yield for a city center tile. */
+export const CITY_CENTER_MIN_GOLD = 1;
+/** Starting treasury for each civilization in a new game. */
+export const STARTING_TREASURY = 40;
+/** Base military supply available regardless of city count. */
+export const MILITARY_FREE_SUPPLY_BASE = 1;
+/** Military supply provided by each owned city. */
+export const MILITARY_FREE_SUPPLY_PER_CITY = 1;
+/** Gold upkeep charged per supply point above free military supply. */
+export const MILITARY_UPKEEP_PER_EXCESS_SUPPLY = 2;
+/**
+ * Extra free supply granted by completed economic buildings.
+ * This makes sustained military scale partially dependent on economy infrastructure.
+ */
+export const ECONOMIC_BUILDING_SUPPLY_BONUS: Partial<Record<BuildingType, number>> = {
+    [BuildingType.TradingPost]: 1,
+    [BuildingType.MarketHall]: 1,
+    [BuildingType.Bank]: 2,
+    [BuildingType.Exchange]: 2,
+};
+/** Production penalty while in austerity. */
+export const AUSTERITY_PRODUCTION_MULTIPLIER = 0.9;
+/** Science penalty while in austerity. */
+export const AUSTERITY_SCIENCE_MULTIPLIER = 0.9;
 
 // City Borders
 // City Borders
@@ -96,8 +122,8 @@ export const GROWTH_FACTORS = [
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
 export const JADE_GRANARY_GROWTH_MULT = 0.85;
-// v0.97 balance: JadeCovenant passive "Verdant Growth" - faster growth globally
-export const JADE_COVENANT_GROWTH_MULT = 0.95; // v7.9: Buffed to 5% discount (was 15%)
+// JadeCovenant keeps a modest global growth discount.
+export const JADE_COVENANT_GROWTH_MULT = 0.95;
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -112,12 +138,13 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 
 
-// v1.7: JadeCovenant "Swift Settlers" - Settler cost discount and movement bonus
-export const JADE_COVENANT_SETTLER_DISCOUNT = 1.00; // v7.9: Refunded to 100% (was 10% discount)
-export const JADE_COVENANT_SETTLER_MOVEMENT = 2; // v6.6m: Nerfed to 2 (was 3) - balance adjustment
+// JadeCovenant "Swift Settlers" keeps a moderate discount without the old snowball package.
+export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90;
+export const JADE_COVENANT_SETTLER_MOVEMENT = 1;
 
-// v7.9: Re-added Jade Covenant "Population Power" - +1 Atk/Def per X total population
-export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 20; // v1.0.9: Nerfed from 16 to 20
+// JadeCovenant "Population Power": +1 Atk/Def per X total population (capped).
+export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 29;
+export const JADE_COVENANT_POP_COMBAT_BONUS_CAP = 2;
 
 
 
@@ -245,14 +272,14 @@ export type TerrainData = {
 };
 
 export const TERRAIN: Record<TerrainType, TerrainData> = {
-    [TerrainType.Plains]: { yields: { F: 1, P: 1, S: 0 }, moveCostLand: 1, defenseMod: 0, blocksLoS: false, workable: true, domain: "Any" },
-    [TerrainType.Hills]: { yields: { F: 0, P: 2, S: 0 }, moveCostLand: 2, defenseMod: 2, blocksLoS: true, workable: true, domain: "Any" },
-    [TerrainType.Forest]: { yields: { F: 1, P: 1, S: 0 }, moveCostLand: 2, defenseMod: 1, blocksLoS: true, workable: true, domain: "Any" },
-    [TerrainType.Marsh]: { yields: { F: 2, P: 0, S: 0 }, moveCostLand: 2, defenseMod: -1, blocksLoS: false, workable: true, domain: "Any" },
-    [TerrainType.Desert]: { yields: { F: 0, P: 1, S: 0 }, moveCostLand: 1, defenseMod: -1, blocksLoS: false, workable: true, domain: "Any" },
-    [TerrainType.Mountain]: { yields: { F: 0, P: 0, S: 0 }, moveCostLand: undefined, defenseMod: 0, blocksLoS: true, workable: false, domain: "Any" },
-    [TerrainType.Coast]: { yields: { F: 1, P: 0, S: 0 }, moveCostNaval: 1, defenseMod: 0, blocksLoS: false, workable: true, domain: UnitDomain.Naval },
-    [TerrainType.DeepSea]: { yields: { F: 1, P: 0, S: 0 }, moveCostNaval: 1, defenseMod: 0, blocksLoS: false, workable: true, domain: UnitDomain.Naval },
+    [TerrainType.Plains]: { yields: { F: 1, P: 1, S: 0, G: 0 }, moveCostLand: 1, defenseMod: 0, blocksLoS: false, workable: true, domain: "Any" },
+    [TerrainType.Hills]: { yields: { F: 0, P: 2, S: 0, G: 0 }, moveCostLand: 2, defenseMod: 2, blocksLoS: true, workable: true, domain: "Any" },
+    [TerrainType.Forest]: { yields: { F: 1, P: 1, S: 0, G: 0 }, moveCostLand: 2, defenseMod: 1, blocksLoS: true, workable: true, domain: "Any" },
+    [TerrainType.Marsh]: { yields: { F: 2, P: 0, S: 0, G: 0 }, moveCostLand: 2, defenseMod: -1, blocksLoS: false, workable: true, domain: "Any" },
+    [TerrainType.Desert]: { yields: { F: 0, P: 1, S: 0, G: 1 }, moveCostLand: 1, defenseMod: -1, blocksLoS: false, workable: true, domain: "Any" },
+    [TerrainType.Mountain]: { yields: { F: 0, P: 0, S: 0, G: 0 }, moveCostLand: undefined, defenseMod: 0, blocksLoS: true, workable: false, domain: "Any" },
+    [TerrainType.Coast]: { yields: { F: 1, P: 0, S: 0, G: 1 }, moveCostNaval: 1, defenseMod: 0, blocksLoS: false, workable: true, domain: UnitDomain.Naval },
+    [TerrainType.DeepSea]: { yields: { F: 1, P: 0, S: 0, G: 1 }, moveCostNaval: 1, defenseMod: 0, blocksLoS: false, workable: true, domain: UnitDomain.Naval },
 };
 
 export type OverlayData = {
@@ -263,11 +290,11 @@ export type OverlayData = {
 export const OVERLAY: Record<OverlayType, OverlayData> = {
     [OverlayType.RiverEdge]: { riverEdge: true },
     [OverlayType.RichSoil]: { yieldBonus: { F: 1 } },
-    [OverlayType.OreVein]: { yieldBonus: { P: 1 } },
-    [OverlayType.SacredSite]: { yieldBonus: { S: 1 } },
+    [OverlayType.OreVein]: { yieldBonus: { P: 1, G: 1 } },
+    [OverlayType.SacredSite]: { yieldBonus: { S: 1, G: 1 } },
     [OverlayType.GoodieHut]: {}, // No permanent bonus - one-time discovery reward
     [OverlayType.NativeCamp]: {}, // No yield bonus - presence of natives
-    [OverlayType.ClearedSettlement]: { yieldBonus: { F: 1 } }, // +1 Food bonus when camp cleared
+    [OverlayType.ClearedSettlement]: { yieldBonus: { F: 1, G: 1 } }, // +1 Food/+1 Gold bonus when camp cleared
 };
 
 export type UnitStats = {
@@ -314,6 +341,9 @@ export type BuildingData = {
     techReq: TechId;
     cost: number;
     yieldFlat?: Partial<Yields>;
+    maintenance?: number;
+    rushBuyDiscountPct?: number;
+    requiresBuilding?: BuildingType;
     growthMult?: number;
     defenseBonus?: number;
     cityAttackBonus?: number;
@@ -321,30 +351,35 @@ export type BuildingData = {
 };
 
 export const BUILDINGS: Record<BuildingType, BuildingData> = {
-    [BuildingType.Farmstead]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { F: 1 }, growthMult: 0.9 },
-    [BuildingType.StoneWorkshop]: { era: EraId.Hearth, techReq: TechId.StoneworkHalls, cost: 40, yieldFlat: { P: 1 } },
-    [BuildingType.Scriptorium]: { era: EraId.Hearth, techReq: TechId.ScriptLore, cost: 40, yieldFlat: { S: 1 } },
-    [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
-    [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, conditional: "+1P more if any Forest worked" },
-    [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 } }, // v4.2: S:3, Cost 50
-    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, defenseBonus: 2, cityAttackBonus: 1 }, // v8.13: Nerfed Defense 3→2
-    [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 } }, // v5.0: Buffed from P:2 to P:4
-    [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 } }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
+    [BuildingType.Farmstead]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { F: 1 }, maintenance: 2, growthMult: 0.9 },
+    [BuildingType.StoneWorkshop]: { era: EraId.Hearth, techReq: TechId.StoneworkHalls, cost: 40, yieldFlat: { P: 1 }, maintenance: 2 },
+    [BuildingType.Scriptorium]: { era: EraId.Hearth, techReq: TechId.ScriptLore, cost: 40, yieldFlat: { S: 1 }, maintenance: 2 },
+    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 4 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold if city is river-adjacent" },
+    [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, maintenance: 2, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
+    [BuildingType.MarketHall]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 56, yieldFlat: { G: 6 }, maintenance: 3, rushBuyDiscountPct: 10, conditional: "+1 Gold if city population is 5+" },
+    [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, maintenance: 2, conditional: "+1P more if any Forest worked" },
+    [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 }, maintenance: 3 }, // v4.2: S:3, Cost 50
+    [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, maintenance: 3, defenseBonus: 2, cityAttackBonus: 1 }, // v8.13: Nerfed Defense 3→2
+    [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 }, maintenance: 3 }, // v5.0: Buffed from P:2 to P:4
+    [BuildingType.Bank]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 72, yieldFlat: { G: 8 }, maintenance: 4, rushBuyDiscountPct: 15, conditional: "+1 Gold if any worked Ore Vein" },
+    [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 }, maintenance: 3 }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 60, conditional: "Summons The Titan upon completion" }, // v9.10: Buffed to 60 (was 120)
 
-    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
+    [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, maintenance: 3, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
     // v5.5: Bulwark converted to Building (Scholar/Starborne only)
     [BuildingType.Bulwark]: {
         era: EraId.Hearth,
         techReq: TechId.StoneworkHalls,
         cost: 70,
+        maintenance: 4,
         defenseBonus: 3, // v9.10: Nerfed Defense 5→3
         cityAttackBonus: 1, // v9.10: Nerfed Attack 2→1
         conditional: "Scholar/Starborne Only. Once per civ. City CANNOT form Armies."
     },
     // v6.0: Aether Era
-    [BuildingType.AetherReactor]: { era: EraId.Aether, techReq: TechId.ZeroPointEnergy, cost: 200, yieldFlat: { F: 5, P: 5, S: 5 } },
-    [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, defenseBonus: 15, conditional: "Grants 50 Shield HP (regenerating)" },
+    [BuildingType.AetherReactor]: { era: EraId.Aether, techReq: TechId.ZeroPointEnergy, cost: 200, yieldFlat: { F: 5, P: 5, S: 5 }, maintenance: 5 },
+    [BuildingType.Exchange]: { era: EraId.Engine, techReq: TechId.SignalRelay, cost: 108, yieldFlat: { G: 10 }, maintenance: 5, rushBuyDiscountPct: 20, requiresBuilding: BuildingType.Bank },
+    [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, maintenance: 6, defenseBonus: 15, conditional: "Grants 50 Shield HP (regenerating)" },
 };
 
 export type TechData = {

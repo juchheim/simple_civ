@@ -82,7 +82,16 @@ vi.mock('./production/victory.js', () => ({
 
 // Mock rules and strategic-plan minimally to avoid crash in `buildProductionContext`
 vi.mock('./rules.js', () => ({
-    getAiProfileV2: () => ({ civName: 'AetherianVanguard' }),
+    getAiProfileV2: () => ({
+        civName: 'AetherianVanguard',
+        economy: {
+            reserveMultiplier: 1,
+            deficitToleranceTurns: 3,
+            goldBuildBias: 1,
+            rushBuyAggression: 1,
+            upkeepRatioLimit: 0.55,
+        },
+    }),
     canBuild: () => true
 }));
 

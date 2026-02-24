@@ -55,7 +55,7 @@ const GOAL_BASE: Record<AiVictoryGoal, number> = {
     Balanced: 0.4,
 };
 
-const AGGRESSIVE_CIVS = new Set(["ForgeClans", "RiverLeague", "JadeCovenant"]);
+const AGGRESSIVE_CIVS = new Set(["ForgeClans", "RiverLeague"]);
 const CONQUEST_FIRST_CIVS = new Set(["ForgeClans", "AetherianVanguard"]);
 
 const PROGRESS_PROJECTS = [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment];

@@ -67,14 +67,14 @@ describe("production selectors", () => {
         expect(build).toEqual({ type: "Project", id: ProjectId.Observatory });
     });
 
-    it("picks first available economy building when city is missing basics", () => {
+    it("picks first available gold economy building", () => {
         const state = makeBaseState();
-        state.players[0].techs = [TechId.StoneworkHalls];
+        state.players[0].techs = [TechId.Fieldcraft];
         const city = state.cities[0];
 
         const build = pickEconomyBuilding(state, "p1", city, "ScholarKingdoms");
 
-        expect(build).toEqual({ type: "Building", id: BuildingType.StoneWorkshop });
+        expect(build).toEqual({ type: "Building", id: BuildingType.TradingPost });
     });
 });
 

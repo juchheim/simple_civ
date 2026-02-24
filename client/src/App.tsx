@@ -16,6 +16,7 @@ import { useGameSession } from "./hooks/useGameSession";
 import { useInteractionController } from "./hooks/useInteractionController";
 import { useGlobalHotkeys } from "./hooks/useGlobalHotkeys";
 import { useGoodieHutAlerts } from "./hooks/useGoodieHutAlerts";
+import { useEraMusic } from "./hooks/useEraMusic";
 import { useGameEventToasts } from "./components/HUD/hooks/use-game-event-toasts";
 import { useTutorialToasts } from "./components/HUD/hooks/use-tutorial-toasts";
 
@@ -59,6 +60,19 @@ function App() {
     const [showCombatPreview, setShowCombatPreview] = useState(() => {
         const stored = localStorage.getItem("showCombatPreview");
         return stored !== null ? stored === "true" : true;
+    });
+    const {
+        activeEra: activeMusicEra,
+        musicEnabled,
+        setMusicEnabled,
+        musicVolume,
+        setMusicVolume,
+        readyForPlayback: musicReadyForPlayback,
+        playbackError: musicPlaybackError,
+    } = useEraMusic({
+        gameState,
+        playerId,
+        isInGame: Boolean(gameState && !showTitleScreen && !gameState.winnerId),
     });
 
     // Persist showCombatPreview to localStorage
@@ -181,6 +195,14 @@ function App() {
         dismissGameEventToast(id);
         dismissTutorialToast(id);
     };
+
+    const musicStatusLabel = !musicReadyForPlayback
+        ? "Music starts after your next click or key press."
+        : musicPlaybackError
+            ? musicPlaybackError
+            : activeMusicEra
+                ? `Now playing: ${activeMusicEra} era loop`
+                : "Music is idle.";
 
     const buildPlayers = useCallback((parsedSeed?: number): Array<{ id: string; civName: CivId; color: string; ai?: boolean }> => {
         const usedColors = new Set<string>();
@@ -516,6 +538,11 @@ function App() {
                 onNavigateMap={handleNavigateMapView}
                 showGameMenu={showGameMenu}
                 onToggleGameMenu={setShowGameMenu}
+                musicEnabled={musicEnabled}
+                onToggleMusic={() => setMusicEnabled(!musicEnabled)}
+                musicVolume={musicVolume}
+                onMusicVolumeChange={setMusicVolume}
+                musicStatusLabel={musicStatusLabel}
             />
             {showTechTree && (
                 <TechTree

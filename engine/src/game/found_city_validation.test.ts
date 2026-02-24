@@ -92,11 +92,11 @@ describe("FoundCity validation", () => {
         }).toThrow("Too close to friendly city");
     });
 
-    it("allows Jade Covenant to found within 2 tiles of own city", () => {
+    it("does not allow Jade Covenant to found within 2 tiles of own city", () => {
         const state = baseState();
         state.players[0].civName = "JadeCovenant";
         const p1Center = hex(0, 0);
-        const p1SecondCity = hex(0, 2); // Distance 2 - allowed for Jade
+        const p1SecondCity = hex(0, 2); // Distance 2 - still blocked
 
         for (let r = 0; r < 5; r++) {
             for (let q = 0; q < 5; q++) {
@@ -116,7 +116,7 @@ describe("FoundCity validation", () => {
 
         expect(() => {
             applyAction(next as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "City2" });
-        }).not.toThrow();
+        }).toThrow("Too close to friendly city");
     });
 
     it("allows founding at distance 3 from friendly city", () => {
@@ -182,11 +182,11 @@ describe("FoundCity validation", () => {
         }).not.toThrow();
     });
 
-    it("allows Jade Covenant to found within 2 tiles of an enemy city", () => {
+    it("does not allow Jade Covenant to found within 2 tiles of an enemy city", () => {
         const state = baseState();
         state.players[0].civName = "JadeCovenant";
         const p2Center = hex(0, 0);
-        const jadeCity = hex(0, 2); // Distance 2 - allowed for Jade
+        const jadeCity = hex(0, 2); // Distance 2 - blocked
 
         for (let r = 0; r < 5; r++) {
             for (let q = 0; q < 5; q++) {
@@ -208,7 +208,7 @@ describe("FoundCity validation", () => {
 
         expect(() => {
             applyAction(afterP2 as any, { type: "FoundCity", playerId: "p1", unitId: "u2", name: "CityB" });
-        }).not.toThrow();
+        }).toThrow("Too close to enemy city");
     });
 
     it("allows founding city even when settler has no moves left", () => {
