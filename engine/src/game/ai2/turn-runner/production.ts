@@ -10,11 +10,13 @@ import { isTileAdjacentToRiver } from "../../../map/rivers.js";
 
 function shouldForceEconomyRecovery(snapshot: EconomySnapshot): boolean {
     const supplyGap = snapshot.usedSupply - snapshot.freeSupply;
-    return snapshot.economyState === "Strained"
-        || snapshot.economyState === "Crisis"
-        || snapshot.netGold < 0
-        || supplyGap >= 1
-        || (snapshot.atWar && supplyGap >= 0);
+    const deepDeficit = snapshot.netGold <= -3;
+    const strainedWithDeficitPressure = snapshot.economyState === "Strained"
+        && (snapshot.netGold < -1 || snapshot.treasury < (snapshot.reserveFloor * 0.9));
+    return snapshot.economyState === "Crisis"
+        || strainedWithDeficitPressure
+        || deepDeficit
+        || supplyGap >= 3;
 }
 
 function isCoastalCity(state: GameState, city: City): boolean {
@@ -65,10 +67,10 @@ function getForcedEconomyCities(state: GameState, playerId: string, snapshot: Ec
 
     const supplyGap = snapshot.usedSupply - snapshot.freeSupply;
     const severeSupplyPressure = supplyGap >= 3;
-    const activeSupplyPressure = supplyGap >= 1 || (snapshot.atWar && supplyGap >= 0);
+    const activeSupplyPressure = supplyGap >= 1;
 
     const limit = snapshot.economyState === "Crisis" || severeSupplyPressure
-        ? scored.length
+        ? Math.max(1, Math.ceil((scored.length * 3) / 4))
         : activeSupplyPressure
             ? Math.max(1, Math.ceil((scored.length * 2) / 3))
             : Math.max(1, Math.ceil(scored.length / 2));

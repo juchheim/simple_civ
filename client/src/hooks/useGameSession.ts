@@ -2,28 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Action,
     GameState,
-    MapSize,
     applyAction,
     generateWorld,
+    refreshPlayerVision,
     runAiTurn,
 } from "@simple-civ/engine";
-import { CIV_OPTIONS } from "../data/civs";
-
-type PlayerSetup = { id: string; civName: string; color: string; ai?: boolean };
-type GameSetup = { mapSize: MapSize; players: PlayerSetup[]; seed?: number; startWithRandomSeed?: boolean; difficulty?: "Easy" | "Normal" | "Hard" | "Expert" };
-type SavedGame = { timestamp: number; gameState: GameState; turn: number; civName: string };
-
-const SAVE_KEY = "simple-civ-save";
-const AUTOSAVE_KEY = "simple-civ-autosave";
-const SESSION_SAVE_KEY = "simple-civ-session";
-
-function pickActivePlayerId(state: GameState) {
-    const currentPlayer = state.players.find(p => p.id === state.currentPlayerId);
-    const fallbackPlayer = state.players.find(p => !p.isAI);
-    return currentPlayer && !currentPlayer.isAI
-        ? state.currentPlayerId
-        : fallbackPlayer?.id ?? state.currentPlayerId;
-}
+import {
+    AUTOSAVE_KEY,
+    chooseSave,
+    createSaveData,
+    ensureEndTurnForWinner,
+    GameSetup,
+    LAST_SETTINGS_KEY,
+    parseSave,
+    pickActivePlayerId,
+    SAVE_KEY,
+    SavedGame,
+    SESSION_SAVE_KEY,
+    shouldCreateAutosave
+} from "./game-session-helpers";
 
 type SessionCommands = {
     startNewGame: (settings: GameSetup) => GameState;
@@ -43,49 +40,12 @@ type SessionState = {
     setError: (msg: string | null) => void;
 };
 
-// Helper to parse and normalize save data
-function parseSave(raw: string): SavedGame | null {
-    try {
-        const parsed = JSON.parse(raw);
-
-        // Handle very old legacy format (raw GameState, no timestamp wrapper)
-        if (!parsed.timestamp && parsed.turn) {
-            const rawCivName = parsed.players?.find((p: any) => p.id === parsed.currentPlayerId)?.civName;
-            const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
-            return {
-                timestamp: 0,
-                gameState: parsed,
-                turn: parsed.turn,
-                civName: title
-            };
-        }
-
-        // Handle standard format (wrapper with timestamp)
-        // Check if metadata is missing (previous format) and backfill it
-        if (parsed.gameState && (parsed.turn === undefined || parsed.civName === undefined)) {
-            const state = parsed.gameState;
-            const rawCivName = parsed.civName ?? (state.players?.find((p: any) => p.id === state.currentPlayerId)?.civName);
-            const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
-            return {
-                timestamp: parsed.timestamp,
-                gameState: state,
-                turn: parsed.turn ?? state.turn ?? 0,
-                civName: title
-            };
-        }
-
-        // Assume it's the new correct format, but maybe double check if civName looks like an ID and fix it?
-        // Let's just fix it on load to be safe
-        if (parsed.civName && !parsed.civName.includes(" ")) {
-            const title = CIV_OPTIONS.find(c => c.id === parsed.civName)?.title;
-            if (title) parsed.civName = title;
-        }
-
-        // Assume it's the new correct format
-        return parsed;
-    } catch {
-        return null;
+function refreshVisibilityForAllPlayers(state: GameState): GameState {
+    for (const player of state.players) {
+        if (player.isEliminated) continue;
+        refreshPlayerVision(state, player.id);
     }
+    return state;
 }
 
 /**
@@ -157,15 +117,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
     const saveGame = useCallback(() => {
         if (!gameState) return false;
         try {
-            const saveData: SavedGame = {
-                timestamp: Date.now(),
-                gameState: gameState,
-                turn: gameState.turn,
-                civName: (() => {
-                    const raw = gameState.players.find(p => p.id === gameState.currentPlayerId)?.civName;
-                    return CIV_OPTIONS.find(c => c.id === raw)?.title || raw || "Unknown";
-                })(),
-            };
+            const saveData = createSaveData(gameState);
             localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
             return true;
         } catch {
@@ -181,21 +133,13 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
 
             const manualSave = rawManual ? parseSave(rawManual) : null;
             const autoSave = rawAuto ? parseSave(rawAuto) : null;
-
-            let chosenSave: SavedGame | null = null;
-
-            if (slot === "manual") chosenSave = manualSave;
-            else if (slot === "auto") chosenSave = autoSave;
-            else chosenSave = manualSave ?? autoSave; // Default behavior
+            const chosenSave = chooseSave(slot, manualSave, autoSave);
 
             if (!chosenSave) {
                 return false;
             }
 
-            const restored = chosenSave.gameState;
-            if (restored.winnerId && !restored.endTurn) {
-                (restored as any).endTurn = restored.turn;
-            }
+            const restored = refreshVisibilityForAllPlayers(ensureEndTurnForWinner(chosenSave.gameState));
             setGameState(restored);
             setPlayerId(pickActivePlayerId(restored));
             return true;
@@ -232,7 +176,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
     // Persist lastGameSettings
     useEffect(() => {
         if (lastGameSettings) {
-            localStorage.setItem("simple-civ-last-settings", JSON.stringify(lastGameSettings));
+            localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(lastGameSettings));
         }
     }, [lastGameSettings]);
 
@@ -242,10 +186,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
         const sessionData = localStorage.getItem(SESSION_SAVE_KEY);
         if (sessionData) {
             try {
-                const parsedState = JSON.parse(sessionData);
-                if (parsedState?.winnerId && !parsedState.endTurn) {
-                    parsedState.endTurn = parsedState.turn;
-                }
+                const parsedState = refreshVisibilityForAllPlayers(ensureEndTurnForWinner(JSON.parse(sessionData)));
                 setGameState(parsedState);
                 setPlayerId(pickActivePlayerId(parsedState));
                 onSessionRestore?.();
@@ -255,7 +196,7 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
             }
         }
 
-        const settingsData = localStorage.getItem("simple-civ-last-settings");
+        const settingsData = localStorage.getItem(LAST_SETTINGS_KEY);
         if (settingsData) {
             try {
                 setLastGameSettings(JSON.parse(settingsData));
@@ -290,28 +231,17 @@ export function useGameSession(options?: { onSessionRestore?: () => void }): Ses
     useEffect(() => {
         if (!gameState) return;
 
-        // Only autosave on specific turns, and only ONCE per turn (when we haven't saved this turn yet)
-        if (gameState.turn > 0 && gameState.turn % 5 === 0 && gameState.currentPlayerId === playerId) {
-            if (lastAutosavedTurnRef.current === gameState.turn) {
-                return;
-            }
+        if (!shouldCreateAutosave(gameState, playerId, lastAutosavedTurnRef.current)) {
+            return;
+        }
 
-            const rawCivName = gameState.players.find(p => p.id === gameState.currentPlayerId)?.civName;
-            const title = CIV_OPTIONS.find(c => c.id === rawCivName)?.title || rawCivName || "Unknown";
-
-            const saveData: SavedGame = {
-                timestamp: Date.now(),
-                gameState: gameState,
-                turn: gameState.turn,
-                civName: title,
-            };
-            try {
-                localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
-                console.log("Autosave created at turn", gameState.turn);
-                lastAutosavedTurnRef.current = gameState.turn;
-            } catch (e) {
-                console.warn("Failed to autosave", e);
-            }
+        try {
+            const saveData = createSaveData(gameState);
+            localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
+            console.log("Autosave created at turn", gameState.turn);
+            lastAutosavedTurnRef.current = gameState.turn;
+        } catch (e) {
+            console.warn("Failed to autosave", e);
         }
     }, [gameState, playerId]);
 

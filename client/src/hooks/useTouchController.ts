@@ -7,11 +7,14 @@ import {
     MIN_ZOOM,
 } from "../components/GameMap/constants";
 import type { PanState, Velocity } from "./usePanZoomInertia";
-
-// Touch-specific constants
-const TOUCH_TAP_THRESHOLD = 10;      // Max movement for tap detection (px)
-const TOUCH_TAP_DURATION = 300;      // Max duration for tap (ms)
-const PINCH_ZOOM_SENSITIVITY = 1.0;  // Pinch gesture sensitivity multiplier
+import {
+    calculateClientDistance,
+    calculatePinchZoom,
+    calculatePointDistance,
+    computePinchAdjustedPan,
+    isTapGesture,
+    PINCH_ZOOM_SENSITIVITY
+} from "./touch-controller-helpers";
 
 type TouchControllerParams = {
     svgRef: RefObject<SVGSVGElement>;
@@ -84,9 +87,7 @@ export function useTouchController({
 
     /** Calculate distance between two touch points */
     const getDistance = useCallback((touch1: React.Touch, touch2: React.Touch): number => {
-        const dx = touch2.clientX - touch1.clientX;
-        const dy = touch2.clientY - touch1.clientY;
-        return Math.sqrt(dx * dx + dy * dy);
+        return calculateClientDistance(touch1, touch2);
     }, []);
 
     /** Calculate center point between two touches */
@@ -186,7 +187,10 @@ export function useTouchController({
             if (tracked) {
                 const deltaX = pos.x - tracked.startX;
                 const deltaY = pos.y - tracked.startY;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const distance = calculatePointDistance(
+                    { x: tracked.startX, y: tracked.startY },
+                    { x: pos.x, y: pos.y },
+                );
 
                 if (distance > DRAG_THRESHOLD) {
                     isDraggingRef.current = true;
@@ -223,13 +227,18 @@ export function useTouchController({
             const center = getCenter(touch1, touch2);
 
             const pinch = pinchStateRef.current;
-            const scale = (distance / pinch.initialDistance) * PINCH_ZOOM_SENSITIVITY;
-            const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinch.initialZoom * scale));
+            const newZoom = calculatePinchZoom(
+                distance,
+                pinch.initialDistance,
+                pinch.initialZoom,
+                PINCH_ZOOM_SENSITIVITY,
+                MIN_ZOOM,
+                MAX_ZOOM,
+            );
 
             // Calculate zoom-adjusted pan to keep pinch center fixed
             // When zooming, we need to adjust pan so the point under the pinch center stays fixed
             const previousZoom = zoomRef.current;
-            const ratio = newZoom / previousZoom;
 
             // First, handle the pan delta from two-finger drag
             const panDeltaX = center.x - pinch.centerX;
@@ -237,10 +246,13 @@ export function useTouchController({
 
             // Then apply zoom adjustment around the current center
             const currentPan = panRef.current;
-            const zoomAdjustedPan = {
-                x: center.x - (center.x - currentPan.x - panDeltaX) * ratio,
-                y: center.y - (center.y - currentPan.y - panDeltaY) * ratio,
-            };
+            const zoomAdjustedPan = computePinchAdjustedPan(
+                center,
+                currentPan,
+                { x: panDeltaX, y: panDeltaY },
+                previousZoom,
+                newZoom,
+            );
 
             // Apply pan immediately
             panRef.current = zoomAdjustedPan;
@@ -272,12 +284,13 @@ export function useTouchController({
 
             // Check for tap gesture
             if (tracked && !isDraggingRef.current && clickTargetRef.current) {
-                const deltaX = tracked.lastX - tracked.startX;
-                const deltaY = tracked.lastY - tracked.startY;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const distance = calculatePointDistance(
+                    { x: tracked.startX, y: tracked.startY },
+                    { x: tracked.lastX, y: tracked.lastY },
+                );
                 const duration = now - tracked.startTime;
 
-                if (distance < TOUCH_TAP_THRESHOLD && duration < TOUCH_TAP_DURATION) {
+                if (isTapGesture(distance, duration)) {
                     // It's a tap! Trigger tile click
                     onTileClick(clickTargetRef.current);
                 }

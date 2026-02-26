@@ -7,10 +7,10 @@ import type { BuildOption, ProductionContext } from "../production.js";
 function shouldPauseJadeSettlers(context: ProductionContext): boolean {
     if (context.profile.civName !== "JadeCovenant") return false;
 
-    // Jade should only freeze expansion under severe pressure, not mild upkeep strain.
-    const severeUpkeepPressure = context.economy.upkeepRatio > (context.profile.economy.upkeepRatioLimit + 0.14);
-    const shortDeficitRunway = context.economy.netGold < 0 && context.economy.deficitRiskTurns <= 3;
-    return context.economy.economyState === "Strained" && (severeUpkeepPressure || shortDeficitRunway);
+    // Jade should freeze expansion before treasury runaway to preserve pressure.
+    const severeUpkeepPressure = context.economy.upkeepRatio > (context.profile.economy.upkeepRatioLimit + 0.08);
+    const shortDeficitRunway = context.economy.netGold < 0 && context.economy.deficitRiskTurns <= 6;
+    return context.economy.economyState === "Strained" && severeUpkeepPressure && shortDeficitRunway;
 }
 
 export function pickEarlyExpansionBuild(

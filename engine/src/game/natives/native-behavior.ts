@@ -48,12 +48,23 @@ export function isNativeUnit(unit: Unit): boolean {
 }
 
 /**
+ * Units garrisoned in their own city are "sheltered" and should not be
+ * treated as chase/aggro targets for natives.
+ */
+function isShelteredInOwnCity(state: GameState, unit: Unit): boolean {
+    const cityAtLocation = state.cities.find(c => hexEquals(c.coord, unit.coord));
+    return !!cityAtLocation && cityAtLocation.ownerId === unit.ownerId;
+}
+
+/**
  * Get all enemy (player) units within a camp's territory
  */
 function getEnemiesInTerritory(state: GameState, camp: NativeCamp): Unit[] {
     return state.units.filter(u => {
         if (u.ownerId === NATIVE_OWNER_ID) return false;
-        return hexDistance(u.coord, camp.coord) <= NATIVE_CAMP_TERRITORY_RADIUS;
+        if (hexDistance(u.coord, camp.coord) > NATIVE_CAMP_TERRITORY_RADIUS) return false;
+        if (isShelteredInOwnCity(state, u)) return false;
+        return true;
     });
 }
 
@@ -211,6 +222,10 @@ function isValidMoveTarget(state: GameState, coord: HexCoord, movingUnitId?: str
     );
     if (blockingUnit) return false;
 
+    // Natives do not enter city-center tiles.
+    const cityOnTile = state.cities.find(c => hexEquals(c.coord, coord));
+    if (cityOnTile) return false;
+
     return true;
 }
 
@@ -249,7 +264,9 @@ function executeAggroBehavior(state: GameState, camp: NativeCamp): void {
     const chaseRange = NATIVE_CAMP_TERRITORY_RADIUS + NATIVE_CAMP_CHASE_DISTANCE;
     const allNearbyEnemies = state.units.filter(u => {
         if (u.ownerId === NATIVE_OWNER_ID) return false;
-        return hexDistance(u.coord, camp.coord) <= chaseRange;
+        if (hexDistance(u.coord, camp.coord) > chaseRange) return false;
+        if (isShelteredInOwnCity(state, u)) return false;
+        return true;
     });
 
     for (const unit of campUnits) {
@@ -292,8 +309,7 @@ function tryNativeAttack(state: GameState, attacker: Unit, enemies: Unit[]): boo
         const dist = hexDistance(attacker.coord, e.coord);
         if (dist <= 0 || dist > range) return false;
         if (dist > vision) return false; // Do not shoot beyond vision
-        const cityAtLocation = state.cities.find(c => hexEquals(c.coord, e.coord));
-        if (cityAtLocation && cityAtLocation.ownerId === e.ownerId) {
+        if (isShelteredInOwnCity(state, e)) {
             // Respect city garrison protection: natives do not attack units inside their own city
             return false;
         }

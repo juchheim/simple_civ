@@ -734,12 +734,22 @@
 
 .city-panel__hex-yields {
     display: flex;
-    gap: 4px;
+    flex-direction: column;
+    gap: 2px;
     padding: 2px 6px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.2);
     font-size: 12px;
     font-weight: 800;
+    align-items: center;
+}
+
+.city-panel__yield-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 14px;
 }
 
 .city-panel__yield {
@@ -756,6 +766,10 @@
 
 .city-panel__yield--science {
     color: #bfdbfe;
+}
+
+.city-panel__yield--gold {
+    color: #fef08a;
 }
 
 .city-panel__footer {

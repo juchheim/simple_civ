@@ -28,14 +28,17 @@ export function pickProactiveReinforcementBuild(
     const economy = context.economy;
     if (economy.economyState === "Crisis") return null;
     if (economy.netGold < 0 && economy.deficitRiskTurns <= context.profile.economy.deficitToleranceTurns) return null;
-    if (!isStaging && economy.upkeepRatio > context.profile.economy.upkeepRatioLimit) return null;
+    const upkeepOverLimit = economy.upkeepRatio > context.profile.economy.upkeepRatioLimit;
+    const hasWarChest = economy.treasury >= (economy.reserveFloor + 30);
+    const hasEconomicHeadroom = economy.netGold >= 3 || (economy.netGold >= 0 && hasWarChest);
+    if (!isStaging && upkeepOverLimit && !hasEconomicHeadroom) return null;
 
     // Condition 3: Context-sensitive military cap.
     // Jade runs wide and can over-spend if treated like full conquest aggressors.
     const civName = context.profile.civName;
     const isDefensive = ["ScholarKingdoms", "StarborneSeekers"].includes(civName);
     const capPerCity = civName === "JadeCovenant"
-        ? 3.8
+        ? 4.4
         : (isDefensive ? 2.5 : 6.0);
 
     const militaryCount = context.myMilitaryUnits.length;

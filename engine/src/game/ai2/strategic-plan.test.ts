@@ -32,4 +32,21 @@ describe('strategic-plan: getGoalRequirements', () => {
         const reqs = getGoalRequirements("Progress", "ForgeClans", "Expand", 1);
         expect(reqs.minSiege).toBe(1);
     });
+
+    it('scales conquest force requirements with city count', () => {
+        const compact = getGoalRequirements("Conquest", "ForgeClans", "Develop", 2);
+        const wide = getGoalRequirements("Conquest", "ForgeClans", "Develop", 6);
+
+        expect(wide.minSiege).toBeGreaterThan(compact.minSiege);
+        expect(wide.minCapture).toBeGreaterThan(compact.minCapture);
+    });
+
+    it('scales balanced force requirements with city count', () => {
+        const compact = getGoalRequirements("Balanced", "ForgeClans", "Develop", 2);
+        const wide = getGoalRequirements("Balanced", "ForgeClans", "Develop", 6);
+
+        expect(wide.minSiege).toBeGreaterThan(compact.minSiege);
+        expect(wide.minCapture).toBeGreaterThan(compact.minCapture);
+        expect(wide.minDefense).toBeGreaterThan(compact.minDefense);
+    });
 });

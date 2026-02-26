@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { HexCoord, Tile } from "@simple-civ/engine";
 import {
@@ -11,6 +11,27 @@ import {
 import { EDGE_PAN_THRESHOLD, PanState, usePanZoomInertia } from "./usePanZoomInertia";
 import { useTouchController } from "./useTouchController";
 import { PAN_INERTIA_MIN_VELOCITY } from "../components/GameMap/constants";
+import {
+    createViewport,
+    computeFitToTilesView,
+    findClosestHexAtWorldPoint,
+    panToCenterPoint,
+    screenToWorldPoint
+} from "./map-controller-math";
+import { getVelocitySpeed, isInEdgeZone } from "./pan-zoom-inertia-helpers";
+import {
+    computeDragMetrics,
+    computePanFromDrag,
+    computePointerVelocity,
+    computeWheelDesiredZoom,
+    createPointerSample,
+    hasMeaningfulZoomDelta,
+    type PointerSample
+} from "./map-pointer-helpers";
+import {
+    useMapViewportSize,
+    useViewportChangeNotifier
+} from "./useMapViewportTracking";
 
 export type MapViewport = {
     pan: { x: number; y: number };
@@ -28,8 +49,6 @@ type MapControllerParams = {
     initialCenter?: HexCoord | null;
     onViewChange?: (view: MapViewport) => void;
 };
-
-type PointerSample = { x: number; y: number; time: number };
 
 /**
  * Hook to manage map interaction (pan, zoom, click, hover).
@@ -76,7 +95,7 @@ export const useMapController = ({
     } = usePanZoomInertia({ pan, zoom, setPan, setZoom, containerRef, isPanningRef, layerGroupRef });
 
     // --- Viewport State (from GameMap) ---
-    const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+    const viewportSize = useMapViewportSize(containerRef);
 
     // Keep panning flag in sync for inertia checks
     useEffect(() => {
@@ -86,27 +105,16 @@ export const useMapController = ({
     // --- Helpers ---
     // Use REFS for coordinate math to ensure freshness during animation without re-renders
     const screenToWorld = useCallback((screenX: number, screenY: number) => {
-        return {
-            x: (screenX - panRef.current.x) / zoomRef.current,
-            y: (screenY - panRef.current.y) / zoomRef.current,
-        };
+        return screenToWorldPoint(
+            { x: screenX, y: screenY },
+            panRef.current,
+            zoomRef.current,
+        );
     }, [panRef, zoomRef]); // Refs are stable, but listing them as deps is fine/safe
 
     const findHexAtScreen = useCallback((screenX: number, screenY: number): HexCoord | null => {
         const world = screenToWorld(screenX, screenY);
-        let closestHex: HexCoord | null = null;
-        let minDist = Infinity;
-
-        tiles.forEach(tile => {
-            const { x, y } = hexToPixel(tile.coord);
-            const dist = Math.sqrt((world.x - x) ** 2 + (world.y - y) ** 2);
-            if (dist < minDist && dist < HEX_SIZE) {
-                minDist = dist;
-                closestHex = tile.coord;
-            }
-        });
-
-        return closestHex;
+        return findClosestHexAtWorldPoint(world, tiles, hexToPixel, HEX_SIZE);
     }, [tiles, hexToPixel, screenToWorld]);
 
     // --- Touch Controller ---
@@ -139,13 +147,14 @@ export const useMapController = ({
 
         if (initialCenter) {
             // Center on specific coordinate
-            const { x, y } = hexToPixel(initialCenter);
+            const centerPoint = hexToPixel(initialCenter);
             const initialZoom = 1.0; // Default gameplay zoom
 
-            const centerX = containerWidth / 2 - x * initialZoom;
-            const centerY = containerHeight / 2 - y * initialZoom;
-
-            const initialPan = { x: centerX, y: centerY };
+            const initialPan = panToCenterPoint(
+                centerPoint,
+                { width: containerWidth, height: containerHeight },
+                initialZoom,
+            );
             setPan(initialPan);
             panRef.current = initialPan;
             setPanStart(initialPan);
@@ -155,34 +164,14 @@ export const useMapController = ({
             targetZoomRef.current = initialZoom;
         } else {
             // Fallback: Fit all tiles
-            let minX = Infinity;
-            let minY = Infinity;
-            let maxX = -Infinity;
-            let maxY = -Infinity;
-
-            tiles.forEach(tile => {
-                const { x, y } = hexToPixel(tile.coord);
-                const hexRadius = HEX_SIZE;
-                minX = Math.min(minX, x - hexRadius);
-                minY = Math.min(minY, y - hexRadius);
-                maxX = Math.max(maxX, x + hexRadius);
-                maxY = Math.max(maxY, y + hexRadius);
+            const { pan: initialPan, zoom: initialZoom } = computeFitToTilesView({
+                tiles,
+                hexToPixel,
+                containerSize: { width: containerWidth, height: containerHeight },
+                hexRadius: HEX_SIZE,
+                padding: 50,
+                maxZoom: 1.0,
             });
-
-            const mapWidth = maxX - minX;
-            const mapHeight = maxY - minY;
-            const mapCenterX = (minX + maxX) / 2;
-            const mapCenterY = (minY + maxY) / 2;
-
-            const padding = 50;
-            const scaleX = (containerWidth - padding * 2) / mapWidth;
-            const scaleY = (containerHeight - padding * 2) / mapHeight;
-            const initialZoom = Math.min(scaleX, scaleY, 1.0);
-
-            const centerX = containerWidth / 2 - mapCenterX * initialZoom;
-            const centerY = containerHeight / 2 - mapCenterY * initialZoom;
-
-            const initialPan = { x: centerX, y: centerY };
             setPan(initialPan);
             panRef.current = initialPan;
             setPanStart(initialPan);
@@ -209,10 +198,15 @@ export const useMapController = ({
             zoomAnchorRef.current = { x: mouseX, y: mouseY };
 
             const currentTarget = targetZoomRef.current ?? zoomRef.current;
-            const zoomFactor = Math.exp(-e.deltaY * ZOOM_WHEEL_SENSITIVITY);
-            const desiredZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentTarget * zoomFactor));
+            const desiredZoom = computeWheelDesiredZoom(
+                currentTarget,
+                e.deltaY,
+                ZOOM_WHEEL_SENSITIVITY,
+                MIN_ZOOM,
+                MAX_ZOOM,
+            );
 
-            if (Math.abs(desiredZoom - currentTarget) < 0.0005) {
+            if (!hasMeaningfulZoomDelta(currentTarget, desiredZoom)) {
                 return;
             }
 
@@ -241,7 +235,7 @@ export const useMapController = ({
         setPanStart(panRef.current);
         isInertiaActiveRef.current = false;
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
-        lastPointerRef.current = { x: e.clientX, y: e.clientY, time: performance.now() };
+        lastPointerRef.current = createPointerSample(e.clientX, e.clientY, performance.now());
     }, [findHexAtScreen, inertiaVelocityRef, isInertiaActiveRef, panRef]);
 
     const handleMouseMove = useCallback((e: ReactMouseEvent) => {
@@ -258,11 +252,11 @@ export const useMapController = ({
         // Check if we need to start edge panning
         if (!isPanning && !mouseDownPos) {
             const { clientWidth, clientHeight } = svgRef.current;
-            const isNearEdge =
-                screenX < EDGE_PAN_THRESHOLD ||
-                screenX > clientWidth - EDGE_PAN_THRESHOLD ||
-                screenY < EDGE_PAN_THRESHOLD ||
-                screenY > clientHeight - EDGE_PAN_THRESHOLD;
+            const isNearEdge = isInEdgeZone(
+                { x: screenX, y: screenY },
+                { width: clientWidth, height: clientHeight },
+                EDGE_PAN_THRESHOLD,
+            );
 
             if (isNearEdge) {
                 scheduleAnimation();
@@ -271,11 +265,9 @@ export const useMapController = ({
 
         if (!mouseDownPos) return;
 
-        const deltaX = e.clientX - mouseDownPos.x;
-        const deltaY = e.clientY - mouseDownPos.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const drag = computeDragMetrics(mouseDownPos, { x: e.clientX, y: e.clientY });
 
-        if (distance <= DRAG_THRESHOLD) {
+        if (drag.distance <= DRAG_THRESHOLD) {
             return;
         }
 
@@ -283,34 +275,30 @@ export const useMapController = ({
         if (!isPanning) {
             setIsPanning(true);
             setClickTarget(null);
-            lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
+            lastPointerRef.current = createPointerSample(e.clientX, e.clientY, now);
         } else if (lastPointerRef.current) {
-            const last = lastPointerRef.current;
-            const dt = now - last.time;
-            if (dt > 0) {
-                inertiaVelocityRef.current = {
-                    vx: (e.clientX - last.x) / dt,
-                    vy: (e.clientY - last.y) / dt,
-                };
+            const velocity = computePointerVelocity(
+                lastPointerRef.current,
+                createPointerSample(e.clientX, e.clientY, now),
+            );
+            if (velocity) {
+                inertiaVelocityRef.current = velocity;
             }
-            lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
+            lastPointerRef.current = createPointerSample(e.clientX, e.clientY, now);
         }
 
-        const nextPan = {
-            x: panStart.x + deltaX,
-            y: panStart.y + deltaY,
-        };
+        const nextPan = computePanFromDrag(panStart, drag);
         // DIRECT DOM UPDATE: Bypass React State!
         panRef.current = nextPan;
         if (layerGroupRef.current) {
             layerGroupRef.current.setAttribute("transform", `translate(${nextPan.x},${nextPan.y}) scale(${zoomRef.current})`);
         }
-    }, [findHexAtScreen, inertiaVelocityRef, isPanning, mouseDownPos, mousePositionRef, onHoverTile, panRef, panStart, scheduleAnimation]);
+    }, [findHexAtScreen, inertiaVelocityRef, isPanning, mouseDownPos, mousePositionRef, onHoverTile, panRef, panStart, scheduleAnimation, zoomRef]);
 
     const handleMouseUp = useCallback(() => {
         if (isPanning) {
             const velocity = inertiaVelocityRef.current;
-            const speed = Math.hypot(velocity.vx, velocity.vy);
+            const speed = getVelocitySpeed(velocity);
             if (speed > PAN_INERTIA_MIN_VELOCITY) {
                 isInertiaActiveRef.current = true;
                 scheduleAnimation();
@@ -328,7 +316,7 @@ export const useMapController = ({
         setClickTarget(null);
         lastPointerRef.current = null;
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
-    }, [clickTarget, inertiaVelocityRef, isInertiaActiveRef, isPanning, onTileClick, scheduleAnimation]);
+    }, [clickTarget, inertiaVelocityRef, isInertiaActiveRef, isPanning, onTileClick, panRef, scheduleAnimation]);
 
     const handleMouseLeave = useCallback(() => {
         mousePositionRef.current = null;
@@ -342,14 +330,13 @@ export const useMapController = ({
 
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
-        const centerX = containerWidth / 2;
-        const centerY = containerHeight / 2;
 
         const currentZoom = zoomRef.current;
-        const newPan = {
-            x: centerX - point.x * currentZoom,
-            y: centerY - point.y * currentZoom,
-        };
+        const newPan = panToCenterPoint(
+            point,
+            { width: containerWidth, height: containerHeight },
+            currentZoom,
+        );
 
         setPan(newPan);
         panRef.current = newPan;
@@ -364,72 +351,16 @@ export const useMapController = ({
         centerOnPoint(hexPos);
     }, [centerOnPoint, hexToPixel]);
 
-    // --- Resize Logic (from GameMap) ---
-    useLayoutEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        const observer = new ResizeObserver(entries => {
-            const entry = entries[0];
-            if (!entry) return;
-            const { width, height } = entry.contentRect;
-            setViewportSize(prev => {
-                if (prev.width === width && prev.height === height) return prev;
-                return { width, height };
-            });
-        });
-
-        observer.observe(container);
-        return () => observer.disconnect();
-    }, []);
-
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-        setViewportSize(prev => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            if (prev.width === width && prev.height === height) return prev;
-            return { width, height };
-        });
-    }, []);
-
     // --- Viewport Calculation ---
     // NOTE: Viewport will still re-calculate when React state updates (which we throttled)
     // This is fine as it's used for culling logic, which doesn't need to be 60fps accurate during rapid motion
     const viewport = useMemo<MapViewport | null>(() => {
         if (viewportSize.width === 0 || viewportSize.height === 0) return null;
-        const minX = (-pan.x) / zoom;
-        const minY = (-pan.y) / zoom;
-        const maxX = (viewportSize.width - pan.x) / zoom;
-        const maxY = (viewportSize.height - pan.y) / zoom;
-
-        return {
-            pan,
-            zoom,
-            size: viewportSize,
-            worldBounds: { minX, maxX, minY, maxY },
-            center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
-        };
+        return createViewport(pan, zoom, viewportSize);
     }, [pan, zoom, viewportSize]);
 
     // --- Notify View Change ---
-    const lastViewportRef = useRef<MapViewport | null>(null);
-    useEffect(() => {
-        if (!viewport || !onViewChange) return;
-        const last = lastViewportRef.current;
-        const unchanged =
-            last &&
-            last.zoom === viewport.zoom &&
-            last.pan.x === viewport.pan.x &&
-            last.pan.y === viewport.pan.y &&
-            last.size.width === viewport.size.width &&
-            last.size.height === viewport.size.height;
-
-        if (unchanged) return;
-        lastViewportRef.current = viewport;
-        onViewChange(viewport);
-    }, [viewport, onViewChange]);
+    useViewportChangeNotifier(viewport, onViewChange);
 
     return {
         pan,

@@ -51,7 +51,7 @@ function isCoastalCity(state: GameState, city: City): boolean {
 
 export function getGoldBuildingConditionalBonus(state: GameState, city: City, building: BuildingType): number {
     if (building === BuildingType.TradingPost) {
-        return isTileAdjacentToRiver(state.map, city.coord) ? 1 : 0;
+        return (isTileAdjacentToRiver(state.map, city.coord) || isCoastalCity(state, city)) ? 1 : 0;
     }
     if (building === BuildingType.MarketHall) {
         return city.pop >= 5 ? 1 : 0;
@@ -133,6 +133,10 @@ export function pickEconomyBuilding(
                     ? 1.06
                     : 1.0;
     const riverOrCoastBias = civName === "RiverLeague" && (isTileAdjacentToRiver(state.map, city.coord) || isCoastalCity(state, city)) ? 1.5 : 1.0;
+    const existingGoldBuildings = city.buildings.filter(building => GOLD_BUILDINGS.includes(building)).length;
+    const jadeGoldSpreadMultiplier = civName === "JadeCovenant"
+        ? (existingGoldBuildings >= 2 ? 0.62 : existingGoldBuildings === 1 ? 0.78 : 1.0)
+        : 1.0;
 
     let best: { building: BuildingType; score: number; payback: number; netGain: number; supplyRelief: number } | null = null;
     for (const building of GOLD_BUILDINGS) {
@@ -151,7 +155,8 @@ export function pickEconomyBuilding(
             * goldBuildBias
             * riverOrCoastBias
             * tierMultiplier
-            * supportPressureMultiplier);
+            * supportPressureMultiplier
+            * jadeGoldSpreadMultiplier);
         if (!best || score > best.score) {
             best = { building, score, payback, netGain, supplyRelief };
         }

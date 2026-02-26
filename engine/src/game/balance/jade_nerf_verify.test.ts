@@ -11,19 +11,18 @@ import { getGrowthCost, canBuild } from "../rules.js";
 
 describe("JadeCovenant Balance Changes", () => {
     test("Constants reflect new nerf values", () => {
-        expect(JADE_COVENANT_GROWTH_MULT).toBe(0.95);
-        expect(JADE_COVENANT_SETTLER_DISCOUNT).toBe(0.90);
+        expect(JADE_COVENANT_GROWTH_MULT).toBe(1.0);
+        expect(JADE_COVENANT_SETTLER_DISCOUNT).toBe(1.0);
         expect(JADE_COVENANT_SETTLER_MOVEMENT).toBe(1);
         expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(29);
         expect(JADE_COVENANT_POP_COMBAT_BONUS_CAP).toBe(2);
     });
 
-    test("Growth discount remains modest", () => {
+    test("Passive growth discount is removed", () => {
         const cost = getGrowthCost(10, false, false, "JadeCovenant");
         const base = getGrowthCost(10, false, false, "OtherCiv");
 
-        // Jade keeps a modest global growth discount.
-        expect(cost).toBe(Math.ceil(base * 0.95));
+        expect(cost).toBe(base);
     });
 });
 

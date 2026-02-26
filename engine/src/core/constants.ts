@@ -40,7 +40,7 @@ export const MAX_CIVS_BY_MAP_SIZE: Record<string, number> = {
 /** Base science yield for every city (before buildings/modifiers). */
 export const BASE_CITY_SCIENCE = 1;
 /** Base gold yield for every city (before buildings/modifiers). */
-export const BASE_CITY_GOLD = 1;
+export const BASE_CITY_GOLD = 0;
 /** Minimum food yield for a city center tile. */
 export const CITY_CENTER_MIN_FOOD = 2;
 /** Minimum production yield for a city center tile. */
@@ -53,16 +53,23 @@ export const STARTING_TREASURY = 40;
 export const MILITARY_FREE_SUPPLY_BASE = 1;
 /** Military supply provided by each owned city. */
 export const MILITARY_FREE_SUPPLY_PER_CITY = 1;
+/** ScholarKingdoms passive free military supply to ease early economy collapse. */
+export const SCHOLAR_KINGDOMS_FREE_SUPPLY_BONUS = 1;
 /** Gold upkeep charged per supply point above free military supply. */
-export const MILITARY_UPKEEP_PER_EXCESS_SUPPLY = 2;
+export const MILITARY_UPKEEP_PER_EXCESS_SUPPLY = 3;
+/** City administration upkeep applied per city beyond the capital. */
+export const CITY_ADMIN_UPKEEP_PER_CITY = 1;
+/** Extra administration upkeep applied for very wide empires (city 5+). */
+export const CITY_ADMIN_UPKEEP_WIDE_SURCHARGE = 2;
 /**
  * Extra free supply granted by completed economic buildings.
  * This makes sustained military scale partially dependent on economy infrastructure.
  */
 export const ECONOMIC_BUILDING_SUPPLY_BONUS: Partial<Record<BuildingType, number>> = {
+    // Basic economic infrastructure should support early military scaling.
     [BuildingType.TradingPost]: 1,
-    [BuildingType.MarketHall]: 1,
-    [BuildingType.Bank]: 2,
+    [BuildingType.MarketHall]: 0,
+    [BuildingType.Bank]: 1,
     [BuildingType.Exchange]: 2,
 };
 /** Production penalty while in austerity. */
@@ -121,9 +128,9 @@ export const GROWTH_FACTORS = [
     { min: 11, max: 999, f: 2.60 }, // v1.6: Slightly reduced - target pop 10 at turn ~195
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
-export const JADE_GRANARY_GROWTH_MULT = 0.85;
-// JadeCovenant keeps a modest global growth discount.
-export const JADE_COVENANT_GROWTH_MULT = 0.95;
+export const JADE_GRANARY_GROWTH_MULT = 0.9;
+// JadeCovenant passive global growth discount removed in targeted balance pass.
+export const JADE_COVENANT_GROWTH_MULT = 1.0;
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -138,8 +145,8 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 
 
-// JadeCovenant "Swift Settlers" keeps a moderate discount without the old snowball package.
-export const JADE_COVENANT_SETTLER_DISCOUNT = 0.90;
+// JadeCovenant "Swift Settlers" cost discount removed; movement identity remains.
+export const JADE_COVENANT_SETTLER_DISCOUNT = 1.0;
 export const JADE_COVENANT_SETTLER_MOVEMENT = 1;
 
 // JadeCovenant "Population Power": +1 Atk/Def per X total population (capped).
@@ -354,7 +361,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Farmstead]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { F: 1 }, maintenance: 2, growthMult: 0.9 },
     [BuildingType.StoneWorkshop]: { era: EraId.Hearth, techReq: TechId.StoneworkHalls, cost: 40, yieldFlat: { P: 1 }, maintenance: 2 },
     [BuildingType.Scriptorium]: { era: EraId.Hearth, techReq: TechId.ScriptLore, cost: 40, yieldFlat: { S: 1 }, maintenance: 2 },
-    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 4 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold if city is river-adjacent" },
+    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 4 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold if city is river-adjacent or coastal" },
     [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, maintenance: 2, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
     [BuildingType.MarketHall]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 56, yieldFlat: { G: 6 }, maintenance: 3, rushBuyDiscountPct: 10, conditional: "+1 Gold if city population is 5+" },
     [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, maintenance: 2, conditional: "+1P more if any Forest worked" },

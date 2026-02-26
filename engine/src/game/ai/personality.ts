@@ -17,6 +17,9 @@ type UnitBias = {
     navalWeight?: number;
     hillHold?: boolean;
     rangedSafety?: number;
+    rangedWeight?: number;
+    meleeWeight?: number;
+    cavalryWeight?: number;
 };
 
 type RushTarget =

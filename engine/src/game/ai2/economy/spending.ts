@@ -1,5 +1,6 @@
 import { AUSTERITY_PRODUCTION_MULTIPLIER, BUILDINGS, PROJECTS } from "../../../core/constants.js";
-import { BuildingType, City, GameState, OverlayType, ProjectId, UnitType } from "../../../core/types.js";
+import { BuildingType, City, GameState, OverlayType, ProjectId, TerrainType, UnitType } from "../../../core/types.js";
+import { hexDistance } from "../../../core/hex.js";
 import { isTileAdjacentToRiver } from "../../../map/rivers.js";
 import { tryAction } from "../../ai/shared/actions.js";
 import { buildLookupCache } from "../../helpers/lookup-cache.js";
@@ -53,9 +54,16 @@ function isUniqueCompletionBuild(type: "Unit" | "Building" | "Project", id: stri
     return false;
 }
 
+function isCoastalCity(state: GameState, city: City): boolean {
+    return state.map.tiles.some(tile => {
+        if (hexDistance(tile.coord, city.coord) !== 1) return false;
+        return tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea;
+    });
+}
+
 function goldBuildingConditionalBonus(state: GameState, city: City, building: BuildingType): number {
     if (building === BuildingType.TradingPost) {
-        return isTileAdjacentToRiver(state.map, city.coord) ? 1 : 0;
+        return (isTileAdjacentToRiver(state.map, city.coord) || isCoastalCity(state, city)) ? 1 : 0;
     }
     if (building === BuildingType.MarketHall) {
         return city.pop >= 5 ? 1 : 0;

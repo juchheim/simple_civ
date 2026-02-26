@@ -1,13 +1,21 @@
-import { useMemo, useCallback } from "react";
-import { City, GameState, HexCoord, Tile, Yields, getTileYields, TerrainType, isTileAdjacentToRiver, findPath, UnitType } from "@simple-civ/engine";
+import { useMemo } from "react";
+import { City, GameState, HexCoord, Tile, Yields, findPath, UnitType } from "@simple-civ/engine";
 import { TileVisibilityState } from "./useMapVisibility";
 import { CityOverlayDescriptor } from "../components/GameMap/CityLayer";
 import { CityBoundsDescriptor } from "../components/GameMap/CityBoundsLayer";
 import { UnitDescriptor } from "../components/GameMap/UnitLayer";
 import { useRiverPolylines } from "../components/GameMap/useRiverPolylines";
-import { getNeighbors } from "../utils/hex";
 import { HEX_SIZE } from "../components/GameMap/constants";
 import { getHexCornerOffsets } from "../components/GameMap/geometry";
+import {
+    computeTileYieldsWithCivBonuses,
+    createCitiesByCoord,
+    createPlayerColorMap,
+    createPlayersById,
+    splitUnitRenderDataByCity,
+    toCoordKey
+} from "./render-data-helpers";
+import { buildCityBoundsSegments } from "./render-data-city-bounds";
 
 export type TileRenderEntry = {
     key: string;
@@ -55,42 +63,14 @@ export const useRenderData = ({
 }: RenderDataParams) => {
     const selectedUnit = useMemo(() => units.find(u => u.id === selectedUnitId) ?? null, [units, selectedUnitId]);
 
-    const playersById = useMemo(() => {
-        const playerMap = new Map<string, (typeof gameState.players)[number]>();
-        gameState.players.forEach(p => playerMap.set(p.id, p));
-        return playerMap;
-    }, [gameState]);
-
-    const getTileYieldsWithCiv = useCallback((tile: Tile): Yields => {
-        const owner = playersById.get(tile.ownerId ?? playerId) ?? playersById.get(playerId);
-        const civ = owner?.civName;
-        const base = getTileYields(tile);
-
-        let food = base.F;
-        let production = base.P;
-        const science = base.S;
-        const gold = base.G;
-
-        const adjRiver = Array.isArray((gameState.map as any)?.rivers)
-            ? isTileAdjacentToRiver(gameState.map, tile.coord)
-            : false;
-        if (civ === "RiverLeague" && adjRiver) food += 1;
-        if (civ === "ForgeClans" && tile.terrain === TerrainType.Hills) production += 1;
-
-        return { F: food, P: production, S: science, G: gold };
-    }, [gameState.map, playerId, playersById]);
-
-    const citiesByCoord = useMemo(() => {
-        const coordMap = new Map<string, City>();
-        cities.forEach(c => coordMap.set(`${c.coord.q},${c.coord.r}`, c));
-        return coordMap;
-    }, [cities]);
+    const playersById = useMemo(() => createPlayersById(gameState.players), [gameState.players]);
+    const citiesByCoord = useMemo(() => createCitiesByCoord(cities), [cities]);
 
     const tileRenderData = useMemo<TileRenderEntry[]>(() => {
         return map.tiles
-            .filter(tile => renderableKeys.has(`${tile.coord.q},${tile.coord.r}`))
+            .filter(tile => renderableKeys.has(toCoordKey(tile.coord)))
             .map(tile => {
-                const key = `${tile.coord.q},${tile.coord.r}`;
+                const key = toCoordKey(tile.coord);
                 const visibility = tileVisibility.get(key) ?? FALLBACK_VISIBILITY;
                 const position = hexToPixel(tile.coord);
                 const isSelected = !!(selectedCoord && tile.coord.q === selectedCoord.q && tile.coord.r === selectedCoord.r);
@@ -102,19 +82,20 @@ export const useRenderData = ({
                     tile,
                     position,
                     visibility,
-                    yields: getTileYieldsWithCiv(tile),
+                    yields: computeTileYieldsWithCivBonuses({
+                        tile,
+                        playerId,
+                        playersById,
+                        map: gameState.map,
+                    }),
                     isSelected,
                     isReachable,
                     city,
                 };
             });
-    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords, getTileYieldsWithCiv, renderableKeys, FALLBACK_VISIBILITY]);
+    }, [map.tiles, tileVisibility, selectedCoord, citiesByCoord, hexToPixel, reachableCoords, renderableKeys, FALLBACK_VISIBILITY, playerId, playersById, gameState.map]);
 
-    const playerColorMap = useMemo(() => {
-        const map = new Map<string, string>();
-        gameState.players.forEach(p => map.set(p.id, p.color));
-        return map;
-    }, [gameState.players]);
+    const playerColorMap = useMemo(() => createPlayerColorMap(gameState.players), [gameState.players]);
 
     const cityOverlayData = useMemo<CityOverlayDescriptor[]>(() => {
         return tileRenderData
@@ -135,75 +116,23 @@ export const useRenderData = ({
     }, [tileRenderData]);
 
     const cityBounds = useMemo<CityBoundsDescriptor[]>(() => {
-        const segments: CityBoundsDescriptor[] = [];
-        const EDGE_TO_CORNER_INDICES: [number, number][] = [
-            [0, 1], // E
-            [5, 0], // NE
-            [4, 5], // NW
-            [3, 4], // W
-            [2, 3], // SW
-            [1, 2], // SE
-        ];
-        const dedup = new Set<string>();
-
-        tileRenderData
-            // Show city bounds in both visible AND fogged tiles
-            .filter(entry => entry.tile.ownerCityId && (entry.visibility.isVisible || entry.visibility.isFogged))
-            .forEach(entry => {
-                const ownerCityId = entry.tile.ownerCityId!;
-                const corners = HEX_CORNER_OFFSETS.map(c => ({ x: entry.position.x + c.x, y: entry.position.y + c.y }));
-                const neighbors = getNeighbors(entry.tile.coord);
-
-                neighbors.forEach((neighborCoord, dir) => {
-                    const neighborKey = `${neighborCoord.q},${neighborCoord.r}`;
-                    const neighborEntry = tileByKey.get(neighborKey);
-                    if (neighborEntry?.tile.ownerCityId === ownerCityId) return; // interior edge
-
-                    const [cornerA, cornerB] = EDGE_TO_CORNER_INDICES[dir];
-
-                    // Inset the boundary line towards the center of the hex
-                    const insetFactor = 0.1; // 10% inset
-                    const center = entry.position;
-
-                    const startOriginal = corners[cornerA];
-                    const endOriginal = corners[cornerB];
-
-                    const start = {
-                        x: startOriginal.x + (center.x - startOriginal.x) * insetFactor,
-                        y: startOriginal.y + (center.y - startOriginal.y) * insetFactor
-                    };
-
-                    const end = {
-                        x: endOriginal.x + (center.x - endOriginal.x) * insetFactor,
-                        y: endOriginal.y + (center.y - endOriginal.y) * insetFactor
-                    };
-
-                    const edgeKey = `${entry.key}|${neighborKey}|${ownerCityId}`;
-                    if (dedup.has(edgeKey)) return;
-                    dedup.add(edgeKey);
-                    segments.push({
-                        key: `${entry.key}-${dir}`,
-                        start,
-                        end,
-                        strokeColor: playerColorMap.get(entry.tile.ownerId ?? "") ?? "#22d3ee",
-                        isVisible: entry.visibility.isVisible,
-                        isFogged: entry.visibility.isFogged,
-                    });
-                });
-            });
-
-        return segments;
+        return buildCityBoundsSegments({
+            tileRenderData,
+            tileByKey,
+            playerColorMap,
+            hexCornerOffsets: HEX_CORNER_OFFSETS,
+        });
     }, [tileRenderData, playerColorMap, tileByKey]);
 
     const unitRenderData = useMemo<UnitDescriptor[]>(() => {
         const linkedPartnerId = selectedUnit?.linkedUnitId ?? null;
         return units
             .filter(unit => {
-                const key = `${unit.coord.q},${unit.coord.r}`;
+                const key = toCoordKey(unit.coord);
                 return tileVisibility.get(key)?.isVisible;
             })
             .map(unit => {
-                const key = `${unit.coord.q},${unit.coord.r}`;
+                const key = toCoordKey(unit.coord);
                 // Settlers should always be rendered on top (not as garrison)
                 const isOnCityHex = unit.type !== UnitType.Settler && citiesByCoord.has(key);
                 return {
@@ -218,19 +147,10 @@ export const useRenderData = ({
                     canMove: unit.ownerId === playerId && unit.movesLeft > 0 && unit.state !== "Fortified",
                 };
             });
-    }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility, citiesByCoord, playerColorMap]);
+    }, [units, selectedUnitId, hexToPixel, selectedUnit, tileVisibility, citiesByCoord, playerColorMap, playerId]);
 
     const { unitRenderDataOnCity, unitRenderDataOffCity } = useMemo(() => {
-        const onCity: UnitDescriptor[] = [];
-        const offCity: UnitDescriptor[] = [];
-        unitRenderData.forEach(u => {
-            if (u.isOnCityHex) {
-                onCity.push(u);
-            } else {
-                offCity.push(u);
-            }
-        });
-        return { unitRenderDataOnCity: onCity, unitRenderDataOffCity: offCity };
+        return splitUnitRenderDataByCity(unitRenderData);
     }, [unitRenderData]);
 
     const riverLineSegments = useRiverPolylines({

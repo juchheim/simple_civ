@@ -112,7 +112,7 @@ describe("Disband Unit", () => {
 
         expect(player?.usedSupply).toBe(2);
         expect(player?.freeSupply).toBe(1);
-        expect(player?.militaryUpkeep).toBe(2);
-        expect(player?.netGold).toBe(-2);
+        expect(player?.militaryUpkeep).toBe(3);
+        expect(player?.netGold).toBe(-3);
     });
 });

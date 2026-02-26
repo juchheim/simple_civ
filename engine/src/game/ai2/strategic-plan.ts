@@ -126,9 +126,10 @@ function resolveTechTarget(goal: AiVictoryGoal, civName: string): string {
     return civOverride ?? "Landship";
 }
 
-export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, _numCities: number = 1): GoalRequirements {
+export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase: GamePhase, numCities: number = 1): GoalRequirements {
     const phaseMultiplier = PHASE_MULTIPLIERS[phase];
     const techTarget = resolveTechTarget(goal, civName);
+    const cityPressure = Math.max(0, numCities - 2);
 
     switch (goal) {
         case "Conquest": {
@@ -137,12 +138,13 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
             // v5: User requested balanced siege groups (1-2 Trebuchets supported by others)
             // Expand (0.5): 2 Siege, 4 Capture -> Wolfpack of 6
             // Develop (1.0): 4 Siege, 7 Capture
-            const baseSiege = Math.ceil(4 * phaseMultiplier);
-            const baseCapture = Math.ceil(7 * phaseMultiplier);
+            const baseSiege = Math.ceil((4 * phaseMultiplier) + (cityPressure * 0.4));
+            const baseCapture = Math.ceil((7 * phaseMultiplier) + (cityPressure * 0.7));
+            const baseDefense = Math.floor(cityPressure * 0.2);
             return {
                 minSiege: baseSiege,
                 minCapture: baseCapture,
-                minDefense: 0,
+                minDefense: baseDefense,
                 minVision: 1,
                 garrisonAll: true,
                 techTarget,
@@ -152,10 +154,11 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         case "Progress": {
             // Progress: Defense-focused but not excessive, need production for projects
             // v3: Reduced from 4/6/7 to 3/4/5 to free production capacity
-            const defenseBase = PROGRESS_DEFENSE_BASE[phase];
+            const defenseBase = PROGRESS_DEFENSE_BASE[phase] + Math.floor(cityPressure * 0.5);
+            const captureBase = 2 + Math.floor(cityPressure * 0.25);
             return {
                 minSiege: 1,
-                minCapture: 2,
+                minCapture: captureBase,
                 minDefense: defenseBase,
                 minVision: 1,
                 garrisonAll: true,
@@ -165,11 +168,13 @@ export function getGoalRequirements(goal: AiVictoryGoal, civName: string, phase:
         }
         default: {
             // Balanced: Moderate scaling
-            const baseMil = Math.ceil(2 * phaseMultiplier);
+            const baseSiege = Math.ceil((2 * phaseMultiplier) + (cityPressure * 0.35));
+            const baseCapture = Math.ceil((2 * phaseMultiplier) + (cityPressure * 0.45));
+            const baseDefense = Math.ceil((1.5 * phaseMultiplier) + (cityPressure * 0.25));
             return {
-                minSiege: baseMil,
-                minCapture: baseMil,
-                minDefense: Math.ceil(1.5 * phaseMultiplier),
+                minSiege: baseSiege,
+                minCapture: baseCapture,
+                minDefense: baseDefense,
                 minVision: 1,
                 garrisonAll: true,
                 techTarget,

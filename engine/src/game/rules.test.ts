@@ -39,10 +39,10 @@ describe("Rules", () => {
                 isCapital: true,
             };
 
-            // Plains: 1F, 1P, 0G. City Min: 2F, 1P, 1G. Base yields: +1S, +1G.
-            // Total: 2F, 1P, 1S, 2G.
+            // Plains: 1F, 1P, 0G. City Min: 2F, 1P, 1G. Base yields: +1S, +0G.
+            // Total: 2F, 1P, 1S, 1G.
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 2 });
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 1 });
         });
 
         it("should apply building bonuses", () => {
@@ -71,10 +71,10 @@ describe("Rules", () => {
                 isCapital: true,
             };
 
-            // Base: 2F, 1P, 1S, 2G. +1P from Workshop.
-            // Total: 2F, 2P, 1S, 2G.
+            // Base: 2F, 1P, 1S, 1G. +1P from Workshop.
+            // Total: 2F, 2P, 1S, 1G.
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 2, S: 1, G: 2 });
+            expect(yields).toEqual({ F: 2, P: 2, S: 1, G: 1 });
         });
     });
 
@@ -213,12 +213,50 @@ describe("Rules", () => {
 
             const withoutEconomy = getPlayerSupplyUsage(state, "p1");
             expect(withoutEconomy.freeSupply).toBe(2);
-            expect(withoutEconomy.militaryUpkeep).toBe(6);
+            expect(withoutEconomy.militaryUpkeep).toBe(9);
 
             city.buildings = [BuildingType.TradingPost];
             const withTradingPost = getPlayerSupplyUsage(state, "p1");
             expect(withTradingPost.freeSupply).toBe(3);
-            expect(withTradingPost.militaryUpkeep).toBe(4);
+            expect(withTradingPost.militaryUpkeep).toBe(6);
+        });
+
+        it("ScholarKingdoms receives a passive free supply bonus", () => {
+            const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "ScholarKingdoms", color: "red" }] });
+
+            const city: City = {
+                id: "c1",
+                name: "City",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [],
+                workedTiles: [{ q: 0, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+            };
+            state.cities = [city];
+
+            state.units = Array.from({ length: 5 }, (_, i) => ({
+                id: `u${i}`,
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: i, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            }));
+
+            const scholarSupply = getPlayerSupplyUsage(state, "p1");
+            expect(scholarSupply.freeSupply).toBe(3);
+            expect(scholarSupply.militaryUpkeep).toBe(6);
         });
     });
 });

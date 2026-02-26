@@ -359,23 +359,30 @@ const profiles: Record<string, CivAiProfileV2> = {
             // v8.6: TEST - Match Starborne exactly to isolate civ ability differences
             warPowerRatio: 1.2,
             warDistanceMax: 16,
-            peaceIfBelowRatio: 0.85,
-            minWarTurn: 40,
+            peaceIfBelowRatio: 0.95,
+            minWarTurn: 60,
             maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 2,
-            canInitiateWars: true,
+            maxInitiatedWarsPer50Turns: 0,
+            canInitiateWars: false,
             targetPreference: "Finishable",
         },
         tech: {
-            // v1.0.8: Weights are deprecated, using pathsByGoal.
-            // Explicitly added StoneworkHalls/CityWards to Progress path for defense.
+            weights: {
+                [TechId.Fieldcraft]: 1.9,
+                [TechId.Wellworks]: 1.7,
+                [TechId.UrbanPlans]: 1.35,
+                [TechId.ScriptLore]: 1.45,
+                [TechId.ScholarCourts]: 1.45,
+            },
             pathsByGoal: {
-                // v9.13: Re-enabled StoneworkHalls/Bulwark for win rate testing
+                // Scholar targeted pass: front-load economic techs to reduce austerity traps.
                 Progress: [
+                    TechId.Fieldcraft,
+                    TechId.ScriptLore,
+                    TechId.Wellworks,
+                    TechId.ScholarCourts,
                     TechId.StoneworkHalls,
                     TechId.CityWards,
-                    TechId.ScriptLore,
-                    TechId.ScholarCourts,
                     TechId.SignalRelay,
                     TechId.StarCharts
                 ],
@@ -383,22 +390,25 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         build: {
             // v9.9: Nerf expansion defense to make them vulnerable to conquest
-            armyPerCity: 2.0, // v1.4: Reduce upkeep pressure from oversized standing armies.
-            settlerCap: 5,  // v8.9: Buffed from 4 - more expansion
-            desiredCities: 8,  // v8.9: Buffed from 7 - want more cities
+            armyPerCity: 1.6, // Scholar targeted pass: lower upkeep pressure while expanding.
+            settlerCap: 7,  // Targeted expansion pass.
+            desiredCities: 9,  // Targeted expansion pass.
             weights: {
                 unit: {
-                    [UnitType.Settler]: 1.6,  // v8.9: Buffed from 1.4 - prioritize settlers
-                    [UnitType.ArmyBowGuard]: 1.4,
-                    [UnitType.ArmySpearGuard]: 1.1,
+                    [UnitType.Settler]: 1.9,
+                    [UnitType.ArmyBowGuard]: 1.0,
+                    [UnitType.ArmySpearGuard]: 0.8,
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    // v9.13: Re-enabled Bulwark for win rate testing
-                    [BuildingType.Bulwark]: 2.0,
-                    [BuildingType.CityWard]: 1.5,
-                    [BuildingType.Scriptorium]: 1.5,
-                    [BuildingType.Academy]: 1.5,
+                    [BuildingType.TradingPost]: 1.85,
+                    [BuildingType.MarketHall]: 1.65,
+                    [BuildingType.Bank]: 1.35,
+                    [BuildingType.Exchange]: 1.2,
+                    [BuildingType.Bulwark]: 0.6,
+                    [BuildingType.CityWard]: 0.8,
+                    [BuildingType.Scriptorium]: 1.3,
+                    [BuildingType.Academy]: 1.3,
                 },
                 project: {
                     [ProjectId.Observatory]: 2.0,  // v9.9: Nerfed from 2.5 - Slow down the runaway leader
@@ -408,9 +418,9 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         economy: {
-            reserveMultiplier: 1.3,
-            deficitToleranceTurns: 2,
-            goldBuildBias: 2.05,
+            reserveMultiplier: 1.0,
+            deficitToleranceTurns: 4,
+            goldBuildBias: 2.4,
             rushBuyAggression: 1.0,
             upkeepRatioLimit: 0.34,
         },
@@ -642,12 +652,12 @@ const profiles: Record<string, CivAiProfileV2> = {
             }
         },
         build: {
-            armyPerCity: 1.8,
-            settlerCap: 4,
-            desiredCities: 7,
+            armyPerCity: 2.3,
+            settlerCap: 3,
+            desiredCities: 6,
             weights: {
-                building: { [BuildingType.JadeGranary]: 2.0, [BuildingType.Farmstead]: 1.3 },
-                unit: { [UnitType.Settler]: 1.7, [UnitType.SpearGuard]: 1.0, [UnitType.BowGuard]: 1.0 },
+                building: { [BuildingType.JadeGranary]: 1.35, [BuildingType.Farmstead]: 1.0 },
+                unit: { [UnitType.Settler]: 1.45, [UnitType.SpearGuard]: 1.0, [UnitType.BowGuard]: 1.0 },
                 project: {
                     [ProjectId.Observatory]: 1.4, // v1.6: Higher for Progress path
                     [ProjectId.GrandAcademy]: 1.4,
@@ -656,11 +666,11 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         economy: {
-            reserveMultiplier: 1.2,
-            deficitToleranceTurns: 3,
-            goldBuildBias: 1.9,
-            rushBuyAggression: 0.65,
-            upkeepRatioLimit: 0.42,
+            reserveMultiplier: 0.98,
+            deficitToleranceTurns: 2,
+            goldBuildBias: 1.45,
+            rushBuyAggression: 0.78,
+            upkeepRatioLimit: 0.32,
         },
         tactics: {
             riskTolerance: 0.55, // v7.9: Buffed from 0.45 - fight harder like ForgeClans

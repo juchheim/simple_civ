@@ -100,9 +100,18 @@ function createCivAggregate() {
         treasuryMax: Number.NEGATIVE_INFINITY,
         usedSupplyTotal: 0,
         freeSupplyTotal: 0,
+        cityCountTotal: 0,
+        goldEconomyCityCountTotal: 0,
+        multiGoldEconomyCityTurns: 0,
+        topCityGoldShareTotal: 0,
+        topCityGoldSamples: 0,
+        topCityGoldHubSamples: 0,
         upkeepRatioTotal: 0,
         deficitTurns: 0,
         positiveNetTurns: 0,
+        deficitEntryCount: 0,
+        deficitRecoveryCount: 0,
+        maxConsecutiveDeficitValues: [],
         austerityTurns: 0,
         enteredAusterityCount: 0,
         recoveredFromAusterityCount: 0,
@@ -115,6 +124,13 @@ function createCivAggregate() {
         atWarAusterityTurns: 0,
         bankConditionalCitySamples: 0,
         bankConditionalActiveSamples: 0,
+        militaryUnitsProduced: 0,
+        militaryUnitsProducedAtWar: 0,
+        militaryUnitsProducedInDeficit: 0,
+        militaryUnitsProducedInAusterity: 0,
+        militaryUnitsProducedEarly: 0,
+        militaryUnitsProducedMid: 0,
+        militaryUnitsProducedLate: 0,
         rushBuyCount: 0,
         rushBuyGoldSpent: 0,
         rushBuyGoldSaved: 0,
@@ -141,8 +157,24 @@ function createMapAggregate() {
         treasuryMax: Number.NEGATIVE_INFINITY,
         deficitTurns: 0,
         austerityTurns: 0,
+        deficitEntryCount: 0,
+        deficitRecoveryCount: 0,
+        maxConsecutiveDeficitValues: [],
+        cityCountTotal: 0,
+        goldEconomyCityCountTotal: 0,
+        multiGoldEconomyCityTurns: 0,
+        topCityGoldShareTotal: 0,
+        topCityGoldSamples: 0,
+        topCityGoldHubSamples: 0,
         bankConditionalCitySamples: 0,
         bankConditionalActiveSamples: 0,
+        militaryUnitsProduced: 0,
+        militaryUnitsProducedAtWar: 0,
+        militaryUnitsProducedInDeficit: 0,
+        militaryUnitsProducedInAusterity: 0,
+        militaryUnitsProducedEarly: 0,
+        militaryUnitsProducedMid: 0,
+        militaryUnitsProducedLate: 0,
         rushBuyCount: 0,
         rushBuyGoldSpent: 0,
         rushBuyGoldSaved: 0,
@@ -178,9 +210,36 @@ function addEconomySummary(target, eco) {
     if (typeof target.upkeepRatioTotal === "number") {
         target.upkeepRatioTotal += num(eco.avgUpkeepRatio, 0) * samples;
     }
+    if (typeof target.cityCountTotal === "number") {
+        target.cityCountTotal += num(eco.avgCities, 0) * samples;
+    }
+    if (typeof target.goldEconomyCityCountTotal === "number") {
+        target.goldEconomyCityCountTotal += num(eco.avgGoldEconomyCities, 0) * samples;
+    }
+    if (typeof target.multiGoldEconomyCityTurns === "number") {
+        target.multiGoldEconomyCityTurns += num(eco.multiGoldEconomyCityTurnRate, 0) * samples;
+    }
+    if (typeof target.topCityGoldShareTotal === "number") {
+        target.topCityGoldShareTotal += num(eco.avgTopCityGoldShare, 0) * samples;
+    }
+    if (typeof target.topCityGoldSamples === "number") {
+        target.topCityGoldSamples += samples;
+    }
+    if (typeof target.topCityGoldHubSamples === "number") {
+        target.topCityGoldHubSamples += num(eco.topCityGoldHubRate, 0) * samples;
+    }
     target.deficitTurns += num(eco.deficitTurns, num(eco.deficitTurnRate, 0) * samples);
     if (typeof target.positiveNetTurns === "number") {
         target.positiveNetTurns += num(eco.positiveNetTurns, samples - num(eco.deficitTurns, 0));
+    }
+    if (typeof target.deficitEntryCount === "number") {
+        target.deficitEntryCount += num(eco.deficitEntryCount, 0);
+    }
+    if (typeof target.deficitRecoveryCount === "number") {
+        target.deficitRecoveryCount += num(eco.deficitRecoveryCount, 0);
+    }
+    if (Array.isArray(target.maxConsecutiveDeficitValues)) {
+        target.maxConsecutiveDeficitValues.push(num(eco.maxConsecutiveDeficit, 0));
     }
     target.austerityTurns += num(eco.austerityTurns, num(eco.austerityTurnRate, 0) * samples);
     if (typeof target.enteredAusterityCount === "number") {
@@ -215,6 +274,27 @@ function addEconomySummary(target, eco) {
     }
     if (typeof target.bankConditionalActiveSamples === "number") {
         target.bankConditionalActiveSamples += num(eco.bankConditionalActiveSamples, 0);
+    }
+    if (typeof target.militaryUnitsProduced === "number") {
+        target.militaryUnitsProduced += num(eco.militaryUnitsProduced, 0);
+    }
+    if (typeof target.militaryUnitsProducedAtWar === "number") {
+        target.militaryUnitsProducedAtWar += num(eco.militaryUnitsProducedAtWar, 0);
+    }
+    if (typeof target.militaryUnitsProducedInDeficit === "number") {
+        target.militaryUnitsProducedInDeficit += num(eco.militaryUnitsProducedInDeficit, 0);
+    }
+    if (typeof target.militaryUnitsProducedInAusterity === "number") {
+        target.militaryUnitsProducedInAusterity += num(eco.militaryUnitsProducedInAusterity, 0);
+    }
+    if (typeof target.militaryUnitsProducedEarly === "number") {
+        target.militaryUnitsProducedEarly += num(eco.militaryUnitsProducedEarly, 0);
+    }
+    if (typeof target.militaryUnitsProducedMid === "number") {
+        target.militaryUnitsProducedMid += num(eco.militaryUnitsProducedMid, 0);
+    }
+    if (typeof target.militaryUnitsProducedLate === "number") {
+        target.militaryUnitsProducedLate += num(eco.militaryUnitsProducedLate, 0);
     }
     if (typeof target.rushBuyCount === "number") {
         target.rushBuyCount += num(eco.rushBuyCount, 0);
@@ -394,7 +474,29 @@ for (const sim of results) {
     });
 }
 
+function pearson(xs, ys) {
+    if (!xs || !ys || xs.length !== ys.length || xs.length === 0) return 0;
+    const xMean = avg(sum(xs), xs.length);
+    const yMean = avg(sum(ys), ys.length);
+    let cov = 0;
+    let xVar = 0;
+    let yVar = 0;
+    for (let i = 0; i < xs.length; i++) {
+        const dx = xs[i] - xMean;
+        const dy = ys[i] - yMean;
+        cov += dx * dy;
+        xVar += dx * dx;
+        yVar += dy * dy;
+    }
+    const denom = Math.sqrt(xVar * yVar);
+    return denom > 0 ? cov / denom : 0;
+}
+
 const civScoreRows = [];
+const scarcityRows = [];
+const adaptationRows = [];
+const expansionPairs = [];
+
 for (const civName of CIVS) {
     const civAgg = ensureCiv(civName);
     const upkeepTotal = civAgg.buildingUpkeepTotal + civAgg.militaryUpkeepTotal;
@@ -402,26 +504,106 @@ for (const civName of CIVS) {
     const maxAusterity = max(civAgg.maxConsecutiveAusterityValues);
     const rushBuyVolume = civAgg.rushBuyGoldSpent + civAgg.rushBuyGoldSaved;
     const exchangeDelayMedian = median(civAgg.exchangeDelayValues);
+    const avgCities = avg(civAgg.cityCountTotal, civAgg.economySamples);
+    const avgGoldEconomyCities = avg(civAgg.goldEconomyCityCountTotal, civAgg.economySamples);
+    const multiGoldEconomyTurnRate = avg(civAgg.multiGoldEconomyCityTurns, civAgg.economySamples);
+    const avgTopCityGoldShare = avg(civAgg.topCityGoldShareTotal, civAgg.topCityGoldSamples);
+    const topCityGoldHubRate = avg(civAgg.topCityGoldHubSamples, civAgg.topCityGoldSamples);
+    const avgUsedSupply = avg(civAgg.usedSupplyTotal, civAgg.economySamples);
+    const avgFreeSupply = avg(civAgg.freeSupplyTotal, civAgg.economySamples);
+    const supplyPerCity = avgCities > 0 ? avgUsedSupply / avgCities : 0;
+    const avgNet = avg(civAgg.netGoldTotal, civAgg.economySamples);
+    const deficitRate = avg(civAgg.deficitTurns, civAgg.economySamples);
+    const austerityRate = avg(civAgg.austerityTurns, civAgg.economySamples);
+    const lateNet = avg(civAgg.phase.late.netGoldTotal, civAgg.phase.late.samples);
+    const deficitRecoveryRate = avg(civAgg.deficitRecoveryCount, civAgg.deficitEntryCount);
+    const maxDeficitStreak = max(civAgg.maxConsecutiveDeficitValues);
+    const militaryProduced = civAgg.militaryUnitsProduced;
+    const militaryProducedUnderStress = Math.min(
+        militaryProduced,
+        civAgg.militaryUnitsProducedInDeficit + civAgg.militaryUnitsProducedInAusterity
+    );
+    const militaryProducedPer100Turns = avg(civAgg.militaryUnitsProduced * 100, civAgg.economySamples);
+    const militaryProducedUnderStressRate = avg(militaryProducedUnderStress, militaryProduced);
+    const marketAdoptionRate = avg((civAgg.goldBuildingFirstTurns.MarketHall || []).length, civAgg.games);
+    const bankAdoptionRate = avg((civAgg.goldBuildingFirstTurns.Bank || []).length, civAgg.games);
+
+    expansionPairs.push({
+        civName,
+        cities: avgCities,
+        gross: avg(civAgg.grossGoldTotal, civAgg.economySamples),
+    });
 
     civScoreRows.push([
         civName,
         `${civAgg.games}`,
         fmtPct(civAgg.wins, civAgg.games),
         `${fmtPct(civAgg.conquestWins, civAgg.wins)} C / ${fmtPct(civAgg.progressWins, civAgg.wins)} P`,
+        fmt(avgCities, 2),
+        fmt(avgGoldEconomyCities, 2),
+        fmtPct(civAgg.multiGoldEconomyCityTurns, civAgg.economySamples),
+        fmtPct(civAgg.topCityGoldShareTotal, civAgg.topCityGoldSamples),
+        fmtPct(civAgg.topCityGoldHubSamples, civAgg.topCityGoldSamples),
+        fmt(avgUsedSupply, 2),
+        fmt(avgFreeSupply, 2),
         fmt(avg(civAgg.grossGoldTotal, civAgg.economySamples)),
         fmt(avg(upkeepTotal, civAgg.economySamples)),
         fmt(avg(civAgg.netGoldTotal, civAgg.economySamples)),
         fmt(avg(civAgg.treasuryTotal, civAgg.economySamples)),
         fmtPct(civAgg.deficitTurns, civAgg.economySamples),
+        fmtPct(civAgg.deficitRecoveryCount, civAgg.deficitEntryCount),
+        fmt(maxDeficitStreak, 0),
         fmtPct(civAgg.austerityTurns, civAgg.economySamples),
         `${fmt(avgMaxAusterity, 1)} / ${fmt(maxAusterity, 0)}`,
         fmtPct(civAgg.supplyPressureTurns, civAgg.economySamples),
         fmt(avg(civAgg.atWarNetGoldTotal, civAgg.atWarTurns)),
+        `${fmt(militaryProduced, 0)} (${fmt(militaryProducedPer100Turns, 2)})`,
+        `${fmt(civAgg.militaryUnitsProducedInDeficit, 0)} / ${fmt(civAgg.militaryUnitsProducedInAusterity, 0)}`,
         fmtPct(civAgg.bankConditionalActiveSamples, civAgg.bankConditionalCitySamples),
         fmt(avg(civAgg.rushBuyCount, civAgg.games)),
         fmt(avg(civAgg.rushBuyGoldSaved, civAgg.games)),
         fmtPct(civAgg.rushBuyGoldSaved, rushBuyVolume),
         exchangeDelayMedian === null ? "n/a" : fmt(exchangeDelayMedian, 1),
+    ]);
+
+    const challengeHealthy = avgNet >= 0 && avgNet <= 20
+        && deficitRate >= 0.10 && deficitRate <= 0.55
+        && austerityRate >= 0.04 && austerityRate <= 0.42
+        && lateNet <= 38;
+    const infrastructureHealthy = avgGoldEconomyCities >= 1.6
+        && multiGoldEconomyTurnRate >= 0.35
+        && marketAdoptionRate >= 0.45
+        && bankAdoptionRate >= 0.25;
+    const goldHubHealthy = avgTopCityGoldShare >= 0.28
+        && avgTopCityGoldShare <= 0.58
+        && topCityGoldHubRate >= 0.60;
+    const adaptationHealthy = militaryProducedPer100Turns >= 2.0
+        && supplyPerCity >= 1.6
+        && (civAgg.deficitEntryCount <= 2 || deficitRecoveryRate >= 0.18)
+        && (deficitRate < 0.20 || militaryProducedUnderStressRate >= 0.10);
+    const healthyPillars = Number(challengeHealthy) + Number(infrastructureHealthy) + Number(goldHubHealthy) + Number(adaptationHealthy);
+
+    scarcityRows.push([
+        civName,
+        challengeHealthy ? "Healthy" : "Needs Tuning",
+        infrastructureHealthy ? "Healthy" : "Needs Tuning",
+        goldHubHealthy ? "Healthy" : "Needs Tuning",
+        adaptationHealthy ? "Healthy" : "Needs Tuning",
+        `${healthyPillars}/4`,
+        healthyPillars >= 3 ? "Healthy" : "Needs Tuning",
+    ]);
+
+    adaptationRows.push([
+        civName,
+        `${civAgg.deficitEntryCount}`,
+        `${civAgg.deficitRecoveryCount}`,
+        fmtPct(civAgg.deficitRecoveryCount, civAgg.deficitEntryCount),
+        fmt(maxDeficitStreak, 0),
+        fmt(militaryProduced, 0),
+        fmt(militaryProducedPer100Turns, 2),
+        fmtPct(militaryProducedUnderStress, civAgg.militaryUnitsProduced),
+        fmt(supplyPerCity, 2),
+        adaptationHealthy ? "Healthy" : "Needs Tuning",
     ]);
 }
 
@@ -520,6 +702,17 @@ const tuningFlags = CIVS.map(civName => {
     const atWarDeficitRate = avg(civAgg.atWarDeficitTurns, civAgg.atWarTurns);
     const avgTreasury = avg(civAgg.treasuryTotal, civAgg.economySamples);
     const maxAusterity = max(civAgg.maxConsecutiveAusterityValues);
+    const maxDeficitStreak = max(civAgg.maxConsecutiveDeficitValues);
+    const deficitRecoveryRate = avg(civAgg.deficitRecoveryCount, civAgg.deficitEntryCount);
+    const avgCities = avg(civAgg.cityCountTotal, civAgg.economySamples);
+    const avgUsedSupply = avg(civAgg.usedSupplyTotal, civAgg.economySamples);
+    const supplyPerCity = avgCities > 0 ? avgUsedSupply / avgCities : 0;
+    const militaryProducedPer100Turns = avg(civAgg.militaryUnitsProduced * 100, civAgg.economySamples);
+    const militaryProducedUnderStress = Math.min(
+        civAgg.militaryUnitsProduced,
+        civAgg.militaryUnitsProducedInDeficit + civAgg.militaryUnitsProducedInAusterity
+    );
+    const militaryProducedUnderStressRate = avg(militaryProducedUnderStress, civAgg.militaryUnitsProduced);
 
     if (civAgg.economySamples === 0) {
         lines.push("No economy telemetry available (rebuild engine + rerun simulation).\n");
@@ -530,9 +723,14 @@ const tuningFlags = CIVS.map(civName => {
     if (deficitRate > 0.30) lines.push(`High deficit exposure (${(deficitRate * 100).toFixed(1)}% of turns).`);
     if (austerityRate > 0.12) lines.push(`Austerity too frequent (${(austerityRate * 100).toFixed(1)}% of turns).`);
     if (maxAusterity > 6) lines.push(`Long austerity streaks detected (max ${maxAusterity} consecutive turns).`);
+    if (maxDeficitStreak > 10) lines.push(`Long deficit streaks detected (max ${maxDeficitStreak} consecutive turns).`);
     if (avgUpkeepRatio > 0.75) lines.push(`Upkeep pressure is high (avg upkeep/gross ratio ${fmt(avgUpkeepRatio)}).`);
     if (atWarDeficitRate > 0.40) lines.push(`Wartime economy collapses often (deficit in ${(atWarDeficitRate * 100).toFixed(1)}% of war turns).`);
     if (avgTreasury < 25) lines.push(`Treasury buffer is low (avg ${fmt(avgTreasury)}G).`);
+    if (civAgg.deficitEntryCount >= 4 && deficitRecoveryRate < 0.18) lines.push(`Deficit recovery is weak (${fmtPct(civAgg.deficitRecoveryCount, civAgg.deficitEntryCount)} recoveries).`);
+    if (militaryProducedPer100Turns < 2.0) lines.push(`Military production cadence is low (${fmt(militaryProducedPer100Turns, 2)} units per 100 turns).`);
+    if (supplyPerCity < 1.6) lines.push(`Army density per city is low (${fmt(supplyPerCity, 2)} units per city).`);
+    if (deficitRate >= 0.20 && militaryProducedUnderStressRate < 0.10) lines.push(`AI under-produces during stress (${fmtPct(militaryProducedUnderStress, civAgg.militaryUnitsProduced)} of units).`);
 
     const exchangeAdoption = pct((civAgg.goldBuildingFirstTurns.Exchange || []).length, civAgg.games);
     if (exchangeAdoption < 20) lines.push(`Late-gold building adoption is low (Exchange adoption ${exchangeAdoption.toFixed(1)}%).`);
@@ -567,6 +765,13 @@ const treasuryVarianceRows = VARIANCE_TARGET_CIVS.map(civName => {
         cv,
     };
 });
+const expansionCities = expansionPairs.map(entry => entry.cities);
+const expansionGross = expansionPairs.map(entry => entry.gross);
+const expansionCorrelation = pearson(expansionCities, expansionGross);
+const expansionHealthy = expansionCorrelation >= 0.35;
+const civScarcityHealthyCount = scarcityRows.filter(row => row[6] === "Healthy").length;
+const scarcityOverallHealthy = expansionHealthy && civScarcityHealthyCount >= Math.ceil(CIVS.length * (2 / 3));
+
 const acceptanceRows = [
     [
         "Exchange adoption among SignalRelay researchers",
@@ -604,26 +809,56 @@ const report = `# Economic Balance Report\n\nGenerated: ${new Date().toISOString
     "Threshold",
     "Status",
     "Notes",
-], acceptanceRows)}\n\n## Civ Economy Scorecard\n${markdownTable([
+], acceptanceRows)}\n\n## Scarcity Health\n- Overall scarcity verdict: **${scarcityOverallHealthy ? "Healthy" : "Needs Tuning"}**\n- City-count to gross-gold correlation (expansion dependence): **${fmt(expansionCorrelation, 3)}** (${expansionHealthy ? "Healthy" : "Needs Tuning"})\n- Civs passing scarcity checks: **${civScarcityHealthyCount}/${CIVS.length}**\n- Challenge pressure target band: **Avg Net 0-20, Deficit 10-55%, Austerity 4-42%, Late Net <= 38**\n- Adaptation target band: **>= 2.0 military units per 100 turns, >= 1.6 units per city, deficit recovery >= 18% when repeatedly stressed**\n\n${markdownTable([
+    "Civ",
+    "Challenge Pressure",
+    "Economy Infra",
+    "Gold-Hub City",
+    "Adaptation & Army",
+    "Pillars",
+    "Verdict",
+], scarcityRows)}\n\n## Civ Economy Scorecard\n${markdownTable([
     "Civ",
     "Games",
     "Win%",
     "Victory Mix",
+    "Avg Cities",
+    "Econ Cities",
+    "2+ Econ Cities",
+    "Top Gold City Share",
+    "Top Gold Hub Source",
+    "Avg Used Supply",
+    "Avg Free Supply",
     "Avg Gross",
     "Avg Upkeep",
     "Avg Net",
     "Avg Treasury",
     "Deficit Turns",
+    "Deficit Recoveries",
+    "Max Deficit Streak",
     "Austerity Turns",
     "Austerity Streak (Avg/Max)",
     "Supply Pressure",
     "Avg Net (At War)",
+    "Military Prod (per 100T)",
+    "Military Prod (Deficit/Austerity)",
     "Bank Uptime",
     "Rush-Buys/Game",
     "Saved Gold/Game",
     "Discount Utilization",
     "Exchange Delay",
-], civScoreRows)}\n\n## Gold Building Adoption\n${goldBuildingSections.join("\n\n")}\n\n## Economy By Game Phase\n(Phase buckets: Early <= 100, Mid 101-200, Late > 200)\n\n${markdownTable([
+], civScoreRows)}\n\n## AI Adaptation & Army Pressure\n${markdownTable([
+    "Civ",
+    "Deficit Entries",
+    "Deficit Recoveries",
+    "Recovery Rate",
+    "Max Deficit Streak",
+    "Military Units Produced",
+    "Military / 100T",
+    "Military Under Stress",
+    "Units Per City",
+    "Verdict",
+], adaptationRows)}\n\n## Gold Building Adoption\n${goldBuildingSections.join("\n\n")}\n\n## Economy By Game Phase\n(Phase buckets: Early <= 100, Mid 101-200, Late > 200)\n\n${markdownTable([
     "Civ",
     "Early Net",
     "Mid Net",
@@ -631,7 +866,7 @@ const report = `# Economic Balance Report\n\nGenerated: ${new Date().toISOString
     "Early Austerity",
     "Mid Austerity",
     "Late Austerity",
-], phaseRows)}\n\n## Map Size Sensitivity\n${mapSections.join("\n\n")}\n\n## Gold Building Timing By Map Size\n${mapGoldTimingSections.join("\n\n")}\n\n## Civ-Specific Tuning Flags\n${tuningFlags.join("\n\n")}\n\n## How To Use This Report\n- Use **Avg Net**, **Deficit Turns**, and **Austerity Turns** to determine if a civ's baseline economy is stable.\n- Use **Avg Net (At War)** and **Supply Pressure** to tune war upkeep pressure per civ.\n- Use **Bank Uptime**, **Rush-Buys/Game**, **Saved Gold/Game**, and **Exchange Delay** to evaluate tactical gold payoff adoption.\n- Use **Gold Building Adoption** + **Median First Completion Turn** to tune AI economy bias and building cost/tech timing.\n- Use **Phase Net** and **Phase Austerity** to isolate whether issues are early snowball, midgame squeeze, or late-game collapse.\n- Use **Map Size Sensitivity** to decide whether fixes should be global or map-size-specific.\n`;
+], phaseRows)}\n\n## Map Size Sensitivity\n${mapSections.join("\n\n")}\n\n## Gold Building Timing By Map Size\n${mapGoldTimingSections.join("\n\n")}\n\n## Civ-Specific Tuning Flags\n${tuningFlags.join("\n\n")}\n\n## How To Use This Report\n- Use **Avg Net**, **Deficit Turns**, and **Austerity Turns** to determine if a civ's baseline economy is stable.\n- Use **Avg Net (At War)**, **Supply Pressure**, and **Military Prod (per 100T)** to tune war upkeep pressure per civ.\n- Use **Deficit Recoveries**, **Max Deficit Streak**, and **Military Under Stress** to verify AI adaptation during stalls.\n- Use **Bank Uptime**, **Rush-Buys/Game**, **Saved Gold/Game**, and **Exchange Delay** to evaluate tactical gold payoff adoption.\n- Use **Gold Building Adoption** + **Median First Completion Turn** to tune AI economy bias and building cost/tech timing.\n- Use **Phase Net** and **Phase Austerity** to isolate whether issues are early snowball, midgame squeeze, or late-game collapse.\n- Use **Map Size Sensitivity** to decide whether fixes should be global or map-size-specific.\n`;
 
 writeFileSync(OUTPUT_FILE, report);
 console.log(`Economic report written to ${OUTPUT_FILE}`);

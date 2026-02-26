@@ -1,13 +1,17 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
-import { BuildingType, DiplomacyState, MapSize, OverlayType, ProjectId, TechId, UnitType } from "../core/types.js";
+import { BuildingType, DiplomacyState, MapSize, OverlayType, ProjectId, TechId, TerrainType, UnitType } from "../core/types.js";
 import { UNITS } from "../core/constants.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
+import { getCityYields } from "../game/rules.js";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { writeFileSync, statSync } from "fs";
 import * as os from "os";
 import { fileURLToPath } from "url";
 import { setAiDebug } from "../game/ai/debug-logging.js";
+import { hexDistance } from "../core/hex.js";
+import { isTileAdjacentToRiver } from "../map/rivers.js";
+import { performance } from "node:perf_hooks";
 import {
     Event,
     TurnSnapshot,
@@ -52,9 +56,19 @@ type EconomyAccumulator = {
     treasuryMax: number;
     usedSupplyTotal: number;
     freeSupplyTotal: number;
+    cityCountTotal: number;
+    goldEconomyCityCountTotal: number;
+    multiGoldEconomyCityTurns: number;
+    topCityGoldShareTotal: number;
+    topCityGoldSamples: number;
+    topCityGoldHubSamples: number;
     upkeepRatioTotal: number;
     deficitTurns: number;
     positiveNetTurns: number;
+    deficitEntryCount: number;
+    deficitRecoveryCount: number;
+    maxConsecutiveDeficit: number;
+    currentConsecutiveDeficit: number;
     austerityTurns: number;
     enteredAusterityCount: number;
     recoveredFromAusterityCount: number;
@@ -68,6 +82,13 @@ type EconomyAccumulator = {
     atWarAusterityTurns: number;
     bankConditionalCitySamples: number;
     bankConditionalActiveSamples: number;
+    militaryUnitsProduced: number;
+    militaryUnitsProducedAtWar: number;
+    militaryUnitsProducedInDeficit: number;
+    militaryUnitsProducedInAusterity: number;
+    militaryUnitsProducedEarly: number;
+    militaryUnitsProducedMid: number;
+    militaryUnitsProducedLate: number;
     rushBuyCount: number;
     rushBuyGoldSpent: number;
     rushBuyGoldSaved: number;
@@ -80,6 +101,7 @@ type EconomyAccumulator = {
     goldBuildingFirstCompletionTurn: Partial<Record<BuildingType, number>>;
     phase: Record<EconomyPhase, EconomyPhaseAccumulator>;
     lastAusterityActive: boolean;
+    lastDeficitActive: boolean;
 };
 
 type EconomyPhaseSummary = {
@@ -119,9 +141,18 @@ type EconomySummaryEntry = {
     treasuryMax: number;
     avgUsedSupply: number;
     avgFreeSupply: number;
+    avgCities: number;
+    avgGoldEconomyCities: number;
+    multiGoldEconomyCityTurnRate: number;
+    avgTopCityGoldShare: number;
+    topCityGoldHubRate: number;
     avgUpkeepRatio: number;
     deficitTurns: number;
     positiveNetTurns: number;
+    deficitEntryCount: number;
+    deficitRecoveryCount: number;
+    deficitRecoveryRate: number;
+    maxConsecutiveDeficit: number;
     deficitTurnRate: number;
     austerityTurns: number;
     austerityTurnRate: number;
@@ -139,6 +170,15 @@ type EconomySummaryEntry = {
     bankConditionalCitySamples: number;
     bankConditionalActiveSamples: number;
     bankConditionalUptimeRate: number;
+    militaryUnitsProduced: number;
+    militaryUnitsProducedAtWar: number;
+    militaryUnitsProducedInDeficit: number;
+    militaryUnitsProducedInAusterity: number;
+    militaryUnitsProducedEarly: number;
+    militaryUnitsProducedMid: number;
+    militaryUnitsProducedLate: number;
+    militaryUnitsProducedPer100Turns: number;
+    militaryProducedUnderStressRate: number;
     rushBuyCount: number;
     rushBuyGoldSpent: number;
     rushBuyGoldSaved: number;
@@ -152,6 +192,7 @@ type EconomySummaryEntry = {
 };
 
 type EconomySummary = Record<string, EconomySummaryEntry>;
+type SimState = ReturnType<typeof generateWorld>;
 
 function createPhaseAccumulator(): EconomyPhaseAccumulator {
     return {
@@ -180,9 +221,19 @@ function createEconomyAccumulator(civId: string, civName: string): EconomyAccumu
         treasuryMax: Number.NEGATIVE_INFINITY,
         usedSupplyTotal: 0,
         freeSupplyTotal: 0,
+        cityCountTotal: 0,
+        goldEconomyCityCountTotal: 0,
+        multiGoldEconomyCityTurns: 0,
+        topCityGoldShareTotal: 0,
+        topCityGoldSamples: 0,
+        topCityGoldHubSamples: 0,
         upkeepRatioTotal: 0,
         deficitTurns: 0,
         positiveNetTurns: 0,
+        deficitEntryCount: 0,
+        deficitRecoveryCount: 0,
+        maxConsecutiveDeficit: 0,
+        currentConsecutiveDeficit: 0,
         austerityTurns: 0,
         enteredAusterityCount: 0,
         recoveredFromAusterityCount: 0,
@@ -196,6 +247,13 @@ function createEconomyAccumulator(civId: string, civName: string): EconomyAccumu
         atWarAusterityTurns: 0,
         bankConditionalCitySamples: 0,
         bankConditionalActiveSamples: 0,
+        militaryUnitsProduced: 0,
+        militaryUnitsProducedAtWar: 0,
+        militaryUnitsProducedInDeficit: 0,
+        militaryUnitsProducedInAusterity: 0,
+        militaryUnitsProducedEarly: 0,
+        militaryUnitsProducedMid: 0,
+        militaryUnitsProducedLate: 0,
         rushBuyCount: 0,
         rushBuyGoldSpent: 0,
         rushBuyGoldSaved: 0,
@@ -212,6 +270,7 @@ function createEconomyAccumulator(civId: string, civName: string): EconomyAccumu
             late: createPhaseAccumulator(),
         },
         lastAusterityActive: false,
+        lastDeficitActive: false,
     };
 }
 
@@ -221,7 +280,7 @@ function getEconomyPhase(turn: number): EconomyPhase {
     return "late";
 }
 
-function isPlayerAtWar(state: ReturnType<typeof generateWorld>, playerId: string): boolean {
+function isPlayerAtWar(state: SimState, playerId: string): boolean {
     for (const other of state.players) {
         if (other.id === playerId || other.isEliminated) continue;
         if (state.diplomacy[playerId]?.[other.id] === DiplomacyState.War) {
@@ -235,7 +294,7 @@ function ratio(part: number, total: number): number {
     return total > 0 ? part / total : 0;
 }
 
-function cityHasWorkedOreVein(state: ReturnType<typeof generateWorld>, cityId: string): boolean {
+function cityHasWorkedOreVein(state: SimState, cityId: string): boolean {
     const city = state.cities.find(c => c.id === cityId);
     if (!city) return false;
     for (const coord of city.workedTiles) {
@@ -247,9 +306,61 @@ function cityHasWorkedOreVein(state: ReturnType<typeof generateWorld>, cityId: s
     return false;
 }
 
+function cityHasOwnedOreVein(state: SimState, cityId: string): boolean {
+    return state.map.tiles.some(tile =>
+        tile.ownerCityId === cityId &&
+        tile.overlays.includes(OverlayType.OreVein)
+    );
+}
+
+function cityIsCoastal(state: SimState, cityCoord: { q: number; r: number }): boolean {
+    return state.map.tiles.some(tile => {
+        if (hexDistance(tile.coord, cityCoord) !== 1) return false;
+        return tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea;
+    });
+}
+
+function cityIsGoldHub(state: SimState, cityId: string): boolean {
+    const city = state.cities.find(c => c.id === cityId);
+    if (!city) return false;
+    const river = isTileAdjacentToRiver(state.map, city.coord);
+    const coastal = cityIsCoastal(state, city.coord);
+    const workedOre = cityHasWorkedOreVein(state, city.id);
+    const ownedOre = cityHasOwnedOreVein(state, city.id);
+    return river || coastal || workedOre || ownedOre;
+}
+
+function isMilitaryEconomyTrackedUnit(unitType: UnitType): boolean {
+    if (unitType === UnitType.Settler) return false;
+    return UNITS[unitType].domain !== "Civilian";
+}
+
+function recordMilitaryProductionEvent(
+    economyByCiv: Map<string, EconomyAccumulator>,
+    state: SimState,
+    ownerId: string,
+    unitType: UnitType
+): void {
+    if (!isMilitaryEconomyTrackedUnit(unitType)) return;
+    const acc = economyByCiv.get(ownerId);
+    if (!acc) return;
+    const owner = state.players.find(player => player.id === ownerId);
+    if (!owner) return;
+
+    acc.militaryUnitsProduced += 1;
+    if (isPlayerAtWar(state, ownerId)) acc.militaryUnitsProducedAtWar += 1;
+    if ((owner.netGold ?? 0) < 0) acc.militaryUnitsProducedInDeficit += 1;
+    if (owner.austerityActive) acc.militaryUnitsProducedInAusterity += 1;
+
+    const phase = getEconomyPhase(state.turn);
+    if (phase === "early") acc.militaryUnitsProducedEarly += 1;
+    else if (phase === "mid") acc.militaryUnitsProducedMid += 1;
+    else acc.militaryUnitsProducedLate += 1;
+}
+
 function recordEconomySample(
     economyByCiv: Map<string, EconomyAccumulator>,
-    state: ReturnType<typeof generateWorld>,
+    state: SimState,
     playerId: string
 ): void {
     const player = state.players.find(p => p.id === playerId);
@@ -269,6 +380,7 @@ function recordEconomySample(
     const totalUpkeep = buildingUpkeep + militaryUpkeep;
     const upkeepRatio = grossGold > 0 ? totalUpkeep / grossGold : (totalUpkeep > 0 ? 1 : 0);
     const atWar = isPlayerAtWar(state, playerId);
+    const deficitActive = netGold < 0;
 
     acc.samples += 1;
     acc.grossGoldTotal += grossGold;
@@ -282,10 +394,23 @@ function recordEconomySample(
     acc.freeSupplyTotal += freeSupply;
     acc.upkeepRatioTotal += upkeepRatio;
 
-    if (netGold < 0) acc.deficitTurns += 1;
+    if (deficitActive) {
+        acc.deficitTurns += 1;
+        acc.currentConsecutiveDeficit += 1;
+        acc.maxConsecutiveDeficit = Math.max(acc.maxConsecutiveDeficit, acc.currentConsecutiveDeficit);
+    } else {
+        acc.currentConsecutiveDeficit = 0;
+    }
     if (netGold >= 0) acc.positiveNetTurns += 1;
     if (usedSupply > freeSupply) acc.supplyPressureTurns += 1;
-    if (treasury === 0 && netGold < 0) acc.zeroTreasuryDeficitTurns += 1;
+    if (treasury === 0 && deficitActive) acc.zeroTreasuryDeficitTurns += 1;
+
+    if (!acc.lastDeficitActive && deficitActive) {
+        acc.deficitEntryCount += 1;
+    } else if (acc.lastDeficitActive && !deficitActive) {
+        acc.deficitRecoveryCount += 1;
+    }
+    acc.lastDeficitActive = deficitActive;
 
     if (austerityActive) {
         acc.austerityTurns += 1;
@@ -310,6 +435,39 @@ function recordEconomySample(
     }
 
     const ownedCities = state.cities.filter(city => city.ownerId === playerId);
+    acc.cityCountTotal += ownedCities.length;
+
+    const goldEconomyCityCount = ownedCities.filter(city =>
+        city.buildings.some(building => GOLD_BUILDINGS_FOR_TELEMETRY.includes(building))
+    ).length;
+    acc.goldEconomyCityCountTotal += goldEconomyCityCount;
+    if (goldEconomyCityCount >= 2) {
+        acc.multiGoldEconomyCityTurns += 1;
+    }
+
+    if (ownedCities.length > 0) {
+        let totalCityGold = 0;
+        let topCity = ownedCities[0];
+        let topCityGold = Number.NEGATIVE_INFINITY;
+
+        for (const city of ownedCities) {
+            const cityGold = getCityYields(city, state).G;
+            totalCityGold += cityGold;
+            if (cityGold > topCityGold) {
+                topCity = city;
+                topCityGold = cityGold;
+            }
+        }
+
+        if (totalCityGold > 0) {
+            acc.topCityGoldShareTotal += topCityGold / totalCityGold;
+            acc.topCityGoldSamples += 1;
+            if (cityIsGoldHub(state, topCity.id)) {
+                acc.topCityGoldHubSamples += 1;
+            }
+        }
+    }
+
     const bankCities = ownedCities.filter(city => city.buildings.includes(BuildingType.Bank));
     if (bankCities.length > 0) {
         acc.bankConditionalCitySamples += bankCities.length;
@@ -399,9 +557,18 @@ function finalizeEconomySummary(economyByCiv: Map<string, EconomyAccumulator>): 
             treasuryMax: Number.isFinite(acc.treasuryMax) ? acc.treasuryMax : 0,
             avgUsedSupply: ratio(acc.usedSupplyTotal, samples),
             avgFreeSupply: ratio(acc.freeSupplyTotal, samples),
+            avgCities: ratio(acc.cityCountTotal, samples),
+            avgGoldEconomyCities: ratio(acc.goldEconomyCityCountTotal, samples),
+            multiGoldEconomyCityTurnRate: ratio(acc.multiGoldEconomyCityTurns, samples),
+            avgTopCityGoldShare: ratio(acc.topCityGoldShareTotal, acc.topCityGoldSamples),
+            topCityGoldHubRate: ratio(acc.topCityGoldHubSamples, acc.topCityGoldSamples),
             avgUpkeepRatio: ratio(acc.upkeepRatioTotal, samples),
             deficitTurns: acc.deficitTurns,
             positiveNetTurns: acc.positiveNetTurns,
+            deficitEntryCount: acc.deficitEntryCount,
+            deficitRecoveryCount: acc.deficitRecoveryCount,
+            deficitRecoveryRate: ratio(acc.deficitRecoveryCount, acc.deficitEntryCount),
+            maxConsecutiveDeficit: acc.maxConsecutiveDeficit,
             deficitTurnRate: ratio(acc.deficitTurns, samples),
             austerityTurns: acc.austerityTurns,
             austerityTurnRate: ratio(acc.austerityTurns, samples),
@@ -419,6 +586,18 @@ function finalizeEconomySummary(economyByCiv: Map<string, EconomyAccumulator>): 
             bankConditionalCitySamples: acc.bankConditionalCitySamples,
             bankConditionalActiveSamples: acc.bankConditionalActiveSamples,
             bankConditionalUptimeRate: ratio(acc.bankConditionalActiveSamples, acc.bankConditionalCitySamples),
+            militaryUnitsProduced: acc.militaryUnitsProduced,
+            militaryUnitsProducedAtWar: acc.militaryUnitsProducedAtWar,
+            militaryUnitsProducedInDeficit: acc.militaryUnitsProducedInDeficit,
+            militaryUnitsProducedInAusterity: acc.militaryUnitsProducedInAusterity,
+            militaryUnitsProducedEarly: acc.militaryUnitsProducedEarly,
+            militaryUnitsProducedMid: acc.militaryUnitsProducedMid,
+            militaryUnitsProducedLate: acc.militaryUnitsProducedLate,
+            militaryUnitsProducedPer100Turns: ratio(acc.militaryUnitsProduced * 100, samples),
+            militaryProducedUnderStressRate: ratio(
+                acc.militaryUnitsProducedInDeficit + acc.militaryUnitsProducedInAusterity,
+                acc.militaryUnitsProduced
+            ),
             rushBuyCount: acc.rushBuyCount,
             rushBuyGoldSpent: acc.rushBuyGoldSpent,
             rushBuyGoldSaved: acc.rushBuyGoldSaved,
@@ -458,7 +637,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 
     const events: Event[] = [];
     const turnSnapshots: TurnSnapshot[] = [];
-    const keyTurns = [25, 50, 75, 100, 125, 150, 175, 200];
+    const keyTurns = new Set([25, 50, 75, 100, 125, 150, 175, 200]);
 
     // Track wars/peace already logged this turn to avoid duplicates
     const warsLoggedThisTurn = new Set<string>();
@@ -475,11 +654,11 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         const actingPlayerId = state.currentPlayerId;
 
         // Capture snapshot BEFORE turn
-        const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, hp: u.hp }]));
+        const beforeUnits = new Map(state.units.map(u => [u.id, { type: u.type, ownerId: u.ownerId }]));
         if (state.currentPlayerId === state.players[0].id && process.env.SIM_QUIET !== "true") {
             console.log(`--- TURN ${state.turn} ---`);
         }
-        const beforeCities = new Map(state.cities.map(c => [c.id, { ownerId: c.ownerId, pop: c.pop, buildings: [...c.buildings] }]));
+        const beforeCities = new Map(state.cities.map(c => [c.id, { ownerId: c.ownerId, buildings: [...c.buildings] }]));
         const beforeDiplomacy = new Map<string, Map<string, DiplomacyState>>();
         const beforeTechs = new Map(state.players.map(p => [p.id, new Set(p.techs)]));
         const beforeProjects = new Map(state.players.map(p => {
@@ -499,6 +678,13 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         });
 
         state = runAiTurn(state, actingPlayerId);
+        const currentUnitIds = new Set(state.units.map(u => u.id));
+        const firstCityIdByOwner = new Map<string, string>();
+        for (const city of state.cities) {
+            if (!firstCityIdByOwner.has(city.ownerId)) {
+                firstCityIdByOwner.set(city.ownerId, city.id);
+            }
+        }
         recordEconomySample(economyByCiv, state, actingPlayerId);
 
         // Detect changes and log events
@@ -519,8 +705,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 
         // Unit deaths - but exclude settlers that founded cities this turn
         beforeUnits.forEach((prevUnit, unitId) => {
-            const currentUnit = state.units.find(u => u.id === unitId);
-            if (!currentUnit) {
+            if (!currentUnitIds.has(unitId)) {
                 // Check if this is a settler that founded a city (not a real death)
                 const isSettlerWhoFounded = prevUnit.type === "Settler" && newCityOwners.has(prevUnit.ownerId);
 
@@ -541,31 +726,33 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         state.units.forEach(u => {
             if (!beforeUnits.has(u.id)) {
                 // New unit - find which city produced it (simplified - check cities of same owner)
-                const city = state.cities.find(c => c.ownerId === u.ownerId);
-                if (city) {
+                const cityId = firstCityIdByOwner.get(u.ownerId);
+                if (cityId) {
                     events.push({
                         type: "UnitProduction",
                         turn: state.turn,
-                        cityId: city.id,
+                        cityId,
                         owner: u.ownerId,
                         unitType: u.type,
                         unitId: u.id,
                     });
+                    recordMilitaryProductionEvent(economyByCiv, state, u.ownerId, u.type);
                 }
             } else {
                 // Check for upgrades (e.g. FormArmy modifies unit in-place)
                 const prevUnit = beforeUnits.get(u.id)!;
                 if (prevUnit.type !== u.type) {
-                    const city = state.cities.find(c => c.ownerId === u.ownerId);
-                    if (city) {
+                    const cityId = firstCityIdByOwner.get(u.ownerId);
+                    if (cityId) {
                         events.push({
                             type: "UnitProduction",
                             turn: state.turn,
-                            cityId: city.id,
+                            cityId,
                             owner: u.ownerId,
                             unitType: u.type,
                             unitId: u.id,
                         });
+                        recordMilitaryProductionEvent(economyByCiv, state, u.ownerId, u.type);
                     }
                 }
             }
@@ -790,8 +977,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
 
         // Titan Deaths & Kills
         beforeUnits.forEach((prevUnit, unitId) => {
-            const currentUnit = state.units.find(u => u.id === unitId);
-            if (!currentUnit) {
+            if (!currentUnitIds.has(unitId)) {
                 // Unit died
                 if (prevUnit.type === UnitType.Titan) {
                     events.push({
@@ -810,7 +996,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         });
 
         // Capture snapshot at key turns
-        if (keyTurns.includes(state.turn)) {
+        if (keyTurns.has(state.turn)) {
             turnSnapshots.push(createTurnSnapshot(state));
         }
 
@@ -896,7 +1082,9 @@ if (isMainThread) {
         // For 101001: 101001 % 100000 = 1001. 101001 / 100000 = 1. Map Index 1 = Small.
         const mapIndex = Math.floor(seedOverride / 100000);
         const config = MAP_CONFIGS[mapIndex] || MAP_CONFIGS[2]; // Default to Standard if out of bounds
-        console.log(`Overriding simulation to run ONLY Seed ${seedOverride} on ${config.size} map`);
+        if (!quiet) {
+            console.log(`Overriding simulation to run ONLY Seed ${seedOverride} on ${config.size} map`);
+        }
         tasks.push({ seed: seedOverride, config, mapIndex, debug });
     } else {
         for (const config of MAP_CONFIGS) {
@@ -911,7 +1099,7 @@ if (isMainThread) {
     const totalTasks = tasks.length;
     let completedTasks = 0;
     const allResults: any[] = [];
-    const startTime = Date.now();
+    const startTime = performance.now();
 
     // Determine worker count (use 90% of cores for better utilization with some headroom)
     const numCPUs = os.cpus().length;
@@ -937,7 +1125,7 @@ if (isMainThread) {
         worker.on('message', (result) => {
             allResults.push(result);
             completedTasks++;
-            const elapsed = (Date.now() - startTime) / 1000;
+            const elapsed = (performance.now() - startTime) / 1000;
             const avgTime = elapsed / completedTasks;
             const remaining = (totalTasks - completedTasks) * avgTime;
 
@@ -972,7 +1160,7 @@ if (isMainThread) {
     }
 
     const finish = () => {
-        const totalTimeSeconds = (Date.now() - startTime) / 1000;
+        const totalTimeSeconds = (performance.now() - startTime) / 1000;
         if (!quiet) {
             console.log(`\n${"=".repeat(60)}`);
             console.log(`ALL SIMULATIONS COMPLETE!`);
@@ -1002,11 +1190,11 @@ if (isMainThread) {
         setAiDebug(true);
     }
 
-    const start = Date.now();
+    const start = performance.now();
 
     try {
         const result = runComprehensiveSimulation(seed, config.size, 400, config.maxCivs); // v9.12: 300→400 turns
-        const duration = Date.now() - start;
+        const duration = performance.now() - start;
         parentPort?.postMessage({ ...result, duration });
     } catch (err) {
         console.error(`Error in worker (Seed ${seed}):`, err);

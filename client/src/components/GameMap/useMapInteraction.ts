@@ -11,6 +11,23 @@ import {
     ZOOM_SMOOTHING,
     ZOOM_WHEEL_SENSITIVITY,
 } from "./constants";
+import {
+    applyVelocityPan,
+    applyZoomRatioAroundAnchor,
+    computeDecayFactor,
+    computeZoomSmoothing,
+    decayVelocity,
+    getVelocitySpeed
+} from "../../hooks/pan-zoom-inertia-helpers";
+import {
+    computeDragMetrics,
+    computePanFromDrag,
+    computePointerVelocity,
+    computeWheelDesiredZoom,
+    createPointerSample,
+    hasMeaningfulZoomDelta,
+    type PointerSample
+} from "../../hooks/map-pointer-helpers";
 
 type MapInteractionParams = {
     tiles: Tile[];
@@ -21,7 +38,6 @@ type MapInteractionParams = {
 };
 
 type PanState = { x: number; y: number };
-type PointerSample = { x: number; y: number; time: number };
 type Velocity = { vx: number; vy: number };
 
 export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile, initialCenter }: MapInteractionParams) => {
@@ -88,18 +104,18 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
 
         if (isInertiaActiveRef.current) {
             const velocity = inertiaVelocityRef.current;
-            const decay = Math.pow(PAN_INERTIA_DECAY, normalizedFrame);
-            velocity.vx *= decay;
-            velocity.vy *= decay;
-            const speed = Math.hypot(velocity.vx, velocity.vy);
+            const decayedVelocity = decayVelocity(
+                velocity,
+                computeDecayFactor(PAN_INERTIA_DECAY, normalizedFrame),
+            );
+            velocity.vx = decayedVelocity.vx;
+            velocity.vy = decayedVelocity.vy;
+            const speed = getVelocitySpeed(velocity);
 
             if (speed <= PAN_INERTIA_MIN_VELOCITY) {
                 isInertiaActiveRef.current = false;
             } else {
-                const nextPan = {
-                    x: panRef.current.x + velocity.vx * deltaMs,
-                    y: panRef.current.y + velocity.vy * deltaMs,
-                };
+                const nextPan = applyVelocityPan(panRef.current, velocity, deltaMs);
                 panRef.current = nextPan;
                 setPan(nextPan);
                 shouldContinue = true;
@@ -108,7 +124,7 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
 
         const zoomDifference = targetZoomRef.current - zoomRef.current;
         if (Math.abs(zoomDifference) > 0.001) {
-            const smoothing = 1 - Math.pow(1 - ZOOM_SMOOTHING, normalizedFrame);
+            const smoothing = computeZoomSmoothing(normalizedFrame, ZOOM_SMOOTHING);
             const previousZoom = zoomRef.current;
             const nextZoom = previousZoom + zoomDifference * smoothing;
 
@@ -121,10 +137,7 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
             const ratio = nextZoom / previousZoom;
             if (Math.abs(ratio - 1) > 0.0001) {
                 const currentPan = panRef.current;
-                const zoomAdjustedPan = {
-                    x: anchor.x - (anchor.x - currentPan.x) * ratio,
-                    y: anchor.y - (anchor.y - currentPan.y) * ratio,
-                };
+                const zoomAdjustedPan = applyZoomRatioAroundAnchor(anchor, currentPan, ratio);
                 panRef.current = zoomAdjustedPan;
                 setPan(zoomAdjustedPan);
             }
@@ -240,10 +253,15 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
             zoomAnchorRef.current = { x: mouseX, y: mouseY };
 
             const currentTarget = targetZoomRef.current ?? zoomRef.current;
-            const zoomFactor = Math.exp(-e.deltaY * ZOOM_WHEEL_SENSITIVITY);
-            const desiredZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentTarget * zoomFactor));
+            const desiredZoom = computeWheelDesiredZoom(
+                currentTarget,
+                e.deltaY,
+                ZOOM_WHEEL_SENSITIVITY,
+                MIN_ZOOM,
+                MAX_ZOOM,
+            );
 
-            if (Math.abs(desiredZoom - currentTarget) < 0.0005) {
+            if (!hasMeaningfulZoomDelta(currentTarget, desiredZoom)) {
                 return;
             }
 
@@ -271,7 +289,7 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
         setPanStart(panRef.current);
         isInertiaActiveRef.current = false;
         inertiaVelocityRef.current = { vx: 0, vy: 0 };
-        lastPointerRef.current = { x: e.clientX, y: e.clientY, time: performance.now() };
+        lastPointerRef.current = createPointerSample(e.clientX, e.clientY, performance.now());
     }, [findHexAtScreen]);
 
     const handleMouseMove = useCallback((e: ReactMouseEvent) => {
@@ -284,11 +302,9 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
 
         if (!mouseDownPos) return;
 
-        const deltaX = e.clientX - mouseDownPos.x;
-        const deltaY = e.clientY - mouseDownPos.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const drag = computeDragMetrics(mouseDownPos, { x: e.clientX, y: e.clientY });
 
-        if (distance <= DRAG_THRESHOLD) {
+        if (drag.distance <= DRAG_THRESHOLD) {
             return;
         }
 
@@ -296,23 +312,19 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
         if (!isPanning) {
             setIsPanning(true);
             setClickTarget(null);
-            lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
+            lastPointerRef.current = createPointerSample(e.clientX, e.clientY, now);
         } else if (lastPointerRef.current) {
-            const last = lastPointerRef.current;
-            const dt = now - last.time;
-            if (dt > 0) {
-                inertiaVelocityRef.current = {
-                    vx: (e.clientX - last.x) / dt,
-                    vy: (e.clientY - last.y) / dt,
-                };
+            const velocity = computePointerVelocity(
+                lastPointerRef.current,
+                createPointerSample(e.clientX, e.clientY, now),
+            );
+            if (velocity) {
+                inertiaVelocityRef.current = velocity;
             }
-            lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
+            lastPointerRef.current = createPointerSample(e.clientX, e.clientY, now);
         }
 
-        const nextPan = {
-            x: panStart.x + deltaX,
-            y: panStart.y + deltaY,
-        };
+        const nextPan = computePanFromDrag(panStart, drag);
         setPan(nextPan);
         panRef.current = nextPan;
     }, [mouseDownPos, panStart, isPanning, findHexAtScreen, onHoverTile]);
@@ -320,7 +332,7 @@ export const useMapInteraction = ({ tiles, hexToPixel, onTileClick, onHoverTile,
     const handleMouseUp = useCallback(() => {
         if (isPanning) {
             const velocity = inertiaVelocityRef.current;
-            const speed = Math.hypot(velocity.vx, velocity.vy);
+            const speed = getVelocitySpeed(velocity);
             if (speed > PAN_INERTIA_MIN_VELOCITY) {
                 isInertiaActiveRef.current = true;
                 scheduleAnimation();

@@ -17,6 +17,8 @@ import {
     BASE_CITY_SCIENCE,
     BASECOST_POP2,
     BUILDINGS,
+    CITY_ADMIN_UPKEEP_PER_CITY,
+    CITY_ADMIN_UPKEEP_WIDE_SURCHARGE,
     CITY_CENTER_MIN_GOLD,
     CITY_CENTER_MIN_FOOD,
     CITY_CENTER_MIN_PROD,
@@ -31,6 +33,7 @@ import {
     OVERLAY,
     TERRAIN,
     PROJECTS,
+    SCHOLAR_KINGDOMS_FREE_SUPPLY_BONUS,
     UNITS,
 } from "../core/constants.js";
 import { hexEquals, hexDistance, hexToString } from "../core/hex.js";
@@ -127,6 +130,10 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
 
     // 2. Buildings
     const isRiverCity = isTileAdjacentToRiver(state.map, cityCoord);
+    const isCoastalCity = state.map.tiles.some(tile => {
+        if (hexDistance(tile.coord, cityCoord) !== 1) return false;
+        return tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea;
+    });
 
     let worksForest = false;
     let worksOreVein = false;
@@ -149,7 +156,7 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         // Conditionals
         if (b === BuildingType.Reservoir && isRiverCity) total.F += 1;
         if (b === BuildingType.LumberMill && worksForest) total.P += 1;
-        if (b === BuildingType.TradingPost && isRiverCity) total.G += 1;
+        if (b === BuildingType.TradingPost && (isRiverCity || isCoastalCity)) total.G += 1;
         if (b === BuildingType.MarketHall && city.pop >= 5) total.G += 1;
         if (b === BuildingType.Bank && worksOreVein) total.G += 1;
     }
@@ -259,9 +266,12 @@ export function getCityBuildingUpkeep(city: City): number {
 }
 
 export function getPlayerBuildingUpkeep(state: GameState, playerId: string): number {
-    return state.cities
-        .filter(city => city.ownerId === playerId)
-        .reduce((sum, city) => sum + getCityBuildingUpkeep(city), 0);
+    const ownedCities = state.cities.filter(city => city.ownerId === playerId);
+    const buildingUpkeep = ownedCities.reduce((sum, city) => sum + getCityBuildingUpkeep(city), 0);
+    const cityCount = ownedCities.length;
+    const administrationUpkeep = Math.max(0, cityCount - 1) * CITY_ADMIN_UPKEEP_PER_CITY
+        + Math.max(0, cityCount - 4) * CITY_ADMIN_UPKEEP_WIDE_SURCHARGE;
+    return buildingUpkeep + administrationUpkeep;
 }
 
 export function getPlayerSupplyUsage(state: GameState, playerId: string): PlayerSupplyUsage {
@@ -278,7 +288,13 @@ export function getPlayerSupplyUsage(state: GameState, playerId: string): Player
         }, 0);
         return sum + cityBonus;
     }, 0);
-    const freeSupply = MILITARY_FREE_SUPPLY_BASE + (cityCount * MILITARY_FREE_SUPPLY_PER_CITY) + economySupplyBonus;
+    const civSupplyBonus = getCivTrait(state, playerId) === "ScholarKingdoms"
+        ? SCHOLAR_KINGDOMS_FREE_SUPPLY_BONUS
+        : 0;
+    const freeSupply = MILITARY_FREE_SUPPLY_BASE
+        + (cityCount * MILITARY_FREE_SUPPLY_PER_CITY)
+        + economySupplyBonus
+        + civSupplyBonus;
     const excessSupply = Math.max(0, usedSupply - freeSupply);
     const militaryUpkeep = excessSupply * MILITARY_UPKEEP_PER_EXCESS_SUPPLY;
     return { usedSupply, freeSupply, militaryUpkeep };
@@ -287,7 +303,7 @@ export function getPlayerSupplyUsage(state: GameState, playerId: string): Player
 export function getPlayerGoldLedger(state: GameState, playerId: string, cache?: LookupCache): GoldLedger {
     const cities = state.cities.filter(city => city.ownerId === playerId);
     const grossGold = cities.reduce((sum, city) => sum + getCityYields(city, state, cache).G, 0);
-    const buildingUpkeep = cities.reduce((sum, city) => sum + getCityBuildingUpkeep(city), 0);
+    const buildingUpkeep = getPlayerBuildingUpkeep(state, playerId);
     const supply = getPlayerSupplyUsage(state, playerId);
     const netGold = grossGold - buildingUpkeep - supply.militaryUpkeep;
 
@@ -337,7 +353,7 @@ function getCivTrait(state: GameState, playerId: string): "ForgeClans" | "Schola
  * @param pop - The current population of the city.
  * @param hasFarmstead - Whether the city has a Farmstead (10% discount).
  * @param hasJadeGranary - Whether the player has the Jade Granary project (15% discount).
- * @param civName - The name of the civilization (JadeCovenant gets 10% discount).
+ * @param civName - The name of the civilization (used for civ-specific growth modifiers).
  * @returns The food cost for the next growth step.
  */
 export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary: boolean = false, civName?: string): number {
@@ -356,7 +372,7 @@ export function getGrowthCost(pop: number, hasFarmstead: boolean, hasJadeGranary
     let mult = 1.0;
     if (hasFarmstead) mult *= FARMSTEAD_GROWTH_MULT;
     if (hasJadeGranary) mult *= JADE_GRANARY_GROWTH_MULT;
-    // v0.97 balance: JadeCovenant passive "Verdant Growth" - 10% faster growth globally
+    // JadeCovenant passive global growth modifier (currently neutral at 1.0).
     if (civName === "JadeCovenant") mult *= JADE_COVENANT_GROWTH_MULT;
 
     if (mult < 1.0) {

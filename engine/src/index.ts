@@ -17,3 +17,4 @@ export { estimateMilitaryPower } from "./game/ai/goals.js";
 export { getUnitCost } from "./game/units.js";
 export * from "./game/helpers/combat-preview.js";
 export * from "./core/difficulty.js";
+export { refreshPlayerVision } from "./game/vision.js";

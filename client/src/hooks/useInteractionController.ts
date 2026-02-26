@@ -1,6 +1,16 @@
 import { useCallback, useState } from "react";
-import { Action, DiplomacyState, GameState, HexCoord, UNITS, findPath, hexDistance, hexEquals, hexToString, Unit, getCombatPreviewUnitVsUnit, getCombatPreviewUnitVsCity, CombatPreview } from "@simple-civ/engine";
+import { Action, GameState, HexCoord, UNITS, findPath, hexDistance, hexEquals, hexToString, Unit, getCombatPreviewUnitVsUnit, getCombatPreviewUnitVsCity, CombatPreview } from "@simple-civ/engine";
 import { useReachablePaths } from "./useReachablePaths";
+import {
+    canUnitAttackCity,
+    canUnitsStack,
+    createAttackAction,
+    createMoveUnitAction,
+    getEnemyTerritoryOwnerAtPeaceForCoord,
+    getTileVisibilityState,
+    isAtPeaceWithTarget,
+    pickLinkedOrFirstFriendlyUnitId,
+} from "./interaction-controller-helpers";
 
 type PendingWar = { action: Action; targetPlayerId: string } | null;
 
@@ -32,16 +42,9 @@ export function useInteractionController({
     const { reachablePaths, reachableCoordSet } = useReachablePaths(gameState, playerId, selectedUnitId);
     const diplomacy = gameState?.diplomacy;
 
-    // Helper to detect if a tile is enemy territory at peace (returns owner ID or null)
     const getEnemyTerritoryOwnerAtPeace = useCallback((coord: HexCoord): string | null => {
         if (!gameState) return null;
-        const tile = gameState.map.tiles.find(t => hexEquals(t.coord, coord));
-        if (!tile?.ownerId || tile.ownerId === playerId) return null;
-        // Cities are handled separately (for capture logic)
-        const cityOnTile = gameState.cities.find(c => hexEquals(c.coord, coord));
-        if (cityOnTile) return null;
-        const diplomacyState = diplomacy?.[playerId]?.[tile.ownerId] || DiplomacyState.Peace;
-        return diplomacyState === DiplomacyState.Peace ? tile.ownerId : null;
+        return getEnemyTerritoryOwnerAtPeaceForCoord(gameState, playerId, diplomacy, coord);
     }, [gameState, playerId, diplomacy]);
 
     const tryAttackUnit = useCallback((
@@ -50,18 +53,11 @@ export function useInteractionController({
     ) => {
         if (!gameState) return false;
 
-        const attackAction: Action = {
-            type: "Attack",
-            playerId,
-            attackerId: unit.id,
-            targetId: targetUnit.id,
-            targetType: "Unit"
-        };
+        const attackAction = createAttackAction(playerId, unit.id, targetUnit.id, "Unit");
 
         // Native units (ownerId "natives") are always attackable without war
         const isNative = targetUnit.ownerId === "natives";
-        const diplomacyState = diplomacy?.[playerId]?.[targetUnit.ownerId] || DiplomacyState.Peace;
-        if (!isNative && diplomacyState === DiplomacyState.Peace) {
+        if (!isNative && isAtPeaceWithTarget(diplomacy, playerId, targetUnit.ownerId)) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetUnit.ownerId });
         } else if (showCombatPreview) {
             const preview = getCombatPreviewUnitVsUnit(gameState, unit, targetUnit);
@@ -80,24 +76,16 @@ export function useInteractionController({
     ) => {
         if (!gameState) return false;
 
-        const unitStats = UNITS[unit.type as keyof typeof UNITS];
-
         // Only military units can attack cities (not civilians like Settlers)
-        if (unitStats.domain === "Civilian") return false;
+        if (!canUnitAttackCity(unit)) return false;
+        const unitStats = UNITS[unit.type as keyof typeof UNITS];
 
         const dist = hexDistance(unit.coord, targetCity.coord);
         if (dist > unitStats.rng || targetCity.hp <= 0) return false;
 
-        const attackAction: Action = {
-            type: "Attack",
-            playerId,
-            attackerId: unit.id,
-            targetId: targetCity.id,
-            targetType: "City"
-        };
+        const attackAction = createAttackAction(playerId, unit.id, targetCity.id, "City");
 
-        const diplomacyState = diplomacy?.[playerId]?.[targetCity.ownerId] || DiplomacyState.Peace;
-        if (diplomacyState === DiplomacyState.Peace) {
+        if (isAtPeaceWithTarget(diplomacy, playerId, targetCity.ownerId)) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetCity.ownerId });
         } else if (showCombatPreview) {
             const preview = getCombatPreviewUnitVsCity(gameState, unit, targetCity);
@@ -118,18 +106,10 @@ export function useInteractionController({
             return true;
         }
 
-        const unitStats = UNITS[unit.type];
-        const targetStats = UNITS[friendlyUnitOnTile.type];
-        const canStack = (unitStats.domain === "Civilian" && targetStats.domain !== "Civilian") ||
-            (unitStats.domain !== "Civilian" && targetStats.domain === "Civilian");
+        const canStack = canUnitsStack(unit, friendlyUnitOnTile);
 
         if (canStack) {
-            dispatchAction({
-                type: "MoveUnit",
-                playerId,
-                unitId: unit.id,
-                to: coord
-            });
+            dispatchAction(createMoveUnitAction(playerId, unit.id, coord));
             setSelectedCoord(coord);
             setSelectedUnitId(unit.id);
             return true;
@@ -157,22 +137,12 @@ export function useInteractionController({
         const enemyOwner = getEnemyTerritoryOwnerAtPeace(firstStep);
         if (enemyOwner) {
             // Queue war declaration for the first move into enemy territory
-            const moveAction: Action = {
-                type: "MoveUnit",
-                playerId,
-                unitId: unit.id,
-                to: firstStep,
-            };
+            const moveAction = createMoveUnitAction(playerId, unit.id, firstStep);
             setPendingWarAttack({ action: moveAction, targetPlayerId: enemyOwner });
             return true;
         }
 
-        runActions(plannedPath.map((step: HexCoord) => ({
-            type: "MoveUnit",
-            playerId,
-            unitId: unit.id,
-            to: step,
-        })));
+        runActions(plannedPath.map((step: HexCoord) => createMoveUnitAction(playerId, unit.id, step)));
 
         if (plannedInfo.movesLeft === 0) {
             setSelectedCoord(null);
@@ -190,22 +160,12 @@ export function useInteractionController({
         // Check if entering enemy territory at peace
         const enemyOwner = getEnemyTerritoryOwnerAtPeace(coord);
         if (enemyOwner) {
-            const moveAction: Action = {
-                type: "MoveUnit",
-                playerId,
-                unitId: unit.id,
-                to: coord,
-            };
+            const moveAction = createMoveUnitAction(playerId, unit.id, coord);
             setPendingWarAttack({ action: moveAction, targetPlayerId: enemyOwner });
             return true;
         }
 
-        dispatchAction({
-            type: "MoveUnit",
-            playerId,
-            unitId: unit.id,
-            to: coord
-        });
+        dispatchAction(createMoveUnitAction(playerId, unit.id, coord));
         if (unit.movesLeft === 1) {
             setSelectedCoord(null);
             setSelectedUnitId(null);
@@ -229,12 +189,7 @@ export function useInteractionController({
         if (firstStep && hexDistance(unit.coord, firstStep) === 1 && unit.movesLeft > 0) {
             const enemyOwner = getEnemyTerritoryOwnerAtPeace(firstStep);
             if (enemyOwner) {
-                const moveAction: Action = {
-                    type: "MoveUnit",
-                    playerId,
-                    unitId: unit.id,
-                    to: firstStep,
-                };
+                const moveAction = createMoveUnitAction(playerId, unit.id, firstStep);
                 setPendingWarAttack({ action: moveAction, targetPlayerId: enemyOwner });
                 return true;
             }
@@ -248,12 +203,7 @@ export function useInteractionController({
         }];
 
         if (firstStep && hexDistance(unit.coord, firstStep) === 1 && unit.movesLeft > 0) {
-            actions.push({
-                type: "MoveUnit",
-                playerId,
-                unitId: unit.id,
-                to: firstStep
-            });
+            actions.push(createMoveUnitAction(playerId, unit.id, firstStep));
         }
 
         runActions(actions);
@@ -266,13 +216,9 @@ export function useInteractionController({
         if (!gameState) return;
 
         // Check visibility
-        const key = `${coord.q},${coord.r}`;
-        // Note: We don't have the pre-computed sets here, so we check the raw arrays.
-        // This is slightly less efficient but fine for a click handler.
-        const isVisible = gameState.visibility?.[playerId]?.includes(key) ?? false;
-        const isRevealed = gameState.revealed?.[playerId]?.includes(key) ?? false;
-        const isFogged = !isVisible && isRevealed;
-        const isShroud = !isVisible && !isRevealed;
+        const visibilityState = getTileVisibilityState(gameState, playerId, coord);
+        const isFogged = visibilityState === "fogged";
+        const isShroud = visibilityState === "shroud";
 
         // Handle fogged tiles (previously seen, not currently visible)
         if (isFogged) {
@@ -363,10 +309,7 @@ export function useInteractionController({
             return;
         }
 
-        const linkedUnit = friendlyUnits.find(u =>
-            u.linkedUnitId && friendlyUnits.some(partner => partner.id === u.linkedUnitId),
-        );
-        setSelectedUnitId(linkedUnit?.id ?? friendlyUnits[0].id);
+        setSelectedUnitId(pickLinkedOrFirstFriendlyUnitId(friendlyUnits));
     }, [gameState, selectedUnitId, playerId, tryAttackUnit, tryAttackCity, trySwapOrStack, tryPlannedPath, tryAdjacentMove, tryAutoMove]);
 
     const confirmCombatPreview = useCallback(() => {

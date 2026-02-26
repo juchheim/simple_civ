@@ -4,6 +4,16 @@ import {
     PAN_INERTIA_MIN_VELOCITY,
     ZOOM_SMOOTHING
 } from "../components/GameMap/constants";
+import {
+    applyVelocityPan,
+    applyZoomRatioAroundAnchor,
+    computeDecayFactor,
+    computeEdgePanVelocity,
+    computeZoomSmoothing,
+    decayVelocity,
+    getVelocitySpeed,
+    isInEdgeZone
+} from "./pan-zoom-inertia-helpers";
 
 export const EDGE_PAN_THRESHOLD = 100; // pixels
 export const EDGE_PAN_SPEED = 0.8; // pixels per ms
@@ -65,20 +75,20 @@ export function usePanZoomInertia({
 
         if (isInertiaActiveRef.current) {
             const velocity = inertiaVelocityRef.current;
-            const decay = Math.pow(PAN_INERTIA_DECAY, normalizedFrame);
-            velocity.vx *= decay;
-            velocity.vy *= decay;
-            const speed = Math.hypot(velocity.vx, velocity.vy);
+            const decayedVelocity = decayVelocity(
+                velocity,
+                computeDecayFactor(PAN_INERTIA_DECAY, normalizedFrame),
+            );
+            velocity.vx = decayedVelocity.vx;
+            velocity.vy = decayedVelocity.vy;
+            const speed = getVelocitySpeed(velocity);
 
             if (speed <= PAN_INERTIA_MIN_VELOCITY) {
                 isInertiaActiveRef.current = false;
                 // Sync state at end of inertia
                 setPan(panRef.current);
             } else {
-                const nextPan = {
-                    x: panRef.current.x + velocity.vx * deltaMs,
-                    y: panRef.current.y + velocity.vy * deltaMs,
-                };
+                const nextPan = applyVelocityPan(panRef.current, velocity, deltaMs);
                 panRef.current = nextPan;
                 shouldContinue = true;
             }
@@ -88,15 +98,13 @@ export function usePanZoomInertia({
         if (mousePositionRef.current && !isPanningRef.current && containerRef.current) {
             const { x, y } = mousePositionRef.current;
             const { clientWidth, clientHeight } = containerRef.current;
+            const size = { width: clientWidth, height: clientHeight };
+            const point = { x, y };
 
             // Check if mouse is in edge zone
-            const isInEdgeZone =
-                x < EDGE_PAN_THRESHOLD ||
-                x > clientWidth - EDGE_PAN_THRESHOLD ||
-                y < EDGE_PAN_THRESHOLD ||
-                y > clientHeight - EDGE_PAN_THRESHOLD;
+            const isInEdgeZoneNow = isInEdgeZone(point, size, EDGE_PAN_THRESHOLD);
 
-            if (isInEdgeZone) {
+            if (isInEdgeZoneNow) {
                 // Track when we entered the edge zone
                 if (edgeEntryTimeRef.current === null) {
                     edgeEntryTimeRef.current = timestamp;
@@ -106,26 +114,15 @@ export function usePanZoomInertia({
 
                 // Only pan after the delay has elapsed
                 if (timeInEdge >= EDGE_PAN_DELAY) {
-                    let vx = 0;
-                    let vy = 0;
+                    const edgeVelocity = computeEdgePanVelocity(
+                        point,
+                        size,
+                        EDGE_PAN_THRESHOLD,
+                        EDGE_PAN_SPEED,
+                    );
 
-                    if (x < EDGE_PAN_THRESHOLD) {
-                        vx = EDGE_PAN_SPEED * (1 - x / EDGE_PAN_THRESHOLD);
-                    } else if (x > clientWidth - EDGE_PAN_THRESHOLD) {
-                        vx = -EDGE_PAN_SPEED * (1 - (clientWidth - x) / EDGE_PAN_THRESHOLD);
-                    }
-
-                    if (y < EDGE_PAN_THRESHOLD) {
-                        vy = EDGE_PAN_SPEED * (1 - y / EDGE_PAN_THRESHOLD);
-                    } else if (y > clientHeight - EDGE_PAN_THRESHOLD) {
-                        vy = -EDGE_PAN_SPEED * (1 - (clientHeight - y) / EDGE_PAN_THRESHOLD);
-                    }
-
-                    if (vx !== 0 || vy !== 0) {
-                        const nextPan = {
-                            x: panRef.current.x + vx * deltaMs,
-                            y: panRef.current.y + vy * deltaMs,
-                        };
+                    if (edgeVelocity.vx !== 0 || edgeVelocity.vy !== 0) {
+                        const nextPan = applyVelocityPan(panRef.current, edgeVelocity, deltaMs);
                         panRef.current = nextPan;
                         shouldContinue = true;
                     }
@@ -144,7 +141,7 @@ export function usePanZoomInertia({
 
         const zoomDifference = targetZoomRef.current - zoomRef.current;
         if (Math.abs(zoomDifference) > 0.001) {
-            const smoothing = 1 - Math.pow(1 - ZOOM_SMOOTHING, normalizedFrame);
+            const smoothing = computeZoomSmoothing(normalizedFrame, ZOOM_SMOOTHING);
             const previousZoom = zoomRef.current;
             const nextZoom = previousZoom + zoomDifference * smoothing;
 
@@ -157,10 +154,7 @@ export function usePanZoomInertia({
             const ratio = nextZoom / previousZoom;
             if (Math.abs(ratio - 1) > 0.0001) {
                 const currentPan = panRef.current;
-                const zoomAdjustedPan = {
-                    x: anchor.x - (anchor.x - currentPan.x) * ratio,
-                    y: anchor.y - (anchor.y - currentPan.y) * ratio,
-                };
+                const zoomAdjustedPan = applyZoomRatioAroundAnchor(anchor, currentPan, ratio);
                 panRef.current = zoomAdjustedPan;
             }
 

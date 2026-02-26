@@ -145,3 +145,67 @@
     - Added equivalent tracking in `engine/src/game/helpers/movement.ts` so Aetherian’s `player.titanStats.cityCaptures/deathballCaptures` reflect **all** city captures regardless of capture method.
   - **Sim performance (events)**:
     - Gated expensive per-turn `TitanStep` event emission behind `SIM_LOG_TITAN_STEPS=true` (or `DEBUG_AI_LOGS=true`) in `engine/src/sim/parallel-analysis.ts` to materially reduce event volume and JSON size for default runs.
+
+- **AI Refactor Kickoff (Feb 25, 2026):**
+  - **Entities updated**: `offense.ts` and `cities.ts` each shed a secondary responsibility into focused modules.
+  - **Relationships defined**:
+    - `engine/src/game/ai/units/offense.ts` now delegates camp-clearing movement/combat to `engine/src/game/ai/units/offense-camp-clearing.ts`.
+    - `engine/src/game/ai/cities.ts` now delegates razing heuristics/execution to `engine/src/game/ai/city-razing.ts`.
+  - **Observations stored**:
+    - Public exports stayed stable via re-exports, so existing callers do not change.
+    - Focused extraction keeps behavior unchanged while lowering file size and responsibility overlap.
+
+- **AI Refactor Phase 2 (Feb 25, 2026):**
+  - **Entities updated**:
+    - `engine/src/game/ai/units/offense.ts`
+    - `engine/src/game/ai/units/offense-movement.ts`
+    - `engine/src/game/ai/cities.ts`
+    - `engine/src/game/ai/city-build-priorities.ts`
+  - **Relationships defined**:
+    - `offense.ts` now re-exports and delegates `moveMilitaryTowardTargets` to `offense-movement.ts`.
+    - `cities.ts` now delegates military/economy build policy to `city-build-priorities.ts` via `getCityBuildPriorities()`.
+    - `cities.ts` keeps city expansion/settler orchestration and tile assignment responsibilities.
+  - **Observations stored**:
+    - Tests (`ai.test.ts`) and engine lint stayed green after the split.
+    - Separation now mirrors intent: tactical unit movement, build policy, and city orchestration are no longer mixed in single files.
+
+- **AI Refactor Phase 3 (Feb 25, 2026):**
+  - **Entities updated**:
+    - `engine/src/game/ai/units/offense-movement.ts`
+    - `engine/src/game/ai/units/offense-movement-target-selection.ts`
+    - `engine/src/game/ai/units/offense-movement-pathing.ts`
+    - `engine/src/game/ai/units/offense-movement-threat-step.ts`
+  - **Relationships defined**:
+    - `offense-movement.ts` now orchestrates loop/control flow only.
+    - `offense-movement-target-selection.ts` owns per-unit target choice (capture/titan/primary-city fallback).
+    - `offense-movement-pathing.ts` owns direct/adjacent path resolution.
+    - `offense-movement-threat-step.ts` owns siege grouping, trebuchet posture/retreat, and threat-aware step execution.
+  - **Observations stored**:
+    - External behavior remained stable; only internal boundaries changed.
+    - `ai.test.ts` and engine lint remained green after the split.
+
+- **AI Refactor Phase 4 (Feb 25, 2026):**
+  - **Entities updated**:
+    - `engine/src/game/ai/city-build-priorities.ts`
+    - `engine/src/game/ai/city-build-priorities.test.ts`
+    - `engine/src/game/ai/units/offense-movement-target-selection.test.ts`
+    - `engine/src/game/ai/units/offense-movement-pathing.test.ts`
+    - `engine/src/game/ai/units/offense-movement-threat-step.test.ts`
+  - **Relationships defined**:
+    - `city-build-priorities.ts` now exposes `calculateDesiredArmySize()` and `getArmyDeficit()` for direct unit-level testing.
+    - New tests cover target selection, path fallback, threat-step decisions, and city build helper behavior in isolation from full AI turns.
+  - **Observations stored**:
+    - Added 11 focused tests across 4 files; all passed.
+    - Existing AI regression suite (`ai.test.ts`) and engine lint remained green.
+
+- **AI Refactor Phase 5 (Feb 25, 2026):**
+  - **Entities updated**:
+    - `engine/src/game/ai2/diplomacy.ts`
+    - `engine/src/game/ai2/diplomacy-helpers.ts`
+    - `engine/src/game/ai2/diplomacy-helpers.test.ts`
+  - **Relationships defined**:
+    - `diplomacy.ts` now delegates helper concerns (influence ratio, candidate formatting/selection, and AI memory stance/war record mutations) to `diplomacy-helpers.ts`.
+    - `diplomacy-helpers.test.ts` validates helper behavior independently of full diplomacy turn evaluation.
+  - **Observations stored**:
+    - Refactor was behavior-preserving at call sites; `decideDiplomacyActionsV2` remains entrypoint.
+    - New tests passed and existing AI regression/lint remained green.

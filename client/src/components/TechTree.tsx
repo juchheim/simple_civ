@@ -1,8 +1,19 @@
 import React from "react";
-import { GameState, TechId, EraId, TECHS, UNITS, BUILDINGS, UnitType, BuildingType } from "@simple-civ/engine";
+import { GameState, TECHS, TechId } from "@simple-civ/engine";
 import { CIV_OPTIONS } from "../data/civs";
 import { formatName } from "../utils/strings";
 import { useTutorial } from "../contexts/TutorialContext";
+import {
+    AETHER_TECHS,
+    BANNER_TECHS,
+    ENGINE_TECHS,
+    getEraActivation,
+    getAdditionalBuildingUnlocks,
+    getCivUniqueBuilding,
+    getTechStateForPlayer,
+    getUnlockInfo,
+    HEARTH_TECHS
+} from "./tech-tree-helpers";
 import "./TechTree.css";
 
 interface TechTreeProps {
@@ -19,127 +30,15 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
 
     if (!player) return null;
 
-    const canResearch = (techId: TechId): boolean => {
-        const tech = TECHS[techId];
-        if (!tech) return false;
-        if (player.techs.includes(techId)) return false;
-
-        for (const req of tech.prereqTechs) {
-            if (!player.techs.includes(req)) return false;
-        }
-
-        if (tech.era === EraId.Banner) {
-            const hearthCount = player.techs.filter(t => TECHS[t].era === EraId.Hearth).length;
-            if (hearthCount < 3) return false;
-        }
-        if (tech.era === EraId.Engine) {
-            const bannerCount = player.techs.filter(t => TECHS[t].era === EraId.Banner).length;
-            if (bannerCount < 2) return false;
-        }
-        // v6.0: Aether Era Gate
-        if (tech.era === EraId.Aether) {
-            const engineCount = player.techs.filter(t => TECHS[t].era === EraId.Engine).length;
-            // Requires 2 Engine techs
-            if (engineCount < 2) return false;
-        }
-
-        return true;
-    };
-
-    const getTechState = (techId: TechId) => {
-        const isCurrent = player.currentTech?.id === techId;
-        const researched = player.techs.includes(techId);
-        const available = canResearch(techId);
-
-        if (isCurrent) return "current";
-        if (researched) return "researched";
-        if (available) return "available";
-        return "locked";
-    };
-
-    // Compact building stats for inline card display
-    const getCompactBuildingStats = (buildingId: BuildingType): string => {
-        const building = BUILDINGS[buildingId];
-        if (!building) return "";
-        const parts: string[] = [];
-        if (building.yieldFlat?.F) parts.push(`+${building.yieldFlat.F}F`);
-        if (building.yieldFlat?.P) parts.push(`+${building.yieldFlat.P}P`);
-        if (building.yieldFlat?.S) parts.push(`+${building.yieldFlat.S}S`);
-        const baseGold = building.yieldFlat?.G ?? 0;
-        const upkeep = building.maintenance ?? 0;
-        if (baseGold > 0 && upkeep > 0) {
-            const netGold = baseGold - upkeep;
-            parts.push(`${netGold >= 0 ? "+" : ""}${netGold}G net`);
-        } else if (baseGold > 0) {
-            parts.push(`+${baseGold}G`);
-        } else if (upkeep > 0) {
-            parts.push(`-${upkeep}G`);
-        }
-        if (building.defenseBonus) parts.push(`+${building.defenseBonus}Def`);
-        if (building.cityAttackBonus) parts.push(`+${building.cityAttackBonus}Atk`);
-        if (building.growthMult) parts.push(`+${Math.round((1 - building.growthMult) * 100)}%Gro`);
-        return parts.join(" ");
-    };
-
-    const getAdditionalBuildingUnlocks = (techId: TechId, primaryUnlock?: string): Array<{ name: string; stats: string }> => {
-        return Object.entries(BUILDINGS)
-            .filter(([buildingId, data]) => data.techReq === techId && buildingId !== primaryUnlock)
-            .map(([buildingId]) => {
-                const id = buildingId as BuildingType;
-                return {
-                    name: formatName(id),
-                    stats: getCompactBuildingStats(id),
-                };
-            });
-    };
-
-    // Get civ-specific unique building for a tech
-    const getCivUniqueBuilding = (techId: TechId): { name: string; stats: string } | null => {
-        if (!player) return null;
-        const civName = player.civName;
-
-        if (civName === "JadeCovenant" && techId === TechId.Fieldcraft) {
-            return { name: "Jade Granary", stats: getCompactBuildingStats(BuildingType.JadeGranary) };
-        }
-        if (civName === "AetherianVanguard" && techId === TechId.SteamForges) {
-            return { name: "Titan's Core", stats: getCompactBuildingStats(BuildingType.TitansCore) };
-        }
-
-        if ((civName === "ScholarKingdoms" || civName === "StarborneSeekers") && techId === TechId.StoneworkHalls) {
-            return { name: "Bulwark", stats: getCompactBuildingStats(BuildingType.Bulwark) };
-        }
-        return null;
-    };
-
-    // Get unlock info for display on card
-    const getUnlockInfo = (tech: typeof TECHS[TechId]): { type: string; name: string; stats: string } => {
-        if (tech.unlock.type === "Unit") {
-            const unit = UNITS[tech.unlock.id as UnitType];
-            if (!unit) return { type: "Unit", name: formatName(tech.unlock.id), stats: "" };
-            const stats = `${unit.atk}/${unit.def}/${unit.move}${unit.rng > 1 ? `/${unit.rng}r` : ""}`;
-            return { type: "Unit", name: formatName(tech.unlock.id), stats };
-        }
-        if (tech.unlock.type === "Building") {
-            return {
-                type: "Bldg",
-                name: formatName(tech.unlock.id),
-                stats: getCompactBuildingStats(tech.unlock.id as BuildingType)
-            };
-        }
-        if (tech.unlock.type === "Passive") {
-            return { type: "Bonus", name: tech.unlock.key, stats: "" };
-        }
-        return { type: "Project", name: formatName(tech.unlock.id), stats: "" };
-    };
-
     const renderTechCard = (techId: TechId) => {
         const tech = TECHS[techId];
-        const state = getTechState(techId);
+        const state = getTechStateForPlayer(techId, player);
         const isCurrent = state === "current";
         const unlock = getUnlockInfo(tech);
-        const civUnique = getCivUniqueBuilding(techId);
+        const civUnique = getCivUniqueBuilding(techId, player.civName);
         const additionalBuildingUnlocks = getAdditionalBuildingUnlocks(
             techId,
+            player.civName,
             tech.unlock.type === "Building" ? tech.unlock.id : undefined
         );
 
@@ -224,48 +123,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
         );
     };
 
-    // Tech lists by era
-    const hearthTechs: TechId[] = [
-        TechId.Fieldcraft,
-        TechId.StoneworkHalls,
-        TechId.ScriptLore,
-        TechId.FormationTraining,
-        TechId.TrailMaps,
-    ];
-
-    const bannerTechs: TechId[] = [
-        TechId.Wellworks,
-        TechId.TimberMills,
-        TechId.ScholarCourts,
-        TechId.DrilledRanks,
-        TechId.CityWards,
-    ];
-
-    const engineTechs: TechId[] = [
-        TechId.UrbanPlans,
-        TechId.SteamForges,
-        TechId.SignalRelay,
-        TechId.ArmyDoctrine,
-        TechId.StarCharts,
-    ];
-
-    const aetherTechs: TechId[] = [
-        TechId.ZeroPointEnergy,
-        TechId.Aerodynamics,
-        TechId.PlasmaShields,
-        TechId.CompositeArmor,
-        TechId.DimensionalGate,
-    ];
-
-    // Calculate Active Eras
-    const hearthCount = player.techs.filter(t => TECHS[t].era === EraId.Hearth).length;
-    const bannerCount = player.techs.filter(t => TECHS[t].era === EraId.Banner).length;
-    const engineCount = player.techs.filter(t => TECHS[t].era === EraId.Engine).length;
-
-    const isHearthActive = true;
-    const isBannerActive = hearthCount >= 3;
-    const isEngineActive = bannerCount >= 2;
-    const isAetherActive = engineCount >= 2;
+    const { isHearthActive, isBannerActive, isEngineActive, isAetherActive } = getEraActivation(player.techs);
 
     return (
         <div className="tech-tree-overlay">
@@ -296,7 +154,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                                 <div className="tech-tree-era-req">Start your path</div>
                             </div>
                             <div className="tech-tree-cards">
-                                {hearthTechs.map(renderTechCard)}
+                                {HEARTH_TECHS.map(renderTechCard)}
                             </div>
                         </div>
 
@@ -313,7 +171,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                                 <div className="tech-tree-era-req">Requires 3 Hearth techs</div>
                             </div>
                             <div className="tech-tree-cards">
-                                {bannerTechs.map(renderTechCard)}
+                                {BANNER_TECHS.map(renderTechCard)}
                             </div>
                         </div>
 
@@ -330,7 +188,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                                 <div className="tech-tree-era-req">Requires 2 Banner techs</div>
                             </div>
                             <div className="tech-tree-cards">
-                                {engineTechs.map(renderTechCard)}
+                                {ENGINE_TECHS.map(renderTechCard)}
                             </div>
                         </div>
 
@@ -348,7 +206,7 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
                                 <div className="tech-tree-era-req">Requires 2 Engine techs</div>
                             </div>
                             <div className="tech-tree-cards">
-                                {aetherTechs.map(renderTechCard)}
+                                {AETHER_TECHS.map(renderTechCard)}
                             </div>
                         </div>
                     </div>
@@ -356,6 +214,4 @@ export const TechTree: React.FC<TechTreeProps> = ({ gameState, playerId, onChoos
             </div>
         </div>
     );
-
-
 };
