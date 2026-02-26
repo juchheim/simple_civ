@@ -57,7 +57,7 @@ export function useInteractionController({
 
         // Native units (ownerId "natives") are always attackable without war
         const isNative = targetUnit.ownerId === "natives";
-        if (!isNative && isAtPeaceWithTarget(diplomacy, playerId, targetUnit.ownerId)) {
+        if (!isNative && isAtPeaceWithTarget(diplomacy, playerId, targetUnit.ownerId, gameState)) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetUnit.ownerId });
         } else if (showCombatPreview) {
             const preview = getCombatPreviewUnitVsUnit(gameState, unit, targetUnit);
@@ -85,7 +85,7 @@ export function useInteractionController({
 
         const attackAction = createAttackAction(playerId, unit.id, targetCity.id, "City");
 
-        if (isAtPeaceWithTarget(diplomacy, playerId, targetCity.ownerId)) {
+        if (isAtPeaceWithTarget(diplomacy, playerId, targetCity.ownerId, gameState)) {
             setPendingWarAttack({ action: attackAction, targetPlayerId: targetCity.ownerId });
         } else if (showCombatPreview) {
             const preview = getCombatPreviewUnitVsCity(gameState, unit, targetCity);

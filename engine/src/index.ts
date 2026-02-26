@@ -11,6 +11,7 @@ export * from "./game/helpers/combat.js";
 export * from "./game/helpers/pathfinding.js";
 export * from "./game/ai-heuristics.js";
 export * from "./game/ai-decisions.js";
+export * from "./game/city-states.js";
 export { ensureTechSelected, pickBestAvailableTech } from "./game/helpers/turn.js";
 export { runAiTurn } from "./game/ai.js";
 export { estimateMilitaryPower } from "./game/ai/goals.js";

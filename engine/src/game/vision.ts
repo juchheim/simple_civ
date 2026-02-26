@@ -5,6 +5,7 @@ import { buildTileLookup, hasClearLineOfSight } from "./helpers/combat.js";
 import { disableSharedVision, setContact } from "./helpers/diplomacy.js";
 import { recordFogDelta } from "./history.js";
 import { LookupCache, buildLookupCache, getOwnedTilesCached } from "./helpers/lookup-cache.js";
+import { updateCityStateDiscoveryForPlayer } from "./city-states.js";
 
 export function computeVisibility(state: GameState, playerId: string, cache?: LookupCache): string[] {
     const visible = new Set<string>();
@@ -68,6 +69,7 @@ export function computeVisibility(state: GameState, playerId: string, cache?: Lo
 
 export function refreshPlayerVision(state: GameState, playerId: string, cache?: LookupCache) {
     const nowVisible = computeVisibility(state, playerId, cache);
+    const nowVisibleSet = new Set(nowVisible);
     state.visibility[playerId] = nowVisible;
     const prev = new Set(state.revealed[playerId] ?? []);
 
@@ -84,7 +86,8 @@ export function refreshPlayerVision(state: GameState, playerId: string, cache?: 
 
     nowVisible.forEach(v => prev.add(v));
     state.revealed[playerId] = Array.from(prev);
-    handleContactDiscovery(state, playerId, new Set(nowVisible), cache);
+    handleContactDiscovery(state, playerId, nowVisibleSet, cache);
+    updateCityStateDiscoveryForPlayer(state, playerId, nowVisibleSet);
 }
 
 export function handleContactDiscovery(state: GameState, viewerId: string, visibleKeys: Set<string>, cache?: LookupCache) {

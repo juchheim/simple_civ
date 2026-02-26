@@ -15,6 +15,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             playerId,
             isMyTurn,
             diplomacyRows,
+            cityStateRows,
             empireYields,
             playerEconomy,
             mapView,
@@ -106,6 +107,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 onToggleResearch={setShowResearch}
                 playerEconomy={playerEconomy}
                 diplomacyRows={diplomacyRows}
+                cityStateRows={cityStateRows}
                 playerId={playerId}
                 onAction={onAction}
                 player={gameState.players.find(p => p.id === playerId)}

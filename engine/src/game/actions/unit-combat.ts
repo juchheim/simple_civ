@@ -19,6 +19,7 @@ import { assertHasNotAttacked, assertMovesLeft, assertOwnership, getCityAt, getU
 import { resolveLinkedPartner, unlinkPair } from "../helpers/movement.js";
 import { AttackAction } from "./unit-action-types.js";
 import { triggerNativeAggro, triggerNativeRetreat, isNativeUnit, clearNativeCamp } from "../natives/native-behavior.js";
+import { ensureCityStateWar, getCityStateByOwnerId, removeCityStateByCityId } from "../city-states.js";
 
 export function handleAttack(state: GameState, action: AttackAction): GameState {
     const attacker = getUnitOrThrow(state, action.attackerId, "Attacker not found");
@@ -57,8 +58,15 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         : state.cities.find(c => c.id === action.targetId)?.ownerId;
     // Skip war check for native units (owned by "natives" special ID) - always attackable
     if (targetOwner && targetOwner !== action.playerId && targetOwner !== "natives") {
-        ensureWar(state, action.playerId, targetOwner);
+        const cityState = getCityStateByOwnerId(state, targetOwner);
+        if (cityState) {
+            ensureCityStateWar(state, targetOwner, action.playerId);
+        } else {
+            ensureWar(state, action.playerId, targetOwner);
+        }
     }
+
+    const attackerCanCaptureCity = attackerStats.canCaptureCity && !attacker.isCityStateLevy;
 
     if (action.targetType === "Unit") {
         let defender = getUnitOrThrow(state, action.targetId, "Defender not found");
@@ -414,7 +422,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         }
 
         if (city.hp <= 0) {
-            if (attackerStats.canCaptureCity && dist === 1) {
+            if (attackerCanCaptureCity && dist === 1) {
                 const cityCoord = city.coord;
 
                 // v7.10: Remove ALL enemy units on city tile (except Air), not just garrison
@@ -432,6 +440,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
                 );
 
                 captureCity(state, city, action.playerId);
+                removeCityStateByCityId(state, city.id);
                 logEvent(state, HistoryEventType.CityCaptured, action.playerId, { cityId: city.id, cityName: city.name, coord: city.coord, isCapital: city.isCapital });
 
                 // Track Titan city captures for analysis

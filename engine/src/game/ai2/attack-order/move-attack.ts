@@ -11,6 +11,8 @@ import { getCivAggression } from "../army-phase.js";
 import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
 import { scoreMoveAttackOption } from "./scoring.js";
 import { getTacticalTuning } from "../tuning.js";
+import { getOffensiveEnemyIds } from "../city-state-policy.js";
+import { getCityStateByOwnerId } from "../../city-states.js";
 
 export type MoveAttackPlan = {
     unit: Unit;
@@ -143,7 +145,10 @@ function findMoveAttackTiles(state: GameState, unit: Unit, minMovesAfter: number
         if (tile.ownerId && tile.ownerId !== unit.ownerId) {
             const isCity = state.cities.some(c => hexEquals(c.coord, coord));
             const diplomacy = state.diplomacy[unit.ownerId]?.[tile.ownerId];
-            if (!isCity && diplomacy !== "War") return false;
+            const cityState = getCityStateByOwnerId(state, tile.ownerId);
+            const cityStateWar = cityState ? !!cityState.warByPlayer[unit.ownerId] : false;
+            if (!isCity && diplomacy !== "War" && !cityStateWar) return false;
+            if (isCity && cityState && !cityStateWar) return false;
         }
 
         try {
@@ -192,13 +197,9 @@ export function planMoveAndAttack(
     excludedUnitIds: Set<string> = new Set(),
     visibleTargets?: { units: Set<string>; cities: Set<string> }
 ): MoveAttackPlan[] {
-    // Get enemies
-    const enemies = new Set<string>();
-    for (const p of state.players) {
-        if (p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === "War") {
-            enemies.add(p.id);
-        }
-    }
+    // Include active wars plus high-confidence city-state opportunistic war targets.
+    const goal = state.players.find(p => p.id === playerId)?.aiGoal ?? "Balanced";
+    const enemies = getOffensiveEnemyIds(state, playerId, goal);
     if (enemies.size === 0) return [];
 
     // Find units that need to move to attack

@@ -5,6 +5,7 @@ import { scoreAttackOption } from "./scoring.js";
 import { getAiMemoryV2 } from "../memory.js";
 import { getTacticalPriorityTargets } from "../offense/advanced-tactics.js";
 import { getMilitaryDoctrine } from "../military-doctrine.js";
+import { getOffensiveEnemyIds } from "../city-state-policy.js";
 
 export type PlannedAttack = {
     attacker: Unit;
@@ -37,13 +38,9 @@ export function planAttackOrderV2(
         !u.isTitanEscort // v6.6h: Reserved escorts don't attack - stay with Titan
     );
 
-    // Get enemy player IDs (those we're at war with)
-    const enemies = new Set<string>();
-    for (const p of state.players) {
-        if (p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === "War") {
-            enemies.add(p.id);
-        }
-    }
+    // Include active wars plus high-confidence city-state opportunistic war targets.
+    const goal = state.players.find(p => p.id === playerId)?.aiGoal ?? "Balanced";
+    const enemies = getOffensiveEnemyIds(state, playerId, goal);
 
     if (enemies.size === 0) return [];
 

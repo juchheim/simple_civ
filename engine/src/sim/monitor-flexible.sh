@@ -135,6 +135,7 @@ run_analysis "StarborneSeekers" "engine/src/sim/analyze-starborne.mjs" "optional
 run_analysis "Aether Era" "engine/src/sim/analyze-aether.mjs" "optional"
 run_analysis "Tech Path" "engine/src/sim/analyze-tech-paths.mjs" "optional"
 run_analysis "Economy" "engine/src/sim/analyze-economy.mjs" "required"
+run_analysis "City-State" "engine/src/sim/analyze-city-states.mjs" "required"
 
 echo ""
 echo "Extracting Titan Action Logs..."
@@ -154,11 +155,13 @@ copy_report "/tmp/starborne-seekers-analysis.md" "$REPORTS_DIR/starborne-seekers
 copy_report "/tmp/aether-analysis-report.md" "$REPORTS_DIR/aether-analysis-report.md" "optional"
 copy_report "/tmp/tech-path-analysis-report.md" "$REPORTS_DIR/tech-path-analysis-report.md" "optional"
 copy_report "/tmp/economic-balance-report.md" "$REPORTS_DIR/economic-balance-report.md" "required"
+copy_report "/tmp/city-state-report.md" "$REPORTS_DIR/city-state-report.md" "required"
 copy_report "$titan_log" "$REPORTS_DIR/titan-actions.log" "optional"
 
 echo ""
 echo "=========================================="
 echo "✓ Complete! Reports saved to docs/analysis/"
 echo "✓ Economy report saved to docs/analysis/economic-balance-report.md"
+echo "✓ City-state report saved to docs/analysis/city-state-report.md"
 echo "✓ Titan logs saved to docs/analysis/titan-actions.log"
 echo "=========================================="

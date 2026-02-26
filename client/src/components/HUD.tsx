@@ -1,7 +1,7 @@
 import React from "react";
 import type { Action, GameState, HexCoord } from "@simple-civ/engine";
 import type { MapViewport } from "./GameMap";
-import { buildDiplomacyRows } from "./HUD/helpers";
+import { buildCityStateRows, buildDiplomacyRows } from "./HUD/helpers";
 import { useCityBuildOptions, useSelectedUnits, useUnitActions } from "./HUD/hooks";
 import { useDiplomacyAlerts } from "./HUD/hooks/use-diplomacy-alerts";
 import { useProgressRaceAlerts } from "./HUD/hooks/use-progress-race-alerts";
@@ -172,6 +172,7 @@ export const HUD: React.FC<HUDProps> = ({
 
     const cityBuildOptions = useCityBuildOptions(selectedCity, gameState);
     const diplomacyRows = React.useMemo(() => buildDiplomacyRows(gameState, playerId), [gameState, playerId]);
+    const cityStateRows = React.useMemo(() => buildCityStateRows(gameState, playerId), [gameState, playerId]);
     const showUnitStack = !!selectedUnit || unitsOnTile.length > 1;
     const blockingTasks = React.useMemo(
         () => buildBlockingTasks(isMyTurn, player, cities, playerId),
@@ -221,6 +222,7 @@ export const HUD: React.FC<HUDProps> = ({
             playerId,
             isMyTurn,
             diplomacyRows,
+            cityStateRows,
             empireYields,
             playerEconomy,
             mapView,

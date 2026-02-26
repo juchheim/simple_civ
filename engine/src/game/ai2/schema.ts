@@ -191,6 +191,13 @@ export function getWarEnemyIds(state: GameState, playerId: string): Set<string> 
             ids.add(p.id);
         }
     }
+
+    for (const cityState of state.cityStates ?? []) {
+        if (cityState.warByPlayer[playerId]) {
+            ids.add(cityState.ownerId);
+        }
+    }
+
     return ids;
 }
 

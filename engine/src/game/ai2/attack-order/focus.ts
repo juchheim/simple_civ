@@ -8,6 +8,7 @@ import { getUnitRole, isSiegeRole } from "../schema.js";
 import { getUnitThreatProfile } from "../tactical-threat.js";
 import { scoreAttackOption } from "./scoring.js";
 import { canPlanAttack, isGarrisoned, isMilitary } from "./shared.js";
+import { getOffensiveEnemyIds } from "../city-state-policy.js";
 
 type FocusAttackPlan = {
     attacker: Unit;
@@ -98,12 +99,8 @@ export function updateTacticalFocus(state: GameState, playerId: string): GameSta
     }
 
     // Need new focus target - pick most killable enemy
-    const enemies = new Set<string>();
-    for (const p of state.players) {
-        if (p.id !== playerId && !p.isEliminated && state.diplomacy?.[playerId]?.[p.id] === "War") {
-            enemies.add(p.id);
-        }
-    }
+    const goal = state.players.find(p => p.id === playerId)?.aiGoal ?? "Balanced";
+    const enemies = getOffensiveEnemyIds(state, playerId, goal);
 
     if (enemies.size === 0) {
         if (memory.tacticalFocusUnitId) {

@@ -9,6 +9,7 @@ import {
     civList,
     createTurnSnapshot
 } from "./shared-analysis.js";
+import { createCityStateTelemetryTracker } from "./city-state-telemetry.js";
 import { writeFileSync, statSync } from "fs";
 
 function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLimit = 200, playerCount?: number) {
@@ -34,6 +35,8 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     const warsLoggedThisTurn = new Set<string>();
     const peaceLoggedThisTurn = new Set<string>();
     const eliminationsLogged = new Set<string>();
+    const cityStateTelemetry = createCityStateTelemetryTracker(state);
+    let lastCityStateSampleTurn: number | null = null;
 
     let winTurn: number | null = null;
     let lastStatusTurn = 0;
@@ -69,6 +72,11 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         });
 
         state = runAiTurn(state, playerId);
+        cityStateTelemetry.observe(state);
+        if (lastCityStateSampleTurn !== state.turn) {
+            cityStateTelemetry.sampleTurn(state);
+            lastCityStateSampleTurn = state.turn;
+        }
 
         const newCityOwners = new Set<string>();
         state.cities.forEach(c => {
@@ -281,6 +289,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         civName: p.civName,
         isEliminated: p.isEliminated || false,
     }));
+    const cityStateSummary = cityStateTelemetry.finalize(state);
 
     return {
         seed,
@@ -293,6 +302,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         turnSnapshots,
         finalState: createTurnSnapshot(state),
         participatingCivs,
+        cityStateSummary,
     };
 }
 

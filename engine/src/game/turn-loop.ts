@@ -20,6 +20,7 @@ import {
     handleSetCityBuild,
     handleSetWorkedTiles,
 } from "./actions/cities.js";
+import { handleInvestCityStateInfluence } from "./actions/city-states.js";
 import {
     handleAcceptPeace,
     handleAcceptVisionShare,
@@ -33,6 +34,7 @@ import { handleEndTurn, finalizeVictory } from "./turn-lifecycle.js";
 import { enforceLinkedUnitIntegrity } from "./helpers/movement.js";
 import { clearInfluenceMapCache } from "./ai2/influence-map.js";
 import { clearFlowFieldCache } from "./ai2/flow-field.js";
+import { syncCityStateWarTransfers } from "./city-states.js";
 
 export function applyAction(state: GameState, action: Action): GameState {
     const nextState = JSON.parse(JSON.stringify(state)) as GameState;
@@ -90,6 +92,9 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
         case "SetWorkedTiles":
             updatedState = handleSetWorkedTiles(nextState, action);
+            break;
+        case "InvestCityStateInfluence":
+            updatedState = handleInvestCityStateInfluence(nextState, action);
             break;
         case "SetDiplomacy":
             affectedPlayers.add(action.targetPlayerId);
@@ -159,6 +164,10 @@ export function applyAction(state: GameState, action: Action): GameState {
             break;
     }
 
+    const cityStateTransferChanged = syncCityStateWarTransfers(updatedState);
+    if (cityStateTransferChanged) {
+        shouldInvalidateInfluence = true;
+    }
     enforceLinkedUnitIntegrity(updatedState);
     if (shouldInvalidateInfluence) {
         affectedPlayers.add(action.playerId);

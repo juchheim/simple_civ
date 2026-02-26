@@ -39,6 +39,7 @@ import {
 import { hexEquals, hexDistance, hexToString } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
 import { LookupCache } from "./helpers/lookup-cache.js";
+import { getCityStateYieldBonusesForPlayer } from "./city-states.js";
 
 /**
  * Determines the minimum distance required between cities for a given player.
@@ -277,6 +278,7 @@ export function getPlayerBuildingUpkeep(state: GameState, playerId: string): num
 export function getPlayerSupplyUsage(state: GameState, playerId: string): PlayerSupplyUsage {
     const usedSupply = state.units.filter(unit =>
         unit.ownerId === playerId &&
+        !unit.isCityStateLevy &&
         unit.type !== UnitType.Settler &&
         UNITS[unit.type].domain !== UnitDomain.Civilian
     ).length;
@@ -302,7 +304,9 @@ export function getPlayerSupplyUsage(state: GameState, playerId: string): Player
 
 export function getPlayerGoldLedger(state: GameState, playerId: string, cache?: LookupCache): GoldLedger {
     const cities = state.cities.filter(city => city.ownerId === playerId);
-    const grossGold = cities.reduce((sum, city) => sum + getCityYields(city, state, cache).G, 0);
+    const cityGold = cities.reduce((sum, city) => sum + getCityYields(city, state, cache).G, 0);
+    const cityStateGold = Math.floor(getCityStateYieldBonusesForPlayer(state, playerId).Gold);
+    const grossGold = cityGold + cityStateGold;
     const buildingUpkeep = getPlayerBuildingUpkeep(state, playerId);
     const supply = getPlayerSupplyUsage(state, playerId);
     const netGold = grossGold - buildingUpkeep - supply.militaryUpkeep;

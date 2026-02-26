@@ -359,6 +359,36 @@
 - **Propose Peace**: If you are at war, you may propose peace. If the other player also proposes peace (or has an incoming proposal from you), peace is established.
 - **Shared Vision**: At Peace, you may propose sharing vision. Both players see each other's explored tiles.
 
+### City-States
+- **Origin**: Clearing a Native Camp creates a neutral city-state instead of directly granting the city to the attacker.
+- **Yield focus**: Each city-state is assigned one focus type on a balanced rotation: **Science**, **Production**, **Food**, or **Gold**.
+- **Suzerainty**: City-states track influence per civilization. The top influence holder is suzerain (ties keep incumbent suzerain).
+- **Investment**:
+  - Action: **Invest City-State Influence**.
+  - Cost/Gain: **40 Gold → +20 Influence**.
+  - Scaling: each repeat investment into the same city-state by the same player costs +20% more.
+  - Limit: one investment per player per city-state per turn.
+  - Restriction: cannot invest while at war with that city-state.
+- **Yield bonuses**:
+  - Base: each controlled city-state grants +3 to its yield type.
+  - Same-type stacking: 1st at 100%, 2nd at 70%, 3rd+ at 50%.
+  - Science/Gold apply empire-wide; Food/Production apply to capital (or highest-pop city if no capital remains).
+- **War & control**:
+  - Attacking a city-state starts war with that city-state.
+  - If the suzerain attacks its own city-state, suzerainty is lost immediately.
+  - If a suzerain is in any major-civ war, that city-state's military is temporarily transferred to the suzerain.
+  - Transferred city-state units do not consume supply/upkeep and cannot capture cities.
+  - Transfer lock ends only when the suzerain has no active major-civ wars; units are then recalled to city-state territory.
+- **Conquest**: Capturing a city-state city converts it to a normal captured city and removes that city-state from play.
+
+### [DEV-ONLY] City-State Name Pools
+- Names are assigned by yield type and must be globally unique in a match.
+- **Science**: Aetherquill, Lunarchive, Starglass Athenaeum, Nyx Codex, Prism Oracle, Celestine Scriptorium, Voidlight Archive, Sapphire Mnemos, Observatory of Whispers, Eclipsed Theorem, Halcyon Loom, Quillspire, Meridian of Runes, Arcstar Repository, Dreaming Calculus, Radiant Lexicon.
+- **Production**: Emberforge Bastion, Ironwyrm Foundry, Cinderhold, Brasshollow, Hammerdeep, Obsidian Kiln, Thunder Anvil, Stonewake Crucible, Dawnsmelt Keep, Molten Crown, Gearstorm Hold, Flintspire Works, Runehammer Gate, Ashen Bellows, Blackglass Armory, Skyfurnace.
+- **Food**: Verdant Myth, Sunseed Haven, Bloomtide, Moonmeadow, Wildroot Sanctum, Evergrain Vale, Amber Orchard, Thistleheart, Rainpetal Court, Fernsong, Greenstar Hollow, Hearthbloom, Silverbarley, Nectarwind, Bramble Feast, Dawnharvest.
+- **Gold**: Gildenspire, Auric Bazaar, Suncoin Citadel, Opaline Vault, Cresset Exchange, Crownmarket, Embermint, Saffron Treasury, Golden Mirage, Starcoin Port, Velvet Ledger, Brassmoon Mint, Aureate Crown, Coinfire Crossing, Radiant Hoard, Kingsmerch.
+- Fallback prefixes (if a pool is exhausted): Science **Aether Synod**, Production **Anvil Dominion**, Food **Verdant Chorus**, Gold **Gilded Compact**.
+
 ### Diplomatic State Durations
 - **War Duration**: Once war is declared between two civilizations, it must last a **minimum of 15 turns** before either party can propose peace. This ensures wars are sustained conflicts rather than brief skirmishes.
 - **Peace Duration**: After establishing peace (or at initial contact), at least **15 turns** must pass before either civilization can declare war on the other. This creates stable periods for diplomacy and prevents immediate re-hostilities.
@@ -406,7 +436,7 @@
 ## [DEV-ONLY] 19. Rules Priority & Engine Hooks
 - **Priority**: Engine logic (constants/types) → this rulebook → UI copy. If discrepancies arise, engine constants are authoritative; update rulebook to match.
 - **Engine hooks**:
-  - Actions: EndTurn, MoveUnit, Attack (unit/city), SetCityBuild, FoundCity, CityAttack, SetWorkedTiles, SetDiplomacy/Peace/Vision actions, Link/Unlink, RazeCity, Propose/Accept offers, FortifyUnit.
+  - Actions: EndTurn, MoveUnit, Attack (unit/city), SetCityBuild, FoundCity, CityAttack, SetWorkedTiles, SetDiplomacy/Peace/Vision actions, InvestCityStateInfluence, Link/Unlink, RazeCity, Propose/Accept offers, FortifyUnit.
   - Tech progression: ChooseTech required to spend Science.
   - Vision sharing/diplomacy stored in gameState.sharedVision/diplomacy/diplomacyOffers.
   - Progress tracking: milestones stored via projects (Observatory, Grand Academy, Grand Experiment, JadeGranaryComplete, TitansCoreComplete, BulwarkComplete).

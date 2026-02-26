@@ -278,7 +278,7 @@ export function createCity(
     state: GameState,
     ownerId: string,
     coord: HexCoord,
-    options: { name?: string; storedProduction?: number; startingFood?: number } = {},
+    options: { name?: string; storedProduction?: number; startingFood?: number; isCapitalOverride?: boolean } = {},
 ): City {
     const player = state.players.find(p => p.id === ownerId);
     const playerCities = state.cities.filter(c => c.ownerId === ownerId);
@@ -297,7 +297,7 @@ export function createCity(
 
     // v6.8: Calculate isCapital BEFORE setting hasFoundedFirstCity
     // The first city for a player is their capital
-    const isCapital = playerCities.length === 0 && !player?.hasFoundedFirstCity;
+    const isCapital = options.isCapitalOverride ?? (playerCities.length === 0 && !player?.hasFoundedFirstCity);
 
     if (player) {
         player.hasFoundedFirstCity = true;

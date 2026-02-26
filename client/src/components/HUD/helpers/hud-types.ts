@@ -1,7 +1,7 @@
 import type { Action, GameState, HexCoord } from "@simple-civ/engine";
 import type { MapViewport } from "../../GameMap";
 import type { CityBuildOptions } from "../hooks";
-import type { DiplomacyRow } from "./diplomacy";
+import type { CityStateRow, DiplomacyRow } from "./diplomacy";
 import type { AttentionTask, BlockingTask } from "./hud-utils";
 
 export type EmpireYields = { F: number; P: number; S: number; G: number };
@@ -42,6 +42,7 @@ export type HUDMeta = {
     playerId: string;
     isMyTurn: boolean;
     diplomacyRows: DiplomacyRow[];
+    cityStateRows?: CityStateRow[];
     empireYields: EmpireYields;
     playerEconomy: PlayerEconomySummary;
     mapView: MapViewport | null;

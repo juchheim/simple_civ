@@ -177,6 +177,9 @@ export type Unit = {
     isTitanEscort?: boolean; // v6.6h: Reserved for Titan escort duty - skip in other combat logic
     isHomeDefender?: boolean; // v7.1: Territorial defender - stays in friendly territory, not sent to war
     originCityId?: string; // v1.0.2: City where unit was built (for ForgeClans hill bonus)
+    cityStateId?: string; // v1.1.0: Links a unit to its originating city-state
+    isCityStateLevy?: boolean; // v1.1.0: Temporarily transferred city-state unit under suzerain control
+    cityStateOriginalOwnerId?: string; // v1.1.0: City-state owner id used to restore levy ownership after wars
 };
 
 export type City = {
@@ -319,6 +322,25 @@ export type NativeCamp = {
     aggroTurnsRemaining: number;
 };
 
+export type CityStateYieldType = "Science" | "Production" | "Food" | "Gold";
+
+export type CityState = {
+    id: string;
+    ownerId: string;
+    cityId: string;
+    coord: HexCoord;
+    name: string;
+    yieldType: CityStateYieldType;
+    influenceByPlayer: Record<string, number>;
+    investmentCountByPlayer: Record<string, number>;
+    lastInvestTurnByPlayer: Record<string, number>;
+    suzerainId?: string;
+    lockedControllerId?: string;
+    discoveredByPlayer: Record<string, boolean>;
+    lastReinforcementTurn: number;
+    warByPlayer: Record<string, boolean>;
+};
+
 export type GameState = {
     id: string;
     turn: number; // Global turn number
@@ -362,6 +384,8 @@ export type GameState = {
     history?: GameHistory;
     lastGoodieHutReward?: GoodieHutRewardInfo; // Most recent reward for client notification
     nativeCamps: NativeCamp[]; // Native camp state tracking
+    cityStates?: CityState[]; // Neutral city-state entities generated from cleared camps
+    cityStateTypeCycleIndex?: number; // Rotation cursor for balanced city-state yield typing
 };
 
 export type GoodieHutRewardInfo = {
@@ -429,6 +453,7 @@ export type Action =
     | { type: "RazeCity"; playerId: string; cityId: string }
     // | { type: "CityAttack"; playerId: string; cityId: string; targetUnitId: string }
     | { type: "SetWorkedTiles"; playerId: string; cityId: string; tiles: HexCoord[] }
+    | { type: "InvestCityStateInfluence"; playerId: string; cityStateId: string }
     | { type: "SetDiplomacy"; playerId: string; targetPlayerId: string; state: DiplomacyState }
     | { type: "ProposePeace"; playerId: string; targetPlayerId: string }
     | { type: "AcceptPeace"; playerId: string; targetPlayerId: string }

@@ -2,7 +2,7 @@ import React from "react";
 import type { Action, GameState, HexCoord } from "@simple-civ/engine";
 import { Codex, DiplomacySummary, GameMenu, TechButton, TurnSummary, TurnTasks, UnitList, UnitPanel, CityPanel, TileInfoPanel } from "./sections";
 import { MiniMap } from "./MiniMap";
-import type { AttentionTask, BlockingTask, DiplomacyRow, EmpireYields, HUDLayoutProps, HUDSelectionState } from "./helpers";
+import type { AttentionTask, BlockingTask, CityStateRow, DiplomacyRow, EmpireYields, HUDLayoutProps, HUDSelectionState } from "./helpers";
 import type { CityBuildOptions } from "./hooks";
 import { useTutorial } from "../../contexts/TutorialContext";
 
@@ -52,6 +52,7 @@ type TopRowProps = {
     onToggleResearch: (show: boolean) => void;
     playerEconomy: HUDLayoutProps["meta"]["playerEconomy"];
     diplomacyRows: DiplomacyRow[];
+    cityStateRows?: CityStateRow[];
     playerId: string;
     onAction: (action: Action) => void;
     player: GameState["players"][number] | undefined;
@@ -75,6 +76,7 @@ export const TopRow: React.FC<TopRowProps> = ({
     onToggleResearch,
     playerEconomy,
     diplomacyRows,
+    cityStateRows = [],
     playerId,
     onAction,
     player,
@@ -133,7 +135,7 @@ export const TopRow: React.FC<TopRowProps> = ({
                         pulse={shouldPulseDiplomacy}
                         tooltip={shouldPulseDiplomacy ? "View diplomatic relations with other civilizations" : undefined}
                     >
-                        <DiplomacySummary rows={diplomacyRows} playerId={playerId} onAction={onAction} />
+                        <DiplomacySummary rows={diplomacyRows} cityStateRows={cityStateRows} playerId={playerId} onAction={onAction} />
                     </ToggleCard>
                 )}
                 <ToggleCard

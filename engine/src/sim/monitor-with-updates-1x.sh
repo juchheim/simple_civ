@@ -64,9 +64,14 @@ echo "Running enhanced analysis..."
 node engine/src/sim/analyze-enhanced.mjs
 
 echo ""
+echo "Running city-state analysis..."
+node engine/src/sim/analyze-city-states.mjs
+
+echo ""
 echo "Copying reports..."
 cp /tmp/enhanced-analysis-report.md docs/analysis/ 2>/dev/null
 cp /tmp/comprehensive-analysis-report.md docs/analysis/ 2>/dev/null
+cp /tmp/city-state-report.md docs/analysis/ 2>/dev/null
 
 echo ""
 echo "=========================================="

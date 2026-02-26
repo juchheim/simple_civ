@@ -7,6 +7,7 @@ import { captureCity } from "./cities.js";
 import { ensureWar } from "./diplomacy.js";
 import { buildTileLookup, getUnitMaxMoves } from "./combat.js";
 import { collectGoodieHut } from "./goodie-huts.js";
+import { getCityStateByOwnerId, removeCityStateByCityId } from "../city-states.js";
 
 export type MoveContext = {
     stats: UnitStats;
@@ -21,6 +22,9 @@ export type MoveParticipant = {
 
 export function createMoveContext(unit: Unit, targetTile: Tile, state?: GameState): MoveContext {
     const stats = { ...UNITS[unit.type] };
+    if (unit.isCityStateLevy) {
+        stats.canCaptureCity = false;
+    }
     if (state) {
         stats.move = getUnitMaxMoves(unit, state);
     }
@@ -125,6 +129,8 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
     // Peacetime movement restriction
     const tile = tilesByKey.get(hexToString(target));
     if (tile && tile.ownerId && tile.ownerId !== playerId) {
+        const cityState = getCityStateByOwnerId(state, tile.ownerId);
+        const cityStateWar = cityState ? !!cityState.warByPlayer[playerId] : false;
         // Check if the tile is visible to the player
         const tileKey = hexToString(target);
         const playerVisibility = state.visibility[playerId] || [];
@@ -135,7 +141,15 @@ export function validateTileOccupancy(state: GameState, target: HexCoord, movers
         if (isVisible) {
             const diplomacy = state.diplomacy[playerId]?.[tile.ownerId];
             // Allow entering enemy city tiles to resolve capture logic (hp/canCapture checks happen later).
-            if (!isEnemyCityTile && diplomacy !== "War") {
+            if (!isEnemyCityTile && cityState && !cityStateWar) {
+                aiLog(`[VALIDATION FAIL] City-state peacetime block: ${playerId} -> ${tile.ownerId}`);
+                throw new Error("Cannot enter enemy territory during peacetime");
+            }
+            if (isEnemyCityTile && cityState && !cityStateWar) {
+                aiLog(`[VALIDATION FAIL] City-state city capture blocked at peace: ${playerId} -> ${tile.ownerId}`);
+                throw new Error("Cannot enter enemy city during peacetime");
+            }
+            if (!cityState && !isEnemyCityTile && diplomacy !== "War") {
                 aiLog(`[VALIDATION FAIL] Peacetime block: ${playerId} -> ${tile.ownerId} (Diplomacy: ${diplomacy})`);
                 throw new Error("Cannot enter enemy territory during peacetime");
             }
@@ -153,16 +167,24 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
     const tileLookup = buildTileLookup(state);
     const tile = tileLookup.get(hexToString(destination));
     if (tile?.ownerId && tile.ownerId !== playerId) {
-        const ownerPlayer = state.players.find(p => p.id === tile.ownerId && !p.isEliminated);
-        if (ownerPlayer) {
-            ensureWar(state, playerId, tile.ownerId);
+        const cityState = getCityStateByOwnerId(state, tile.ownerId);
+        if (cityState) {
+            // Movement does not auto-declare on city-states; war starts from attacks.
+        } else {
+            const ownerPlayer = state.players.find(p => p.id === tile.ownerId && !p.isEliminated);
+            if (ownerPlayer) {
+                ensureWar(state, playerId, tile.ownerId);
+            }
         }
     }
 
     if (context.isMilitary) {
         const enemyCivilian = unitsOnTile.find(u => u.ownerId !== playerId && UNITS[u.type].domain === UnitDomain.Civilian);
         if (enemyCivilian) {
-            ensureWar(state, playerId, enemyCivilian.ownerId);
+            const cityStateOwner = getCityStateByOwnerId(state, enemyCivilian.ownerId);
+            if (!cityStateOwner) {
+                ensureWar(state, playerId, enemyCivilian.ownerId);
+            }
             state.units = state.units.filter(u => u.id !== enemyCivilian.id);
             // Generate unique ID using seed
             const rand = Math.floor(state.seed * 10000);
@@ -184,7 +206,7 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
     const cityOnTile = state.cities.find(c => hexEquals(c.coord, destination));
     if (cityOnTile && cityOnTile.ownerId !== playerId) {
         if (cityOnTile.hp > 0) throw new Error("City not capturable");
-        if (!context.stats.canCaptureCity) throw new Error("Unit cannot capture cities");
+        if (!context.stats.canCaptureCity || unit.isCityStateLevy) throw new Error("Unit cannot capture cities");
 
         // Remove any enemy units (garrison) that might still be there
         // v1.8: Exclude Air domain units - they float above the battle
@@ -198,8 +220,12 @@ export function executeUnitMove(state: GameState, unit: Unit, context: MoveConte
             state.units = state.units.filter(u => u.id !== enemy.id);
         }
 
-        ensureWar(state, playerId, cityOnTile.ownerId);
+        const cityStateOwner = getCityStateByOwnerId(state, cityOnTile.ownerId);
+        if (!cityStateOwner) {
+            ensureWar(state, playerId, cityOnTile.ownerId);
+        }
         captureCity(state, cityOnTile, playerId);
+        removeCityStateByCityId(state, cityOnTile.id);
 
         // Track Titan / deathball captures for AetherianVanguard analysis.
         // NOTE: `handleAttack` already tracks these when capture happens via Attack.

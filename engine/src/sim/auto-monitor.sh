@@ -55,10 +55,12 @@ cd /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv
 # Run both analysis scripts
 node engine/src/sim/analyze-comprehensive.mjs
 node engine/src/sim/analyze-enhanced.mjs
+node engine/src/sim/analyze-city-states.mjs
 
 # Copy reports
 cp /tmp/enhanced-analysis-report.md docs/analysis/enhanced-analysis-report.md
 cp /tmp/comprehensive-analysis-report.md docs/analysis/comprehensive-analysis-report.md
+cp /tmp/city-state-report.md docs/analysis/city-state-report.md
 
 echo ""
 echo "[$(date +%H:%M:%S)] ✓ Analysis complete! Reports saved to docs/analysis/"
@@ -66,5 +68,5 @@ echo ""
 echo "Files updated:"
 echo "  - docs/analysis/comprehensive-analysis-report.md"
 echo "  - docs/analysis/enhanced-analysis-report.md"
+echo "  - docs/analysis/city-state-report.md"
 echo ""
-

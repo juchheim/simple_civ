@@ -19,7 +19,12 @@ export function isAtPeaceWithTarget(
     diplomacy: GameState["diplomacy"] | undefined,
     playerId: string,
     targetPlayerId: string,
+    gameState?: GameState,
 ): boolean {
+    const cityState = gameState?.cityStates?.find(cs => cs.ownerId === targetPlayerId);
+    if (cityState) {
+        return false;
+    }
     const diplomacyState = diplomacy?.[playerId]?.[targetPlayerId] || DiplomacyState.Peace;
     return diplomacyState === DiplomacyState.Peace;
 }
@@ -36,7 +41,7 @@ export function getEnemyTerritoryOwnerAtPeaceForCoord(
     const cityOnTile = gameState.cities.find(c => hexEquals(c.coord, coord));
     if (cityOnTile) return null;
 
-    return isAtPeaceWithTarget(diplomacy, playerId, tile.ownerId) ? tile.ownerId : null;
+    return isAtPeaceWithTarget(diplomacy, playerId, tile.ownerId, gameState) ? tile.ownerId : null;
 }
 
 export function createMoveUnitAction(playerId: string, unitId: string, to: HexCoord): Action {

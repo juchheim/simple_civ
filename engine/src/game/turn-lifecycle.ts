@@ -25,6 +25,11 @@ import { ensureTechSelected } from "./helpers/turn.js";
 import { resetCityFireFlags, resetUnitsForTurn, runPlayerAutoBehaviors } from "./helpers/turn-movement.js";
 import { logEvent, recordTurnStats } from "./history.js";
 import { processNativeTurn } from "./natives/native-behavior.js";
+import {
+    getCityStateYieldBonusesForPlayer,
+    getFoodProductionTargetCity,
+    processCityStateReinforcement,
+} from "./city-states.js";
 
 const GAME_LOG_ENABLED = typeof process !== "undefined" && process.env.DEBUG_GAME_LOGS === "true";
 const gameLog = (...args: unknown[]): void => {
@@ -182,7 +187,13 @@ function clearStatusEffects(state: GameState, playerId: string) {
     }
 }
 
-function processCityForTurn(state: GameState, city: City, player: Player) {
+function processCityForTurn(
+    state: GameState,
+    city: City,
+    player: Player,
+    cityStateFoodBonus: number,
+    cityStateProductionBonus: number,
+) {
     const claimedRing = getClaimedRing(city, state);
     const pinOverrides = city.manualWorkedTiles;
     const excludedOverrides = city.manualExcludedTiles;
@@ -193,6 +204,8 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
 
     city.workedTiles = recomputeWorkedTiles();
     const yields = getCityYields(city, state);
+    if (cityStateFoodBonus > 0) yields.F += cityStateFoodBonus;
+    if (cityStateProductionBonus > 0) yields.P += cityStateProductionBonus;
 
     const maxHp = city.maxHp || BASE_CITY_HP;
     const wasDamagedThisTurn = city.lastDamagedOnTurn != null && city.lastDamagedOnTurn === state.turn;
@@ -249,8 +262,14 @@ function processCityForTurn(state: GameState, city: City, player: Player) {
 }
 
 function processPlayerCities(state: GameState, player: Player) {
+    const cityStateBonuses = getCityStateYieldBonusesForPlayer(state, player.id);
+    const bonusTargetCity = getFoodProductionTargetCity(state, player.id);
+    const cityStateFoodBonus = Math.floor(cityStateBonuses.Food);
+    const cityStateProductionBonus = Math.floor(cityStateBonuses.Production);
     for (const city of state.cities.filter(c => c.ownerId === player.id)) {
-        processCityForTurn(state, city, player);
+        const bonusFood = bonusTargetCity && city.id === bonusTargetCity.id ? cityStateFoodBonus : 0;
+        const bonusProduction = bonusTargetCity && city.id === bonusTargetCity.id ? cityStateProductionBonus : 0;
+        processCityForTurn(state, city, player, bonusFood, bonusProduction);
     }
 }
 
@@ -262,6 +281,7 @@ function processPlayerCities(state: GameState, player: Player) {
 export function runEndOfRound(state: GameState) {
     // Process native camp behavior before victory checks
     processNativeTurn(state);
+    processCityStateReinforcement(state);
 
     processEndOfRound(state);
 }
@@ -448,9 +468,10 @@ function getSciencePerTurn(state: GameState, playerId: string): number {
     const baseScience = cities.reduce((sum, c) => sum + getCityYields(c, state, cache).S, 0);
     const signalRelayBonus = player?.techs.includes(TechId.SignalRelay) ? cities.length : 0;
     const grandAcademyBonus = player?.completedProjects.includes(ProjectId.GrandAcademy) ? cities.length : 0;
+    const cityStateScienceBonus = Math.floor(getCityStateYieldBonusesForPlayer(state, playerId).Science);
     // v1.0.6: Removed Spirit Observatory +1 Science/city bonus (was too strong)
 
-    let totalScience = baseScience + signalRelayBonus + grandAcademyBonus;
+    let totalScience = baseScience + signalRelayBonus + grandAcademyBonus + cityStateScienceBonus;
 
     if (player?.austerityActive) {
         totalScience = Math.floor(totalScience * AUSTERITY_SCIENCE_MULTIPLIER);

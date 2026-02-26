@@ -5,7 +5,7 @@
  * Uses a war-prep-like phase system: Buildup -> Gathering -> Positioning -> Ready
  */
 
-import { GameState, Player, DiplomacyState, NativeCamp, Unit, UnitType } from "../../core/types.js";
+import { CityStateYieldType, GameState, Player, DiplomacyState, NativeCamp, Unit, UnitType } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { aiInfo } from "./debug-logging.js";
@@ -20,6 +20,17 @@ const POSITIONING_RADIUS = 4;     // Units within 4 tiles of camp are "positione
 const MIN_GATHERING_TURNS = 2;    // Minimum turns in gathering phase
 const MIN_POSITIONING_TURNS = 2;  // Minimum turns in positioning phase
 const RETREAT_HP_THRESHOLD = 0.3; // Retreat if HP below 30%
+const CAMP_TARGET_SCORE_MIN = 26;
+const CAMP_TARGET_SCORE_EARLY_OVERRIDE = 52;
+const CAMP_EMERGENCY_RADIUS = 2;
+const CAMP_POWER_RADIUS = 5;
+
+type CampTargetEvaluation = {
+    camp: NativeCamp;
+    score: number;
+    nearestCityDist: number;
+    requiredMilitary: number;
+};
 
 /**
  * Main entry point for camp clearing management.
@@ -55,7 +66,8 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
     const isAtWar = Object.values(state.diplomacy?.[player.id] || {}).some(
         s => s === DiplomacyState.War
     );
-    if (isAtWar) {
+    const campIsEmergencyThreat = camp ? isCampEmergencyThreatForPlayer(state, player.id, camp) : false;
+    if (isAtWar && !campIsEmergencyThreat) {
         aiInfo(`[AI CAMP] ${player.id} cancelling camp prep - now at war with a player`);
         return clearCampPrep(state, player.id);
     }
@@ -76,15 +88,18 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
     }
 
     let newState = prep.state;
+    const requiredMilitary = getRequiredMilitaryForCamp(state, player, camp);
 
     if (prep.state === "Buildup") {
-        if (militaryCount >= MIN_MILITARY_FOR_CAMP) {
-            aiInfo(`[AI CAMP] ${player.id} finished Buildup (${militaryCount} units), moving to Gathering`);
+        if (militaryCount >= requiredMilitary) {
+            aiInfo(
+                `[AI CAMP] ${player.id} finished Buildup (${militaryCount}/${requiredMilitary} units), moving to Gathering`
+            );
             newState = "Gathering";
             return updatePrepState(state, player.id, { ...prep, state: newState, startedTurn: state.turn });
         }
         if (state.turn % 5 === 0) {
-            aiInfo(`[AI CAMP] ${player.id} building up for camp: ${militaryCount}/${MIN_MILITARY_FOR_CAMP} units`);
+            aiInfo(`[AI CAMP] ${player.id} building up for camp: ${militaryCount}/${requiredMilitary} units`);
         }
     } else if (prep.state === "Gathering") {
         if (turnsSinceStart >= MIN_GATHERING_TURNS) {
@@ -109,52 +124,63 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
  * Check if we should start preparing to clear a camp
  */
 function checkForCampTargets(state: GameState, player: Player): GameState {
-    // Prerequisites
-    if (state.turn < MIN_TURN_FOR_CAMP) return state;
     if (player.warPreparation) return state; // War prep takes priority
 
-    // Check if at war
-    const isAtWar = Object.values(state.diplomacy?.[player.id] || {}).some(
-        s => s === DiplomacyState.War
-    );
-    if (isAtWar) return state;
+    // Check if at war with majors; only permit emergency local responses.
+    const isAtWar = Object.values(state.diplomacy?.[player.id] || {}).some(s => s === DiplomacyState.War);
+    if (isAtWar && !hasEmergencyCampThreat(state, player.id)) return state;
 
     // Find visible camps
     const visibleCamps = getVisibleCamps(state, player.id);
     if (visibleCamps.length === 0) return state;
+    const candidateCamps = isAtWar
+        ? visibleCamps.filter(camp => isCampEmergencyThreatForPlayer(state, player.id, camp))
+        : visibleCamps;
+    if (candidateCamps.length === 0) return state;
 
-    // Check if any camp is near a desirable settle location
-    // For now, prioritize camps near our existing cities (expansion zone)
-    const myCities = state.cities.filter(c => c.ownerId === player.id);
-    if (myCities.length === 0) return state;
+    const evaluations = candidateCamps
+        .map(camp => evaluateCampTarget(state, player, camp))
+        .filter((entry): entry is CampTargetEvaluation => !!entry)
+        .sort((a, b) => b.score - a.score || a.nearestCityDist - b.nearestCityDist);
 
-    for (const camp of visibleCamps) {
-        // Is this camp near any of our cities? (blocking expansion)
-        const nearestCityDist = Math.min(
-            ...myCities.map(c => hexDistance(c.coord, camp.coord))
+    const best = evaluations[0];
+    if (!best) return state;
+
+    const militaryCount = getMilitaryCount(state, player.id);
+    const earlyOverride = best.nearestCityDist <= CAMP_EMERGENCY_RADIUS && best.score >= CAMP_TARGET_SCORE_EARLY_OVERRIDE;
+    if (state.turn < MIN_TURN_FOR_CAMP && !earlyOverride) return state;
+
+    const cityRadiusGate = best.nearestCityDist <= CAMP_SETTLE_RADIUS || best.nearestCityDist <= CAMP_EMERGENCY_RADIUS;
+    if (!cityRadiusGate) return state;
+
+    const scoreGate = best.score >= CAMP_TARGET_SCORE_MIN || earlyOverride;
+    if (!scoreGate) return state;
+
+    const requiredMilitary = Math.max(MIN_POSITIONING_UNITS, best.requiredMilitary);
+    if (militaryCount < requiredMilitary) {
+        aiInfo(
+            `[AI CAMP] ${player.id} delaying camp ${best.camp.id}: military ${militaryCount}/${requiredMilitary} (score ${best.score.toFixed(1)})`
         );
-
-        if (nearestCityDist <= CAMP_SETTLE_RADIUS) {
-            aiInfo(`[AI CAMP] ${player.id} found camp ${camp.id} blocking expansion (${nearestCityDist} tiles from city)`);
-
-            // Start buildup phase
-            return {
-                ...state,
-                players: state.players.map(p =>
-                    p.id === player.id ? {
-                        ...p,
-                        campClearingPrep: {
-                            targetCampId: camp.id,
-                            state: "Buildup",
-                            startedTurn: state.turn
-                        }
-                    } : p
-                )
-            };
-        }
+    } else {
+        aiInfo(
+            `[AI CAMP] ${player.id} targeting camp ${best.camp.id}: score ${best.score.toFixed(1)}, dist ${best.nearestCityDist}, military ${militaryCount}`
+        );
     }
 
-    return state;
+    return {
+        ...state,
+        players: state.players.map(p =>
+            p.id === player.id ? {
+                ...p,
+                campClearingPrep: {
+                    targetCampId: best.camp.id,
+                    state: militaryCount >= requiredMilitary ? "Gathering" : "Buildup",
+                    startedTurn: state.turn
+                }
+            } : p
+        )
+    };
+
 }
 
 /**
@@ -180,6 +206,131 @@ function getMilitaryCount(state: GameState, playerId: string): number {
         !isScoutType(u.type) &&
         UNITS[u.type].domain !== "Civilian"
     ).length;
+}
+
+function projectNextCityStateYieldType(state: GameState): CityStateYieldType {
+    const rotation: CityStateYieldType[] = ["Science", "Production", "Food", "Gold"];
+    const cursor = state.cityStateTypeCycleIndex ?? 0;
+    return rotation[cursor % rotation.length];
+}
+
+function getCityStateYieldPriority(player: Player, yieldType: CityStateYieldType): number {
+    const goal = player.aiGoal ?? "Balanced";
+    const treasury = player.treasury ?? 0;
+    const netGold = player.netGold ?? 0;
+
+    const baseByGoal: Record<CityStateYieldType, number> = goal === "Progress"
+        ? { Science: 1.35, Production: 0.95, Food: 1.0, Gold: 1.1 }
+        : goal === "Conquest"
+            ? { Science: 0.85, Production: 1.45, Food: 1.05, Gold: 1.2 }
+            : { Science: 1.1, Production: 1.1, Food: 1.05, Gold: 1.1 };
+
+    let priority = baseByGoal[yieldType];
+    if (yieldType === "Gold" && (netGold < 0 || treasury < 40)) {
+        priority += 0.3;
+    }
+    if (yieldType === "Food" && goal !== "Conquest") {
+        priority += 0.1;
+    }
+    return priority;
+}
+
+function estimateUnitPower(type: UnitType): number {
+    const stats = UNITS[type];
+    return (stats.atk * 1.8) + (stats.def * 1.1) + (stats.hp * 0.12) + (stats.rng * 1.25);
+}
+
+function estimateNearbyFriendlyPower(state: GameState, playerId: string, camp: NativeCamp): number {
+    let power = 0;
+    for (const unit of state.units) {
+        if (unit.ownerId !== playerId) continue;
+        if (isScoutType(unit.type)) continue;
+        if (UNITS[unit.type].domain === "Civilian") continue;
+        if (hexDistance(unit.coord, camp.coord) > CAMP_POWER_RADIUS) continue;
+        power += estimateUnitPower(unit.type);
+    }
+    return power;
+}
+
+function estimateCampDefenderPower(state: GameState, camp: NativeCamp): { count: number; power: number } {
+    const defenders = state.units.filter(unit => unit.campId === camp.id);
+    const power = defenders.reduce((sum, defender) => sum + estimateUnitPower(defender.type), 0);
+    return { count: defenders.length, power };
+}
+
+function getNearestSettlerDistance(state: GameState, playerId: string, camp: NativeCamp): number {
+    const settlers = state.units.filter(unit => unit.ownerId === playerId && unit.type === UnitType.Settler);
+    if (settlers.length === 0) return Number.POSITIVE_INFINITY;
+    let best = Number.POSITIVE_INFINITY;
+    for (const settler of settlers) {
+        best = Math.min(best, hexDistance(settler.coord, camp.coord));
+    }
+    return best;
+}
+
+function isCampEmergencyThreatForPlayer(state: GameState, playerId: string, camp: NativeCamp): boolean {
+    const myCities = state.cities.filter(city => city.ownerId === playerId);
+    if (myCities.length === 0) return false;
+    const nearestCityDist = Math.min(...myCities.map(city => hexDistance(city.coord, camp.coord)));
+    return nearestCityDist <= CAMP_EMERGENCY_RADIUS;
+}
+
+function hasEmergencyCampThreat(state: GameState, playerId: string): boolean {
+    for (const camp of state.nativeCamps) {
+        if (isCampEmergencyThreatForPlayer(state, playerId, camp)) return true;
+    }
+    return false;
+}
+
+function evaluateCampTarget(state: GameState, player: Player, camp: NativeCamp): CampTargetEvaluation | null {
+    const myCities = state.cities.filter(c => c.ownerId === player.id);
+    if (myCities.length === 0) return null;
+
+    const nearestCityDist = Math.min(...myCities.map(city => hexDistance(city.coord, camp.coord)));
+    const nearestSettlerDist = getNearestSettlerDistance(state, player.id, camp);
+    const yieldType = projectNextCityStateYieldType(state);
+    const yieldPriority = getCityStateYieldPriority(player, yieldType);
+    const localPower = estimateNearbyFriendlyPower(state, player.id, camp);
+    const defenders = estimateCampDefenderPower(state, camp);
+    const powerRatio = localPower / Math.max(1, defenders.power);
+
+    const expansionPressure = Math.max(0, 8 - nearestCityDist) * 7;
+    const settlerPressure = Number.isFinite(nearestSettlerDist)
+        ? Math.max(0, 6 - nearestSettlerDist) * 4
+        : 0;
+    const rewardScore = yieldPriority * 20;
+    const nativeThreatPenalty = defenders.count * 4;
+    const underpoweredPenalty = powerRatio >= 1
+        ? 0
+        : (1 - powerRatio) * 28;
+    const wartimePenalty = Object.values(state.diplomacy?.[player.id] || {}).some(s => s === DiplomacyState.War)
+        ? ((player.aiGoal ?? "Balanced") === "Conquest" ? 6 : 16)
+        : 0;
+
+    const score = expansionPressure
+        + settlerPressure
+        + rewardScore
+        - nativeThreatPenalty
+        - underpoweredPenalty
+        - wartimePenalty;
+
+    let requiredMilitary = powerRatio >= 1.35 ? 3 : 4;
+    if (nearestCityDist <= 2) {
+        requiredMilitary = Math.max(3, requiredMilitary - 1);
+    }
+
+    return {
+        camp,
+        score,
+        nearestCityDist,
+        requiredMilitary,
+    };
+}
+
+function getRequiredMilitaryForCamp(state: GameState, player: Player, camp: NativeCamp): number {
+    const evalResult = evaluateCampTarget(state, player, camp);
+    if (!evalResult) return MIN_MILITARY_FOR_CAMP;
+    return Math.max(MIN_POSITIONING_UNITS, evalResult.requiredMilitary);
 }
 
 /**

@@ -45,6 +45,7 @@ import { canPlanAttack } from "./attack-order/shared.js";
 import { scoreAttackOption } from "./attack-order/scoring.js";
 import { getTacticalTuning } from "./tuning.js";
 import { clamp01 } from "./util.js";
+import { getOffensiveEnemyIds } from "./city-state-policy.js";
 
 export type TacticalPlannerMode = "offense-only" | "full";
 
@@ -490,11 +491,13 @@ function planOpportunityAttacks(
 
     const opportunities: PlannedOpportunityAttack[] = [];
     const visibleTargets = tacticalContext.perception.visibleTargets;
+    const goal = state.players.find(p => p.id === playerId)?.aiGoal ?? "Balanced";
+    const offensiveEnemies = getOffensiveEnemyIds(state, playerId, goal);
 
     for (const unit of attackers) {
         const live = state.units.find(u => u.id === unit.id);
         if (!live || live.hasAttacked) continue;
-        const best = bestAttackForUnit(state, playerId, live, tacticalContext.enemyIds, visibleTargets);
+        const best = bestAttackForUnit(state, playerId, live, offensiveEnemies, visibleTargets);
         if (!best || best.score <= 0) continue;
 
         let wouldKill = false;

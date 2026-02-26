@@ -19,6 +19,7 @@ import {
     civList,
     createTurnSnapshot
 } from "./shared-analysis.js";
+import { createCityStateTelemetryTracker } from "./city-state-telemetry.js";
 
 // Disable AI debug logging for simulation performance
 setAiDebug(false);
@@ -647,6 +648,8 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     state.players.forEach(player => {
         economyByCiv.set(player.id, createEconomyAccumulator(player.id, player.civName));
     });
+    const cityStateTelemetry = createCityStateTelemetryTracker(state);
+    let lastCityStateSampleTurn: number | null = null;
 
     let winTurn: number | null = null;
 
@@ -686,6 +689,11 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             }
         }
         recordEconomySample(economyByCiv, state, actingPlayerId);
+        cityStateTelemetry.observe(state);
+        if (lastCityStateSampleTurn !== state.turn) {
+            cityStateTelemetry.sampleTurn(state);
+            lastCityStateSampleTurn = state.turn;
+        }
 
         // Detect changes and log events
 
@@ -1016,6 +1024,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         isEliminated: p.isEliminated || false,
     }));
     const economySummary = finalizeEconomySummary(economyByCiv);
+    const cityStateSummary = cityStateTelemetry.finalize(state);
 
     return {
         seed,
@@ -1029,6 +1038,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         finalState: createTurnSnapshot(state),
         participatingCivs,
         economySummary,
+        cityStateSummary,
     };
 }
 

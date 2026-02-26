@@ -22,7 +22,7 @@ export function runAttackPhase(
     if (currentArmyPhase === "attacking") {
         // PHASE 4: Execute Kill Chains first (Focus Fire Coordination)
         // These are mandatory and bypass wait/passivity checks to ensure we secure kills
-        const enemies = next.units.filter(u => tacticalContext.enemyIds.has(u.id));
+        const enemies = next.units.filter(u => tacticalContext.enemyIds.has(u.ownerId));
         const myMilitary = next.units.filter(u => u.ownerId === playerId && isMilitary(u) && !u.hasAttacked);
         const killChains = findKillChains(next, myMilitary, enemies);
 

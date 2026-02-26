@@ -1,5 +1,6 @@
 import {
     BuildingType,
+    CityStateYieldType,
     EraId,
     ProjectId,
     TechId,
@@ -100,6 +101,17 @@ export const DAMAGE_MAX = 7;
 // Diplomacy Constants
 export const MIN_WAR_DURATION = 15; // Minimum turns a war must last
 export const MIN_PEACE_DURATION = 15; // Minimum turns peace must last before declaring war
+
+// City-State Influence / Yield Constants
+export const CITY_STATE_INVEST_BASE_COST = 40;
+export const CITY_STATE_INVEST_GAIN = 20;
+export const CITY_STATE_INVEST_COST_RAMP = 0.2;
+export const CITY_STATE_BASE_YIELD_BONUS = 3;
+export const CITY_STATE_SAME_TYPE_SECONDARY_MULT = 0.7;
+export const CITY_STATE_SAME_TYPE_ADDITIONAL_MULT = 0.5;
+export const CITY_STATE_CLEARER_INFLUENCE = 30;
+export const CITY_STATE_REINFORCE_INTERVAL = 8;
+export const CITY_STATE_REINFORCE_CAP = 3;
 
 // Damage Constants
 export const ATTACK_RANDOM_BAND = [-1, 0, 1];
@@ -255,6 +267,40 @@ export const NATIVE_CAMP_COUNTS: Record<string, [number, number]> = {
     Standard: [3, 4],
     Large: [5, 6],
     Huge: [8, 10],
+};
+
+export const CITY_STATE_NAMES_BY_YIELD: Record<CityStateYieldType, string[]> = {
+    Science: [
+        "Aetherquill", "Lunarchive", "Starglass Athenaeum", "Nyx Codex",
+        "Prism Oracle", "Celestine Scriptorium", "Voidlight Archive", "Sapphire Mnemos",
+        "Observatory of Whispers", "Eclipsed Theorem", "Halcyon Loom", "Quillspire",
+        "Meridian of Runes", "Arcstar Repository", "Dreaming Calculus", "Radiant Lexicon",
+    ],
+    Production: [
+        "Emberforge Bastion", "Ironwyrm Foundry", "Cinderhold", "Brasshollow",
+        "Hammerdeep", "Obsidian Kiln", "Thunder Anvil", "Stonewake Crucible",
+        "Dawnsmelt Keep", "Molten Crown", "Gearstorm Hold", "Flintspire Works",
+        "Runehammer Gate", "Ashen Bellows", "Blackglass Armory", "Skyfurnace",
+    ],
+    Food: [
+        "Verdant Myth", "Sunseed Haven", "Bloomtide", "Moonmeadow",
+        "Wildroot Sanctum", "Evergrain Vale", "Amber Orchard", "Thistleheart",
+        "Rainpetal Court", "Fernsong", "Greenstar Hollow", "Hearthbloom",
+        "Silverbarley", "Nectarwind", "Bramble Feast", "Dawnharvest",
+    ],
+    Gold: [
+        "Gildenspire", "Auric Bazaar", "Suncoin Citadel", "Opaline Vault",
+        "Cresset Exchange", "Crownmarket", "Embermint", "Saffron Treasury",
+        "Golden Mirage", "Starcoin Port", "Velvet Ledger", "Brassmoon Mint",
+        "Aureate Crown", "Coinfire Crossing", "Radiant Hoard", "Kingsmerch",
+    ],
+};
+
+export const CITY_STATE_FALLBACK_PREFIX: Record<CityStateYieldType, string> = {
+    Science: "Aether Synod",
+    Production: "Anvil Dominion",
+    Food: "Verdant Chorus",
+    Gold: "Gilded Compact",
 };
 
 // Map Dimensions (Width x Height)

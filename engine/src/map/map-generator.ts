@@ -408,6 +408,8 @@ function buildInitialState(params: InitialStateParams): GameState {
         diplomacy: initDiplomacy(players),
         diplomacyOffers: [],
         nativeCamps,
+        cityStates: [],
+        cityStateTypeCycleIndex: 0,
     };
 }
 

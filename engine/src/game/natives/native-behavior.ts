@@ -15,7 +15,6 @@ import {
     UnitState,
     Tile,
     TerrainType,
-    DiplomacyState,
     HistoryEventType,
 } from "../../core/types.js";
 import {
@@ -34,9 +33,8 @@ import {
 import { hexDistance, getNeighbors, hexEquals, hexToString } from "../../core/hex.js";
 import { buildTileLookup, calculateCiv6Damage, getEffectiveUnitStats, hasClearLineOfSight } from "../helpers/combat.js";
 import { seededBool, seededChoice } from "../helpers/random.js";
-import { createCity, claimCityTerritory, ensureWorkedTiles } from "../helpers/cities.js";
-import { expelUnitsFromTerritory } from "../helpers/movement.js";
 import { logEvent } from "../history.js";
+import { createCityStateFromClearedCamp } from "../city-states.js";
 
 const NATIVE_OWNER_ID = "natives";
 
@@ -444,33 +442,30 @@ function resetNativeMovement(state: GameState): void {
     }
 }
 
-function convertCampToCity(state: GameState, camp: NativeCamp, killerPlayerId: string, campTile?: Tile): void {
-    const newCity = createCity(state, killerPlayerId, camp.coord, { storedProduction: NATIVE_CAMP_CLEAR_PRODUCTION_REWARD });
+function convertCampToCityState(state: GameState, camp: NativeCamp, killerPlayerId: string, campTile?: Tile): void {
+    const cityState = createCityStateFromClearedCamp(state, camp.coord, killerPlayerId, NATIVE_CAMP_CLEAR_PRODUCTION_REWARD);
+    if (!cityState) {
+        if (campTile && !campTile.overlays.includes(OverlayType.ClearedSettlement)) {
+            campTile.overlays.push(OverlayType.ClearedSettlement);
+        }
+        return;
+    }
 
     if (campTile) {
         const clearedIdx = campTile.overlays.indexOf(OverlayType.ClearedSettlement);
         if (clearedIdx !== -1) {
             campTile.overlays.splice(clearedIdx, 1);
         }
-        campTile.ownerId = killerPlayerId;
-        campTile.ownerCityId = newCity.id;
+        campTile.ownerId = cityState.ownerId;
+        campTile.ownerCityId = cityState.cityId;
         campTile.hasCityCenter = true;
     }
 
-    claimCityTerritory(newCity, state, killerPlayerId, 1);
-    newCity.workedTiles = ensureWorkedTiles(newCity, state);
-    state.cities.push(newCity);
-
-    for (const otherPlayer of state.players) {
-        if (otherPlayer.id === killerPlayerId) continue;
-
-        const isAtWar = state.diplomacy[killerPlayerId]?.[otherPlayer.id] === DiplomacyState.War;
-        if (!isAtWar) {
-            expelUnitsFromTerritory(state, otherPlayer.id, killerPlayerId);
-        }
-    }
-
-    logEvent(state, HistoryEventType.CityFounded, killerPlayerId, { cityId: newCity.id, cityName: newCity.name, coord: newCity.coord });
+    logEvent(state, HistoryEventType.CityFounded, killerPlayerId, {
+        cityId: cityState.cityId,
+        cityName: cityState.name,
+        coord: cityState.coord,
+    });
 }
 
 /**
@@ -496,7 +491,7 @@ export function clearNativeCamp(state: GameState, campId: string, killerPlayerId
     }
 
     if (killerPlayerId) {
-        convertCampToCity(state, camp, killerPlayerId, campTile);
+        convertCampToCityState(state, camp, killerPlayerId, campTile);
     }
 
     state.nativeCamps.splice(campIndex, 1);

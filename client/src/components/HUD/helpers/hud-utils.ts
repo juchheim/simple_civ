@@ -1,17 +1,24 @@
-import { GameState, HexCoord, UnitState, pickBestAvailableTech, getCityYields } from "@simple-civ/engine";
+import { GameState, HexCoord, UnitState, getCityStateYieldBonusesForPlayer, getCityYields, pickBestAvailableTech } from "@simple-civ/engine";
 
 export type BlockingTask = { id: string; kind: "research" | "city"; label: string; coord?: HexCoord };
 export type AttentionTask = { id: string; kind: "unit"; label: string; coord: HexCoord; unitId: string };
 
 export const calculateEmpireYields = (cities: GameState["cities"], playerId: string, gameState: GameState) => {
     const playerCities = cities.filter(c => c.ownerId === playerId);
-    return playerCities.reduce(
+    const base = playerCities.reduce(
         (acc, city) => {
             const yields = getCityYields(city, gameState);
             return { F: acc.F + yields.F, P: acc.P + yields.P, S: acc.S + yields.S, G: acc.G + yields.G };
         },
         { F: 0, P: 0, S: 0, G: 0 }
     );
+    const cityStateBonuses = getCityStateYieldBonusesForPlayer(gameState, playerId);
+    return {
+        F: base.F + Math.floor(cityStateBonuses.Food),
+        P: base.P + Math.floor(cityStateBonuses.Production),
+        S: base.S + Math.floor(cityStateBonuses.Science),
+        G: base.G + Math.floor(cityStateBonuses.Gold),
+    };
 };
 
 export const getSelectedCity = (coord: HexCoord | null, cities: GameState["cities"]) => {

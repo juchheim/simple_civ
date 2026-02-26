@@ -1,14 +1,15 @@
 import React from "react";
 import { Action, DiplomacyState } from "@simple-civ/engine";
-import { DiplomacyRow } from "../helpers";
+import { CityStateRow, DiplomacyRow } from "../helpers";
 
 type DiplomacySummaryProps = {
     rows: DiplomacyRow[];
+    cityStateRows?: CityStateRow[];
     playerId: string;
     onAction: (action: Action) => void;
 };
 
-export const DiplomacySummary: React.FC<DiplomacySummaryProps> = ({ rows, playerId, onAction }) => (
+export const DiplomacySummary: React.FC<DiplomacySummaryProps> = ({ rows, cityStateRows = [], playerId, onAction }) => (
     <div>
         <div className="hud-section-title">Diplomacy</div>
         <div className="hud-subtext" style={{ marginTop: 0 }}>Only civilizations you have contacted will appear here.</div>
@@ -116,10 +117,42 @@ export const DiplomacySummary: React.FC<DiplomacySummaryProps> = ({ rows, player
                     </div>
                 );
             })}
+            <div className="hud-section-title" style={{ marginTop: 12 }}>City-States</div>
+            {cityStateRows.length === 0 && (
+                <div className="hud-subtext">No discovered city-states.</div>
+            )}
+            {cityStateRows.map(row => (
+                <div key={row.cityStateId} className="diplomacy-row">
+                    <div className="diplomacy-row__header">
+                        <p className="hud-title-sm" style={{ margin: 0 }}>{row.name}</p>
+                        <span className="hud-pill">{row.yieldType}</span>
+                    </div>
+                    <div className="hud-subtext" style={{ marginTop: 4 }}>
+                        Suzerain: {row.suzerainLabel}
+                    </div>
+                    <div className="hud-subtext">
+                        Influence: you {Math.round(row.myInfluence)} / top {Math.round(row.topInfluence)}
+                    </div>
+                    <div className="hud-subtext">
+                        Standing: {row.entries.map(e => `${e.civTitle} ${Math.round(e.influence)}`).join(" · ")}
+                    </div>
+                    <div className="diplomacy-row__actions">
+                        <button
+                            className="hud-button small"
+                            onClick={() => onAction({ type: "InvestCityStateInfluence", playerId, cityStateId: row.cityStateId })}
+                            disabled={!row.canInvest}
+                        >
+                            Invest ({row.investCost}G)
+                        </button>
+                    </div>
+                    {!row.canInvest && row.investDisabledReason && (
+                        <div className="hud-subtext warn">{row.investDisabledReason}</div>
+                    )}
+                </div>
+            ))}
         </div>
     </div>
 );
-
 
 
 

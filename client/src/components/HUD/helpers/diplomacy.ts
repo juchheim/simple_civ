@@ -1,4 +1,4 @@
-import { DiplomacyState, GameState, estimateMilitaryPower } from "@simple-civ/engine";
+import { CityStateYieldType, DiplomacyState, GameState, estimateMilitaryPower, getCityStateInvestCost } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId } from "../../../data/civs";
 
 export type DiplomacyRow = {
@@ -16,6 +16,28 @@ export type DiplomacyRow = {
     power: number;
     powerDelta: number;
     selfPower: number;
+};
+
+export type CityStateInfluenceEntry = {
+    playerId: string;
+    civTitle: string;
+    influence: number;
+    isSuzerain: boolean;
+};
+
+export type CityStateRow = {
+    cityStateId: string;
+    name: string;
+    yieldType: CityStateYieldType;
+    suzerainId?: string;
+    suzerainLabel: string;
+    myInfluence: number;
+    topInfluence: number;
+    investCost: number;
+    canInvest: boolean;
+    investDisabledReason?: string;
+    atWar: boolean;
+    entries: CityStateInfluenceEntry[];
 };
 
 const civMeta = new Map(CIV_OPTIONS.map(c => [c.id, c]));
@@ -56,6 +78,67 @@ export const buildDiplomacyRows = (gameState: GameState, playerId: string): Dipl
         .filter(row => row.hasContact);
 };
 
+export const buildCityStateRows = (gameState: GameState, playerId: string): CityStateRow[] => {
+    const cityStates = gameState.cityStates ?? [];
+    const player = gameState.players.find(p => p.id === playerId);
+    const treasury = player?.treasury ?? 0;
+
+    return cityStates
+        .filter(cs => cs.discoveredByPlayer[playerId])
+        .map(cs => {
+            const entries = gameState.players
+                .filter(p => !p.isEliminated)
+                .map(p => {
+                    const civInfo = civMeta.get(p.civName as CivId);
+                    return {
+                        playerId: p.id,
+                        civTitle: civInfo?.title ?? p.civName ?? p.id,
+                        influence: cs.influenceByPlayer[p.id] ?? 0,
+                        isSuzerain: cs.suzerainId === p.id,
+                    };
+                })
+                .sort((a, b) => b.influence - a.influence);
+
+            const myInfluence = cs.influenceByPlayer[playerId] ?? 0;
+            const topInfluence = entries[0]?.influence ?? 0;
+            const atWar = !!cs.warByPlayer[playerId];
+            const investedThisTurn = (cs.lastInvestTurnByPlayer[playerId] ?? -1) === gameState.turn;
+            const investCost = getCityStateInvestCost(cs, playerId);
+            const canAfford = treasury >= investCost;
+            const canInvest = !atWar && !investedThisTurn && canAfford;
+
+            let investDisabledReason: string | undefined;
+            if (atWar) {
+                investDisabledReason = "At war";
+            } else if (investedThisTurn) {
+                investDisabledReason = "Already invested this turn";
+            } else if (!canAfford) {
+                investDisabledReason = "Not enough gold";
+            }
+
+            const suzerainPlayer = gameState.players.find(p => p.id === cs.suzerainId);
+            const suzerainInfo = suzerainPlayer ? civMeta.get(suzerainPlayer.civName as CivId) : undefined;
+            const suzerainLabel = suzerainPlayer
+                ? (suzerainInfo?.title ?? suzerainPlayer.civName ?? suzerainPlayer.id)
+                : "None";
+
+            return {
+                cityStateId: cs.id,
+                name: cs.name,
+                yieldType: cs.yieldType,
+                suzerainId: cs.suzerainId,
+                suzerainLabel,
+                myInfluence,
+                topInfluence,
+                investCost,
+                canInvest,
+                investDisabledReason,
+                atWar,
+                entries,
+            };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+};
 
 
 
