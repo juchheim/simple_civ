@@ -12,16 +12,16 @@ import { aiInfo } from "./debug-logging.js";
 import { isScoutType } from "./units/unit-helpers.js";
 
 // Constants for camp clearing
-const MIN_MILITARY_FOR_CAMP = 4;  // Require 4 military units before engaging
-const MIN_TURN_FOR_CAMP = 10;     // Don't attempt before turn 10
-const CAMP_SETTLE_RADIUS = 6;     // Consider camps within 6 tiles of settle locations
-const MIN_POSITIONING_UNITS = 3;  // Need 3 units positioned before attacking
-const POSITIONING_RADIUS = 4;     // Units within 4 tiles of camp are "positioned"
-const MIN_GATHERING_TURNS = 2;    // Minimum turns in gathering phase
-const MIN_POSITIONING_TURNS = 2;  // Minimum turns in positioning phase
+const MIN_MILITARY_FOR_CAMP = 3;  // Require 3 military units before engaging
+const MIN_TURN_FOR_CAMP = 6;      // Allow earlier camp pressure in opening turns
+const CAMP_SETTLE_RADIUS = 8;     // Consider camps within 8 tiles of settle locations
+const MIN_POSITIONING_UNITS = 2;  // Need 2 units positioned before attacking
+const POSITIONING_RADIUS = 5;     // Units within 5 tiles of camp are "positioned"
+const MIN_GATHERING_TURNS = 1;    // Minimum turns in gathering phase
+const MIN_POSITIONING_TURNS = 1;  // Minimum turns in positioning phase
 const RETREAT_HP_THRESHOLD = 0.3; // Retreat if HP below 30%
-const CAMP_TARGET_SCORE_MIN = 26;
-const CAMP_TARGET_SCORE_EARLY_OVERRIDE = 52;
+const CAMP_TARGET_SCORE_MIN = 20;
+const CAMP_TARGET_SCORE_EARLY_OVERRIDE = 40;
 const CAMP_EMERGENCY_RADIUS = 2;
 const CAMP_POWER_RADIUS = 5;
 
@@ -298,11 +298,16 @@ function evaluateCampTarget(state: GameState, player: Player, camp: NativeCamp):
     const settlerPressure = Number.isFinite(nearestSettlerDist)
         ? Math.max(0, 6 - nearestSettlerDist) * 4
         : 0;
-    const rewardScore = yieldPriority * 20;
-    const nativeThreatPenalty = defenders.count * 4;
-    const underpoweredPenalty = powerRatio >= 1
+    const rewardScore = yieldPriority * 30;
+    const earlyTempoBonus = state.turn <= 120
+        ? 10
+        : state.turn <= 180
+            ? 4
+            : 0;
+    const nativeThreatPenalty = defenders.count * 3;
+    const underpoweredPenalty = powerRatio >= 0.9
         ? 0
-        : (1 - powerRatio) * 28;
+        : (0.9 - powerRatio) * 20;
     const wartimePenalty = Object.values(state.diplomacy?.[player.id] || {}).some(s => s === DiplomacyState.War)
         ? ((player.aiGoal ?? "Balanced") === "Conquest" ? 6 : 16)
         : 0;
@@ -310,13 +315,21 @@ function evaluateCampTarget(state: GameState, player: Player, camp: NativeCamp):
     const score = expansionPressure
         + settlerPressure
         + rewardScore
+        + earlyTempoBonus
         - nativeThreatPenalty
         - underpoweredPenalty
         - wartimePenalty;
 
-    let requiredMilitary = powerRatio >= 1.35 ? 3 : 4;
+    let requiredMilitary = powerRatio >= 1.15
+        ? 2
+        : powerRatio >= 0.9
+            ? 3
+            : 4;
+    if (defenders.count <= 2) {
+        requiredMilitary = Math.max(2, requiredMilitary - 1);
+    }
     if (nearestCityDist <= 2) {
-        requiredMilitary = Math.max(3, requiredMilitary - 1);
+        requiredMilitary = Math.max(2, requiredMilitary - 1);
     }
 
     return {

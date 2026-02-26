@@ -431,6 +431,7 @@ function seedInitialContacts(state: GameState) {
         const visible = new Set(state.visibility[p.id] ?? []);
         for (const u of state.units) {
             if (u.ownerId === p.id) continue;
+            if (!state.contacts[p.id] || !state.contacts[u.ownerId]) continue;
             if (visible.has(hexToString(u.coord))) {
                 state.contacts[p.id][u.ownerId] = true;
                 state.contacts[u.ownerId][p.id] = true;
@@ -438,6 +439,7 @@ function seedInitialContacts(state: GameState) {
         }
         for (const c of state.cities) {
             if (c.ownerId === p.id) continue;
+            if (!state.contacts[p.id] || !state.contacts[c.ownerId]) continue;
             if (visible.has(hexToString(c.coord))) {
                 state.contacts[p.id][c.ownerId] = true;
                 state.contacts[c.ownerId][p.id] = true;
@@ -533,53 +535,92 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
         return { camps: [], nativeUnits: [] };
     }
 
-    // Find valid camp tiles
-    const validCampTiles = tiles.filter(t => {
-        // Must be land (not mountain, coast, deep sea)
-        if (!isLand(t)) return false;
+    const minStartDistanceFloorBySize: Record<MapSize, number> = {
+        Tiny: 6,
+        Small: 6,
+        Standard: 6,
+        Large: 5,
+        Huge: 4,
+    };
+    const minBetweenDistanceFloorBySize: Record<MapSize, number> = {
+        Tiny: 4,
+        Small: 4,
+        Standard: 4,
+        Large: 3,
+        Huge: 2,
+    };
 
-        // Cannot have existing overlays
-        if (t.overlays.length > 0) return false;
+    const buildWeightedCandidates = (minDistanceFromStarts: number): Array<{ tile: Tile; weight: number }> =>
+        tiles
+            .filter(t => {
+                if (!isLand(t)) return false;
+                if (t.overlays.length > 0) return false;
+                const tooCloseToStart = startingPositions.some(
+                    start => hexDistance(t.coord, start) < minDistanceFromStarts
+                );
+                return !tooCloseToStart;
+            })
+            .map(t => ({
+                tile: t,
+                weight: t.terrain === TerrainType.Forest ? 3 :
+                    t.terrain === TerrainType.Hills ? 2 :
+                        t.terrain === TerrainType.Marsh ? 1.5 : 1,
+            }));
 
-        // Must be far enough from all starting positions
-        const tooCloseToStart = startingPositions.some(
-            start => hexDistance(t.coord, start) < NATIVE_CAMP_MIN_DISTANCE_FROM_START
+    const pickCampTiles = (
+        weightedCandidates: Array<{ tile: Tile; weight: number }>,
+        minDistanceBetweenCamps: number,
+        desiredCount: number,
+    ): Tile[] => {
+        const selected: Tile[] = [];
+        const shuffledWeighted = [...weightedCandidates];
+        rng.shuffle(shuffledWeighted);
+        shuffledWeighted.sort((a, b) => b.weight - a.weight);
+
+        for (const { tile } of shuffledWeighted) {
+            if (selected.length >= desiredCount) break;
+            const tooCloseToOtherCamp = selected.some(
+                existing => hexDistance(tile.coord, existing.coord) < minDistanceBetweenCamps
+            );
+            if (tooCloseToOtherCamp) continue;
+            selected.push(tile);
+        }
+        return selected;
+    };
+
+    let selectedCampTiles: Tile[] = [];
+    const minStartDistanceFloor = minStartDistanceFloorBySize[mapSize] ?? 4;
+    const minBetweenDistanceFloor = minBetweenDistanceFloorBySize[mapSize] ?? 2;
+
+    // Relax spacing constraints progressively when maps cannot satisfy requested camp counts.
+    for (let step = 0; step <= 4; step++) {
+        const minDistanceFromStarts = Math.max(
+            minStartDistanceFloor,
+            NATIVE_CAMP_MIN_DISTANCE_FROM_START - step,
         );
-        if (tooCloseToStart) return false;
+        const minDistanceBetweenCamps = Math.max(
+            minBetweenDistanceFloor,
+            NATIVE_CAMP_MIN_DISTANCE_BETWEEN - step,
+        );
 
-        return true;
-    });
+        const weightedCandidates = buildWeightedCandidates(minDistanceFromStarts);
+        if (weightedCandidates.length === 0) continue;
 
-    if (validCampTiles.length === 0) {
-        return { camps: [], nativeUnits: [] };
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const selection = pickCampTiles(weightedCandidates, minDistanceBetweenCamps, targetCamps);
+            if (selection.length > selectedCampTiles.length) {
+                selectedCampTiles = selection;
+            }
+            if (selectedCampTiles.length >= targetCamps) break;
+        }
+
+        if (selectedCampTiles.length >= targetCamps) break;
+        if (selectedCampTiles.length >= minCamps && step >= 1) break;
     }
 
-    // Weight tiles by terrain preference (Forest > Hills > Marsh > others)
-    const weightedTiles = validCampTiles.map(t => ({
-        tile: t,
-        weight: t.terrain === TerrainType.Forest ? 3 :
-            t.terrain === TerrainType.Hills ? 2 :
-                t.terrain === TerrainType.Marsh ? 1.5 : 1
-    }));
-
-    // Select camp tiles respecting minimum distance between camps
-    const selectedCampTiles: Tile[] = [];
-    const shuffledWeighted = [...weightedTiles];
-    rng.shuffle(shuffledWeighted);
-
-    // Sort by weight (higher weight first) for better terrain selection
-    shuffledWeighted.sort((a, b) => b.weight - a.weight);
-
-    for (const { tile } of shuffledWeighted) {
-        if (selectedCampTiles.length >= targetCamps) break;
-
-        // Check distance from already selected camps
-        const tooCloseToOtherCamp = selectedCampTiles.some(
-            existing => hexDistance(tile.coord, existing.coord) < NATIVE_CAMP_MIN_DISTANCE_BETWEEN
-        );
-        if (tooCloseToOtherCamp) continue;
-
-        selectedCampTiles.push(tile);
+    if (selectedCampTiles.length === 0) {
+        const weightedCandidates = buildWeightedCandidates(minStartDistanceFloor);
+        selectedCampTiles = pickCampTiles(weightedCandidates, minBetweenDistanceFloor, 1);
     }
 
     // Create camps and units
