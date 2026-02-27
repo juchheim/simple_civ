@@ -213,6 +213,55 @@ describe("city-state-policy", () => {
         expect(choice?.cityStateId).toBe("turnover-race");
     });
 
+    it("keeps city-state target selection deterministic for near-equal options", () => {
+        const state = createBaseState();
+        state.turn = 81;
+        state.seed = 777;
+        state.cityStates = [
+            createCityState("cs-a", "cs_owner_11", "cs-city-11", { q: 2, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 12, p2: 24 },
+                suzerainId: "p2",
+            }),
+            createCityState("cs-b", "cs_owner_12", "cs-city-12", { q: 2, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 11, p2: 23 },
+                suzerainId: "p2",
+            }),
+            createCityState("cs-c", "cs_owner_13", "cs-city-13", { q: 3, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 10, p2: 22 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const firstPick = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        const secondPick = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(firstPick?.cityStateId).toBeTruthy();
+        expect(secondPick?.cityStateId).toBe(firstPick?.cityStateId);
+        expect(["cs-a", "cs-b", "cs-c"]).toContain(firstPick?.cityStateId);
+    });
+
+    it("does not let stochastic exploration override a dominant best option", () => {
+        const state = createBaseState();
+        state.turn = 95;
+        state.seed = 11;
+        state.cityStates = [
+            createCityState("dominant", "cs_owner_dom", "cs-city-dom", { q: 1, r: 0 }, "Science", {
+                influenceByPlayer: { p1: 20, p2: 32 },
+                suzerainId: "p2",
+            }),
+            createCityState("far-behind-1", "cs_owner_far_1", "cs-city-far-1", { q: 8, r: 8 }, "Food", {
+                influenceByPlayer: { p1: 0, p2: 120 },
+                suzerainId: "p2",
+            }),
+            createCityState("far-behind-2", "cs_owner_far_2", "cs-city-far-2", { q: 8, r: 7 }, "Production", {
+                influenceByPlayer: { p1: 0, p2: 110 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Progress");
+        expect(choice?.cityStateId).toBe("dominant");
+    });
+
     it("respects reserve safety for non-critical investments", () => {
         const state = createBaseState();
         const p1 = state.players.find(player => player.id === "p1")!;

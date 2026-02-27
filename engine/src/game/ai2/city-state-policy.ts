@@ -61,6 +61,37 @@ const TURNOVER_DEEP_BEHIND_MULT = 4;
 const TURNOVER_FLIP_WINDOW_MULT = 1.35;
 const TURNOVER_RACE_COST_RELIEF = 0.55;
 const TURNOVER_LIVE_RACE_GAP_MULT = 3;
+const CITY_STATE_SCORE_JITTER = 4;
+const CITY_STATE_TURNOVER_SCORE_JITTER = 6;
+const CITY_STATE_EXPLORATION_CHANCE = 0.24;
+const CITY_STATE_EXPLORATION_POOL = 4;
+const CITY_STATE_EXPLORATION_SCORE_BAND = 0.84;
+
+function hashString32(input: string): number {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+}
+
+function seededRandom01(state: GameState, playerId: string, salt: string): number {
+    const seed = Number.isFinite(state.seed) ? Math.floor(state.seed) : 1;
+    const hash = hashString32(`${seed}|${state.turn}|${playerId}|${salt}`);
+    return hash / 4294967296;
+}
+
+function computeScoreJitter(
+    state: GameState,
+    playerId: string,
+    cityStateId: string,
+    turnoverCandidate: boolean,
+): number {
+    const span = turnoverCandidate ? CITY_STATE_TURNOVER_SCORE_JITTER : CITY_STATE_SCORE_JITTER;
+    const roll = seededRandom01(state, playerId, `city-state-jitter:${cityStateId}`);
+    return ((roll * 2) - 1) * span;
+}
 
 function getInfluenceGapToSuzerain(cityState: CityState, playerId: string): number {
     const suzerainId = cityState.suzerainId;
@@ -345,17 +376,48 @@ export function pickCityStateInvestmentTarget(
         : candidates;
     const candidatePool = turnoverCandidates.length > 0 ? turnoverCandidates : candidates;
 
-    if (preferredCityStateId && candidatePool.length > 0) {
-        const preferred = candidatePool.find(candidate => candidate.cityStateId === preferredCityStateId);
+    const jitteredPool = candidatePool
+        .map(candidate => {
+            const cityState = cityStateById.get(candidate.cityStateId);
+            const turnoverCandidate = cityState ? isCityStateTurnoverCandidate(cityState, playerId) : false;
+            const jitter = computeScoreJitter(state, playerId, candidate.cityStateId, turnoverCandidate);
+            return {
+                ...candidate,
+                adjustedScore: candidate.score + jitter,
+            };
+        })
+        .sort((a, b) => b.adjustedScore - a.adjustedScore || a.cost - b.cost);
+
+    if (preferredCityStateId && jitteredPool.length > 0) {
+        const preferred = jitteredPool.find(candidate => candidate.cityStateId === preferredCityStateId);
         if (preferred) {
-            const bestScore = candidatePool[0].score;
-            if (preferred.score >= (bestScore * INVEST_PREFERRED_SCORE_FLOOR)) {
+            const bestScore = jitteredPool[0].adjustedScore;
+            if (preferred.adjustedScore >= (bestScore * INVEST_PREFERRED_SCORE_FLOOR)) {
                 return preferred;
             }
         }
     }
 
-    return candidatePool[0];
+    let selected = jitteredPool[0];
+    if (jitteredPool.length > 1) {
+        const bestScore = jitteredPool[0].adjustedScore;
+        const explorationPool = jitteredPool
+            .filter(candidate => candidate.adjustedScore >= (bestScore * CITY_STATE_EXPLORATION_SCORE_BAND))
+            .slice(0, CITY_STATE_EXPLORATION_POOL);
+        if (explorationPool.length > 1) {
+            const exploreRoll = seededRandom01(state, playerId, `city-state-explore-roll:${goal}`);
+            if (exploreRoll < CITY_STATE_EXPLORATION_CHANCE) {
+                const indexRoll = seededRandom01(state, playerId, `city-state-explore-index:${goal}`);
+                const pickIndex = Math.min(
+                    explorationPool.length - 1,
+                    Math.floor(indexRoll * explorationPool.length),
+                );
+                selected = explorationPool[pickIndex];
+            }
+        }
+    }
+
+    return selected;
 }
 
 export function getOffensiveCityStateOwnerIds(

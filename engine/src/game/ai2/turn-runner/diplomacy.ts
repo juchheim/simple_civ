@@ -8,6 +8,8 @@ import { computeEconomySnapshot, type EconomySnapshot } from "../economy/budget.
 
 const CITY_STATE_FOCUS_STALE_TURNS = 24;
 const CITY_STATE_MAX_INVESTMENTS_PER_TURN = 6;
+const CITY_STATE_CADENCE_BONUS_CHANCE = 0.16;
+const CITY_STATE_CADENCE_FLIP_BONUS_CHANCE = 0.24;
 
 type CityStatePressureSnapshot = {
     contestedTotal: number;
@@ -15,6 +17,21 @@ type CityStatePressureSnapshot = {
     challengerRaces: number;
     flipWindowRaces: number;
 };
+
+function hashString32(input: string): number {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+}
+
+function seededRandom01(state: GameState, playerId: string, salt: string): number {
+    const seed = Number.isFinite(state.seed) ? Math.floor(state.seed) : 1;
+    const hash = hashString32(`${seed}|${state.turn}|${playerId}|${salt}`);
+    return hash / 4294967296;
+}
 
 function getTopRivalInfluence(state: GameState, playerId: string, cityStateId: string): number {
     const cityState = (state.cityStates ?? []).find(cs => cs.id === cityStateId);
@@ -160,6 +177,25 @@ export function computeCityStateInvestmentCadence(
         maxInvestments = Math.max(maxInvestments, 6);
     }
 
+    if (
+        snapshot.economyState !== "Crisis" &&
+        pressure.challengerRaces >= 1 &&
+        snapshot.spendableTreasury >= 180 &&
+        snapshot.netGold >= 4
+    ) {
+        const bonusChance = pressure.flipWindowRaces > 0
+            ? CITY_STATE_CADENCE_FLIP_BONUS_CHANCE
+            : CITY_STATE_CADENCE_BONUS_CHANCE;
+        const cadenceRoll = seededRandom01(
+            state,
+            playerId,
+            `city-state-cadence-bonus:${pressure.challengerRaces}:${pressure.flipWindowRaces}`,
+        );
+        if (cadenceRoll < bonusChance) {
+            maxInvestments += 1;
+        }
+    }
+
     if (snapshot.economyState === "Crisis") {
         maxInvestments = Math.min(maxInvestments, 1);
     }
@@ -196,7 +232,7 @@ function maybeInvestInCityState(state: GameState, playerId: string, goal: AiVict
     let investedAny = false;
 
     for (let i = 0; i < maxInvestments; i++) {
-        const prioritizeTurnover = economy.economyState !== "Crisis" && !focusCityStateId && i === 0;
+        const prioritizeTurnover = economy.economyState !== "Crisis" && !focusCityStateId && i < 2;
         let best = pickCityStateInvestmentTarget(next, playerId, goal, focusCityStateId, {
             preferTurnover: prioritizeTurnover,
         });
