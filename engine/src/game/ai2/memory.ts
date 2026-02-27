@@ -55,6 +55,10 @@ export type AiPlayerMemoryV2 = {
     operationalTurn?: number;
     /** Last turn this civ executed at least one economic rush-buy. */
     lastEconomicRushBuyTurn?: number;
+    /** City-state currently targeted for a multi-turn influence flip campaign. */
+    cityStateFocusId?: string;
+    /** Turn when city-state focus was last refreshed. */
+    cityStateFocusSetTurn?: number;
 };
 
 export type OperationalObjective = "capture-capital" | "deny-progress" | "pressure" | "defend-border";

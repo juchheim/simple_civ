@@ -162,6 +162,57 @@ describe("city-state-policy", () => {
         expect(choice?.cityStateId).toBe("science-cs");
     });
 
+    it("keeps a preferred city-state focus when option remains competitive", () => {
+        const state = createBaseState();
+        state.cityStates = [
+            createCityState("best", "cs_owner_pref_1", "cs-city-pref-1", { q: 2, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 0, p2: 20 },
+                suzerainId: "p2",
+            }),
+            createCityState("preferred", "cs_owner_pref_2", "cs-city-pref-2", { q: 2, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 0, p2: 22 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced", "preferred");
+        expect(choice?.cityStateId).toBe("preferred");
+    });
+
+    it("drops preferred city-state focus when it is no longer competitive", () => {
+        const state = createBaseState();
+        state.cityStates = [
+            createCityState("best", "cs_owner_pref_3", "cs-city-pref-3", { q: 1, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 10, p2: 26 },
+                suzerainId: "p2",
+            }),
+            createCityState("preferred", "cs_owner_pref_4", "cs-city-pref-4", { q: 8, r: 8 }, "Food", {
+                influenceByPlayer: { p1: 0, p2: 80 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced", "preferred");
+        expect(choice?.cityStateId).toBe("best");
+    });
+
+    it("can force a turnover-first pick when a live incumbent race is available", () => {
+        const state = createBaseState();
+        state.cityStates = [
+            createCityState("stable-science", "cs_owner_pref_5", "cs-city-pref-5", { q: 2, r: 0 }, "Science", {
+                suzerainId: undefined,
+                influenceByPlayer: { p1: 0, p2: 0 },
+            }),
+            createCityState("turnover-race", "cs_owner_pref_6", "cs-city-pref-6", { q: 8, r: 8 }, "Gold", {
+                suzerainId: "p2",
+                influenceByPlayer: { p1: 20, p2: 36 },
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Progress", undefined, { preferTurnover: true });
+        expect(choice?.cityStateId).toBe("turnover-race");
+    });
+
     it("respects reserve safety for non-critical investments", () => {
         const state = createBaseState();
         const p1 = state.players.find(player => player.id === "p1")!;
@@ -217,6 +268,63 @@ describe("city-state-policy", () => {
 
         const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
         expect(choice?.cityStateId).toBe("frontier-cs");
+    });
+
+    it("does not bypass reserve safety for uncontested incumbent leads", () => {
+        const state = createBaseState();
+        const p1 = state.players.find(player => player.id === "p1")!;
+        p1.treasury = 52;
+        p1.netGold = 1;
+        state.units = [
+            {
+                id: "u1",
+                type: UnitType.SpearGuard,
+                ownerId: "p1",
+                coord: { q: 1, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "u2",
+                type: UnitType.BowGuard,
+                ownerId: "p1",
+                coord: { q: 1, r: 1 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+        ];
+
+        state.cityStates = [
+            createCityState("safe-lead-cs", "cs_owner_6", "cs-city-6", { q: 3, r: 0 }, "Science", {
+                suzerainId: "p1",
+                influenceByPlayer: { p1: 90, p2: 10 },
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice).toBeUndefined();
+    });
+
+    it("skips low-value maintenance when incumbency is uncontested", () => {
+        const state = createBaseState();
+        const p1 = state.players.find(player => player.id === "p1")!;
+        p1.treasury = 260;
+        p1.netGold = 10;
+        state.cityStates = [
+            createCityState("safe-incumbent", "cs_owner_5", "cs-city-5", { q: 3, r: 0 }, "Science", {
+                suzerainId: "p1",
+                influenceByPlayer: { p1: 30, p2: 0 },
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Progress");
+        expect(choice).toBeUndefined();
     });
 
     it("identifies opportunistic city-state war targets when local power is favorable", () => {

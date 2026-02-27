@@ -1,10 +1,17 @@
 import {
     CITY_STATE_BASE_YIELD_BONUS,
+    CITY_STATE_CHALLENGER_INVEST_BONUS,
+    CITY_STATE_CHALLENGER_PRESSURE,
+    CITY_STATE_CONTEST_MARGIN,
+    CITY_STATE_CONTESTATION_DECAY_MAX,
+    CITY_STATE_CONTESTATION_DECAY_PER_RIVAL,
+    CITY_STATE_CONTESTATION_INTERVAL,
     CITY_STATE_CLEARER_INFLUENCE,
     CITY_STATE_FALLBACK_PREFIX,
     CITY_STATE_INVEST_BASE_COST,
     CITY_STATE_INVEST_COST_RAMP,
     CITY_STATE_INVEST_GAIN,
+    CITY_STATE_INVEST_SUZERAIN_DISCOUNT,
     CITY_STATE_NAMES_BY_YIELD,
     CITY_STATE_REINFORCE_CAP,
     CITY_STATE_REINFORCE_INTERVAL,
@@ -227,7 +234,8 @@ export function getCityStateById(state: GameState, cityStateId: string): CitySta
 export function getCityStateInvestCost(cityState: CityState, playerId: string): number {
     const purchaseCount = cityState.investmentCountByPlayer[playerId] ?? 0;
     const scaledCost = CITY_STATE_INVEST_BASE_COST * Math.pow(1 + CITY_STATE_INVEST_COST_RAMP, purchaseCount);
-    return Math.ceil(scaledCost);
+    const maintenanceDiscount = cityState.suzerainId === playerId ? CITY_STATE_INVEST_SUZERAIN_DISCOUNT : 1;
+    return Math.max(1, Math.ceil(scaledCost * maintenanceDiscount));
 }
 
 export function getCityStateName(state: GameState, yieldType: CityStateYieldType): string {
@@ -286,13 +294,45 @@ export function resolveCityStateSuzerain(state: GameState, cityStateId: string):
         return undefined;
     }
 
+    const ranked = [...contenders].sort((a, b) => b.influence - a.influence || a.playerId.localeCompare(b.playerId));
+    const topEntry = ranked[0];
+    const second = ranked[1];
+    const incumbent = cityState.suzerainId && !cityState.warByPlayer[cityState.suzerainId]
+        ? cityState.suzerainId
+        : undefined;
+    if (second && second.influence > 0) {
+        const lead = topEntry.influence - second.influence;
+        if (lead <= CITY_STATE_CONTEST_MARGIN) {
+            const minimumContestControlInfluence = Math.max(6, Math.floor(CITY_STATE_INVEST_GAIN / 2));
+            const topIsMeaningful = topEntry.influence >= minimumContestControlInfluence;
+            if (incumbent) {
+                const incumbentInfluence = cityState.influenceByPlayer[incumbent] ?? 0;
+                const turnoverMargin = Math.max(1, Math.ceil(CITY_STATE_CONTEST_MARGIN / 4));
+                if (
+                    topEntry.playerId !== incumbent &&
+                    topEntry.influence >= (incumbentInfluence + turnoverMargin)
+                ) {
+                    cityState.suzerainId = topEntry.playerId;
+                    return topEntry.playerId;
+                }
+                cityState.suzerainId = incumbent;
+                return incumbent;
+            }
+            if (topIsMeaningful) {
+                cityState.suzerainId = topEntry.playerId;
+                return topEntry.playerId;
+            }
+            cityState.suzerainId = undefined;
+            return undefined;
+        }
+    }
+
     const top = contenders.filter(c => c.influence === maxInfluence).map(c => c.playerId);
     if (top.length === 1) {
         cityState.suzerainId = top[0];
         return top[0];
     }
 
-    const incumbent = cityState.suzerainId;
     if (incumbent && top.includes(incumbent)) {
         return incumbent;
     }
@@ -470,6 +510,56 @@ export function processCityStateReinforcement(state: GameState): void {
     }
 }
 
+export function processCityStateInfluenceContestation(state: GameState): void {
+    ensureCityStateState(state);
+    if (state.turn % CITY_STATE_CONTESTATION_INTERVAL !== 0) return;
+
+    for (const cityState of state.cityStates ?? []) {
+        const suzerainId = cityState.suzerainId;
+        if (!suzerainId) continue;
+
+        const contenders = state.players
+            .filter(player => !player.isEliminated)
+            .filter(player => !cityState.warByPlayer[player.id])
+            .map(player => ({
+                playerId: player.id,
+                influence: cityState.influenceByPlayer[player.id] ?? 0,
+            }));
+
+        const rivals = contenders
+            .filter(entry => entry.playerId !== suzerainId)
+            .filter(entry => entry.influence > 0);
+        if (rivals.length === 0) continue;
+
+        const rankedRivals = [...rivals].sort((a, b) => b.influence - a.influence || a.playerId.localeCompare(b.playerId));
+        const topRival = rankedRivals[0];
+        const currentSuzerainInfluence = cityState.influenceByPlayer[suzerainId] ?? 0;
+        const leadBeforePressure = currentSuzerainInfluence - topRival.influence;
+        const nearTurnover = leadBeforePressure <= (CITY_STATE_CONTEST_MARGIN + CITY_STATE_INVEST_GAIN);
+
+        const baseDecay = Math.min(
+            CITY_STATE_CONTESTATION_DECAY_MAX,
+            rivals.length * CITY_STATE_CONTESTATION_DECAY_PER_RIVAL,
+        );
+        const contestedDecayBonus = nearTurnover
+            ? Math.min(3, Math.max(1, Math.ceil(rivals.length / 2)))
+            : 0;
+        const wartimeLockPressure = cityState.lockedControllerId ? 1 : 0;
+        const decay = baseDecay + contestedDecayBonus + wartimeLockPressure;
+        cityState.influenceByPlayer[suzerainId] = Math.max(0, currentSuzerainInfluence - decay);
+
+        const topRivalGain = (nearTurnover ? 2 : 1) + wartimeLockPressure;
+        cityState.influenceByPlayer[topRival.playerId] = (cityState.influenceByPlayer[topRival.playerId] ?? 0) + topRivalGain;
+
+        if (nearTurnover && rankedRivals.length > 1) {
+            const secondRival = rankedRivals[1];
+            cityState.influenceByPlayer[secondRival.playerId] = (cityState.influenceByPlayer[secondRival.playerId] ?? 0) + 1;
+        }
+
+        resolveCityStateSuzerain(state, cityState.id);
+    }
+}
+
 export function syncCityStateWarTransfers(state: GameState): boolean {
     ensureCityStateState(state);
     let changed = false;
@@ -532,8 +622,18 @@ export function investInCityState(state: GameState, playerId: string, cityStateI
     const treasury = player.treasury ?? 0;
     if (treasury < cost) throw new Error("Not enough gold to invest");
 
+    const incumbentId = cityState.suzerainId;
+    const isChallengingIncumbent = !!incumbentId && incumbentId !== playerId;
+    const influenceGain = CITY_STATE_INVEST_GAIN + (isChallengingIncumbent ? CITY_STATE_CHALLENGER_INVEST_BONUS : 0);
+
     player.treasury = treasury - cost;
-    cityState.influenceByPlayer[playerId] = (cityState.influenceByPlayer[playerId] ?? 0) + CITY_STATE_INVEST_GAIN;
+    cityState.influenceByPlayer[playerId] = (cityState.influenceByPlayer[playerId] ?? 0) + influenceGain;
+    if (isChallengingIncumbent && incumbentId) {
+        cityState.influenceByPlayer[incumbentId] = Math.max(
+            0,
+            (cityState.influenceByPlayer[incumbentId] ?? 0) - CITY_STATE_CHALLENGER_PRESSURE,
+        );
+    }
     cityState.investmentCountByPlayer[playerId] = (cityState.investmentCountByPlayer[playerId] ?? 0) + 1;
     cityState.lastInvestTurnByPlayer[playerId] = state.turn;
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MapSize, UnitType } from "../core/types.js";
 import { generateWorld } from "./map-generator.js";
+import { assignNextCityStateYieldType } from "../game/city-states.js";
 
 const CIVS = [
     "ForgeClans",
@@ -20,11 +21,11 @@ const CIV_COUNT_BY_MAP_SIZE: Record<MapSize, number> = {
 };
 
 const MIN_AVG_CAMPS_BY_MAP_SIZE: Record<MapSize, number> = {
-    Tiny: 1.0,
-    Small: 1.4,
-    Standard: 2.0,
-    Large: 2.8,
-    Huge: 4.8,
+    Tiny: 1.8,
+    Small: 2.8,
+    Standard: 4.6,
+    Large: 7.5,
+    Huge: 11.0,
 };
 
 const SAMPLE_SEEDS = [101, 202, 303, 404, 505, 606];
@@ -69,5 +70,20 @@ describe("map-generator native camps", () => {
             expect(avgCamps).toBeGreaterThanOrEqual(MIN_AVG_CAMPS_BY_MAP_SIZE[mapSize]);
         }
     });
-});
 
+    it("varies first city-state yield by seed while staying deterministic", () => {
+        const players = buildPlayers(CIV_COUNT_BY_MAP_SIZE.Standard);
+        const yields = new Set<string>();
+
+        for (const seed of SAMPLE_SEEDS) {
+            const state = generateWorld({
+                mapSize: "Standard",
+                players,
+                seed,
+            });
+            yields.add(assignNextCityStateYieldType(state));
+        }
+
+        expect(yields.size).toBeGreaterThanOrEqual(3);
+    });
+});

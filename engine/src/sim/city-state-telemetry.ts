@@ -1,7 +1,9 @@
 import {
+    CITY_STATE_CONTEST_MARGIN,
     CITY_STATE_INVEST_BASE_COST,
     CITY_STATE_INVEST_COST_RAMP,
     CITY_STATE_INVEST_GAIN,
+    CITY_STATE_INVEST_SUZERAIN_DISCOUNT,
 } from "../core/constants.js";
 import { CityState, CityStateYieldType, GameState } from "../core/types.js";
 
@@ -21,9 +23,12 @@ export type CityStateEntryTelemetry = {
     removedTurn: number | null;
     activeTurns: number;
     contestedTurns: number;
+    noSuzerainContestedTurns: number;
+    closeRaceContestedTurns: number;
     suzerainTurnsByPlayer: Record<string, number>;
     investmentByPlayer: Record<string, CityStatePlayerInvestmentTelemetry>;
     suzerainChanges: number;
+    uniqueSuzerainCount: number;
     finalSuzerainId?: string;
 };
 
@@ -88,15 +93,16 @@ function snapshotCityStates(cityStates: ReadonlyArray<CityState>): Map<string, C
     return snapshot;
 }
 
-function investmentCostAtPurchaseIndex(purchaseIndex: number): number {
+function investmentCostAtPurchaseIndex(purchaseIndex: number, isMaintenance: boolean): number {
     const scaledCost = CITY_STATE_INVEST_BASE_COST * Math.pow(1 + CITY_STATE_INVEST_COST_RAMP, purchaseIndex);
-    return Math.ceil(scaledCost);
+    const discount = isMaintenance ? CITY_STATE_INVEST_SUZERAIN_DISCOUNT : 1;
+    return Math.max(1, Math.ceil(scaledCost * discount));
 }
 
-function investmentCostDelta(previousCount: number, delta: number): number {
+function investmentCostDelta(previousCount: number, delta: number, isMaintenance: boolean): number {
     let cost = 0;
     for (let i = 0; i < delta; i++) {
-        cost += investmentCostAtPurchaseIndex(previousCount + i);
+        cost += investmentCostAtPurchaseIndex(previousCount + i, isMaintenance);
     }
     return cost;
 }
@@ -127,9 +133,12 @@ function ensureCityStateEntry(
         removedTurn: null,
         activeTurns: 0,
         contestedTurns: 0,
+        noSuzerainContestedTurns: 0,
+        closeRaceContestedTurns: 0,
         suzerainTurnsByPlayer: {},
         investmentByPlayer: {},
         suzerainChanges: 0,
+        uniqueSuzerainCount: cityState.suzerainId ? 1 : 0,
         finalSuzerainId: cityState.suzerainId,
     };
     entries.set(cityState.id, created);
@@ -161,6 +170,33 @@ function ensureInvestmentByPlayer(
         entry.investmentByPlayer[playerId] = createInvestmentTelemetry();
     }
     return entry.investmentByPlayer[playerId];
+}
+
+function isCloseRaceContested(state: GameState, cityState: CityState): boolean {
+    const contenderInfluences = state.players
+        .filter(player => !player.isEliminated)
+        .filter(player => !cityState.warByPlayer[player.id])
+        .map(player => cityState.influenceByPlayer[player.id] ?? 0)
+        .sort((a, b) => b - a);
+
+    if (contenderInfluences.length < 2) return false;
+    const top = contenderInfluences[0];
+    const second = contenderInfluences[1];
+    if (top <= 0 || second <= 0) return false;
+    return (top - second) <= CITY_STATE_CONTEST_MARGIN;
+}
+
+function countUniqueSuzerains(entry: CityStateEntryTelemetry): number {
+    const ids = new Set<string>();
+    for (const [playerId, turns] of Object.entries(entry.suzerainTurnsByPlayer)) {
+        if ((turns ?? 0) > 0) {
+            ids.add(playerId);
+        }
+    }
+    if (entry.finalSuzerainId) {
+        ids.add(entry.finalSuzerainId);
+    }
+    return ids.size;
 }
 
 export function createCityStateTelemetryTracker(initialState: GameState): CityStateTelemetryTracker {
@@ -208,7 +244,8 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
                 if (currentCount <= prevCount) continue;
 
                 const delta = currentCount - prevCount;
-                const goldSpent = investmentCostDelta(prevCount, delta);
+                const isMaintenance = prev.suzerainId === playerId;
+                const goldSpent = investmentCostDelta(prevCount, delta, isMaintenance);
                 const civName = resolveCivName(state, playerId);
                 const playerTelemetry = ensurePlayerTelemetry(byPlayer, playerId, civName);
                 const investmentTelemetry = ensureInvestmentByPlayer(entry, playerId);
@@ -220,13 +257,15 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
                 playerTelemetry.investmentActions += delta;
                 playerTelemetry.investedGold += goldSpent;
 
-                if (prev.suzerainId === playerId) {
+                if (isMaintenance) {
                     investmentTelemetry.maintenanceActions += delta;
                     investmentTelemetry.maintenanceGoldSpent += goldSpent;
                     playerTelemetry.maintenanceInvestmentActions += delta;
                     playerTelemetry.maintenanceGoldSpent += goldSpent;
                 }
             }
+
+            entry.uniqueSuzerainCount = countUniqueSuzerains(entry);
         }
 
         for (const [cityStateId] of previous.entries()) {
@@ -255,9 +294,15 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
                 const civName = resolveCivName(state, suzerainId);
                 const playerTelemetry = ensurePlayerTelemetry(byPlayer, suzerainId, civName);
                 playerTelemetry.suzerainTurns += 1;
+                if (isCloseRaceContested(state, cityState)) {
+                    entry.closeRaceContestedTurns += 1;
+                    entry.contestedTurns += 1;
+                }
             } else {
+                entry.noSuzerainContestedTurns += 1;
                 entry.contestedTurns += 1;
             }
+            entry.uniqueSuzerainCount = countUniqueSuzerains(entry);
         }
     }
 
@@ -273,6 +318,7 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
                 entry.finalSuzerainId = finalCityState.suzerainId;
                 entry.removedTurn = null;
             }
+            entry.uniqueSuzerainCount = countUniqueSuzerains(entry);
         }
 
         const byPlayerObj: Record<string, CityStatePlayerTelemetry> = {};
@@ -297,6 +343,8 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
                 removedTurn: entry.removedTurn,
                 activeTurns: entry.activeTurns,
                 contestedTurns: entry.contestedTurns,
+                noSuzerainContestedTurns: entry.noSuzerainContestedTurns,
+                closeRaceContestedTurns: entry.closeRaceContestedTurns,
                 suzerainTurnsByPlayer: { ...entry.suzerainTurnsByPlayer },
                 investmentByPlayer: Object.fromEntries(
                     Object.entries(entry.investmentByPlayer).map(([playerId, investment]) => [
@@ -305,6 +353,7 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
                     ])
                 ),
                 suzerainChanges: entry.suzerainChanges,
+                uniqueSuzerainCount: entry.uniqueSuzerainCount,
                 finalSuzerainId: entry.finalSuzerainId,
             }));
 

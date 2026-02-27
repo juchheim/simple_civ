@@ -19,9 +19,58 @@ results.forEach(sim => {
 
 const MAP_ORDER = ["Tiny", "Small", "Standard", "Large", "Huge"];
 const CIVS = ["ForgeClans", "ScholarKingdoms", "RiverLeague", "AetherianVanguard", "StarborneSeekers", "JadeCovenant"];
+const CITY_STATE_YIELD_ORDER = ["Science", "Production", "Food", "Gold"];
 
-// Total techs in game for reference
-const TOTAL_TECHS = 15;
+// Total techs in game for reference (Hearth/Banner/Engine/Aether eras combined)
+const TOTAL_TECHS = 20;
+
+function num(value, fallback = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+function avg(total, count) {
+    return count > 0 ? total / count : 0;
+}
+
+function pct(part, total) {
+    return total > 0 ? (part / total) * 100 : 0;
+}
+
+function percentile(sortedValues, p) {
+    if (!sortedValues.length) return NaN;
+    if (sortedValues.length === 1) return sortedValues[0];
+    const clamped = Math.max(0, Math.min(1, p));
+    const idx = clamped * (sortedValues.length - 1);
+    const low = Math.floor(idx);
+    const high = Math.ceil(idx);
+    if (low === high) return sortedValues[low];
+    const weight = idx - low;
+    return sortedValues[low] * (1 - weight) + sortedValues[high] * weight;
+}
+
+function summarizeDistribution(values) {
+    if (!values.length) {
+        return {
+            min: NaN,
+            p25: NaN,
+            median: NaN,
+            p75: NaN,
+            max: NaN,
+            avg: NaN,
+        };
+    }
+    const sorted = [...values].sort((a, b) => a - b);
+    const total = sorted.reduce((sum, value) => sum + value, 0);
+    return {
+        min: sorted[0],
+        p25: percentile(sorted, 0.25),
+        median: percentile(sorted, 0.5),
+        p75: percentile(sorted, 0.75),
+        max: sorted[sorted.length - 1],
+        avg: total / sorted.length,
+    };
+}
 
 // ============================================================================
 // ANALYSIS FUNCTIONS
@@ -575,6 +624,228 @@ function analyzeTitanStats(results) {
     };
 }
 
+function analyzeCityStateSystems(results) {
+    const yieldStats = new Map(CITY_STATE_YIELD_ORDER.map(yieldType => [yieldType, {
+        cityStates: 0,
+        activeTurns: 0,
+        contestedTurns: 0,
+        noSuzerainContestedTurns: 0,
+        closeRaceContestedTurns: 0,
+        suzerainChanges: 0,
+        uniqueSuzerains: 0,
+    }]));
+    const mapStats = new Map();
+
+    let simsWithTelemetry = 0;
+    let simsMissingTelemetry = 0;
+    let totalCityStatesCreated = 0;
+    let totalCityStateActiveTurns = 0;
+    let totalContestedTurns = 0;
+    let totalNoSuzerainContestedTurns = 0;
+    let totalCloseRaceContestedTurns = 0;
+    let totalSuzerainChanges = 0;
+    let totalUniqueSuzerains = 0;
+    let totalSurvivingCityStates = 0;
+    const firstCreationTurns = [];
+    const cityStateRows = [];
+
+    let winnerSamples = 0;
+    let winnerSuzerainTurnsTotal = 0;
+    let winnersWithAnySuzerain = 0;
+    let nonWinnerSamples = 0;
+    let nonWinnerSuzerainTurnsTotal = 0;
+    let participantsWithSuzerain = 0;
+    let participantWinsWithSuzerain = 0;
+    let participantsWithoutSuzerain = 0;
+    let participantWinsWithoutSuzerain = 0;
+    let totalInvestedGold = 0;
+    let totalMaintenanceGold = 0;
+    let totalInvestmentActions = 0;
+    let totalMaintenanceInvestmentActions = 0;
+    let totalSuzerainTurns = 0;
+
+    for (const sim of results) {
+        const mapSize = sim.mapSize || "Unknown";
+        if (!mapStats.has(mapSize)) {
+            mapStats.set(mapSize, {
+                sims: 0,
+                telemetrySims: 0,
+                simsWithCityStates: 0,
+                totalCreated: 0,
+                firstCreationTurns: [],
+            });
+        }
+        const mapEntry = mapStats.get(mapSize);
+        mapEntry.sims += 1;
+
+        const summary = sim.cityStateSummary;
+        if (!summary || typeof summary !== "object" || !Array.isArray(summary.cityStates) || typeof summary.byPlayer !== "object") {
+            simsMissingTelemetry += 1;
+            continue;
+        }
+
+        simsWithTelemetry += 1;
+        mapEntry.telemetrySims += 1;
+
+        const cityStates = summary.cityStates;
+        const createdCount = num(summary.totalCityStatesCreated, cityStates.length);
+        totalCityStatesCreated += createdCount;
+        mapEntry.totalCreated += createdCount;
+        if (createdCount > 0) {
+            mapEntry.simsWithCityStates += 1;
+            const createdTurns = cityStates
+                .map(cityState => num(cityState.createdTurn, NaN))
+                .filter(turn => Number.isFinite(turn));
+            if (createdTurns.length > 0) {
+                const firstCreated = Math.min(...createdTurns);
+                mapEntry.firstCreationTurns.push(firstCreated);
+                firstCreationTurns.push(firstCreated);
+            }
+        }
+
+        totalCityStateActiveTurns += num(
+            summary.totalCityStateActiveTurns,
+            cityStates.reduce((sum, cityState) => sum + num(cityState.activeTurns, 0), 0),
+        );
+        totalSurvivingCityStates += num(
+            summary.survivingCityStates,
+            cityStates.filter(cityState => cityState.removedTurn === null || cityState.removedTurn === undefined).length,
+        );
+
+        for (const cityState of cityStates) {
+            const activeTurns = num(cityState.activeTurns, 0);
+            const contestedTurns = num(cityState.contestedTurns, 0);
+            const hasNoSuzBreakdown = cityState?.noSuzerainContestedTurns !== undefined && cityState?.noSuzerainContestedTurns !== null;
+            const hasCloseRaceBreakdown = cityState?.closeRaceContestedTurns !== undefined && cityState?.closeRaceContestedTurns !== null;
+            const noSuzerainContestedTurns = hasNoSuzBreakdown ? num(cityState.noSuzerainContestedTurns, 0) : contestedTurns;
+            const closeRaceContestedTurns = hasCloseRaceBreakdown ? num(cityState.closeRaceContestedTurns, 0) : 0;
+            const suzerainChanges = num(cityState.suzerainChanges, 0);
+            const uniqueSuzerainCount = (() => {
+                const reported = num(cityState.uniqueSuzerainCount, NaN);
+                if (Number.isFinite(reported) && reported >= 0) return reported;
+                const ids = new Set(
+                    Object.entries(cityState.suzerainTurnsByPlayer || {})
+                        .filter(([, turns]) => num(turns, 0) > 0)
+                        .map(([playerId]) => playerId),
+                );
+                if (cityState.finalSuzerainId) {
+                    ids.add(cityState.finalSuzerainId);
+                }
+                return ids.size;
+            })();
+
+            totalContestedTurns += contestedTurns;
+            totalNoSuzerainContestedTurns += noSuzerainContestedTurns;
+            totalCloseRaceContestedTurns += closeRaceContestedTurns;
+            totalSuzerainChanges += suzerainChanges;
+            totalUniqueSuzerains += uniqueSuzerainCount;
+            cityStateRows.push({
+                cityName: cityState.cityName || cityState.cityStateId,
+                activeTurns,
+                contestedTurns,
+                suzerainChanges,
+                uniqueSuzerainCount,
+            });
+
+            const yieldType = CITY_STATE_YIELD_ORDER.includes(cityState.yieldType) ? cityState.yieldType : undefined;
+            if (!yieldType) continue;
+            const yieldEntry = yieldStats.get(yieldType);
+            if (!yieldEntry) continue;
+            yieldEntry.cityStates += 1;
+            yieldEntry.activeTurns += activeTurns;
+            yieldEntry.contestedTurns += contestedTurns;
+            yieldEntry.noSuzerainContestedTurns += noSuzerainContestedTurns;
+            yieldEntry.closeRaceContestedTurns += closeRaceContestedTurns;
+            yieldEntry.suzerainChanges += suzerainChanges;
+            yieldEntry.uniqueSuzerains += uniqueSuzerainCount;
+        }
+
+        const participants = sim.participatingCivs || sim.finalState?.civs || [];
+        const winnerId = sim.winner?.id;
+        const winnerCiv = sim.winner?.civ;
+        for (const participant of participants) {
+            if (!participant?.id || !participant?.civName) continue;
+            const byPlayer = summary.byPlayer?.[participant.id];
+            const suzerainTurns = num(byPlayer?.suzerainTurns, 0);
+            const investedGold = num(byPlayer?.investedGold, 0);
+            const maintenanceGold = num(byPlayer?.maintenanceGoldSpent, 0);
+            const investmentActions = num(byPlayer?.investmentActions, 0);
+            const maintenanceInvestmentActions = num(byPlayer?.maintenanceInvestmentActions, 0);
+            const isWinner = (winnerId && participant.id === winnerId) || (winnerCiv && participant.civName === winnerCiv);
+            totalSuzerainTurns += suzerainTurns;
+            totalInvestedGold += investedGold;
+            totalMaintenanceGold += maintenanceGold;
+            totalInvestmentActions += investmentActions;
+            totalMaintenanceInvestmentActions += maintenanceInvestmentActions;
+
+            if (isWinner) {
+                winnerSamples += 1;
+                winnerSuzerainTurnsTotal += suzerainTurns;
+                if (suzerainTurns > 0) winnersWithAnySuzerain += 1;
+            } else {
+                nonWinnerSamples += 1;
+                nonWinnerSuzerainTurnsTotal += suzerainTurns;
+            }
+
+            if (suzerainTurns > 0) {
+                participantsWithSuzerain += 1;
+                if (isWinner) participantWinsWithSuzerain += 1;
+            } else {
+                participantsWithoutSuzerain += 1;
+                if (isWinner) participantWinsWithoutSuzerain += 1;
+            }
+        }
+    }
+
+    const sortedByChanges = [...cityStateRows].sort((a, b) => b.suzerainChanges - a.suzerainChanges || b.activeTurns - a.activeTurns);
+    const topTurnoverCityStates = sortedByChanges.slice(0, 4);
+    const topTurnoverChanges = topTurnoverCityStates.reduce((sum, row) => sum + row.suzerainChanges, 0);
+    const remainingRows = sortedByChanges.slice(4);
+    const remainingChanges = remainingRows.reduce((sum, row) => sum + row.suzerainChanges, 0);
+    const remainingActiveTurns = remainingRows.reduce((sum, row) => sum + row.activeTurns, 0);
+    const zeroFlipCityStates = cityStateRows.filter(row => row.suzerainChanges <= 0).length;
+    const contestedButZeroFlipCityStates = cityStateRows.filter(row => row.suzerainChanges <= 0 && row.contestedTurns > 0).length;
+    const challengerGold = Math.max(0, totalInvestedGold - totalMaintenanceGold);
+    const challengerInvestmentActions = Math.max(0, totalInvestmentActions - totalMaintenanceInvestmentActions);
+
+    return {
+        simsWithTelemetry,
+        simsMissingTelemetry,
+        totalCityStatesCreated,
+        totalCityStateActiveTurns,
+        totalSurvivingCityStates,
+        totalContestedTurns,
+        totalNoSuzerainContestedTurns,
+        totalCloseRaceContestedTurns,
+        totalSuzerainChanges,
+        totalUniqueSuzerains,
+        firstCreationTiming: summarizeDistribution(firstCreationTurns),
+        mapStats,
+        yieldStats,
+        winnerSamples,
+        winnerSuzerainTurnsTotal,
+        winnersWithAnySuzerain,
+        nonWinnerSamples,
+        nonWinnerSuzerainTurnsTotal,
+        participantsWithSuzerain,
+        participantWinsWithSuzerain,
+        participantsWithoutSuzerain,
+        participantWinsWithoutSuzerain,
+        totalInvestedGold,
+        totalMaintenanceGold,
+        challengerGold,
+        totalInvestmentActions,
+        totalMaintenanceInvestmentActions,
+        challengerInvestmentActions,
+        totalSuzerainTurns,
+        topTurnoverCityStates,
+        topTurnoverShare: pct(topTurnoverChanges, Math.max(1, totalSuzerainChanges)),
+        nonTopTurnoverFlipRate: (remainingChanges / Math.max(1, remainingActiveTurns)) * 100,
+        zeroFlipCityStates,
+        contestedButZeroFlipCityStates,
+    };
+}
+
 // ============================================================================
 // MAIN ANALYSIS
 // ============================================================================
@@ -591,6 +862,10 @@ const buildingAnalysis = analyzeBuildings(results);
 const civAnalysis = analyzeCivPerformance(results);
 const stallAnalysis = analyzeStalls(results);
 const titanAnalysis = analyzeTitanStats(results);
+const cityStateAnalysis = analyzeCityStateSystems(results);
+const mapSizeBreakdown = MAP_ORDER
+    .map(mapSize => `${mapSize}: ${(byMapSize.get(mapSize) || []).length}`)
+    .join(", ");
 
 // ============================================================================
 // GENERATE REPORT
@@ -598,7 +873,7 @@ const titanAnalysis = analyzeTitanStats(results);
 
 let report = `# Comprehensive Simulation Analysis Report\n\n`;
 report += `**Date:** ${new Date().toISOString().split('T')[0]}\n`;
-report += `**Simulations:** ${results.length} total (10 per map size) (AI vs AI)\n`;
+report += `**Simulations:** ${results.length} total (${mapSizeBreakdown}) (AI vs AI)\n`;
 report += `**Map Sizes:** Tiny, Small, Standard, Large, Huge (max number of civs allowed per map size: 2 for tiny, 3 for small, 4 for standard, 6 for large, 6 for huge)\n\n`;
 
 report += `## Titan Analysis\n`;
@@ -836,8 +1111,76 @@ sortedCivPerformance.forEach(([civ, stats]) => {
     report += `- **Avg Military Power:** ${stats.avgPower.toFixed(1)}\n\n`;
 });
 
+// City-State Analysis
+report += `## 9. City-State Systems\n\n`;
+report += `### Telemetry Coverage\n`;
+report += `- **Simulations with City-State Telemetry:** ${cityStateAnalysis.simsWithTelemetry}/${results.length}\n`;
+report += `- **Simulations Missing City-State Telemetry:** ${cityStateAnalysis.simsMissingTelemetry}\n`;
+report += `- **Total City-States Created:** ${cityStateAnalysis.totalCityStatesCreated}\n`;
+report += `- **Average City-States Created per Telemetry Sim:** ${avg(cityStateAnalysis.totalCityStatesCreated, cityStateAnalysis.simsWithTelemetry).toFixed(2)}\n`;
+report += `- **Average Surviving City-States at Game End (Telemetry Sims):** ${avg(cityStateAnalysis.totalSurvivingCityStates, cityStateAnalysis.simsWithTelemetry).toFixed(2)}\n\n`;
+
+report += `### Activation & Turnover\n`;
+report += `- **Total City-State Active Turns:** ${cityStateAnalysis.totalCityStateActiveTurns}\n`;
+report += `- **First City-State Creation Turn (min / p25 / median / p75 / max):** ${Number.isFinite(cityStateAnalysis.firstCreationTiming.min) ? cityStateAnalysis.firstCreationTiming.min.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.p25) ? cityStateAnalysis.firstCreationTiming.p25.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.median) ? cityStateAnalysis.firstCreationTiming.median.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.p75) ? cityStateAnalysis.firstCreationTiming.p75.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.max) ? cityStateAnalysis.firstCreationTiming.max.toFixed(0) : "n/a"}\n`;
+report += `- **First City-State Creation Turn (average, sims with any):** ${Number.isFinite(cityStateAnalysis.firstCreationTiming.avg) ? cityStateAnalysis.firstCreationTiming.avg.toFixed(1) : "n/a"}\n`;
+report += `- **Global Suzerainty Flip Rate:** ${(cityStateAnalysis.totalSuzerainChanges / Math.max(1, cityStateAnalysis.totalCityStateActiveTurns) * 100).toFixed(2)} per 100 active turns\n`;
+report += `- **Average Unique Suzerains per City-State:** ${avg(cityStateAnalysis.totalUniqueSuzerains, cityStateAnalysis.totalCityStatesCreated).toFixed(2)}\n`;
+report += `- **Total Contested Turns:** ${cityStateAnalysis.totalContestedTurns} (No Suz: ${cityStateAnalysis.totalNoSuzerainContestedTurns}, Close-race: ${cityStateAnalysis.totalCloseRaceContestedTurns})\n`;
+report += `- **Contested Share of Active Turns:** ${pct(cityStateAnalysis.totalContestedTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}%\n`;
+report += `- **City-States with Zero Suzerainty Flips:** ${cityStateAnalysis.zeroFlipCityStates}/${cityStateAnalysis.totalCityStatesCreated}\n`;
+report += `- **Contested-but-Zero-Flip City-States:** ${cityStateAnalysis.contestedButZeroFlipCityStates}/${cityStateAnalysis.totalCityStatesCreated}\n`;
+report += `- **Top 4 City-States Share of All Suzerainty Changes:** ${cityStateAnalysis.topTurnoverShare.toFixed(1)}%\n`;
+report += `- **Flip Rate Outside Top 4 Turnover City-States:** ${cityStateAnalysis.nonTopTurnoverFlipRate.toFixed(2)} per 100 active turns\n`;
+if (cityStateAnalysis.topTurnoverCityStates.length > 0) {
+    const topTurnoverList = cityStateAnalysis.topTurnoverCityStates
+        .filter(row => row.suzerainChanges > 0)
+        .map(row => `${row.cityName} (${row.suzerainChanges})`)
+        .join(", ");
+    if (topTurnoverList) {
+        report += `- **Top Turnover City-States (changes):** ${topTurnoverList}\n`;
+    }
+}
+report += `\n`;
+report += `### Investment Mix\n`;
+report += `- **Total City-State Investment:** ${cityStateAnalysis.totalInvestedGold.toFixed(0)}G across ${cityStateAnalysis.totalInvestmentActions.toFixed(0)} actions\n`;
+report += `- **Maintenance Investment:** ${cityStateAnalysis.totalMaintenanceGold.toFixed(0)}G (${pct(cityStateAnalysis.totalMaintenanceGold, cityStateAnalysis.totalInvestedGold).toFixed(1)}%) across ${cityStateAnalysis.totalMaintenanceInvestmentActions.toFixed(0)} actions (${pct(cityStateAnalysis.totalMaintenanceInvestmentActions, cityStateAnalysis.totalInvestmentActions).toFixed(1)}%)\n`;
+report += `- **Challenger Investment:** ${cityStateAnalysis.challengerGold.toFixed(0)}G (${pct(cityStateAnalysis.challengerGold, cityStateAnalysis.totalInvestedGold).toFixed(1)}%) across ${cityStateAnalysis.challengerInvestmentActions.toFixed(0)} actions (${pct(cityStateAnalysis.challengerInvestmentActions, cityStateAnalysis.totalInvestmentActions).toFixed(1)}%)\n`;
+report += `- **Maintenance Gold per Suzerainty Turn:** ${avg(cityStateAnalysis.totalMaintenanceGold, cityStateAnalysis.totalSuzerainTurns).toFixed(2)}\n`;
+report += `- **Maintenance Actions per 100 Suzerainty Turns:** ${avg(cityStateAnalysis.totalMaintenanceInvestmentActions * 100, cityStateAnalysis.totalSuzerainTurns).toFixed(2)}\n\n`;
+
+report += `### Map-Size City-State Activation\n`;
+for (const mapSize of MAP_ORDER) {
+    const stats = cityStateAnalysis.mapStats.get(mapSize);
+    if (!stats || stats.sims === 0) continue;
+    const telemetrySims = stats.telemetrySims;
+    const avgFirstTurn = stats.firstCreationTurns.length > 0
+        ? avg(stats.firstCreationTurns.reduce((sum, turn) => sum + turn, 0), stats.firstCreationTurns.length)
+        : NaN;
+    const simsWithAny = telemetrySims > 0 ? `${stats.simsWithCityStates}/${telemetrySims}` : "n/a";
+    const shareWithAny = telemetrySims > 0 ? `${pct(stats.simsWithCityStates, telemetrySims).toFixed(1)}%` : "n/a";
+    const avgCreated = telemetrySims > 0 ? avg(stats.totalCreated, telemetrySims).toFixed(2) : "n/a";
+    report += `- **${mapSize}:** ${simsWithAny} sims with >=1 city-state (${shareWithAny}), avg created ${avgCreated}, avg first CS turn ${Number.isFinite(avgFirstTurn) ? avgFirstTurn.toFixed(1) : "n/a"}\n`;
+}
+report += `\n`;
+
+report += `### Yield-Type Turnover Summary\n`;
+for (const yieldType of CITY_STATE_YIELD_ORDER) {
+    const stats = cityStateAnalysis.yieldStats.get(yieldType);
+    if (!stats || stats.cityStates === 0) continue;
+    report += `- **${yieldType}:** ${stats.cityStates} city-states, contested ${pct(stats.contestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}% (No Suz ${pct(stats.noSuzerainContestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, Close-race ${pct(stats.closeRaceContestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%), flip rate ${(stats.suzerainChanges / Math.max(1, stats.activeTurns) * 100).toFixed(2)}/100T, avg unique suzerains ${avg(stats.uniqueSuzerains, stats.cityStates).toFixed(2)}\n`;
+}
+report += `\n`;
+
+report += `### Suzerainty vs Winning (Directional)\n`;
+report += `- **Winner Average Suzerainty Turns:** ${avg(cityStateAnalysis.winnerSuzerainTurnsTotal, cityStateAnalysis.winnerSamples).toFixed(2)}\n`;
+report += `- **Non-Winner Average Suzerainty Turns:** ${avg(cityStateAnalysis.nonWinnerSuzerainTurnsTotal, cityStateAnalysis.nonWinnerSamples).toFixed(2)}\n`;
+report += `- **Winners with Any Suzerainty:** ${cityStateAnalysis.winnersWithAnySuzerain}/${cityStateAnalysis.winnerSamples} (${pct(cityStateAnalysis.winnersWithAnySuzerain, cityStateAnalysis.winnerSamples).toFixed(1)}%)\n`;
+report += `- **Participant Win Rate with Any Suzerainty:** ${pct(cityStateAnalysis.participantWinsWithSuzerain, cityStateAnalysis.participantsWithSuzerain).toFixed(1)}%\n`;
+report += `- **Participant Win Rate without Suzerainty:** ${pct(cityStateAnalysis.participantWinsWithoutSuzerain, cityStateAnalysis.participantsWithoutSuzerain).toFixed(1)}%\n\n`;
+
 // Stalls
-report += `## 9. Stalls & Issues\n\n`;
+report += `## 10. Stalls & Issues\n\n`;
 report += `### Games Without Victory\n`;
 report += `- **Count:** ${stallAnalysis.noVictory.length} of ${results.length} (${((stallAnalysis.noVictory.length / results.length) * 100).toFixed(1)}%)\n\n`;
 
@@ -863,7 +1206,7 @@ if (stallAnalysis.stallDiagnostics.length > 0) {
 }
 
 // Map Size Breakdown
-report += `## 10. Map Size Analysis\n\n`;
+report += `## 11. Map Size Analysis\n\n`;
 MAP_ORDER.forEach(mapSize => {
     const sims = byMapSize.get(mapSize) || [];
     if (sims.length === 0) return;
@@ -886,7 +1229,7 @@ MAP_ORDER.forEach(mapSize => {
 });
 
 // Balance Observations
-report += `## 11. Balance Observations\n\n`;
+report += `## 12. Balance Observations\n\n`;
 
 // Auto-generate some observations based on data
 report += `### Victory Timing vs Pop 10\n`;

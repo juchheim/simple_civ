@@ -363,6 +363,17 @@ type InitialStateParams = {
     difficulty?: "Easy" | "Normal" | "Hard" | "Expert";
 };
 
+function computeInitialCityStateCycleIndex(seed: number, width: number, height: number, playerCount: number): number {
+    const numericSeed = Number.isFinite(seed) ? Math.floor(seed) : 1;
+    const mixed = (
+        Math.imul(numericSeed, 1103515245) +
+        Math.imul(width, 12345) +
+        Math.imul(height, 97) +
+        Math.imul(playerCount, 17)
+    ) >>> 0;
+    return mixed % 4;
+}
+
 function buildInitialState(params: InitialStateParams): GameState {
     const {
         players,
@@ -381,6 +392,7 @@ function buildInitialState(params: InitialStateParams): GameState {
 
     const visibility = initVisibility(players, tiles, units, cities);
     const revealed = initVisibility(players, tiles, units, cities);
+    const cityStateTypeCycleIndex = computeInitialCityStateCycleIndex(seed, width, height, players.length);
 
     return {
         id: crypto.randomUUID(),
@@ -409,7 +421,7 @@ function buildInitialState(params: InitialStateParams): GameState {
         diplomacyOffers: [],
         nativeCamps,
         cityStates: [],
-        cityStateTypeCycleIndex: 0,
+        cityStateTypeCycleIndex,
     };
 }
 
@@ -536,18 +548,27 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
     }
 
     const minStartDistanceFloorBySize: Record<MapSize, number> = {
-        Tiny: 6,
-        Small: 6,
-        Standard: 6,
-        Large: 5,
-        Huge: 4,
+        Tiny: 3,
+        Small: 3,
+        Standard: 4,
+        Large: 4,
+        Huge: 3,
     };
     const minBetweenDistanceFloorBySize: Record<MapSize, number> = {
-        Tiny: 4,
-        Small: 4,
-        Standard: 4,
-        Large: 3,
+        Tiny: 3,
+        Small: 3,
+        Standard: 3,
+        Large: 2,
         Huge: 2,
+    };
+
+    const nearestStartDistance = (coord: HexCoord): number => {
+        if (startingPositions.length === 0) return Number.POSITIVE_INFINITY;
+        let best = Number.POSITIVE_INFINITY;
+        for (const start of startingPositions) {
+            best = Math.min(best, hexDistance(coord, start));
+        }
+        return best;
     };
 
     const buildWeightedCandidates = (minDistanceFromStarts: number): Array<{ tile: Tile; weight: number }> =>
@@ -555,16 +576,29 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
             .filter(t => {
                 if (!isLand(t)) return false;
                 if (t.overlays.length > 0) return false;
-                const tooCloseToStart = startingPositions.some(
-                    start => hexDistance(t.coord, start) < minDistanceFromStarts
-                );
+                const tooCloseToStart = nearestStartDistance(t.coord) < minDistanceFromStarts;
                 return !tooCloseToStart;
             })
             .map(t => ({
                 tile: t,
-                weight: t.terrain === TerrainType.Forest ? 3 :
-                    t.terrain === TerrainType.Hills ? 2 :
-                        t.terrain === TerrainType.Marsh ? 1.5 : 1,
+                weight: (() => {
+                    const terrainWeight = t.terrain === TerrainType.Forest
+                        ? 3
+                        : t.terrain === TerrainType.Hills
+                            ? 2
+                            : t.terrain === TerrainType.Marsh
+                                ? 1.5
+                                : 1;
+                    const nearestStart = nearestStartDistance(t.coord);
+                    const proximityWeight = nearestStart <= (minDistanceFromStarts + 3)
+                        ? 1.45
+                        : nearestStart <= (minDistanceFromStarts + 6)
+                            ? 1.25
+                            : nearestStart <= (minDistanceFromStarts + 10)
+                                ? 1.08
+                                : 1;
+                    return terrainWeight * proximityWeight;
+                })(),
             }));
 
     const pickCampTiles = (
@@ -593,7 +627,7 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
     const minBetweenDistanceFloor = minBetweenDistanceFloorBySize[mapSize] ?? 2;
 
     // Relax spacing constraints progressively when maps cannot satisfy requested camp counts.
-    for (let step = 0; step <= 4; step++) {
+    for (let step = 0; step <= 6; step++) {
         const minDistanceFromStarts = Math.max(
             minStartDistanceFloor,
             NATIVE_CAMP_MIN_DISTANCE_FROM_START - step,
@@ -606,7 +640,7 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
         const weightedCandidates = buildWeightedCandidates(minDistanceFromStarts);
         if (weightedCandidates.length === 0) continue;
 
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < 4; attempt++) {
             const selection = pickCampTiles(weightedCandidates, minDistanceBetweenCamps, targetCamps);
             if (selection.length > selectedCampTiles.length) {
                 selectedCampTiles = selection;
@@ -615,7 +649,15 @@ function generateNativeCamps(params: NativeCampGenParams): { camps: NativeCamp[]
         }
 
         if (selectedCampTiles.length >= targetCamps) break;
-        if (selectedCampTiles.length >= minCamps && step >= 1) break;
+        if (selectedCampTiles.length >= minCamps && step >= 4) break;
+    }
+
+    if (selectedCampTiles.length < minCamps) {
+        const weightedCandidates = buildWeightedCandidates(minStartDistanceFloor);
+        const minSelection = pickCampTiles(weightedCandidates, minBetweenDistanceFloor, minCamps);
+        if (minSelection.length > selectedCampTiles.length) {
+            selectedCampTiles = minSelection;
+        }
     }
 
     if (selectedCampTiles.length === 0) {

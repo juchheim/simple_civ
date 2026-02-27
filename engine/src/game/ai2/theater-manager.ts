@@ -1,4 +1,4 @@
-import { DiplomacyState, GameState, ProjectId } from "../../core/types.js";
+import { AiVictoryGoal, DiplomacyState, GameState, ProjectId } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
 import { aiInfo, isAiDebugEnabled } from "../ai/debug-logging.js";
 import { getAiMemoryV2, setAiMemoryV2, type OperationalObjective, type OperationalTheater } from "./memory.js";
@@ -6,6 +6,7 @@ import { getCityValueProfile, getUnitThreatProfile } from "./tactical-threat.js"
 import { isMilitary } from "./unit-roles.js";
 import { clamp01 } from "./util.js";
 import { getInfluenceMapsCached, sumInfluenceInRadius, type InfluenceMaps } from "./influence-map.js";
+import { getOffensiveCityStateOwnerIds } from "./city-state-policy.js";
 
 const CLUSTER_DISTANCE = 6;
 const THREAT_RADIUS = 6;
@@ -25,6 +26,7 @@ type FrontNode = {
     value: number;
     isCapital: boolean;
     hasProgressProject: boolean;
+    isCityState: boolean;
 };
 
 type FrontCluster = {
@@ -59,7 +61,7 @@ function isProgressThreatForPlayer(state: GameState, targetPlayerId: string): bo
     return false;
 }
 
-function buildFrontNodes(state: GameState, playerId: string): FrontNode[] {
+function buildFrontNodes(state: GameState, playerId: string, goal: AiVictoryGoal): FrontNode[] {
     const enemies = state.players.filter(p => p.id !== playerId && !p.isEliminated);
     const nodes: FrontNode[] = [];
 
@@ -74,8 +76,33 @@ function buildFrontNodes(state: GameState, playerId: string): FrontNode[] {
                 value,
                 isCapital: !!city.isCapital,
                 hasProgressProject: isProgressProject(city),
+                isCityState: false,
             });
         }
+    }
+
+    const offensiveCityStateOwners = getOffensiveCityStateOwnerIds(state, playerId, goal);
+    for (const cityState of state.cityStates ?? []) {
+        if (!cityState.discoveredByPlayer[playerId]) continue;
+        if (!cityState.warByPlayer[playerId] && !offensiveCityStateOwners.has(cityState.ownerId)) continue;
+        const city = state.cities.find(c => c.id === cityState.cityId && c.ownerId === cityState.ownerId);
+        if (!city) continue;
+
+        const cityValue = getCityValueProfile(state, playerId, city).totalValue;
+        const suzerainPressure = cityState.suzerainId && cityState.suzerainId !== playerId ? 16 : 0;
+        const warPressure = cityState.warByPlayer[playerId] ? 10 : 0;
+        const neutralBonus = cityState.suzerainId ? 0 : 8;
+        const value = cityValue + suzerainPressure + warPressure + neutralBonus;
+
+        nodes.push({
+            coord: city.coord,
+            ownerId: cityState.ownerId,
+            cityId: city.id,
+            value,
+            isCapital: false,
+            hasProgressProject: false,
+            isCityState: true,
+        });
     }
 
     return nodes;
@@ -118,10 +145,12 @@ function determineObjective(input: {
     atWar: boolean;
     isCapital: boolean;
     progressThreat: boolean;
+    isCityState: boolean;
     distance: number;
 }): OperationalObjective {
-    const { atWar, isCapital, progressThreat, distance } = input;
+    const { atWar, isCapital, progressThreat, isCityState, distance } = input;
 
+    if (isCityState) return "pressure";
     if (progressThreat) return "deny-progress";
     if (isCapital) return "capture-capital";
     if (!atWar && distance <= 4) return "defend-border";
@@ -170,19 +199,21 @@ function computePriority(input: {
     atWar: boolean;
     progressThreat: boolean;
     isCapital: boolean;
+    isCityState: boolean;
     distance: number;
     threat: number;
     friendly: number;
 }): number {
     const base = 0.3;
-    const warBias = input.atWar ? 0.25 : 0.05;
-    const progressBias = input.progressThreat ? 0.25 : 0;
+    const warBias = input.atWar ? 0.25 : (input.isCityState ? 0.12 : 0.05);
+    const progressBias = input.isCityState ? 0 : (input.progressThreat ? 0.25 : 0);
     const capitalBias = input.isCapital ? 0.15 : 0;
+    const cityStateBias = input.isCityState ? 0.12 : 0;
     const threatBias = clamp01(input.threat / 250) * 0.15;
     const friendlyBias = clamp01(input.friendly / 250) * 0.1;
     const distancePenalty = clamp01(input.distance / DISTANCE_CAP) * 0.2;
 
-    return clamp01(base + warBias + progressBias + capitalBias + threatBias + friendlyBias - distancePenalty);
+    return clamp01(base + warBias + progressBias + capitalBias + cityStateBias + threatBias + friendlyBias - distancePenalty);
 }
 
 export function buildOperationalTheaters(
@@ -193,12 +224,14 @@ export function buildOperationalTheaters(
     const myCities = state.cities.filter(c => c.ownerId === playerId);
     if (myCities.length === 0) return [];
 
-    const nodes = buildFrontNodes(state, playerId);
+    const goal = state.players.find(player => player.id === playerId)?.aiGoal ?? "Balanced";
+    const nodes = buildFrontNodes(state, playerId, goal);
     if (nodes.length === 0) return [];
 
     const influenceMaps = influence ?? getInfluenceMapsCached(state, playerId, { forceFull: true }).maps;
     if (!influenceMaps) return [];
     const clusters = clusterFrontNodes(nodes);
+    const cityStateByOwnerId = new Map((state.cityStates ?? []).map(cityState => [cityState.ownerId, cityState]));
     const theaters: OperationalTheater[] = [];
 
     for (const cluster of clusters) {
@@ -218,20 +251,27 @@ export function buildOperationalTheaters(
             }
         }
 
-        const atWar = state.diplomacy?.[playerId]?.[primary.ownerId] === DiplomacyState.War;
-        const progressThreat = isProgressThreatForPlayer(state, primary.ownerId) || primary.hasProgressProject;
+        const cityState = cityStateByOwnerId.get(primary.ownerId);
+        const atWar = cityState
+            ? !!cityState.warByPlayer[playerId]
+            : (state.diplomacy?.[playerId]?.[primary.ownerId] === DiplomacyState.War);
+        const progressThreat = primary.isCityState
+            ? false
+            : (isProgressThreatForPlayer(state, primary.ownerId) || primary.hasProgressProject);
         const threat = computeThreatScore(state, playerId, primary.ownerId, anchorCity.coord, influenceMaps);
         const friendly = computeFriendlyScore(state, playerId, anchorCity.coord, influenceMaps);
         const objective = determineObjective({
             atWar,
             isCapital: primary.isCapital,
             progressThreat,
+            isCityState: primary.isCityState,
             distance: anchorDistance,
         });
         const priority = computePriority({
             atWar,
             progressThreat,
             isCapital: primary.isCapital,
+            isCityState: primary.isCityState,
             distance: anchorDistance,
             threat,
             friendly,

@@ -103,15 +103,22 @@ export const MIN_WAR_DURATION = 15; // Minimum turns a war must last
 export const MIN_PEACE_DURATION = 15; // Minimum turns peace must last before declaring war
 
 // City-State Influence / Yield Constants
-export const CITY_STATE_INVEST_BASE_COST = 40;
-export const CITY_STATE_INVEST_GAIN = 20;
-export const CITY_STATE_INVEST_COST_RAMP = 0.2;
-export const CITY_STATE_BASE_YIELD_BONUS = 3;
-export const CITY_STATE_SAME_TYPE_SECONDARY_MULT = 0.7;
-export const CITY_STATE_SAME_TYPE_ADDITIONAL_MULT = 0.5;
+export const CITY_STATE_INVEST_BASE_COST = 30;
+export const CITY_STATE_INVEST_GAIN = 24;
+export const CITY_STATE_INVEST_COST_RAMP = 0.08;
+export const CITY_STATE_INVEST_SUZERAIN_DISCOUNT = 0.8;
+export const CITY_STATE_CHALLENGER_INVEST_BONUS = 16;
+export const CITY_STATE_CHALLENGER_PRESSURE = 12;
+export const CITY_STATE_BASE_YIELD_BONUS = 4;
+export const CITY_STATE_SAME_TYPE_SECONDARY_MULT = 0.8;
+export const CITY_STATE_SAME_TYPE_ADDITIONAL_MULT = 0.65;
 export const CITY_STATE_CLEARER_INFLUENCE = 30;
 export const CITY_STATE_REINFORCE_INTERVAL = 8;
 export const CITY_STATE_REINFORCE_CAP = 3;
+export const CITY_STATE_CONTEST_MARGIN = 8;
+export const CITY_STATE_CONTESTATION_INTERVAL = 2;
+export const CITY_STATE_CONTESTATION_DECAY_PER_RIVAL = 3;
+export const CITY_STATE_CONTESTATION_DECAY_MAX = 12;
 
 // Damage Constants
 export const ATTACK_RANDOM_BAND = [-1, 0, 1];
@@ -258,15 +265,15 @@ export const NATIVE_CHAMPION_CAMP_BONUS_DEF = 2; // +DEF when near camp
 export const NATIVE_CHAMPION_CAMP_BONUS_RADIUS = 2; // Tiles from camp for bonus to apply
 export const NATIVE_HEAL_TERRITORY = 2;          // HP/turn in camp territory
 export const NATIVE_HEAL_CAMP_TILE = 2;          // HP/turn on camp tile itself
-export const NATIVE_CAMP_MIN_DISTANCE_FROM_START = 8; // Min tiles from starting positions
+export const NATIVE_CAMP_MIN_DISTANCE_FROM_START = 7; // Min tiles from starting positions
 export const NATIVE_CAMP_MIN_DISTANCE_BETWEEN = 6;    // Min tiles between camps
 export const NATIVE_CAMP_CLEAR_PRODUCTION_REWARD = 20; // Production granted to the captured camp city
 export const NATIVE_CAMP_COUNTS: Record<string, [number, number]> = {
-    Tiny: [1, 2],
-    Small: [2, 3],
-    Standard: [3, 4],
-    Large: [5, 6],
-    Huge: [8, 10],
+    Tiny: [2, 3],
+    Small: [3, 5],
+    Standard: [5, 7],
+    Large: [8, 11],
+    Huge: [12, 16],
 };
 
 export const CITY_STATE_NAMES_BY_YIELD: Record<CityStateYieldType, string[]> = {

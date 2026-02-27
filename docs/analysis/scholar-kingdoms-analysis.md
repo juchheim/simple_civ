@@ -1,6 +1,6 @@
 # Scholar Kingdoms Deep Dive Analysis
 
-**Date:** 2026-02-26
+**Date:** 2026-02-27
 **Games Analyzed:** 70
 
 ## Summary
@@ -8,9 +8,9 @@
 | Metric | Value |
 |--------|-------|
 | Games Played | 70 |
-| **Wins** | 12 (17.1%) |
-| **Eliminations** | 19 (27.1%) |
-| Survived (no win/elim) | 39 |
+| **Wins** | 10 (14.3%) |
+| **Eliminations** | 15 (21.4%) |
+| Survived (no win/elim) | 45 |
 
 ## Elimination Details
 
@@ -18,380 +18,334 @@
 > This section tracks exactly when Scholar Kingdoms was eliminated and by whom.
 
 ### Overall Elimination Statistics
-- **Total Eliminations:** 19
-- **Average Elimination Turn:** 248.7
-- **Earliest Elimination:** Turn 132
-- **Latest Elimination:** Turn 397
-- **Median Elimination Turn:** 243
+- **Total Eliminations:** 15
+- **Average Elimination Turn:** 262.0
+- **Earliest Elimination:** Turn 145
+- **Latest Elimination:** Turn 388
+- **Median Elimination Turn:** 270
 
 ### Eliminated By (Civ Breakdown)
-- **JadeCovenant:** 5 times (26.3%)
-- **ForgeClans:** 5 times (26.3%)
-- **AetherianVanguard:** 5 times (26.3%)
-- **RiverLeague:** 4 times (21.1%)
+- **AetherianVanguard:** 5 times (33.3%)
+- **ForgeClans:** 3 times (20.0%)
+- **JadeCovenant:** 3 times (20.0%)
+- **RiverLeague:** 2 times (13.3%)
+- **StarborneSeekers:** 2 times (13.3%)
 
 ### Elimination Log (All Games)
 
 | Seed | Map | Turn | Eliminated By | Cities at Death | Techs | Was Attacked By |
 |------|-----|------|---------------|-----------------|-------|------------------|
-| 408008 | Huge | 132 | JadeCovenant | 0 | 4 | JadeCovenant, AetherianVanguard, RiverLeague |
-| 307007 | Large | 158 | JadeCovenant | 0 | 6 | RiverLeague, ForgeClans, AetherianVanguard, JadeCovenant |
-| 411011 | Huge | 172 | ForgeClans | 0 | 5 | ForgeClans, JadeCovenant, StarborneSeekers, AetherianVanguard, RiverLeague |
-| 403003 | Huge | 177 | AetherianVanguard | 0 | 7 | StarborneSeekers, JadeCovenant, AetherianVanguard |
-| 401001 | Huge | 214 | RiverLeague | 0 | 8 | ForgeClans, StarborneSeekers, JadeCovenant, RiverLeague, AetherianVanguard |
-| 304004 | Large | 221 | JadeCovenant | 0 | 7 | RiverLeague, AetherianVanguard, JadeCovenant, StarborneSeekers |
-| 303003 | Large | 229 | JadeCovenant | 0 | 8 | ForgeClans, JadeCovenant, RiverLeague |
-| 418018 | Huge | 233 | RiverLeague | 0 | 4 | ForgeClans, RiverLeague, StarborneSeekers, AetherianVanguard, JadeCovenant |
-| 320020 | Large | 239 | AetherianVanguard | 0 | 6 | AetherianVanguard, ForgeClans |
-| 218018 | Standard | 243 | RiverLeague | 0 | 7 | ForgeClans |
-| 213013 | Standard | 253 | AetherianVanguard | 0 | 8 | AetherianVanguard, RiverLeague, JadeCovenant |
-| 310010 | Large | 268 | ForgeClans | 0 | 10 | JadeCovenant, StarborneSeekers, RiverLeague, AetherianVanguard |
-| 409009 | Huge | 272 | AetherianVanguard | 0 | 7 | AetherianVanguard, JadeCovenant, StarborneSeekers, ForgeClans |
-| 405005 | Huge | 274 | RiverLeague | 0 | 6 | RiverLeague, AetherianVanguard, ForgeClans, JadeCovenant |
-| 420020 | Huge | 291 | ForgeClans | 0 | 18 | StarborneSeekers, RiverLeague, ForgeClans, JadeCovenant |
-| 209009 | Standard | 292 | ForgeClans | 0 | 9 | AetherianVanguard, ForgeClans, JadeCovenant |
-| 316016 | Large | 324 | ForgeClans | 0 | 5 | RiverLeague, ForgeClans, AetherianVanguard |
-| 204004 | Standard | 336 | JadeCovenant | 0 | 0 | ForgeClans, RiverLeague |
-| 220020 | Standard | 397 | AetherianVanguard | 0 | 13 | AetherianVanguard |
+| 213013 | Standard | 145 | AetherianVanguard | 0 | 6 | AetherianVanguard, RiverLeague |
+| 206006 | Standard | 168 | RiverLeague | 0 | 5 | RiverLeague |
+| 208008 | Standard | 169 | AetherianVanguard | 0 | 6 | AetherianVanguard, ForgeClans, JadeCovenant |
+| 406006 | Huge | 189 | JadeCovenant | 0 | 4 | ForgeClans |
+| 413013 | Huge | 198 | AetherianVanguard | 0 | 5 | AetherianVanguard |
+| 402002 | Huge | 230 | AetherianVanguard | 0 | 6 | None |
+| 309009 | Large | 267 | AetherianVanguard | 0 | 18 | RiverLeague, AetherianVanguard |
+| 403003 | Huge | 270 | JadeCovenant | 0 | 7 | RiverLeague, JadeCovenant, AetherianVanguard |
+| 307007 | Large | 272 | ForgeClans | 0 | 6 | ForgeClans, RiverLeague, StarborneSeekers |
+| 319019 | Large | 292 | RiverLeague | 0 | 7 | RiverLeague, JadeCovenant |
+| 316016 | Large | 302 | StarborneSeekers | 0 | 6 | StarborneSeekers, AetherianVanguard |
+| 312012 | Large | 323 | JadeCovenant | 0 | 7 | RiverLeague, JadeCovenant |
+| 201001 | Standard | 341 | StarborneSeekers | 0 | 6 | StarborneSeekers, ForgeClans |
+| 204004 | Standard | 376 | ForgeClans | 0 | 9 | ForgeClans, RiverLeague, JadeCovenant |
+| 202002 | Standard | 388 | ForgeClans | 0 | 7 | RiverLeague, ForgeClans, StarborneSeekers |
 
 ### Elimination by Map Size
-- **Standard:** 5 eliminations (avg turn 304.2)
-- **Large:** 6 eliminations (avg turn 239.8)
-- **Huge:** 8 eliminations (avg turn 220.6)
+- **Standard:** 6 eliminations (avg turn 264.5)
+- **Large:** 5 eliminations (avg turn 291.2)
+- **Huge:** 4 eliminations (avg turn 221.8)
 
 ## Victory Details
 
 ### Victory Statistics
-- **Total Wins:** 12
-- **Average Victory Turn:** 289.1
-- **Victory Types:** Progress: 11, Conquest: 1
+- **Total Wins:** 10
+- **Average Victory Turn:** 311.9
+- **Victory Types:** Progress: 8, Conquest: 2
 
 ### Victory Log
 
 | Seed | Map | Victory Turn | Type | Final Cities | Final Pop |
 |------|-----|--------------|------|--------------|----------|
-| 6006 | Tiny | 306 | Conquest | 8 | 70 |
-| 201001 | Standard | 277 | Progress | 8 | 72 |
-| 308008 | Large | 259 | Progress | 11 | 79 |
-| 306006 | Large | 349 | Progress | 11 | 98 |
-| 309009 | Large | 318 | Progress | 6 | 40 |
-| 314014 | Large | 313 | Progress | 4 | 39 |
-| 318018 | Large | 257 | Progress | 6 | 50 |
-| 402002 | Huge | 251 | Progress | 18 | 144 |
-| 406006 | Huge | 258 | Progress | 9 | 80 |
-| 412012 | Huge | 265 | Progress | 6 | 48 |
-| 415015 | Huge | 273 | Progress | 5 | 44 |
-| 419019 | Huge | 343 | Progress | 14 | 133 |
+| 4004 | Tiny | 254 | Progress | 8 | 69 |
+| 6006 | Tiny | 389 | Conquest | 4 | 39 |
+| 116016 | Small | 288 | Progress | 3 | 27 |
+| 113013 | Small | 290 | Conquest | 6 | 55 |
+| 214014 | Standard | 263 | Progress | 5 | 43 |
+| 303003 | Large | 298 | Progress | 4 | 36 |
+| 308008 | Large | 397 | Progress | 1 | 10 |
+| 318018 | Large | 265 | Progress | 5 | 42 |
+| 409009 | Huge | 311 | Progress | 4 | 40 |
+| 412012 | Huge | 364 | Progress | 2 | 20 |
 
 ## Warfare Analysis
 
 ### Wars Received (Attacked By)
-- **Total Wars Received:** 256
-- **Average Wars per Game:** 3.7
+- **Total Wars Received:** 194
+- **Average Wars per Game:** 2.8
 
 **Most Frequent Attackers:**
-- **RiverLeague:** 72 wars (28.1%)
-- **ForgeClans:** 56 wars (21.9%)
-- **JadeCovenant:** 53 wars (20.7%)
-- **AetherianVanguard:** 43 wars (16.8%)
-- **StarborneSeekers:** 32 wars (12.5%)
+- **ForgeClans:** 52 wars (26.8%)
+- **RiverLeague:** 44 wars (22.7%)
+- **JadeCovenant:** 44 wars (22.7%)
+- **AetherianVanguard:** 29 wars (14.9%)
+- **StarborneSeekers:** 25 wars (12.9%)
 
 **War Timing:**
-- Average first attack: Turn 174.3
-- Earliest attack: Turn 22
-- Latest attack: Turn 395
+- Average first attack: Turn 189.4
+- Earliest attack: Turn 28
+- Latest attack: Turn 388
 
 ## City Loss Analysis
 
-- **Total Cities Lost:** 161
-- **Average Cities Lost per Game:** 2.3
+- **Total Cities Lost:** 68
+- **Average Cities Lost per Game:** 1.0
 
 **Cities Captured By:**
-- **AetherianVanguard:** 56 cities
-- **ForgeClans:** 41 cities
-- **RiverLeague:** 38 cities
-- **JadeCovenant:** 17 cities
-- **StarborneSeekers:** 9 cities
+- **AetherianVanguard:** 22 cities
+- **ForgeClans:** 19 cities
+- **RiverLeague:** 17 cities
+- **JadeCovenant:** 8 cities
+- **StarborneSeekers:** 2 cities
 
 ## Technology & Project Progress
 
-- **Average Techs at Game End:** 12.0
-- **Average Projects Completed:** 1.4
+- **Average Techs at Game End:** 10.4
+- **Average Projects Completed:** 1.2
 
 **Progress Chain Completion:**
-- Observatory: 25 games (35.7%)
-- Grand Academy: 16 games (22.9%)
-- Grand Experiment: 11 games (15.7%)
+- Observatory: 22 games (31.4%)
+- Grand Academy: 15 games (21.4%)
+- Grand Experiment: 8 games (11.4%)
 
 ## Unit Analysis
 
-- **Units Produced:** 2976
-- **Units Lost:** 2016
+- **Units Produced:** 2278
+- **Units Lost:** 2066
 
 **Units Lost By Type:**
-- SpearGuard: 587 died (593 produced)
-- Lorekeeper: 515 died (842 produced)
-- BowGuard: 332 died (305 produced)
-- ArmyBowGuard: 233 died (416 produced)
-- Settler: 121 died (482 produced)
-- ArmySpearGuard: 92 died (133 produced)
-- Scout: 78 died (25 produced)
-- Landship: 34 died (125 produced)
-- ArmyRiders: 24 died (36 produced)
+- Lorekeeper: 606 died (751 produced)
+- SpearGuard: 484 died (462 produced)
+- BowGuard: 436 died (401 produced)
+- Settler: 332 died (466 produced)
+- ArmyBowGuard: 82 died (106 produced)
+- Scout: 78 died (13 produced)
+- ArmySpearGuard: 35 died (37 produced)
+- Landship: 8 died (33 produced)
+- ArmyRiders: 5 died (9 produced)
 
 **Units Killed By (Civ):**
 
 ## Buildings Constructed
 
-- **TradingPost:** 311 built (avg turn 121.4)
-- **MarketHall:** 213 built (avg turn 202.2)
-- **Bank:** 75 built (avg turn 222.4)
-- **ShieldGenerator:** 74 built (avg turn 217.8)
-- **Exchange:** 57 built (avg turn 225.2)
-- **Bulwark:** 47 built (avg turn 94.5)
+- **TradingPost:** 120 built (avg turn 124.0)
+- **MarketHall:** 55 built (avg turn 220.0)
+- **Bulwark:** 42 built (avg turn 102.5)
+- **Bank:** 23 built (avg turn 255.4)
+- **ShieldGenerator:** 21 built (avg turn 239.9)
+- **Exchange:** 11 built (avg turn 284.5)
 
 ## Detailed Game Logs (Eliminated Games)
 
-### Game 1: Seed 408008 (Huge)
-- **Eliminated on Turn:** 132
-- **Eliminated By:** JadeCovenant
-- **Final State:** 0 cities, 0 pop, 4 techs, 0 power
-
-**Event Timeline:**
-- Turn 2: 🏛️ City Founded
-- Turn 28: 📚 Tech: ScriptLore
-- Turn 44: 📚 Tech: StoneworkHalls
-- Turn 45: 🏛️ City Founded
-- Turn 55: 📚 Tech: Fieldcraft
-- Turn 61: ⚔️ War declared by JadeCovenant
-- Turn 62: ⚔️ War declared by AetherianVanguard
-- Turn 70: 💀 City lost to AetherianVanguard
-- Turn 111: ⚔️ War declared by RiverLeague
-- Turn 116: 📚 Tech: CityWards
-- Turn 131: 💀 City lost to JadeCovenant
-
-### Game 2: Seed 307007 (Large)
-- **Eliminated on Turn:** 158
-- **Eliminated By:** JadeCovenant
+### Game 1: Seed 213013 (Standard)
+- **Eliminated on Turn:** 145
+- **Eliminated By:** AetherianVanguard
 - **Final State:** 0 cities, 0 pop, 6 techs, 0 power
 
 **Event Timeline:**
 - Turn 1: 🏛️ City Founded
-- Turn 21: 🏛️ City Founded
-- Turn 22: ⚔️ War declared by RiverLeague
-- Turn 26: 📚 Tech: StoneworkHalls
-- Turn 41: 📚 Tech: FormationTraining
-- Turn 58: ⚔️ War declared by ForgeClans
-- Turn 58: 📚 Tech: Fieldcraft
-- Turn 80: 📚 Tech: DrilledRanks
-- Turn 101: 📚 Tech: Wellworks
-- Turn 102: ⚔️ War declared by AetherianVanguard
-- Turn 126: ⚔️ War declared by RiverLeague
-- Turn 132: 💀 City lost to AetherianVanguard
-- Turn 145: 📚 Tech: ArmyDoctrine
-- Turn 150: ⚔️ War declared by JadeCovenant
-- Turn 158: 💀 City lost to JadeCovenant
+- Turn 28: 📚 Tech: ScriptLore
+- Turn 33: 🏛️ City Founded
+- Turn 40: 📚 Tech: StoneworkHalls
+- Turn 41: ⚔️ War declared by AetherianVanguard
+- Turn 55: 📚 Tech: Fieldcraft
+- Turn 70: 📚 Tech: FormationTraining
+- Turn 95: 📚 Tech: DrilledRanks
+- Turn 120: 📚 Tech: Wellworks
+- Turn 135: 💀 City lost to AetherianVanguard
+- Turn 142: ⚔️ War declared by RiverLeague
+- Turn 144: 💀 City lost to AetherianVanguard
 
-### Game 3: Seed 411011 (Huge)
-- **Eliminated on Turn:** 172
-- **Eliminated By:** ForgeClans
+### Game 2: Seed 206006 (Standard)
+- **Eliminated on Turn:** 168
+- **Eliminated By:** RiverLeague
+- **Final State:** 0 cities, 0 pop, 5 techs, 0 power
+
+**Event Timeline:**
+- Turn 1: 🏛️ City Founded
+- Turn 29: 🏛️ City Founded
+- Turn 35: 📚 Tech: ScriptLore
+- Turn 41: ⚔️ War declared by RiverLeague
+- Turn 50: 📚 Tech: StoneworkHalls
+- Turn 65: 📚 Tech: FormationTraining
+- Turn 108: 📚 Tech: DrilledRanks
+- Turn 137: 📚 Tech: Fieldcraft
+- Turn 154: 💀 City lost to RiverLeague
+- Turn 167: 💀 City lost to RiverLeague
+
+### Game 3: Seed 208008 (Standard)
+- **Eliminated on Turn:** 169
+- **Eliminated By:** AetherianVanguard
+- **Final State:** 0 cities, 0 pop, 6 techs, 0 power
+
+**Event Timeline:**
+- Turn 1: 🏛️ City Founded
+- Turn 25: 🏛️ City Founded
+- Turn 30: 🏛️ City Founded
+- Turn 31: ⚔️ War declared by AetherianVanguard
+- Turn 32: 📚 Tech: ScriptLore
+- Turn 42: 📚 Tech: FormationTraining
+- Turn 52: 📚 Tech: Fieldcraft
+- Turn 63: 📚 Tech: StoneworkHalls
+- Turn 67: ⚔️ War declared by ForgeClans
+- Turn 89: 📚 Tech: CityWards
+- Turn 114: 📚 Tech: DrilledRanks
+- Turn 129: ⚔️ War declared by AetherianVanguard
+- Turn 146: ⚔️ War declared by JadeCovenant
+- Turn 156: 💀 City lost to AetherianVanguard
+- Turn 160: 💀 City lost to AetherianVanguard
+- Turn 164: ⚔️ War declared by ForgeClans
+- Turn 168: 💀 City lost to AetherianVanguard
+
+### Game 4: Seed 406006 (Huge)
+- **Eliminated on Turn:** 189
+- **Eliminated By:** JadeCovenant
+- **Final State:** 0 cities, 0 pop, 4 techs, 0 power
+
+**Event Timeline:**
+- Turn 1: 🏛️ City Founded
+- Turn 41: 📚 Tech: ScriptLore
+- Turn 71: 📚 Tech: StoneworkHalls
+- Turn 101: 📚 Tech: FormationTraining
+- Turn 176: 📚 Tech: DrilledRanks
+- Turn 188: 💀 City lost to JadeCovenant
+- Turn 189: ⚔️ War declared by ForgeClans
+
+### Game 5: Seed 413013 (Huge)
+- **Eliminated on Turn:** 198
+- **Eliminated By:** AetherianVanguard
 - **Final State:** 0 cities, 0 pop, 5 techs, 0 power
 
 **Event Timeline:**
 - Turn 2: 🏛️ City Founded
-- Turn 41: 📚 Tech: ScriptLore
-- Turn 45: 🏛️ City Founded
-- Turn 58: 📚 Tech: StoneworkHalls
-- Turn 65: ⚔️ War declared by ForgeClans
-- Turn 73: 📚 Tech: Fieldcraft
-- Turn 87: 💀 City lost to ForgeClans
-- Turn 90: 📚 Tech: FormationTraining
-- Turn 113: ⚔️ War declared by JadeCovenant
-- Turn 114: ⚔️ War declared by StarborneSeekers
-- Turn 150: ⚔️ War declared by AetherianVanguard
-- Turn 160: ⚔️ War declared by RiverLeague
-- Turn 165: 📚 Tech: DrilledRanks
-- Turn 171: 💀 City lost to ForgeClans
-
-### Game 4: Seed 403003 (Huge)
-- **Eliminated on Turn:** 177
-- **Eliminated By:** AetherianVanguard
-- **Final State:** 0 cities, 0 pop, 7 techs, 0 power
-
-**Event Timeline:**
-- Turn 1: 🏛️ City Founded
-- Turn 30: 🏛️ City Founded
 - Turn 30: 📚 Tech: ScriptLore
-- Turn 40: 📚 Tech: StoneworkHalls
-- Turn 50: 📚 Tech: Fieldcraft
-- Turn 78: 📚 Tech: CityWards
-- Turn 92: 🏛️ City Founded
-- Turn 109: 🏛️ City Founded
-- Turn 110: 📚 Tech: ScholarCourts
-- Turn 118: 📚 Tech: FormationTraining
-- Turn 137: 📚 Tech: DrilledRanks
-- Turn 151: 💀 City lost to RiverLeague
-- Turn 152: 💀 City lost to RiverLeague
-- Turn 159: 🏛️ City Founded
-- Turn 160: ⚔️ War declared by StarborneSeekers
-- Turn 171: ⚔️ War declared by JadeCovenant
-- Turn 174: ⚔️ War declared by AetherianVanguard
-- Turn 175: 💀 City lost to RiverLeague
-- Turn 176: 💀 City lost to AetherianVanguard
+- Turn 45: 📚 Tech: StoneworkHalls
+- Turn 60: 📚 Tech: Fieldcraft
+- Turn 98: 📚 Tech: CityWards
+- Turn 148: 📚 Tech: ScholarCourts
+- Turn 162: ⚔️ War declared by AetherianVanguard
+- Turn 197: 💀 City lost to AetherianVanguard
 
-### Game 5: Seed 401001 (Huge)
-- **Eliminated on Turn:** 214
-- **Eliminated By:** RiverLeague
-- **Final State:** 0 cities, 0 pop, 8 techs, 0 power
-
-**Event Timeline:**
-- Turn 1: 🏛️ City Founded
-- Turn 25: 📚 Tech: ScriptLore
-- Turn 26: 🏛️ City Founded
-- Turn 34: 📚 Tech: StoneworkHalls
-- Turn 39: 🏛️ City Founded
-- Turn 42: 📚 Tech: Fieldcraft
-- Turn 57: 📚 Tech: CityWards
-- Turn 65: 🏛️ City Founded
-- Turn 65: 🏛️ City Founded
-- Turn 71: ⚔️ War declared by ForgeClans
-- Turn 74: 📚 Tech: ScholarCourts
-- Turn 79: 📚 Tech: FormationTraining
-- Turn 81: ⚔️ War declared by StarborneSeekers
-- Turn 90: 📚 Tech: DrilledRanks
-- Turn 102: 💀 City lost to StarborneSeekers
-- Turn 116: 💀 City lost to StarborneSeekers
-- Turn 116: 📚 Tech: ArmyDoctrine
-- Turn 136: ⚔️ War declared by JadeCovenant
-- Turn 136: 💀 City lost to ForgeClans
-- Turn 156: ⚔️ War declared by RiverLeague
-- ... (4 more events)
-
-### Game 6: Seed 304004 (Large)
-- **Eliminated on Turn:** 221
-- **Eliminated By:** JadeCovenant
-- **Final State:** 0 cities, 0 pop, 7 techs, 0 power
-
-**Event Timeline:**
-- Turn 1: 🏛️ City Founded
-- Turn 30: 🏛️ City Founded
-- Turn 36: 📚 Tech: ScriptLore
-- Turn 51: 📚 Tech: StoneworkHalls
-- Turn 62: 🏛️ City Founded
-- Turn 65: 📚 Tech: Fieldcraft
-- Turn 67: ⚔️ War declared by RiverLeague
-- Turn 69: 🏛️ City Founded
-- Turn 71: 🏛️ City Founded
-- Turn 82: 📚 Tech: CityWards
-- Turn 88: 📚 Tech: FormationTraining
-- Turn 100: ⚔️ War declared by AetherianVanguard
-- Turn 103: 📚 Tech: DrilledRanks
-- Turn 133: 📚 Tech: ArmyDoctrine
-- Turn 142: ⚔️ War declared by JadeCovenant
-- Turn 142: 💀 City lost to RiverLeague
-- Turn 156: 💀 City lost to JadeCovenant
-- Turn 191: 💀 City lost to JadeCovenant
-- Turn 195: ⚔️ War declared by StarborneSeekers
-- Turn 198: 💀 City lost to RiverLeague
-- ... (1 more events)
-
-### Game 7: Seed 303003 (Large)
-- **Eliminated on Turn:** 229
-- **Eliminated By:** JadeCovenant
-- **Final State:** 0 cities, 0 pop, 8 techs, 0 power
-
-**Event Timeline:**
-- Turn 1: 🏛️ City Founded
-- Turn 24: 🏛️ City Founded
-- Turn 33: 📚 Tech: ScriptLore
-- Turn 41: 🏛️ City Founded
-- Turn 46: 📚 Tech: StoneworkHalls
-- Turn 55: 🏛️ City Founded
-- Turn 56: 📚 Tech: Fieldcraft
-- Turn 65: 🏛️ City Founded
-- Turn 66: ⚔️ War declared by ForgeClans
-- Turn 73: 📚 Tech: CityWards
-- Turn 77: 💀 City lost to ForgeClans
-- Turn 80: 📚 Tech: FormationTraining
-- Turn 99: 📚 Tech: DrilledRanks
-- Turn 129: 📚 Tech: ArmyDoctrine
-- Turn 149: ⚔️ War declared by JadeCovenant
-- Turn 163: ⚔️ War declared by RiverLeague
-- Turn 196: 💀 City lost to JadeCovenant
-- Turn 198: ⚔️ War declared by RiverLeague
-- Turn 200: 💀 City lost to JadeCovenant
-- Turn 202: 💀 City lost to ForgeClans
-- ... (2 more events)
-
-### Game 8: Seed 418018 (Huge)
-- **Eliminated on Turn:** 233
-- **Eliminated By:** RiverLeague
-- **Final State:** 0 cities, 0 pop, 4 techs, 0 power
-
-**Event Timeline:**
-- Turn 1: 🏛️ City Founded
-- Turn 26: ⚔️ War declared by ForgeClans
-- Turn 27: 📚 Tech: StoneworkHalls
-- Turn 36: 🏛️ City Founded
-- Turn 36: 💀 City lost to ForgeClans
-- Turn 44: 💀 City lost to ForgeClans
-- Turn 53: 🏛️ City Founded
-- Turn 65: 📚 Tech: FormationTraining
-- Turn 81: ⚔️ War declared by RiverLeague
-- Turn 89: ⚔️ War declared by StarborneSeekers
-- Turn 95: 📚 Tech: Fieldcraft
-- Turn 148: ⚔️ War declared by AetherianVanguard
-- Turn 170: 📚 Tech: DrilledRanks
-- Turn 193: ⚔️ War declared by JadeCovenant
-- Turn 233: 💀 City lost to RiverLeague
-
-### Game 9: Seed 320020 (Large)
-- **Eliminated on Turn:** 239
+### Game 6: Seed 402002 (Huge)
+- **Eliminated on Turn:** 230
 - **Eliminated By:** AetherianVanguard
 - **Final State:** 0 cities, 0 pop, 6 techs, 0 power
 
 **Event Timeline:**
-- Turn 2: 🏛️ City Founded
-- Turn 88: 🏛️ City Founded
-- Turn 88: 📚 Tech: ScriptLore
-- Turn 103: 📚 Tech: FormationTraining
-- Turn 118: 📚 Tech: Fieldcraft
-- Turn 152: 📚 Tech: DrilledRanks
-- Turn 173: ⚔️ War declared by AetherianVanguard
-- Turn 177: 📚 Tech: Wellworks
+- Turn 1: 🏛️ City Founded
+- Turn 41: 📚 Tech: ScriptLore
+- Turn 71: 📚 Tech: StoneworkHalls
+- Turn 74: 🏛️ City Founded
+- Turn 85: 📚 Tech: Fieldcraft
+- Turn 123: 📚 Tech: CityWards
+- Turn 173: 📚 Tech: ScholarCourts
+- Turn 188: 📚 Tech: FormationTraining
 - Turn 219: 💀 City lost to AetherianVanguard
-- Turn 232: 📚 Tech: ArmyDoctrine
-- Turn 233: 💀 City lost to AetherianVanguard
-- Turn 235: ⚔️ War declared by ForgeClans
-- Turn 238: 💀 City lost to AetherianVanguard
+- Turn 229: 💀 City lost to AetherianVanguard
 
-### Game 10: Seed 218018 (Standard)
-- **Eliminated on Turn:** 243
+### Game 7: Seed 309009 (Large)
+- **Eliminated on Turn:** 267
+- **Eliminated By:** AetherianVanguard
+- **Final State:** 0 cities, 0 pop, 18 techs, 0 power
+
+**Event Timeline:**
+- Turn 1: 🏛️ City Founded
+- Turn 22: 🏛️ City Founded
+- Turn 28: 🏛️ City Founded
+- Turn 29: 📚 Tech: ScriptLore
+- Turn 37: 📚 Tech: StoneworkHalls
+- Turn 43: 📚 Tech: Fieldcraft
+- Turn 57: 🏛️ City Founded
+- Turn 58: 📚 Tech: CityWards
+- Turn 73: 📚 Tech: ScholarCourts
+- Turn 102: 📚 Tech: SignalRelay
+- Turn 121: 📚 Tech: StarCharts
+- Turn 149: 📚 Tech: PlasmaShields
+- Turn 153: ⚔️ War declared by RiverLeague
+- Turn 156: 📚 Tech: Wellworks
+- Turn 170: 📚 Tech: UrbanPlans
+- Turn 195: 📚 Tech: ZeroPointEnergy
+- Turn 202: 📚 Tech: TimberMills
+- Turn 213: 📚 Tech: SteamForges
+- Turn 215: 📚 Tech: FormationTraining
+- Turn 220: 📚 Tech: DrilledRanks
+- ... (8 more events)
+
+### Game 8: Seed 403003 (Huge)
+- **Eliminated on Turn:** 270
+- **Eliminated By:** JadeCovenant
+- **Final State:** 0 cities, 0 pop, 7 techs, 0 power
+
+**Event Timeline:**
+- Turn 1: 🏛️ City Founded
+- Turn 30: 📚 Tech: ScriptLore
+- Turn 45: 📚 Tech: StoneworkHalls
+- Turn 60: 📚 Tech: Fieldcraft
+- Turn 85: ⚔️ War declared by RiverLeague
+- Turn 98: 📚 Tech: CityWards
+- Turn 113: 📚 Tech: FormationTraining
+- Turn 151: 📚 Tech: DrilledRanks
+- Turn 164: ⚔️ War declared by JadeCovenant
+- Turn 226: 📚 Tech: ArmyDoctrine
+- Turn 249: ⚔️ War declared by AetherianVanguard
+- Turn 269: 💀 City lost to JadeCovenant
+
+### Game 9: Seed 307007 (Large)
+- **Eliminated on Turn:** 272
+- **Eliminated By:** ForgeClans
+- **Final State:** 0 cities, 0 pop, 6 techs, 0 power
+
+**Event Timeline:**
+- Turn 1: 🏛️ City Founded
+- Turn 30: 📚 Tech: StoneworkHalls
+- Turn 45: 📚 Tech: Fieldcraft
+- Turn 65: 📚 Tech: ScriptLore
+- Turn 67: ⚔️ War declared by ForgeClans
+- Turn 70: ⚔️ War declared by RiverLeague
+- Turn 78: 🏛️ City Founded
+- Turn 101: 📚 Tech: CityWards
+- Turn 110: ⚔️ War declared by RiverLeague
+- Turn 111: 📚 Tech: FormationTraining
+- Turn 131: 💀 City lost to ForgeClans
+- Turn 146: 📚 Tech: DrilledRanks
+- Turn 256: ⚔️ War declared by StarborneSeekers
+- Turn 271: 💀 City lost to ForgeClans
+
+### Game 10: Seed 319019 (Large)
+- **Eliminated on Turn:** 292
 - **Eliminated By:** RiverLeague
 - **Final State:** 0 cities, 0 pop, 7 techs, 0 power
 
 **Event Timeline:**
 - Turn 2: 🏛️ City Founded
-- Turn 21: 📚 Tech: ScriptLore
-- Turn 31: 🏛️ City Founded
-- Turn 34: 📚 Tech: StoneworkHalls
-- Turn 44: 📚 Tech: Fieldcraft
-- Turn 69: 📚 Tech: CityWards
-- Turn 79: 📚 Tech: FormationTraining
-- Turn 84: 🏛️ City Founded
-- Turn 100: 📚 Tech: DrilledRanks
-- Turn 150: 📚 Tech: ArmyDoctrine
-- Turn 237: 💀 City lost to RiverLeague
-- Turn 238: ⚔️ War declared by ForgeClans
-- Turn 242: 💀 City lost to RiverLeague
+- Turn 28: 📚 Tech: ScriptLore
+- Turn 52: ⚔️ War declared by RiverLeague
+- Turn 56: 📚 Tech: StoneworkHalls
+- Turn 73: ⚔️ War declared by JadeCovenant
+- Turn 83: 📚 Tech: FormationTraining
+- Turn 121: 📚 Tech: DrilledRanks
+- Turn 136: 📚 Tech: Fieldcraft
+- Turn 174: 📚 Tech: Wellworks
+- Turn 249: 📚 Tech: ArmyDoctrine
+- Turn 291: 💀 City lost to RiverLeague
 
 ## Key Insights
 
-- **Most Dangerous Opponent:** JadeCovenant (eliminated Scholar Kingdoms 5 times)
+- **Most Dangerous Opponent:** AetherianVanguard (eliminated Scholar Kingdoms 5 times)
 - **Early Eliminations (before turn 100):** 0
-- **Late Eliminations (turn 100+):** 19
-- **Avg Wars Received (eliminated games):** 3.7
-- **Avg Wars Received (survived games):** 3.5
+- **Late Eliminations (turn 100+):** 15
+- **Avg Wars Received (eliminated games):** 2.3
+- **Avg Wars Received (survived games):** 3.1
 
 ---
-*Report generated 2026-02-26T20:06:03.196Z*
+*Report generated 2026-02-27T18:44:31.116Z*

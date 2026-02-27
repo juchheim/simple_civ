@@ -18,6 +18,8 @@ import {
     getCityStateName,
     getCityStateYieldBonusesForPlayer,
     investInCityState,
+    processCityStateInfluenceContestation,
+    resolveCityStateSuzerain,
     syncCityStateWarTransfers,
 } from "./city-states.js";
 
@@ -103,16 +105,73 @@ describe("city-state influence", () => {
         state.players[0].treasury = 200;
 
         const firstCost = investInCityState(state, "p1", cityState.id);
-        expect(firstCost).toBe(40);
-        expect(cityState.influenceByPlayer.p1).toBe(50); // 30 starter + 20 invest
-        expect(state.players[0].treasury).toBe(160);
+        expect(firstCost).toBe(24);
+        expect(cityState.influenceByPlayer.p1).toBe(54); // 30 starter + 24 invest
+        expect(state.players[0].treasury).toBe(176);
 
         expect(() => investInCityState(state, "p1", cityState.id)).toThrow();
 
         state.turn += 1;
         const secondCost = investInCityState(state, "p1", cityState.id);
-        expect(secondCost).toBe(48);
-        expect(cityState.influenceByPlayer.p1).toBe(70);
+        expect(secondCost).toBe(26);
+        expect(cityState.influenceByPlayer.p1).toBe(78);
+    });
+
+    it("retains incumbent suzerainty during close contests until challenger has clear edge", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 40;
+        cityState.influenceByPlayer.p2 = 35;
+
+        const suzerain = resolveCityStateSuzerain(state, cityState.id);
+        expect(suzerain).toBe("p1");
+        expect(cityState.suzerainId).toBe("p1");
+    });
+
+    it("gives challengers extra influence pressure when investing against an incumbent", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        cityState.discoveredByPlayer.p2 = true;
+        state.players[1].treasury = 200;
+
+        const cost = investInCityState(state, "p2", cityState.id);
+        expect(cost).toBe(30);
+        expect(cityState.influenceByPlayer.p2).toBe(40);
+        expect(cityState.influenceByPlayer.p1).toBe(18);
+        expect(cityState.suzerainId).toBe("p2");
+    });
+
+    it("applies periodic contestation pressure during end-of-round cadence", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        state.turn = 12; // contestation interval multiple
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 50;
+        cityState.influenceByPlayer.p2 = 35;
+
+        processCityStateInfluenceContestation(state);
+
+        expect(cityState.influenceByPlayer.p1).toBe(46);
+        expect(cityState.influenceByPlayer.p2).toBe(37);
+        expect(cityState.suzerainId).toBe("p1");
+    });
+
+    it("continues contestation pressure during wartime lock to allow post-war turnover setup", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        state.turn = 12;
+        cityState.lockedControllerId = "p1";
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 50;
+        cityState.influenceByPlayer.p2 = 35;
+
+        processCityStateInfluenceContestation(state);
+
+        expect(cityState.influenceByPlayer.p1).toBe(45);
+        expect(cityState.influenceByPlayer.p2).toBe(38);
+        expect(cityState.suzerainId).toBe("p1");
     });
 });
 
@@ -139,7 +198,7 @@ describe("city-state yield bonuses", () => {
         ];
 
         const bonus = getCityStateYieldBonusesForPlayer(state, "p1");
-        expect(bonus.Science).toBeCloseTo(6.6, 5);
+        expect(bonus.Science).toBeCloseTo(9.8, 5);
     });
 });
 

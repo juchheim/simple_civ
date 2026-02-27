@@ -11,6 +11,10 @@ export type CityStateInvestmentOption = {
     cost: number;
 };
 
+export type CityStateInvestmentPickOptions = {
+    preferTurnover?: boolean;
+};
+
 const YIELD_PRIORITY_BY_GOAL: Record<AiVictoryGoal, Record<CityStateYieldType, number>> = {
     Progress: {
         Science: 1.4,
@@ -33,20 +37,50 @@ const YIELD_PRIORITY_BY_GOAL: Record<AiVictoryGoal, Record<CityStateYieldType, n
 };
 
 const INVEST_COST_WEIGHT_BY_STATE: Record<"Healthy" | "Guarded" | "Strained" | "Crisis", number> = {
-    Healthy: 0.17,
-    Guarded: 0.2,
-    Strained: 0.27,
-    Crisis: 0.36,
+    Healthy: 0.1,
+    Guarded: 0.13,
+    Strained: 0.17,
+    Crisis: 0.25,
 };
 
 const INVEST_RESERVE_MULT_BY_STATE: Record<"Healthy" | "Guarded" | "Strained" | "Crisis", number> = {
-    Healthy: 0.9,
-    Guarded: 1.0,
-    Strained: 1.15,
-    Crisis: 1.35,
+    Healthy: 0.5,
+    Guarded: 0.64,
+    Strained: 0.8,
+    Crisis: 1,
 };
 
-const OFFENSIVE_WAR_SCORE_THRESHOLD = 34;
+const OFFENSIVE_WAR_SCORE_THRESHOLD = 30;
+const INVEST_PREFERRED_SCORE_FLOOR = 0.66;
+const INCUMBENT_SAFE_LEAD_MULT = 0.85;
+const INCUMBENT_NO_RIVAL_INFLUENCE_FLOOR = 0.45;
+const INCUMBENT_WAR_PRESSURE_BONUS_PER_WAR = 6;
+const INCUMBENT_WAR_PRESSURE_BONUS_MAX = 24;
+const TURNOVER_CAMPAIGN_WINDOW_MULT = 3;
+const TURNOVER_DEEP_BEHIND_MULT = 4;
+const TURNOVER_FLIP_WINDOW_MULT = 1.35;
+const TURNOVER_RACE_COST_RELIEF = 0.55;
+const TURNOVER_LIVE_RACE_GAP_MULT = 3;
+
+function getInfluenceGapToSuzerain(cityState: CityState, playerId: string): number {
+    const suzerainId = cityState.suzerainId;
+    if (!suzerainId || suzerainId === playerId) return Number.POSITIVE_INFINITY;
+    const myInfluence = cityState.influenceByPlayer[playerId] ?? 0;
+    const suzerainInfluence = cityState.influenceByPlayer[suzerainId] ?? 0;
+    return suzerainInfluence - myInfluence;
+}
+
+export function isCityStateTurnoverCandidate(
+    cityState: CityState,
+    playerId: string,
+    gapWindowMult = TURNOVER_LIVE_RACE_GAP_MULT,
+): boolean {
+    if (!cityState.suzerainId || cityState.suzerainId === playerId) return false;
+    if (!cityState.discoveredByPlayer[playerId]) return false;
+    if (cityState.warByPlayer[playerId]) return false;
+    const gapToIncumbent = getInfluenceGapToSuzerain(cityState, playerId);
+    return gapToIncumbent <= Math.ceil(CITY_STATE_INVEST_GAIN * gapWindowMult);
+}
 
 function nearestCityDistance(state: GameState, playerId: string, coord: { q: number; r: number }): number {
     const cities = state.cities.filter(c => c.ownerId === playerId);
@@ -115,6 +149,17 @@ function getMajorWarCount(state: GameState, playerId: string): number {
     return wars;
 }
 
+function getTopRivalInfluence(state: GameState, cityState: CityState, playerId: string): number {
+    let top = 0;
+    for (const player of state.players) {
+        if (player.id === playerId || player.isEliminated) continue;
+        if (cityState.warByPlayer[player.id]) continue;
+        const influence = cityState.influenceByPlayer[player.id] ?? 0;
+        if (influence > top) top = influence;
+    }
+    return top;
+}
+
 function scoreCityStateInvestmentOption(
     state: GameState,
     playerId: string,
@@ -130,53 +175,137 @@ function scoreCityStateInvestmentOption(
     if (treasury < cost) return undefined;
 
     const myInfluence = cityState.influenceByPlayer[playerId] ?? 0;
+    const topRivalInfluence = getTopRivalInfluence(state, cityState, playerId);
     const topInfluence = Math.max(...Object.values(cityState.influenceByPlayer));
+    const incumbentId = cityState.suzerainId;
+    const incumbentInfluence = incumbentId ? (cityState.influenceByPlayer[incumbentId] ?? 0) : 0;
     const isSuzerain = cityState.suzerainId === playerId;
+    const challengingIncumbent = !!incumbentId && incumbentId !== playerId;
     const gain = CITY_STATE_INVEST_GAIN;
     const gapToTop = topInfluence - myInfluence;
+    const gapToIncumbent = challengingIncumbent ? Math.max(0, incumbentInfluence - myInfluence) : Number.POSITIVE_INFINITY;
+    const leadOverTopRival = myInfluence - topRivalInfluence;
+    const contestWindow = Math.abs(leadOverTopRival);
     const overtakesTop = isSuzerain ? (myInfluence + gain >= topInfluence) : (myInfluence + gain > topInfluence);
+    const turnoverCampaignWindow = Math.ceil(gain * TURNOVER_CAMPAIGN_WINDOW_MULT);
+    const turnoverDeepBehindWindow = Math.ceil(gain * TURNOVER_DEEP_BEHIND_MULT);
+    const turnoverFlipWindow = Math.ceil(gain * TURNOVER_FLIP_WINDOW_MULT);
+    const inLiveTurnoverWindow = challengingIncumbent && gapToIncumbent <= turnoverCampaignWindow;
+    const inFlipWindow = challengingIncumbent && gapToIncumbent <= turnoverFlipWindow;
+    const deeplyBehindIncumbent = challengingIncumbent && gapToIncumbent > turnoverDeepBehindWindow;
+    const rivalChallengerCount = state.players
+        .filter(p => p.id !== playerId && !p.isEliminated)
+        .filter(p => p.id !== incumbentId)
+        .filter(p => !cityState.warByPlayer[p.id])
+        .filter(p => (cityState.influenceByPlayer[p.id] ?? 0) > 0)
+        .length;
     const nearestDist = nearestCityDistance(state, playerId, cityState.coord);
 
     const reserveFloor = Math.ceil(economy.reserveFloor * INVEST_RESERVE_MULT_BY_STATE[economy.economyState]);
     const reserveSafeAfterSpend = (treasury - cost) >= reserveFloor;
-    const defensiveMaintenance = isSuzerain && gapToTop >= 0 && gapToTop <= gain && topInfluence > 0;
+    const defensiveMaintenance = isSuzerain && topRivalInfluence > 0 && contestWindow <= Math.ceil(gain * 0.85);
+    const incumbentReserveFloor = Math.ceil(
+        economy.reserveFloor * Math.max(0.75, INVEST_RESERVE_MULT_BY_STATE[economy.economyState] + 0.15)
+    );
+    const incumbentReserveSafeAfterSpend = (treasury - cost) >= incumbentReserveFloor;
     if (!reserveSafeAfterSpend && !defensiveMaintenance) return undefined;
+    if (isSuzerain && !defensiveMaintenance && !incumbentReserveSafeAfterSpend) return undefined;
+    if (
+        isSuzerain &&
+        topRivalInfluence <= 0 &&
+        myInfluence >= Math.ceil(gain * INCUMBENT_NO_RIVAL_INFLUENCE_FLOOR)
+    ) {
+        return undefined;
+    }
+    if (
+        isSuzerain &&
+        !defensiveMaintenance &&
+        topRivalInfluence > 0 &&
+        leadOverTopRival >= Math.ceil(gain * INCUMBENT_SAFE_LEAD_MULT)
+    ) {
+        return undefined;
+    }
 
     const sameTypeCount = getControlledSameTypeCount(state, playerId, cityState.yieldType);
     const marginal = getSameTypeMarginalMultiplier(sameTypeCount);
     const yieldPriority = getYieldPriority(goal, cityState.yieldType, economy.economyState);
-    const yieldScore = (26 * yieldPriority * marginal) + (sameTypeCount === 0 ? 10 : 0);
+    const yieldScoreBase = (31 * yieldPriority * marginal) + (sameTypeCount === 0 ? 14 : 0);
+    const yieldScore = isSuzerain ? (yieldScoreBase * 0.72) : yieldScoreBase;
 
     let suzerainRaceScore = 0;
     if (isSuzerain) {
-        suzerainRaceScore = gapToTop > 0
-            ? (16 + (gapToTop * 0.85))
-            : 4;
+        suzerainRaceScore = topRivalInfluence > 0 && contestWindow <= gain
+            ? (24 + ((gain - contestWindow) * 1.25))
+            : 0;
     } else if (overtakesTop) {
-        suzerainRaceScore = 44 + Math.max(0, 8 - gapToTop);
+        suzerainRaceScore = 78 + Math.max(0, (gain * 1.8) - gapToTop);
     } else {
-        suzerainRaceScore = Math.max(0, 20 - (gapToTop * 0.95));
+        const nearOvertakeWindow = Math.max(0, (gain * 3) - gapToTop);
+        suzerainRaceScore = nearOvertakeWindow > 0
+            ? (36 + (nearOvertakeWindow * 1.45))
+            : Math.max(0, 12 - (gapToTop * 0.45));
     }
 
     const proximityScore = Math.max(0, 10 - nearestDist) * 1.9;
-    const enemySuzerainPressure = cityState.suzerainId && state.diplomacy?.[playerId]?.[cityState.suzerainId] === "War"
+    const antiIncumbentBonus = challengingIncumbent
+        ? (gapToTop <= (gain * 2) ? 14 : 6)
+        : 0;
+    const incumbentWarCount = incumbentId
+        ? getMajorWarCount(state, incumbentId)
+        : 0;
+    const incumbentWarPressureBonus = challengingIncumbent && incumbentWarCount > 0
+        ? Math.min(INCUMBENT_WAR_PRESSURE_BONUS_MAX, incumbentWarCount * INCUMBENT_WAR_PRESSURE_BONUS_PER_WAR)
+        : 0;
+    const turnoverMomentumBonus = challengingIncumbent
+        ? (gapToTop <= turnoverCampaignWindow
+            ? (8 + (Math.max(0, turnoverCampaignWindow - gapToTop) * 1.05))
+            : 0)
+        : 0;
+    const challengerCoalitionBonus = challengingIncumbent
+        ? ((rivalChallengerCount > 0 ? 8 : 0) + (rivalChallengerCount * 4))
+        : 0;
+    const firstMoverChallengeBonus = challengingIncumbent && rivalChallengerCount === 0 && gapToIncumbent <= (gain * 2)
         ? 8
         : 0;
-    const warPenalty = economy.atWar && !isSuzerain && !overtakesTop
-        ? 9
+    const turnoverFlipBonus = inFlipWindow
+        ? 28
+        : inLiveTurnoverWindow
+            ? 16
+            : 0;
+    const entrenchedIncumbentPenalty = deeplyBehindIncumbent
+        ? Math.min(26, 10 + ((gapToIncumbent - turnoverDeepBehindWindow) * 0.45))
         : 0;
-    const crisisPenalty = economy.economyState === "Crisis" && cityState.yieldType !== "Gold"
+    const incumbencyComplacencyPenalty = isSuzerain && !defensiveMaintenance && leadOverTopRival > (gain * 0.35)
+        ? Math.min(34, 10 + ((leadOverTopRival - (gain * 0.35)) * 0.7))
+        : 0;
+    const enemySuzerainPressure = incumbentId && state.diplomacy?.[playerId]?.[incumbentId] === "War"
+        ? 18
+        : 0;
+    const warPenalty = economy.atWar && !isSuzerain && !overtakesTop && !inLiveTurnoverWindow
         ? 6
         : 0;
-    const costPenalty = cost * INVEST_COST_WEIGHT_BY_STATE[economy.economyState];
+    const crisisPenalty = economy.economyState === "Crisis" && cityState.yieldType !== "Gold"
+        ? 4
+        : 0;
+    const costPenalty = cost
+        * INVEST_COST_WEIGHT_BY_STATE[economy.economyState]
+        * (inLiveTurnoverWindow ? TURNOVER_RACE_COST_RELIEF : 1);
 
     const score = yieldScore
         + suzerainRaceScore
         + proximityScore
+        + antiIncumbentBonus
+        + incumbentWarPressureBonus
+        + turnoverMomentumBonus
+        + challengerCoalitionBonus
+        + firstMoverChallengeBonus
+        + turnoverFlipBonus
         + enemySuzerainPressure
         - warPenalty
         - crisisPenalty
-        - costPenalty;
+        - costPenalty
+        - incumbencyComplacencyPenalty
+        - entrenchedIncumbentPenalty;
 
     if (score <= 0) return undefined;
     return {
@@ -190,6 +319,8 @@ export function pickCityStateInvestmentTarget(
     state: GameState,
     playerId: string,
     goal: AiVictoryGoal,
+    preferredCityStateId?: string,
+    options?: CityStateInvestmentPickOptions,
 ): CityStateInvestmentOption | undefined {
     const cityStates = state.cityStates ?? [];
     if (cityStates.length === 0) return undefined;
@@ -202,8 +333,29 @@ export function pickCityStateInvestmentTarget(
         .map(cs => scoreCityStateInvestmentOption(state, playerId, goal, cs, economy))
         .filter((option): option is CityStateInvestmentOption => !!option)
         .sort((a, b) => b.score - a.score || a.cost - b.cost);
+    if (candidates.length === 0) return undefined;
 
-    return candidates[0];
+    const cityStateById = new Map(cityStates.map(cs => [cs.id, cs]));
+    const turnoverCandidates = options?.preferTurnover
+        ? candidates.filter(candidate => {
+            const cityState = cityStateById.get(candidate.cityStateId);
+            if (!cityState) return false;
+            return isCityStateTurnoverCandidate(cityState, playerId);
+        })
+        : candidates;
+    const candidatePool = turnoverCandidates.length > 0 ? turnoverCandidates : candidates;
+
+    if (preferredCityStateId && candidatePool.length > 0) {
+        const preferred = candidatePool.find(candidate => candidate.cityStateId === preferredCityStateId);
+        if (preferred) {
+            const bestScore = candidatePool[0].score;
+            if (preferred.score >= (bestScore * INVEST_PREFERRED_SCORE_FLOOR)) {
+                return preferred;
+            }
+        }
+    }
+
+    return candidatePool[0];
 }
 
 export function getOffensiveCityStateOwnerIds(

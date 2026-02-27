@@ -94,4 +94,43 @@ describe("Theater Manager", () => {
         const cluster = theaters.find(t => t.targetPlayerId === "p2");
         expect(cluster?.anchorCityId).toBe("home");
     });
+
+    it("adds active city-state wars to operational theaters", () => {
+        const state = baseState();
+        state.players = [
+            mkPlayer("p1", "ForgeClans"),
+            mkPlayer("p2", "RiverLeague"),
+        ];
+        state.cities = [
+            mkCity("p1", "home", 0, 0, { capital: true }),
+            mkCity("cs_owner_1", "cs-city-1", 3, 0),
+        ];
+        state.cityStates = [
+            {
+                id: "cs1",
+                ownerId: "cs_owner_1",
+                cityId: "cs-city-1",
+                coord: { q: 3, r: 0 },
+                name: "CityStateOne",
+                yieldType: "Production",
+                influenceByPlayer: { p1: 0, p2: 0 },
+                investmentCountByPlayer: { p1: 0, p2: 0 },
+                lastInvestTurnByPlayer: { p1: -1, p2: -1 },
+                suzerainId: undefined,
+                lockedControllerId: undefined,
+                discoveredByPlayer: { p1: true, p2: false },
+                lastReinforcementTurn: 0,
+                warByPlayer: { p1: true, p2: false },
+            },
+        ];
+        state.diplomacy = {
+            p1: { p2: DiplomacyState.Peace },
+            p2: { p1: DiplomacyState.Peace },
+        };
+
+        const theaters = buildOperationalTheaters(state, "p1");
+        const cityStateTheater = theaters.find(t => t.targetPlayerId === "cs_owner_1");
+        expect(cityStateTheater).toBeDefined();
+        expect(cityStateTheater?.objective).toBe("pressure");
+    });
 });

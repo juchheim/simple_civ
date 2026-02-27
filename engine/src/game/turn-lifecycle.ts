@@ -28,6 +28,7 @@ import { processNativeTurn } from "./natives/native-behavior.js";
 import {
     getCityStateYieldBonusesForPlayer,
     getFoodProductionTargetCity,
+    processCityStateInfluenceContestation,
     processCityStateReinforcement,
 } from "./city-states.js";
 
@@ -281,6 +282,7 @@ function processPlayerCities(state: GameState, player: Player) {
 export function runEndOfRound(state: GameState) {
     // Process native camp behavior before victory checks
     processNativeTurn(state);
+    processCityStateInfluenceContestation(state);
     processCityStateReinforcement(state);
 
     processEndOfRound(state);
