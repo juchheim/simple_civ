@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DiplomacyState, GameState, PlayerPhase } from "../../../core/types.js";
-import { computeCityStateInvestmentCadence } from "./diplomacy.js";
+import { computeCityStateInvestmentCadence, runDiplomacy } from "./diplomacy.js";
 import { EconomySnapshot } from "../economy/budget.js";
+import { setAiMemoryV2 } from "../memory.js";
 
 function createBaseState(): GameState {
     return {
@@ -101,6 +102,13 @@ function addCityState(
         discovered?: boolean;
         atWar?: boolean;
         investedThisTurn?: boolean;
+        lastSuzerainChangeTurn?: number;
+        recentSuzerainChangeCount?: number;
+        lastSuzerainChangeCause?: "Investment" | "PassiveContestation" | "WartimeRelease" | "WarBreak" | "Other";
+        lastSuzerainHolderId?: string;
+        recentSuzerainPairKey?: string;
+        recentSuzerainPairChangeCount?: number;
+        recentSuzerainPairTurn?: number;
     },
 ): void {
     const myInfluence = input.myInfluence ?? 0;
@@ -120,6 +128,13 @@ function addCityState(
         discoveredByPlayer: { p1: input.discovered ?? true, p2: true },
         lastReinforcementTurn: 0,
         warByPlayer: { p1: input.atWar ?? false, p2: false },
+        lastSuzerainChangeTurn: input.lastSuzerainChangeTurn,
+        recentSuzerainChangeCount: input.recentSuzerainChangeCount,
+        lastSuzerainChangeCause: input.lastSuzerainChangeCause,
+        lastSuzerainHolderId: input.lastSuzerainHolderId,
+        recentSuzerainPairKey: input.recentSuzerainPairKey,
+        recentSuzerainPairChangeCount: input.recentSuzerainPairChangeCount,
+        recentSuzerainPairTurn: input.recentSuzerainPairTurn,
     });
 }
 
@@ -179,6 +194,20 @@ describe("computeCityStateInvestmentCadence", () => {
         expect(cadence).toBe(2);
     });
 
+    it("does not force extra cadence for a purely defensive focus campaign", () => {
+        const state = createBaseState();
+        addCityState(state, { id: "cs1", myInfluence: 30, rivalInfluence: 18, suzerainId: "p1" });
+        addCityState(state, { id: "cs2", myInfluence: 0, rivalInfluence: 100, suzerainId: "p2" });
+
+        const cadence = computeCityStateInvestmentCadence(
+            state,
+            "p1",
+            "cs1",
+            economySnapshot({ economyState: "Guarded", spendableTreasury: 160, netGold: 4 }),
+        );
+        expect(cadence).toBe(1);
+    });
+
     it("clamps to one investment in crisis", () => {
         const state = createBaseState();
         addCityState(state, { id: "cs1", myInfluence: 8, rivalInfluence: 28, suzerainId: "p2" });
@@ -209,4 +238,99 @@ describe("computeCityStateInvestmentCadence", () => {
         );
         expect(cadence).toBe(2);
     });
+
+    it("clears stale safe incumbent focus instead of refreshing it indefinitely", () => {
+        let state = createBaseState();
+        state.turn = 90;
+        addCityState(state, { id: "cs1", myInfluence: 44, rivalInfluence: 4, suzerainId: "p1" });
+        state = setAiMemoryV2(state, "p1", {
+            cityStateFocusId: "cs1",
+            cityStateFocusSetTurn: 60,
+        });
+
+        const next = runDiplomacy(state, "p1", "Balanced");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusId).toBeUndefined();
+        expect(next.players.find(player => player.id === "p1")?.treasury).toBe(200);
+    });
+
+    it("drops defensive focus when rival influence is below the meaningful threat floor", () => {
+        let state = createBaseState();
+        state.turn = 90;
+        addCityState(state, { id: "cs1", myInfluence: 28, rivalInfluence: 2, suzerainId: "p1" });
+        state = setAiMemoryV2(state, "p1", {
+            cityStateFocusId: "cs1",
+            cityStateFocusSetTurn: 88,
+        });
+
+        const next = runDiplomacy(state, "p1", "Balanced");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusId).toBeUndefined();
+        expect(next.cityStates?.find(cityState => cityState.id === "cs1")?.lastInvestTurnByPlayer.p1).toBe(-1);
+    });
+
+    it("keeps challenger focus fresh while a live turnover campaign is still active", () => {
+        let state = createBaseState();
+        state.turn = 90;
+        addCityState(state, { id: "cs1", myInfluence: 20, rivalInfluence: 78, suzerainId: "p2" });
+        state = setAiMemoryV2(state, "p1", {
+            cityStateFocusId: "cs1",
+            cityStateFocusSetTurn: 60,
+        });
+
+        const next = runDiplomacy(state, "p1", "Balanced");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusId).toBe("cs1");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusSetTurn).toBe(90);
+        expect(next.players.find(player => player.id === "p1")?.treasury).toBeLessThan(200);
+    });
+
+    it("keeps the primary turnover target as focus when secondary spends happen later in the turn", () => {
+        let state = createBaseState();
+        state.turn = 90;
+        addCityState(state, { id: "cs1", myInfluence: 20, rivalInfluence: 78, suzerainId: "p2" });
+        addCityState(state, { id: "cs2", myInfluence: 10, rivalInfluence: 26, suzerainId: "p2" });
+        state = setAiMemoryV2(state, "p1", {
+            cityStateFocusId: "cs1",
+            cityStateFocusSetTurn: 88,
+        });
+
+        const next = runDiplomacy(state, "p1", "Balanced");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusId).toBe("cs1");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusSetTurn).toBe(90);
+        expect(next.players.find(player => player.id === "p1")?.treasury).toBeLessThanOrEqual(140);
+        expect(next.cityStates?.find(cityState => cityState.id === "cs1")?.lastInvestTurnByPlayer.p1).toBe(90);
+        expect(next.cityStates?.find(cityState => cityState.id === "cs2")?.lastInvestTurnByPlayer.p1).toBe(90);
+    });
+
+    it("drops hotspot pair-loop incumbent focus and redirects spending to another live race", () => {
+        let state = createBaseState();
+        state.turn = 96;
+        addCityState(state, {
+            id: "looped",
+            myInfluence: 40,
+            rivalInfluence: 28,
+            suzerainId: "p1",
+            lastSuzerainChangeTurn: 94,
+            recentSuzerainChangeCount: 4,
+            lastSuzerainChangeCause: "Investment",
+            lastSuzerainHolderId: "p2",
+            recentSuzerainPairKey: "p1|p2",
+            recentSuzerainPairChangeCount: 4,
+            recentSuzerainPairTurn: 94,
+        });
+        addCityState(state, {
+            id: "fresh",
+            myInfluence: 16,
+            rivalInfluence: 34,
+            suzerainId: "p2",
+        });
+        state = setAiMemoryV2(state, "p1", {
+            cityStateFocusId: "looped",
+            cityStateFocusSetTurn: 94,
+        });
+
+        const next = runDiplomacy(state, "p1", "Balanced");
+        expect(next.aiMemoryV2?.p1?.cityStateFocusId).not.toBe("looped");
+        expect(next.cityStates?.find(cityState => cityState.id === "looped")?.lastInvestTurnByPlayer.p1).toBe(-1);
+        expect(next.cityStates?.find(cityState => cityState.id === "fresh")?.lastInvestTurnByPlayer.p1).toBe(96);
+    });
+
 });

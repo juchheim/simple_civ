@@ -15,6 +15,8 @@ import {
 } from "../core/constants.js";
 import {
     createCityStateFromClearedCamp,
+    getCityStateInvestDecisionCost,
+    getCityStateInvestCost,
     getCityStateName,
     getCityStateYieldBonusesForPlayer,
     investInCityState,
@@ -130,6 +132,44 @@ describe("city-state influence", () => {
         expect(cityState.suzerainId).toBe("p1");
     });
 
+    it("adds extra incumbent stability after repeated recent suzerain flips", () => {
+        const state = makeState();
+        state.turn = 20;
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 40;
+        cityState.influenceByPlayer.p2 = 54;
+        cityState.lastSuzerainChangeTurn = 18;
+        cityState.recentSuzerainChangeCount = 4;
+        cityState.lastSuzerainChangeCause = "Investment";
+
+        const suzerain = resolveCityStateSuzerain(state, cityState.id);
+        expect(suzerain).toBe("p1");
+        expect(cityState.suzerainId).toBe("p1");
+    });
+
+    it("prevents immediate pairwise reclaim loops without a clear extra margin", () => {
+        const state = makeState();
+        state.turn = 24;
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p2", 20)!;
+
+        cityState.discoveredByPlayer.p1 = true;
+        cityState.suzerainId = "p2";
+        cityState.influenceByPlayer.p1 = 52;
+        cityState.influenceByPlayer.p2 = 44;
+        cityState.lastSuzerainChangeTurn = 22;
+        cityState.lastSuzerainChangeCause = "Investment";
+        cityState.lastSuzerainHolderId = "p1";
+        cityState.recentSuzerainPairKey = "p1|p2";
+        cityState.recentSuzerainPairChangeCount = 2;
+        cityState.recentSuzerainPairTurn = 22;
+
+        const suzerain = resolveCityStateSuzerain(state, cityState.id);
+        expect(suzerain).toBe("p2");
+        expect(cityState.suzerainId).toBe("p2");
+    });
+
     it("gives challengers extra influence pressure when investing against an incumbent", () => {
         const state = makeState();
         const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
@@ -141,6 +181,55 @@ describe("city-state influence", () => {
         expect(cityState.influenceByPlayer.p2).toBe(40);
         expect(cityState.influenceByPlayer.p1).toBe(18);
         expect(cityState.suzerainId).toBe("p2");
+    });
+
+    it("discounts challenger investment cost during a recent passive opening", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.lastPassiveContestationCloseRaceTurn = state.turn - 1;
+        state.players[1].treasury = 200;
+
+        expect(getCityStateInvestCost(cityState, "p2", state)).toBe(24);
+        const cost = investInCityState(state, "p2", cityState.id);
+        expect(cost).toBe(24);
+        expect(state.players[1].treasury).toBe(176);
+    });
+
+    it("caps the maintenance ramp for long-held suzerain investments", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.suzerainId = "p1";
+        cityState.investmentCountByPlayer.p1 = 9;
+
+        expect(getCityStateInvestCost(cityState, "p1", state)).toBe(39);
+        expect(getCityStateInvestDecisionCost(cityState, "p1", state)).toBe(48);
+    });
+
+    it("applies reclaim fatigue to repeated two-civ suzerain loops", () => {
+        const state = makeState();
+        state.turn = 24;
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p2", 20)!;
+        cityState.discoveredByPlayer.p1 = true;
+        state.players[0].treasury = 200;
+
+        cityState.suzerainId = "p2";
+        cityState.influenceByPlayer.p1 = 20;
+        cityState.influenceByPlayer.p2 = 30;
+        cityState.lastSuzerainHolderId = "p1";
+        cityState.recentSuzerainPairKey = "p1|p2";
+        cityState.recentSuzerainPairChangeCount = 2;
+        cityState.recentSuzerainPairTurn = 23;
+
+        const cost = investInCityState(state, "p1", cityState.id);
+        expect(cost).toBe(30);
+        expect(cityState.influenceByPlayer.p1).toBe(52);
+        expect(cityState.influenceByPlayer.p2).toBe(24);
+        expect(cityState.suzerainId).toBe("p1");
+        expect(cityState.lastPairFatigueTurnByPlayer?.p1).toBe(24);
+        expect(cityState.lastPairFatigueBonusReductionByPlayer?.p1).toBe(8);
+        expect(cityState.lastPairFatiguePressureReductionByPlayer?.p1).toBe(6);
     });
 
     it("applies periodic contestation pressure during end-of-round cadence", () => {
@@ -173,6 +262,48 @@ describe("city-state influence", () => {
         expect(cityState.influenceByPlayer.p2).toBe(38);
         expect(cityState.suzerainId).toBe("p1");
     });
+
+    it("lets passive contestation resolve a non-hotspot close race", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        state.turn = 12;
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 44;
+        cityState.influenceByPlayer.p2 = 43;
+
+        processCityStateInfluenceContestation(state);
+
+        expect(cityState.influenceByPlayer.p1).toBe(39);
+        expect(cityState.influenceByPlayer.p2).toBe(46);
+        expect(cityState.suzerainId).toBe("p2");
+        expect(cityState.lastSuzerainChangeCause).toBe("PassiveContestation");
+        expect(cityState.lastPassiveContestationTurn).toBe(12);
+        expect(cityState.lastPassiveContestationCloseRaceTurn).toBe(12);
+    });
+
+    it("keeps hotspot pair-loop close races from flipping on passive pressure alone", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        state.turn = 12;
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 44;
+        cityState.influenceByPlayer.p2 = 43;
+        cityState.lastSuzerainChangeTurn = 11;
+        cityState.recentSuzerainChangeCount = 4;
+        cityState.lastSuzerainChangeCause = "Investment";
+        cityState.lastSuzerainHolderId = "p2";
+        cityState.recentSuzerainPairKey = "p1|p2";
+        cityState.recentSuzerainPairChangeCount = 3;
+        cityState.recentSuzerainPairTurn = 11;
+
+        processCityStateInfluenceContestation(state);
+
+        expect(cityState.influenceByPlayer.p1).toBe(40);
+        expect(cityState.influenceByPlayer.p2).toBe(45);
+        expect(cityState.suzerainId).toBe("p1");
+        expect(cityState.lastPassiveContestationTurn).toBe(12);
+        expect(cityState.lastPassiveContestationCloseRaceTurn).toBeUndefined();
+    });
 });
 
 describe("city-state yield bonuses", () => {
@@ -203,6 +334,20 @@ describe("city-state yield bonuses", () => {
 });
 
 describe("city-state wartime transfer", () => {
+    it("does not re-resolve stable city-state suzerainty as wartime release without an actual release", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 30;
+        cityState.influenceByPlayer.p2 = 60;
+        cityState.suzerainId = "p1";
+
+        const changed = syncCityStateWarTransfers(state);
+        expect(changed).toBe(false);
+        expect(cityState.suzerainId).toBe("p1");
+        expect(cityState.lastSuzerainChangeCause).toBeUndefined();
+    });
+
     it("temporarily transfers and then releases city-state units", () => {
         const state = makeState();
         const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
@@ -218,6 +363,9 @@ describe("city-state wartime transfer", () => {
 
         state.diplomacy.p1.p2 = DiplomacyState.Peace;
         state.diplomacy.p2.p1 = DiplomacyState.Peace;
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 20;
+        cityState.influenceByPlayer.p2 = 60;
         const released = syncCityStateWarTransfers(state);
         expect(released).toBe(true);
         expect(cityState.lockedControllerId).toBeUndefined();
@@ -225,5 +373,7 @@ describe("city-state wartime transfer", () => {
         expect(cityStateUnit.isCityStateLevy).toBe(false);
         expect(cityStateUnit.state).toBe(UnitState.Normal);
         expect([UnitType.SpearGuard, UnitType.BowGuard]).toContain(cityStateUnit.type);
+        expect(cityState.suzerainId).toBe("p2");
+        expect(cityState.lastSuzerainChangeCause).toBe("WartimeRelease");
     });
 });

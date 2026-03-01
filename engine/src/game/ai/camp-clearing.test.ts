@@ -249,6 +249,18 @@ describe("camp-clearing", () => {
         expect(withArmyTechNext.players.find(p => p.id === "p1")?.campClearingPrep?.targetCampId).toBe("camp-mid");
     });
 
+    it("allows army-tech civs to start camp prep earlier once armies are available", () => {
+        const state = baseState();
+        state.turn = 3;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-near", 4, 0)];
+        state.visibility.p1 = ["4,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }]);
+
+        const next = manageCampClearing(state, "p1");
+        expect(next.players.find(p => p.id === "p1")?.campClearingPrep?.targetCampId).toBe("camp-near");
+    });
+
     it("expands camp targeting radius after fielding armies", () => {
         const preArmy = baseState();
         preArmy.turn = 80;

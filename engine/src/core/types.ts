@@ -323,6 +323,12 @@ export type NativeCamp = {
 };
 
 export type CityStateYieldType = "Science" | "Production" | "Food" | "Gold";
+export type CityStateSuzerainChangeCause =
+    | "Investment"
+    | "PassiveContestation"
+    | "WartimeRelease"
+    | "WarBreak"
+    | "Other";
 
 export type CityState = {
     id: string;
@@ -339,6 +345,18 @@ export type CityState = {
     discoveredByPlayer: Record<string, boolean>;
     lastReinforcementTurn: number;
     warByPlayer: Record<string, boolean>;
+    lastSuzerainChangeTurn?: number;
+    recentSuzerainChangeCount?: number;
+    lastSuzerainChangeCause?: CityStateSuzerainChangeCause;
+    lastSuzerainHolderId?: string;
+    recentSuzerainPairKey?: string;
+    recentSuzerainPairChangeCount?: number;
+    recentSuzerainPairTurn?: number;
+    lastPassiveContestationTurn?: number;
+    lastPassiveContestationCloseRaceTurn?: number;
+    lastPairFatigueTurnByPlayer?: Record<string, number>;
+    lastPairFatigueBonusReductionByPlayer?: Record<string, number>;
+    lastPairFatiguePressureReductionByPlayer?: Record<string, number>;
 };
 
 export type GameState = {

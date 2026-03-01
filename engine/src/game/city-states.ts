@@ -12,6 +12,7 @@ import {
     CITY_STATE_INVEST_COST_RAMP,
     CITY_STATE_INVEST_GAIN,
     CITY_STATE_INVEST_SUZERAIN_DISCOUNT,
+    CITY_STATE_INVEST_SUZERAIN_RAMP_CAP,
     CITY_STATE_NAMES_BY_YIELD,
     CITY_STATE_REINFORCE_CAP,
     CITY_STATE_REINFORCE_INTERVAL,
@@ -22,6 +23,7 @@ import {
 import {
     City,
     CityState,
+    CityStateSuzerainChangeCause,
     CityStateYieldType,
     GameState,
     HexCoord,
@@ -38,6 +40,23 @@ const CITY_STATE_YIELD_ROTATION: CityStateYieldType[] = ["Science", "Production"
 const ROTATION_LENGTH = CITY_STATE_YIELD_ROTATION.length;
 const REINFORCEMENT_TURN_EARLY = 35;
 const REINFORCEMENT_TURN_MID = 70;
+const SUZERAIN_CHANGE_STREAK_WINDOW = 16;
+const HOTSPOT_CHANGE_THRESHOLD = 3;
+const HOTSPOT_STABILITY_MARGIN_STEP = 8;
+const HOTSPOT_STABILITY_MARGIN_MAX = 24;
+const SUZERAIN_PAIR_STREAK_WINDOW = 18;
+const SUZERAIN_PAIR_RECAPTURE_MARGIN_BASE = 6;
+const SUZERAIN_PAIR_RECAPTURE_MARGIN_STEP = 6;
+const SUZERAIN_PAIR_RECAPTURE_MARGIN_MAX = 30;
+const SUZERAIN_PAIR_RECLAIM_BONUS_REDUCTION_STEP = 4;
+const SUZERAIN_PAIR_RECLAIM_BONUS_REDUCTION_MAX = 12;
+const SUZERAIN_PAIR_RECLAIM_PRESSURE_REDUCTION_STEP = 3;
+const SUZERAIN_PAIR_RECLAIM_PRESSURE_REDUCTION_MAX = 9;
+const PASSIVE_CONTESTATION_CLOSE_RACE_EXTRA_DECAY = 1;
+const PASSIVE_CONTESTATION_CLOSE_RACE_EXTRA_GAIN = 1;
+const PASSIVE_CONTESTATION_CLOSE_RACE_FLIP_MARGIN = 1;
+const CITY_STATE_PASSIVE_OPENING_WINDOW = 4;
+const CITY_STATE_PASSIVE_OPENING_CHALLENGE_DISCOUNT = 0.8;
 
 export type CityStateYieldBonuses = {
     Science: number;
@@ -210,6 +229,132 @@ function getPlayerWarCountAgainstMajors(state: GameState, playerId: string): num
     return wars;
 }
 
+function recordSuzerainChangeMetadata(
+    state: GameState,
+    cityState: CityState,
+    cause: CityStateSuzerainChangeCause,
+    previousSuzerainId: string | undefined,
+    nextSuzerainId: string | undefined,
+): void {
+    const lastChangeTurn = cityState.lastSuzerainChangeTurn;
+    const recentCount = cityState.recentSuzerainChangeCount ?? 0;
+    cityState.recentSuzerainChangeCount = lastChangeTurn !== undefined
+        && (state.turn - lastChangeTurn) <= SUZERAIN_CHANGE_STREAK_WINDOW
+        ? recentCount + 1
+        : 1;
+    cityState.lastSuzerainChangeTurn = state.turn;
+    cityState.lastSuzerainChangeCause = cause;
+
+    if (previousSuzerainId && nextSuzerainId && previousSuzerainId !== nextSuzerainId) {
+        const pairKey = [previousSuzerainId, nextSuzerainId].sort().join("|");
+        const lastPairKey = cityState.recentSuzerainPairKey;
+        const lastPairTurn = cityState.recentSuzerainPairTurn;
+        const lastPairCount = cityState.recentSuzerainPairChangeCount ?? 0;
+        cityState.recentSuzerainPairChangeCount = lastPairTurn !== undefined
+            && (state.turn - lastPairTurn) <= SUZERAIN_PAIR_STREAK_WINDOW
+            && lastPairKey === pairKey
+            ? lastPairCount + 1
+            : 1;
+        cityState.recentSuzerainPairKey = pairKey;
+        cityState.recentSuzerainPairTurn = state.turn;
+        cityState.lastSuzerainHolderId = previousSuzerainId;
+        return;
+    }
+
+    if (previousSuzerainId !== nextSuzerainId) {
+        cityState.lastSuzerainHolderId = previousSuzerainId;
+    }
+}
+
+function applyCityStateSuzerainChange(
+    state: GameState,
+    cityState: CityState,
+    nextSuzerainId: string | undefined,
+    cause: CityStateSuzerainChangeCause,
+): boolean {
+    if (cityState.suzerainId === nextSuzerainId) return false;
+    const previousSuzerainId = cityState.suzerainId;
+    cityState.suzerainId = nextSuzerainId;
+    recordSuzerainChangeMetadata(state, cityState, cause, previousSuzerainId, nextSuzerainId);
+    return true;
+}
+
+function getHotspotStabilityMargin(
+    state: GameState,
+    cityState: CityState,
+    incumbentId: string | undefined,
+    challengerId: string,
+): number {
+    if (!incumbentId || challengerId === incumbentId) return 0;
+    const lastChangeTurn = cityState.lastSuzerainChangeTurn;
+    const recentCount = cityState.recentSuzerainChangeCount ?? 0;
+    if (lastChangeTurn === undefined) return 0;
+    if ((state.turn - lastChangeTurn) > SUZERAIN_CHANGE_STREAK_WINDOW) return 0;
+    if (recentCount < HOTSPOT_CHANGE_THRESHOLD) return 0;
+
+    const streakDepth = recentCount - HOTSPOT_CHANGE_THRESHOLD + 1;
+    return Math.min(HOTSPOT_STABILITY_MARGIN_MAX, HOTSPOT_STABILITY_MARGIN_STEP * streakDepth);
+}
+
+function getPairRecaptureStabilityMargin(
+    state: GameState,
+    cityState: CityState,
+    incumbentId: string | undefined,
+    challengerId: string,
+): number {
+    if (!incumbentId || challengerId === incumbentId) return 0;
+    if (cityState.lastSuzerainHolderId !== challengerId) return 0;
+    const pairTurn = cityState.recentSuzerainPairTurn;
+    const pairKey = cityState.recentSuzerainPairKey;
+    const pairCount = cityState.recentSuzerainPairChangeCount ?? 0;
+    if (pairTurn === undefined) return 0;
+    if ((state.turn - pairTurn) > SUZERAIN_PAIR_STREAK_WINDOW) return 0;
+    if (!pairKey || pairKey !== [challengerId, incumbentId].sort().join("|")) return 0;
+
+    return Math.min(
+        SUZERAIN_PAIR_RECAPTURE_MARGIN_MAX,
+        SUZERAIN_PAIR_RECAPTURE_MARGIN_BASE + (Math.max(0, pairCount - 1) * SUZERAIN_PAIR_RECAPTURE_MARGIN_STEP),
+    );
+}
+
+function getPairReclaimFatigue(
+    state: GameState,
+    cityState: CityState,
+    incumbentId: string | undefined,
+    challengerId: string,
+): { bonusReduction: number; pressureReduction: number } {
+    if (!incumbentId || challengerId === incumbentId) {
+        return { bonusReduction: 0, pressureReduction: 0 };
+    }
+    if (cityState.lastSuzerainHolderId !== challengerId) {
+        return { bonusReduction: 0, pressureReduction: 0 };
+    }
+
+    const pairTurn = cityState.recentSuzerainPairTurn;
+    const pairKey = cityState.recentSuzerainPairKey;
+    const pairCount = cityState.recentSuzerainPairChangeCount ?? 0;
+    if (pairTurn === undefined || pairCount <= 0) {
+        return { bonusReduction: 0, pressureReduction: 0 };
+    }
+    if ((state.turn - pairTurn) > SUZERAIN_PAIR_STREAK_WINDOW) {
+        return { bonusReduction: 0, pressureReduction: 0 };
+    }
+    if (!pairKey || pairKey !== [challengerId, incumbentId].sort().join("|")) {
+        return { bonusReduction: 0, pressureReduction: 0 };
+    }
+
+    return {
+        bonusReduction: Math.min(
+            SUZERAIN_PAIR_RECLAIM_BONUS_REDUCTION_MAX,
+            pairCount * SUZERAIN_PAIR_RECLAIM_BONUS_REDUCTION_STEP,
+        ),
+        pressureReduction: Math.min(
+            SUZERAIN_PAIR_RECLAIM_PRESSURE_REDUCTION_MAX,
+            pairCount * SUZERAIN_PAIR_RECLAIM_PRESSURE_REDUCTION_STEP,
+        ),
+    };
+}
+
 export function ensureCityStateState(state: GameState): void {
     if (!state.cityStates) state.cityStates = [];
     if (state.cityStateTypeCycleIndex === undefined) state.cityStateTypeCycleIndex = 0;
@@ -231,11 +376,51 @@ export function getCityStateById(state: GameState, cityStateId: string): CitySta
     return (state.cityStates ?? []).find(cs => cs.id === cityStateId);
 }
 
-export function getCityStateInvestCost(cityState: CityState, playerId: string): number {
+export function isCityStateRecentPassiveOpening(
+    state: GameState,
+    cityState: CityState,
+    maxAge = CITY_STATE_PASSIVE_OPENING_WINDOW,
+): boolean {
+    const lastCloseRaceTurn = cityState.lastPassiveContestationCloseRaceTurn;
+    if (lastCloseRaceTurn === undefined) return false;
+    if ((state.turn - lastCloseRaceTurn) > maxAge) return false;
+    return true;
+}
+
+function getCityStateEffectivePurchaseCount(
+    cityState: CityState,
+    playerId: string,
+    applySuzerainRampCap = true,
+): number {
     const purchaseCount = cityState.investmentCountByPlayer[playerId] ?? 0;
+    if (!applySuzerainRampCap) return purchaseCount;
+    if (cityState.suzerainId !== playerId) return purchaseCount;
+    return Math.min(purchaseCount, CITY_STATE_INVEST_SUZERAIN_RAMP_CAP);
+}
+
+function computeCityStateInvestCost(
+    cityState: CityState,
+    playerId: string,
+    state: GameState | undefined,
+    applySuzerainRampCap: boolean,
+): number {
+    const purchaseCount = getCityStateEffectivePurchaseCount(cityState, playerId, applySuzerainRampCap);
     const scaledCost = CITY_STATE_INVEST_BASE_COST * Math.pow(1 + CITY_STATE_INVEST_COST_RAMP, purchaseCount);
     const maintenanceDiscount = cityState.suzerainId === playerId ? CITY_STATE_INVEST_SUZERAIN_DISCOUNT : 1;
-    return Math.max(1, Math.ceil(scaledCost * maintenanceDiscount));
+    const passiveOpeningDiscount = state
+        && cityState.suzerainId !== playerId
+        && isCityStateRecentPassiveOpening(state, cityState)
+        ? CITY_STATE_PASSIVE_OPENING_CHALLENGE_DISCOUNT
+        : 1;
+    return Math.max(1, Math.ceil(scaledCost * maintenanceDiscount * passiveOpeningDiscount));
+}
+
+export function getCityStateInvestCost(cityState: CityState, playerId: string, state?: GameState): number {
+    return computeCityStateInvestCost(cityState, playerId, state, true);
+}
+
+export function getCityStateInvestDecisionCost(cityState: CityState, playerId: string, state?: GameState): number {
+    return computeCityStateInvestCost(cityState, playerId, state, false);
 }
 
 export function getCityStateName(state: GameState, yieldType: CityStateYieldType): string {
@@ -270,7 +455,11 @@ export function assignNextCityStateYieldType(state: GameState): CityStateYieldTy
     return nextType;
 }
 
-export function resolveCityStateSuzerain(state: GameState, cityStateId: string): string | undefined {
+export function resolveCityStateSuzerain(
+    state: GameState,
+    cityStateId: string,
+    cause: CityStateSuzerainChangeCause = "Other",
+): string | undefined {
     const cityState = getCityStateById(state, cityStateId);
     if (!cityState) return undefined;
     if (cityState.lockedControllerId) return cityState.suzerainId;
@@ -284,13 +473,13 @@ export function resolveCityStateSuzerain(state: GameState, cityStateId: string):
         }));
 
     if (contenders.length === 0) {
-        cityState.suzerainId = undefined;
+        applyCityStateSuzerainChange(state, cityState, undefined, cause);
         return undefined;
     }
 
     const maxInfluence = Math.max(...contenders.map(c => c.influence));
     if (maxInfluence <= 0) {
-        cityState.suzerainId = undefined;
+        applyCityStateSuzerainChange(state, cityState, undefined, cause);
         return undefined;
     }
 
@@ -300,6 +489,15 @@ export function resolveCityStateSuzerain(state: GameState, cityStateId: string):
     const incumbent = cityState.suzerainId && !cityState.warByPlayer[cityState.suzerainId]
         ? cityState.suzerainId
         : undefined;
+    const hotspotStabilityMargin = getHotspotStabilityMargin(state, cityState, incumbent, topEntry.playerId);
+    const pairRecaptureMargin = getPairRecaptureStabilityMargin(state, cityState, incumbent, topEntry.playerId);
+    const challengerStabilityMargin = hotspotStabilityMargin + pairRecaptureMargin;
+    if (incumbent && topEntry.playerId !== incumbent && challengerStabilityMargin > 0) {
+        const incumbentInfluence = cityState.influenceByPlayer[incumbent] ?? 0;
+        if (topEntry.influence < (incumbentInfluence + challengerStabilityMargin)) {
+            return incumbent;
+        }
+    }
     if (second && second.influence > 0) {
         const lead = topEntry.influence - second.influence;
         if (lead <= CITY_STATE_CONTEST_MARGIN) {
@@ -307,29 +505,32 @@ export function resolveCityStateSuzerain(state: GameState, cityStateId: string):
             const topIsMeaningful = topEntry.influence >= minimumContestControlInfluence;
             if (incumbent) {
                 const incumbentInfluence = cityState.influenceByPlayer[incumbent] ?? 0;
-                const turnoverMargin = Math.max(1, Math.ceil(CITY_STATE_CONTEST_MARGIN / 4));
+                const turnoverMargin = cause === "PassiveContestation" && challengerStabilityMargin === 0
+                    ? PASSIVE_CONTESTATION_CLOSE_RACE_FLIP_MARGIN
+                    : Math.max(1, Math.ceil(CITY_STATE_CONTEST_MARGIN / 4));
                 if (
                     topEntry.playerId !== incumbent &&
-                    topEntry.influence >= (incumbentInfluence + turnoverMargin)
+                    (cause !== "PassiveContestation" || topIsMeaningful) &&
+                    topEntry.influence >= (incumbentInfluence + turnoverMargin + challengerStabilityMargin)
                 ) {
-                    cityState.suzerainId = topEntry.playerId;
+                    applyCityStateSuzerainChange(state, cityState, topEntry.playerId, cause);
                     return topEntry.playerId;
                 }
                 cityState.suzerainId = incumbent;
                 return incumbent;
             }
             if (topIsMeaningful) {
-                cityState.suzerainId = topEntry.playerId;
+                applyCityStateSuzerainChange(state, cityState, topEntry.playerId, cause);
                 return topEntry.playerId;
             }
-            cityState.suzerainId = undefined;
+            applyCityStateSuzerainChange(state, cityState, undefined, cause);
             return undefined;
         }
     }
 
     const top = contenders.filter(c => c.influence === maxInfluence).map(c => c.playerId);
     if (top.length === 1) {
-        cityState.suzerainId = top[0];
+        applyCityStateSuzerainChange(state, cityState, top[0], cause);
         return top[0];
     }
 
@@ -339,12 +540,12 @@ export function resolveCityStateSuzerain(state: GameState, cityStateId: string):
 
     for (const player of state.players) {
         if (top.includes(player.id)) {
-            cityState.suzerainId = player.id;
+            applyCityStateSuzerainChange(state, cityState, player.id, cause);
             return player.id;
         }
     }
 
-    cityState.suzerainId = undefined;
+    applyCityStateSuzerainChange(state, cityState, undefined, cause);
     return undefined;
 }
 
@@ -377,10 +578,10 @@ export function ensureCityStateWar(state: GameState, cityStateOwnerId: string, p
         cityState.warByPlayer[playerId] = true;
     }
     if (cityState.suzerainId === playerId) {
-        cityState.suzerainId = undefined;
+        applyCityStateSuzerainChange(state, cityState, undefined, "WarBreak");
     }
     if (!cityState.lockedControllerId) {
-        resolveCityStateSuzerain(state, cityState.id);
+        resolveCityStateSuzerain(state, cityState.id, "WarBreak");
     }
     return true;
 }
@@ -413,12 +614,18 @@ export function createCityStateFromClearedCamp(
     const lastInvestTurnByPlayer: Record<string, number> = {};
     const discoveredByPlayer: Record<string, boolean> = {};
     const warByPlayer: Record<string, boolean> = {};
+    const lastPairFatigueTurnByPlayer: Record<string, number> = {};
+    const lastPairFatigueBonusReductionByPlayer: Record<string, number> = {};
+    const lastPairFatiguePressureReductionByPlayer: Record<string, number> = {};
     for (const player of state.players) {
         influenceByPlayer[player.id] = 0;
         investmentCountByPlayer[player.id] = 0;
         lastInvestTurnByPlayer[player.id] = -1;
         discoveredByPlayer[player.id] = false;
         warByPlayer[player.id] = false;
+        lastPairFatigueTurnByPlayer[player.id] = -1;
+        lastPairFatigueBonusReductionByPlayer[player.id] = 0;
+        lastPairFatiguePressureReductionByPlayer[player.id] = 0;
     }
     influenceByPlayer[killerPlayerId] = CITY_STATE_CLEARER_INFLUENCE;
     discoveredByPlayer[killerPlayerId] = true;
@@ -439,6 +646,18 @@ export function createCityStateFromClearedCamp(
         discoveredByPlayer,
         lastReinforcementTurn: state.turn,
         warByPlayer,
+        lastSuzerainChangeTurn: undefined,
+        recentSuzerainChangeCount: 0,
+        lastSuzerainChangeCause: undefined,
+        lastSuzerainHolderId: undefined,
+        recentSuzerainPairKey: undefined,
+        recentSuzerainPairChangeCount: 0,
+        recentSuzerainPairTurn: undefined,
+        lastPassiveContestationTurn: undefined,
+        lastPassiveContestationCloseRaceTurn: undefined,
+        lastPairFatigueTurnByPlayer,
+        lastPairFatigueBonusReductionByPlayer,
+        lastPairFatiguePressureReductionByPlayer,
     };
     state.cityStates?.push(cityState);
 
@@ -536,6 +755,9 @@ export function processCityStateInfluenceContestation(state: GameState): void {
         const currentSuzerainInfluence = cityState.influenceByPlayer[suzerainId] ?? 0;
         const leadBeforePressure = currentSuzerainInfluence - topRival.influence;
         const nearTurnover = leadBeforePressure <= (CITY_STATE_CONTEST_MARGIN + CITY_STATE_INVEST_GAIN);
+        const hotspotProtected = getHotspotStabilityMargin(state, cityState, suzerainId, topRival.playerId) > 0
+            || getPairRecaptureStabilityMargin(state, cityState, suzerainId, topRival.playerId) > 0;
+        const nonHotspotCloseRace = !hotspotProtected && leadBeforePressure <= CITY_STATE_CONTEST_MARGIN;
 
         const baseDecay = Math.min(
             CITY_STATE_CONTESTATION_DECAY_MAX,
@@ -545,18 +767,26 @@ export function processCityStateInfluenceContestation(state: GameState): void {
             ? Math.min(3, Math.max(1, Math.ceil(rivals.length / 2)))
             : 0;
         const wartimeLockPressure = cityState.lockedControllerId ? 1 : 0;
-        const decay = baseDecay + contestedDecayBonus + wartimeLockPressure;
+        const decay = baseDecay
+            + contestedDecayBonus
+            + wartimeLockPressure
+            + (nonHotspotCloseRace ? PASSIVE_CONTESTATION_CLOSE_RACE_EXTRA_DECAY : 0);
         cityState.influenceByPlayer[suzerainId] = Math.max(0, currentSuzerainInfluence - decay);
 
-        const topRivalGain = (nearTurnover ? 2 : 1) + wartimeLockPressure;
+        const topRivalGain = (nearTurnover ? 2 : 1)
+            + wartimeLockPressure
+            + (nonHotspotCloseRace ? PASSIVE_CONTESTATION_CLOSE_RACE_EXTRA_GAIN : 0);
         cityState.influenceByPlayer[topRival.playerId] = (cityState.influenceByPlayer[topRival.playerId] ?? 0) + topRivalGain;
 
-        if (nearTurnover && rankedRivals.length > 1) {
+        cityState.lastPassiveContestationTurn = state.turn;
+        cityState.lastPassiveContestationCloseRaceTurn = nonHotspotCloseRace ? state.turn : undefined;
+
+        if (nearTurnover && rankedRivals.length > 1 && !nonHotspotCloseRace) {
             const secondRival = rankedRivals[1];
             cityState.influenceByPlayer[secondRival.playerId] = (cityState.influenceByPlayer[secondRival.playerId] ?? 0) + 1;
         }
 
-        resolveCityStateSuzerain(state, cityState.id);
+        resolveCityStateSuzerain(state, cityState.id, "PassiveContestation");
     }
 }
 
@@ -566,7 +796,7 @@ export function syncCityStateWarTransfers(state: GameState): boolean {
 
     for (const cityState of state.cityStates ?? []) {
         if (cityState.suzerainId && cityState.warByPlayer[cityState.suzerainId]) {
-            cityState.suzerainId = undefined;
+            applyCityStateSuzerainChange(state, cityState, undefined, "WarBreak");
             changed = true;
         }
 
@@ -588,9 +818,8 @@ export function syncCityStateWarTransfers(state: GameState): boolean {
             changed = recallAndReleaseCityStateUnits(state, cityState) || changed;
             cityState.lockedControllerId = undefined;
             changed = true;
+            resolveCityStateSuzerain(state, cityState.id, "WartimeRelease");
         }
-
-        resolveCityStateSuzerain(state, cityState.id);
     }
 
     return changed;
@@ -618,25 +847,39 @@ export function investInCityState(state: GameState, playerId: string, cityStateI
     const lastTurn = cityState.lastInvestTurnByPlayer[playerId] ?? -1;
     if (lastTurn === state.turn) throw new Error("Already invested in this city-state this turn");
 
-    const cost = getCityStateInvestCost(cityState, playerId);
+    const cost = getCityStateInvestCost(cityState, playerId, state);
     const treasury = player.treasury ?? 0;
     if (treasury < cost) throw new Error("Not enough gold to invest");
 
     const incumbentId = cityState.suzerainId;
     const isChallengingIncumbent = !!incumbentId && incumbentId !== playerId;
-    const influenceGain = CITY_STATE_INVEST_GAIN + (isChallengingIncumbent ? CITY_STATE_CHALLENGER_INVEST_BONUS : 0);
+    const reclaimFatigue = isChallengingIncumbent
+        ? getPairReclaimFatigue(state, cityState, incumbentId, playerId)
+        : { bonusReduction: 0, pressureReduction: 0 };
+    const challengerBonus = isChallengingIncumbent
+        ? Math.max(0, CITY_STATE_CHALLENGER_INVEST_BONUS - reclaimFatigue.bonusReduction)
+        : 0;
+    const influenceGain = CITY_STATE_INVEST_GAIN + challengerBonus;
 
     player.treasury = treasury - cost;
     cityState.influenceByPlayer[playerId] = (cityState.influenceByPlayer[playerId] ?? 0) + influenceGain;
     if (isChallengingIncumbent && incumbentId) {
         cityState.influenceByPlayer[incumbentId] = Math.max(
             0,
-            (cityState.influenceByPlayer[incumbentId] ?? 0) - CITY_STATE_CHALLENGER_PRESSURE,
+            (cityState.influenceByPlayer[incumbentId] ?? 0) - Math.max(0, CITY_STATE_CHALLENGER_PRESSURE - reclaimFatigue.pressureReduction),
         );
     }
     cityState.investmentCountByPlayer[playerId] = (cityState.investmentCountByPlayer[playerId] ?? 0) + 1;
     cityState.lastInvestTurnByPlayer[playerId] = state.turn;
+    if (!cityState.lastPairFatigueTurnByPlayer) cityState.lastPairFatigueTurnByPlayer = {};
+    if (!cityState.lastPairFatigueBonusReductionByPlayer) cityState.lastPairFatigueBonusReductionByPlayer = {};
+    if (!cityState.lastPairFatiguePressureReductionByPlayer) cityState.lastPairFatiguePressureReductionByPlayer = {};
+    if (reclaimFatigue.bonusReduction > 0 || reclaimFatigue.pressureReduction > 0) {
+        cityState.lastPairFatigueTurnByPlayer[playerId] = state.turn;
+        cityState.lastPairFatigueBonusReductionByPlayer[playerId] = reclaimFatigue.bonusReduction;
+        cityState.lastPairFatiguePressureReductionByPlayer[playerId] = reclaimFatigue.pressureReduction;
+    }
 
-    resolveCityStateSuzerain(state, cityState.id);
+    resolveCityStateSuzerain(state, cityState.id, "Investment");
     return cost;
 }

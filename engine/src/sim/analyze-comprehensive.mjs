@@ -20,6 +20,7 @@ results.forEach(sim => {
 const MAP_ORDER = ["Tiny", "Small", "Standard", "Large", "Huge"];
 const CIVS = ["ForgeClans", "ScholarKingdoms", "RiverLeague", "AetherianVanguard", "StarborneSeekers", "JadeCovenant"];
 const CITY_STATE_YIELD_ORDER = ["Science", "Production", "Food", "Gold"];
+const SUZERAIN_CHANGE_CAUSES = ["Investment", "PassiveContestation", "WartimeRelease", "WarBreak", "Other"];
 
 // Total techs in game for reference (Hearth/Banner/Engine/Aether eras combined)
 const TOTAL_TECHS = 20;
@@ -35,6 +36,36 @@ function avg(total, count) {
 
 function pct(part, total) {
     return total > 0 ? (part / total) * 100 : 0;
+}
+
+function createCauseAggregate() {
+    return Object.fromEntries(SUZERAIN_CHANGE_CAUSES.map(cause => [cause, 0]));
+}
+
+function addCauseAggregate(target, source) {
+    for (const cause of SUZERAIN_CHANGE_CAUSES) {
+        target[cause] += num(source?.[cause], 0);
+    }
+}
+
+function formatCauseBreakdown(counter) {
+    const parts = SUZERAIN_CHANGE_CAUSES
+        .map(cause => [cause, num(counter?.[cause], 0)])
+        .filter(([, value]) => value > 0)
+        .map(([cause, value]) => `${cause} ${value}`);
+    return parts.length > 0 ? parts.join(", ") : "none";
+}
+
+function formatPairBreakdown(counter, idToCiv) {
+    const parts = Object.entries(counter || {})
+        .map(([pairKey, count]) => {
+            const [a = "?", b = "?"] = pairKey.split("|");
+            return [`${idToCiv.get(a) || a} <> ${idToCiv.get(b) || b}`, num(count, 0)];
+        })
+        .filter(([, value]) => value > 0)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([pair, value]) => `${pair} ${value}`);
+    return parts.length > 0 ? parts.join(", ") : "none";
 }
 
 function percentile(sortedValues, p) {
@@ -631,7 +662,14 @@ function analyzeCityStateSystems(results) {
         contestedTurns: 0,
         noSuzerainContestedTurns: 0,
         closeRaceContestedTurns: 0,
+        turnoverWindowTurns: 0,
+        flipWindowTurns: 0,
+        safeLeadTurns: 0,
+        hotspotTurns: 0,
+        passiveContestationTurns: 0,
+        passiveCloseRaceTurns: 0,
         suzerainChanges: 0,
+        ownershipTurnovers: 0,
         uniqueSuzerains: 0,
     }]));
     const mapStats = new Map();
@@ -643,11 +681,42 @@ function analyzeCityStateSystems(results) {
     let totalContestedTurns = 0;
     let totalNoSuzerainContestedTurns = 0;
     let totalCloseRaceContestedTurns = 0;
+    let totalTurnoverWindowTurns = 0;
+    let totalFlipWindowTurns = 0;
+    let totalSafeLeadTurns = 0;
+    let totalHotspotTurns = 0;
+    let totalPassiveContestationTurns = 0;
+    let totalPassiveCloseRaceTurns = 0;
+    let totalPassiveOpenings = 0;
+    let totalPassiveOpeningTurnDelayTotal = 0;
+    let totalPassiveOpeningsTreasuryAffordable = 0;
+    let totalPassiveOpeningsReserveSafe = 0;
+    let totalPassiveOpeningsAttemptedByNominated = 0;
+    let totalPassiveOpeningAttemptTurnDelayTotal = 0;
+    let totalPassiveOpeningAttemptTurnDelaySamples = 0;
+    let totalPassiveOpeningsNoAttempt = 0;
+    let totalPassiveOpeningsNoAttemptTreasuryBlocked = 0;
+    let totalPassiveOpeningsNoAttemptReserveBlocked = 0;
+    let totalPassiveOpeningsNoAttemptDespiteCapacity = 0;
+    let totalPassiveOpeningsResolved = 0;
+    let totalPassiveOpeningsWonByNominated = 0;
+    let totalPassiveOpeningsLost = 0;
+    let totalPassiveOpeningsExpired = 0;
+    let totalPassiveAssistedSuzerainChanges = 0;
+    let totalPassiveAssistedOwnershipTurnovers = 0;
     let totalSuzerainChanges = 0;
+    let totalOwnershipTurnovers = 0;
     let totalUniqueSuzerains = 0;
+    const totalSuzerainChangesByCause = createCauseAggregate();
+    const totalOwnershipTurnoversByCause = createCauseAggregate();
+    const totalPassiveAssistedSuzerainChangesByCause = createCauseAggregate();
+    const totalPassiveAssistedOwnershipTurnoversByCause = createCauseAggregate();
+    const totalPassiveOpeningsResolvedByCause = createCauseAggregate();
+    const totalPassiveOpeningsWonByNominatedByCause = createCauseAggregate();
     let totalSurvivingCityStates = 0;
     const firstCreationTurns = [];
     const cityStateRows = [];
+    const hotspotInstanceRows = [];
 
     let winnerSamples = 0;
     let winnerSuzerainTurnsTotal = 0;
@@ -660,9 +729,26 @@ function analyzeCityStateSystems(results) {
     let participantWinsWithoutSuzerain = 0;
     let totalInvestedGold = 0;
     let totalMaintenanceGold = 0;
+    let totalSafeMaintenanceGold = 0;
+    let totalTurnoverGold = 0;
+    let totalFlipWindowGold = 0;
+    let totalDeepChallengeGold = 0;
+    let totalNeutralClaimGold = 0;
+    let totalPairFatigueGold = 0;
     let totalInvestmentActions = 0;
     let totalMaintenanceInvestmentActions = 0;
+    let totalSafeMaintenanceActions = 0;
+    let totalTurnoverActions = 0;
+    let totalFlipWindowActions = 0;
+    let totalDeepChallengeActions = 0;
+    let totalNeutralClaimActions = 0;
+    let totalPairFatigueActions = 0;
     let totalSuzerainTurns = 0;
+    let totalFocusTurns = 0;
+    let totalFocusChallengeTurns = 0;
+    let totalFocusMaintenanceTurns = 0;
+    let totalFocusAssignments = 0;
+    let totalFocusSwitches = 0;
 
     for (const sim of results) {
         const mapSize = sim.mapSize || "Unknown";
@@ -686,6 +772,11 @@ function analyzeCityStateSystems(results) {
 
         simsWithTelemetry += 1;
         mapEntry.telemetrySims += 1;
+        const idToCiv = new Map(
+            (sim.participatingCivs || sim.finalState?.civs || [])
+                .filter(participant => participant?.id && participant?.civName)
+                .map(participant => [participant.id, participant.civName]),
+        );
 
         const cityStates = summary.cityStates;
         const createdCount = num(summary.totalCityStatesCreated, cityStates.length);
@@ -719,7 +810,31 @@ function analyzeCityStateSystems(results) {
             const hasCloseRaceBreakdown = cityState?.closeRaceContestedTurns !== undefined && cityState?.closeRaceContestedTurns !== null;
             const noSuzerainContestedTurns = hasNoSuzBreakdown ? num(cityState.noSuzerainContestedTurns, 0) : contestedTurns;
             const closeRaceContestedTurns = hasCloseRaceBreakdown ? num(cityState.closeRaceContestedTurns, 0) : 0;
+            const turnoverWindowTurns = num(cityState.turnoverWindowTurns, 0);
+            const flipWindowTurns = num(cityState.flipWindowTurns, 0);
+            const safeLeadTurns = num(cityState.safeLeadTurns, 0);
+            const hotspotTurns = num(cityState.hotspotTurns, 0);
+            const passiveContestationTurns = num(cityState.passiveContestationTurns, 0);
+            const passiveCloseRaceTurns = num(cityState.passiveCloseRaceTurns, 0);
+            const passiveOpenings = num(cityState.passiveOpenings, 0);
+            const passiveOpeningTurnDelayTotal = num(cityState.passiveOpeningTurnDelayTotal, 0);
+            const passiveOpeningsTreasuryAffordable = num(cityState.passiveOpeningsTreasuryAffordable, 0);
+            const passiveOpeningsReserveSafe = num(cityState.passiveOpeningsReserveSafe, 0);
+            const passiveOpeningsAttemptedByNominated = num(cityState.passiveOpeningsAttemptedByNominated, 0);
+            const passiveOpeningAttemptTurnDelayTotal = num(cityState.passiveOpeningAttemptTurnDelayTotal, 0);
+            const passiveOpeningAttemptTurnDelaySamples = num(cityState.passiveOpeningAttemptTurnDelaySamples, 0);
+            const passiveOpeningsNoAttempt = num(cityState.passiveOpeningsNoAttempt, 0);
+            const passiveOpeningsNoAttemptTreasuryBlocked = num(cityState.passiveOpeningsNoAttemptTreasuryBlocked, 0);
+            const passiveOpeningsNoAttemptReserveBlocked = num(cityState.passiveOpeningsNoAttemptReserveBlocked, 0);
+            const passiveOpeningsNoAttemptDespiteCapacity = num(cityState.passiveOpeningsNoAttemptDespiteCapacity, 0);
+            const passiveOpeningsResolved = num(cityState.passiveOpeningsResolved, 0);
+            const passiveOpeningsWonByNominated = num(cityState.passiveOpeningsWonByNominated, 0);
+            const passiveOpeningsLost = num(cityState.passiveOpeningsLost, 0);
+            const passiveOpeningsExpired = num(cityState.passiveOpeningsExpired, 0);
+            const passiveAssistedSuzerainChanges = num(cityState.passiveAssistedSuzerainChanges, 0);
+            const passiveAssistedOwnershipTurnovers = num(cityState.passiveAssistedOwnershipTurnovers, 0);
             const suzerainChanges = num(cityState.suzerainChanges, 0);
+            const ownershipTurnovers = num(cityState.ownershipTurnovers, 0);
             const uniqueSuzerainCount = (() => {
                 const reported = num(cityState.uniqueSuzerainCount, NaN);
                 if (Number.isFinite(reported) && reported >= 0) return reported;
@@ -737,15 +852,68 @@ function analyzeCityStateSystems(results) {
             totalContestedTurns += contestedTurns;
             totalNoSuzerainContestedTurns += noSuzerainContestedTurns;
             totalCloseRaceContestedTurns += closeRaceContestedTurns;
+            totalTurnoverWindowTurns += turnoverWindowTurns;
+            totalFlipWindowTurns += flipWindowTurns;
+            totalSafeLeadTurns += safeLeadTurns;
+            totalHotspotTurns += hotspotTurns;
+            totalPassiveContestationTurns += passiveContestationTurns;
+            totalPassiveCloseRaceTurns += passiveCloseRaceTurns;
+            totalPassiveOpenings += passiveOpenings;
+            totalPassiveOpeningTurnDelayTotal += passiveOpeningTurnDelayTotal;
+            totalPassiveOpeningsTreasuryAffordable += passiveOpeningsTreasuryAffordable;
+            totalPassiveOpeningsReserveSafe += passiveOpeningsReserveSafe;
+            totalPassiveOpeningsAttemptedByNominated += passiveOpeningsAttemptedByNominated;
+            totalPassiveOpeningAttemptTurnDelayTotal += passiveOpeningAttemptTurnDelayTotal;
+            totalPassiveOpeningAttemptTurnDelaySamples += passiveOpeningAttemptTurnDelaySamples;
+            totalPassiveOpeningsNoAttempt += passiveOpeningsNoAttempt;
+            totalPassiveOpeningsNoAttemptTreasuryBlocked += passiveOpeningsNoAttemptTreasuryBlocked;
+            totalPassiveOpeningsNoAttemptReserveBlocked += passiveOpeningsNoAttemptReserveBlocked;
+            totalPassiveOpeningsNoAttemptDespiteCapacity += passiveOpeningsNoAttemptDespiteCapacity;
+            totalPassiveOpeningsResolved += passiveOpeningsResolved;
+            totalPassiveOpeningsWonByNominated += passiveOpeningsWonByNominated;
+            totalPassiveOpeningsLost += passiveOpeningsLost;
+            totalPassiveOpeningsExpired += passiveOpeningsExpired;
+            totalPassiveAssistedSuzerainChanges += passiveAssistedSuzerainChanges;
+            totalPassiveAssistedOwnershipTurnovers += passiveAssistedOwnershipTurnovers;
             totalSuzerainChanges += suzerainChanges;
+            totalOwnershipTurnovers += ownershipTurnovers;
+            addCauseAggregate(totalSuzerainChangesByCause, cityState.suzerainChangesByCause);
+            addCauseAggregate(totalOwnershipTurnoversByCause, cityState.ownershipTurnoversByCause);
+            addCauseAggregate(totalPassiveOpeningsResolvedByCause, cityState.passiveOpeningsResolvedByCause);
+            addCauseAggregate(totalPassiveOpeningsWonByNominatedByCause, cityState.passiveOpeningsWonByNominatedByCause);
+            addCauseAggregate(totalPassiveAssistedSuzerainChangesByCause, cityState.passiveAssistedSuzerainChangesByCause);
+            addCauseAggregate(totalPassiveAssistedOwnershipTurnoversByCause, cityState.passiveAssistedOwnershipTurnoversByCause);
             totalUniqueSuzerains += uniqueSuzerainCount;
             cityStateRows.push({
+                mapSize,
+                seed: sim.seed,
                 cityName: cityState.cityName || cityState.cityStateId,
+                yieldType: cityState.yieldType || "Unknown",
+                createdTurn: num(cityState.createdTurn, NaN),
                 activeTurns,
                 contestedTurns,
+                hotspotTurns,
                 suzerainChanges,
+                ownershipTurnovers,
                 uniqueSuzerainCount,
             });
+            if (hotspotTurns > 0 || ownershipTurnovers > 0) {
+                hotspotInstanceRows.push({
+                    mapSize,
+                    seed: sim.seed,
+                    cityName: cityState.cityName || cityState.cityStateId,
+                    yieldType: cityState.yieldType || "Unknown",
+                    createdTurn: num(cityState.createdTurn, NaN),
+                    activeTurns,
+                    hotspotTurns,
+                    suzerainChanges,
+                    ownershipTurnovers,
+                    pairFatigueActions: num(cityState.pairFatigueActions, 0),
+                    pairFatigueGoldSpent: num(cityState.pairFatigueGoldSpent, 0),
+                    ownershipPairBreakdown: formatPairBreakdown(cityState.ownershipTurnoversByPair, idToCiv),
+                    ownershipCauseBreakdown: formatCauseBreakdown(cityState.ownershipTurnoversByCause),
+                });
+            }
 
             const yieldType = CITY_STATE_YIELD_ORDER.includes(cityState.yieldType) ? cityState.yieldType : undefined;
             if (!yieldType) continue;
@@ -756,7 +924,14 @@ function analyzeCityStateSystems(results) {
             yieldEntry.contestedTurns += contestedTurns;
             yieldEntry.noSuzerainContestedTurns += noSuzerainContestedTurns;
             yieldEntry.closeRaceContestedTurns += closeRaceContestedTurns;
+            yieldEntry.turnoverWindowTurns += turnoverWindowTurns;
+            yieldEntry.flipWindowTurns += flipWindowTurns;
+            yieldEntry.safeLeadTurns += safeLeadTurns;
+            yieldEntry.hotspotTurns += hotspotTurns;
+            yieldEntry.passiveContestationTurns += passiveContestationTurns;
+            yieldEntry.passiveCloseRaceTurns += passiveCloseRaceTurns;
             yieldEntry.suzerainChanges += suzerainChanges;
+            yieldEntry.ownershipTurnovers += ownershipTurnovers;
             yieldEntry.uniqueSuzerains += uniqueSuzerainCount;
         }
 
@@ -777,6 +952,23 @@ function analyzeCityStateSystems(results) {
             totalMaintenanceGold += maintenanceGold;
             totalInvestmentActions += investmentActions;
             totalMaintenanceInvestmentActions += maintenanceInvestmentActions;
+            totalSafeMaintenanceGold += num(byPlayer?.safeMaintenanceGoldSpent, 0);
+            totalSafeMaintenanceActions += num(byPlayer?.safeMaintenanceActions, 0);
+            totalTurnoverGold += num(byPlayer?.turnoverGoldSpent, 0);
+            totalTurnoverActions += num(byPlayer?.turnoverActions, 0);
+            totalFlipWindowGold += num(byPlayer?.flipWindowGoldSpent, 0);
+            totalFlipWindowActions += num(byPlayer?.flipWindowActions, 0);
+            totalDeepChallengeGold += num(byPlayer?.deepChallengeGoldSpent, 0);
+            totalDeepChallengeActions += num(byPlayer?.deepChallengeActions, 0);
+            totalNeutralClaimGold += num(byPlayer?.neutralClaimGoldSpent, 0);
+            totalNeutralClaimActions += num(byPlayer?.neutralClaimActions, 0);
+            totalPairFatigueGold += num(byPlayer?.pairFatigueGoldSpent, 0);
+            totalPairFatigueActions += num(byPlayer?.pairFatigueActions, 0);
+            totalFocusTurns += num(byPlayer?.focusTurns, 0);
+            totalFocusChallengeTurns += num(byPlayer?.focusChallengeTurns, 0);
+            totalFocusMaintenanceTurns += num(byPlayer?.focusMaintenanceTurns, 0);
+            totalFocusAssignments += num(byPlayer?.focusAssignments, 0);
+            totalFocusSwitches += num(byPlayer?.focusSwitches, 0);
 
             if (isWinner) {
                 winnerSamples += 1;
@@ -797,14 +989,14 @@ function analyzeCityStateSystems(results) {
         }
     }
 
-    const sortedByChanges = [...cityStateRows].sort((a, b) => b.suzerainChanges - a.suzerainChanges || b.activeTurns - a.activeTurns);
+    const sortedByChanges = [...cityStateRows].sort((a, b) => b.ownershipTurnovers - a.ownershipTurnovers || b.suzerainChanges - a.suzerainChanges || b.activeTurns - a.activeTurns);
     const topTurnoverCityStates = sortedByChanges.slice(0, 4);
-    const topTurnoverChanges = topTurnoverCityStates.reduce((sum, row) => sum + row.suzerainChanges, 0);
+    const topTurnoverChanges = topTurnoverCityStates.reduce((sum, row) => sum + row.ownershipTurnovers, 0);
     const remainingRows = sortedByChanges.slice(4);
-    const remainingChanges = remainingRows.reduce((sum, row) => sum + row.suzerainChanges, 0);
+    const remainingChanges = remainingRows.reduce((sum, row) => sum + row.ownershipTurnovers, 0);
     const remainingActiveTurns = remainingRows.reduce((sum, row) => sum + row.activeTurns, 0);
-    const zeroFlipCityStates = cityStateRows.filter(row => row.suzerainChanges <= 0).length;
-    const contestedButZeroFlipCityStates = cityStateRows.filter(row => row.suzerainChanges <= 0 && row.contestedTurns > 0).length;
+    const zeroFlipCityStates = cityStateRows.filter(row => row.ownershipTurnovers <= 0).length;
+    const contestedButZeroFlipCityStates = cityStateRows.filter(row => row.ownershipTurnovers <= 0 && row.contestedTurns > 0).length;
     const challengerGold = Math.max(0, totalInvestedGold - totalMaintenanceGold);
     const challengerInvestmentActions = Math.max(0, totalInvestmentActions - totalMaintenanceInvestmentActions);
 
@@ -817,7 +1009,37 @@ function analyzeCityStateSystems(results) {
         totalContestedTurns,
         totalNoSuzerainContestedTurns,
         totalCloseRaceContestedTurns,
+        totalTurnoverWindowTurns,
+        totalFlipWindowTurns,
+        totalSafeLeadTurns,
+        totalHotspotTurns,
+        totalPassiveContestationTurns,
+        totalPassiveCloseRaceTurns,
+        totalPassiveOpenings,
+        totalPassiveOpeningTurnDelayTotal,
+        totalPassiveOpeningsTreasuryAffordable,
+        totalPassiveOpeningsReserveSafe,
+        totalPassiveOpeningsAttemptedByNominated,
+        totalPassiveOpeningAttemptTurnDelayTotal,
+        totalPassiveOpeningAttemptTurnDelaySamples,
+        totalPassiveOpeningsNoAttempt,
+        totalPassiveOpeningsNoAttemptTreasuryBlocked,
+        totalPassiveOpeningsNoAttemptReserveBlocked,
+        totalPassiveOpeningsNoAttemptDespiteCapacity,
+        totalPassiveOpeningsResolved,
+        totalPassiveOpeningsResolvedByCause,
+        totalPassiveOpeningsWonByNominated,
+        totalPassiveOpeningsWonByNominatedByCause,
+        totalPassiveOpeningsLost,
+        totalPassiveOpeningsExpired,
+        totalPassiveAssistedSuzerainChanges,
+        totalPassiveAssistedOwnershipTurnovers,
         totalSuzerainChanges,
+        totalOwnershipTurnovers,
+        totalSuzerainChangesByCause,
+        totalOwnershipTurnoversByCause,
+        totalPassiveAssistedSuzerainChangesByCause,
+        totalPassiveAssistedOwnershipTurnoversByCause,
         totalUniqueSuzerains,
         firstCreationTiming: summarizeDistribution(firstCreationTurns),
         mapStats,
@@ -833,13 +1055,37 @@ function analyzeCityStateSystems(results) {
         participantWinsWithoutSuzerain,
         totalInvestedGold,
         totalMaintenanceGold,
+        totalSafeMaintenanceGold,
         challengerGold,
+        totalTurnoverGold,
+        totalFlipWindowGold,
+        totalDeepChallengeGold,
+        totalNeutralClaimGold,
+        totalPairFatigueGold,
         totalInvestmentActions,
         totalMaintenanceInvestmentActions,
+        totalSafeMaintenanceActions,
         challengerInvestmentActions,
+        totalTurnoverActions,
+        totalFlipWindowActions,
+        totalDeepChallengeActions,
+        totalNeutralClaimActions,
+        totalPairFatigueActions,
         totalSuzerainTurns,
+        totalFocusTurns,
+        totalFocusChallengeTurns,
+        totalFocusMaintenanceTurns,
+        totalFocusAssignments,
+        totalFocusSwitches,
         topTurnoverCityStates,
-        topTurnoverShare: pct(topTurnoverChanges, Math.max(1, totalSuzerainChanges)),
+        hotspotInstanceRows: hotspotInstanceRows
+            .sort((a, b) => b.ownershipTurnovers - a.ownershipTurnovers || b.hotspotTurns - a.hotspotTurns || a.cityName.localeCompare(b.cityName))
+            .slice(0, 6),
+        hotspotInstanceCount: hotspotInstanceRows.filter(row => row.hotspotTurns > 0).length,
+        hotspotOwnershipTurnovers: hotspotInstanceRows
+            .filter(row => row.hotspotTurns > 0)
+            .reduce((sum, row) => sum + row.ownershipTurnovers, 0),
+        topTurnoverShare: pct(topTurnoverChanges, Math.max(1, totalOwnershipTurnovers)),
         nonTopTurnoverFlipRate: (remainingChanges / Math.max(1, remainingActiveTurns)) * 100,
         zeroFlipCityStates,
         contestedButZeroFlipCityStates,
@@ -1125,20 +1371,27 @@ report += `- **Total City-State Active Turns:** ${cityStateAnalysis.totalCitySta
 report += `- **First City-State Creation Turn (min / p25 / median / p75 / max):** ${Number.isFinite(cityStateAnalysis.firstCreationTiming.min) ? cityStateAnalysis.firstCreationTiming.min.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.p25) ? cityStateAnalysis.firstCreationTiming.p25.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.median) ? cityStateAnalysis.firstCreationTiming.median.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.p75) ? cityStateAnalysis.firstCreationTiming.p75.toFixed(0) : "n/a"} / ${Number.isFinite(cityStateAnalysis.firstCreationTiming.max) ? cityStateAnalysis.firstCreationTiming.max.toFixed(0) : "n/a"}\n`;
 report += `- **First City-State Creation Turn (average, sims with any):** ${Number.isFinite(cityStateAnalysis.firstCreationTiming.avg) ? cityStateAnalysis.firstCreationTiming.avg.toFixed(1) : "n/a"}\n`;
 report += `- **Global Suzerainty Flip Rate:** ${(cityStateAnalysis.totalSuzerainChanges / Math.max(1, cityStateAnalysis.totalCityStateActiveTurns) * 100).toFixed(2)} per 100 active turns\n`;
+report += `- **True Ownership Turnover Rate:** ${(cityStateAnalysis.totalOwnershipTurnovers / Math.max(1, cityStateAnalysis.totalCityStateActiveTurns) * 100).toFixed(2)} per 100 active turns\n`;
 report += `- **Average Unique Suzerains per City-State:** ${avg(cityStateAnalysis.totalUniqueSuzerains, cityStateAnalysis.totalCityStatesCreated).toFixed(2)}\n`;
 report += `- **Total Contested Turns:** ${cityStateAnalysis.totalContestedTurns} (No Suz: ${cityStateAnalysis.totalNoSuzerainContestedTurns}, Close-race: ${cityStateAnalysis.totalCloseRaceContestedTurns})\n`;
 report += `- **Contested Share of Active Turns:** ${pct(cityStateAnalysis.totalContestedTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}%\n`;
+report += `- **Turnover-Window Turns:** ${cityStateAnalysis.totalTurnoverWindowTurns} (${pct(cityStateAnalysis.totalTurnoverWindowTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}% of active turns)\n`;
+report += `- **Flip-Window Turns:** ${cityStateAnalysis.totalFlipWindowTurns} (${pct(cityStateAnalysis.totalFlipWindowTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}% of active turns)\n`;
+report += `- **Safe-Lead Incumbent Turns:** ${cityStateAnalysis.totalSafeLeadTurns} (${pct(cityStateAnalysis.totalSafeLeadTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}% of active turns)\n`;
+report += `- **Hotspot Turns:** ${cityStateAnalysis.totalHotspotTurns} (${pct(cityStateAnalysis.totalHotspotTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}% of active turns)\n`;
+report += `- **Passive Contestation Pulses:** ${cityStateAnalysis.totalPassiveContestationTurns}\n`;
+report += `- **Passive Contestation Close-Race Pulses:** ${cityStateAnalysis.totalPassiveCloseRaceTurns}\n`;
 report += `- **City-States with Zero Suzerainty Flips:** ${cityStateAnalysis.zeroFlipCityStates}/${cityStateAnalysis.totalCityStatesCreated}\n`;
 report += `- **Contested-but-Zero-Flip City-States:** ${cityStateAnalysis.contestedButZeroFlipCityStates}/${cityStateAnalysis.totalCityStatesCreated}\n`;
-report += `- **Top 4 City-States Share of All Suzerainty Changes:** ${cityStateAnalysis.topTurnoverShare.toFixed(1)}%\n`;
-report += `- **Flip Rate Outside Top 4 Turnover City-States:** ${cityStateAnalysis.nonTopTurnoverFlipRate.toFixed(2)} per 100 active turns\n`;
+report += `- **Top 4 City-States Share of True Ownership Turnovers:** ${cityStateAnalysis.topTurnoverShare.toFixed(1)}%\n`;
+report += `- **True Ownership Turnover Rate Outside Top 4 Turnover City-States:** ${cityStateAnalysis.nonTopTurnoverFlipRate.toFixed(2)} per 100 active turns\n`;
 if (cityStateAnalysis.topTurnoverCityStates.length > 0) {
     const topTurnoverList = cityStateAnalysis.topTurnoverCityStates
-        .filter(row => row.suzerainChanges > 0)
-        .map(row => `${row.cityName} (${row.suzerainChanges})`)
+        .filter(row => row.ownershipTurnovers > 0 || row.suzerainChanges > 0)
+        .map(row => `${row.cityName} [${row.mapSize} ${row.seed}] (${row.ownershipTurnovers} ownership, ${row.suzerainChanges} total)`)
         .join(", ");
     if (topTurnoverList) {
-        report += `- **Top Turnover City-States (changes):** ${topTurnoverList}\n`;
+        report += `- **Top Turnover City-States:** ${topTurnoverList}\n`;
     }
 }
 report += `\n`;
@@ -1148,6 +1401,62 @@ report += `- **Maintenance Investment:** ${cityStateAnalysis.totalMaintenanceGol
 report += `- **Challenger Investment:** ${cityStateAnalysis.challengerGold.toFixed(0)}G (${pct(cityStateAnalysis.challengerGold, cityStateAnalysis.totalInvestedGold).toFixed(1)}%) across ${cityStateAnalysis.challengerInvestmentActions.toFixed(0)} actions (${pct(cityStateAnalysis.challengerInvestmentActions, cityStateAnalysis.totalInvestmentActions).toFixed(1)}%)\n`;
 report += `- **Maintenance Gold per Suzerainty Turn:** ${avg(cityStateAnalysis.totalMaintenanceGold, cityStateAnalysis.totalSuzerainTurns).toFixed(2)}\n`;
 report += `- **Maintenance Actions per 100 Suzerainty Turns:** ${avg(cityStateAnalysis.totalMaintenanceInvestmentActions * 100, cityStateAnalysis.totalSuzerainTurns).toFixed(2)}\n\n`;
+
+report += `### Turnover Diagnostics\n`;
+report += `- **Turnover-Window Challenger Investment:** ${cityStateAnalysis.totalTurnoverGold.toFixed(0)}G across ${cityStateAnalysis.totalTurnoverActions.toFixed(0)} actions\n`;
+report += `- **Flip-Window Challenger Investment:** ${cityStateAnalysis.totalFlipWindowGold.toFixed(0)}G across ${cityStateAnalysis.totalFlipWindowActions.toFixed(0)} actions\n`;
+report += `- **Deep-Challenge Investment:** ${cityStateAnalysis.totalDeepChallengeGold.toFixed(0)}G across ${cityStateAnalysis.totalDeepChallengeActions.toFixed(0)} actions\n`;
+report += `- **Neutral-Claim Investment:** ${cityStateAnalysis.totalNeutralClaimGold.toFixed(0)}G across ${cityStateAnalysis.totalNeutralClaimActions.toFixed(0)} actions\n`;
+report += `- **Passive Openings Observed:** ${cityStateAnalysis.totalPassiveOpenings.toFixed(0)}\n`;
+report += `- **Passive Openings with Treasury to Invest:** ${cityStateAnalysis.totalPassiveOpeningsTreasuryAffordable.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveOpeningsTreasuryAffordable, cityStateAnalysis.totalPassiveOpenings).toFixed(1)}%)\n`;
+report += `- **Passive Openings with Reserve-Safe Invest:** ${cityStateAnalysis.totalPassiveOpeningsReserveSafe.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveOpeningsReserveSafe, cityStateAnalysis.totalPassiveOpenings).toFixed(1)}%)\n`;
+report += `- **Passive Opening Avg Nominated Turn-Order Delay:** ${avg(cityStateAnalysis.totalPassiveOpeningTurnDelayTotal, cityStateAnalysis.totalPassiveOpenings).toFixed(2)} turns\n`;
+report += `- **Passive Openings Attempted by Nominated Challenger:** ${cityStateAnalysis.totalPassiveOpeningsAttemptedByNominated.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveOpeningsAttemptedByNominated, cityStateAnalysis.totalPassiveOpenings).toFixed(1)}%)\n`;
+report += `- **Passive Opening Avg Delay to First Nominated Attempt:** ${avg(cityStateAnalysis.totalPassiveOpeningAttemptTurnDelayTotal, cityStateAnalysis.totalPassiveOpeningAttemptTurnDelaySamples).toFixed(2)} turns\n`;
+report += `- **Passive Openings Resolved Before Expiry:** ${cityStateAnalysis.totalPassiveOpeningsResolved.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveOpeningsResolved, cityStateAnalysis.totalPassiveOpenings).toFixed(1)}%)\n`;
+report += `- **Passive Openings Won by Nominated Challenger:** ${cityStateAnalysis.totalPassiveOpeningsWonByNominated.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveOpeningsWonByNominated, cityStateAnalysis.totalPassiveOpenings).toFixed(1)}% of openings, ${pct(cityStateAnalysis.totalPassiveOpeningsWonByNominated, cityStateAnalysis.totalPassiveOpeningsResolved).toFixed(1)}% of resolved)\n`;
+report += `- **Passive Openings Lost to Someone Else:** ${cityStateAnalysis.totalPassiveOpeningsLost.toFixed(0)}\n`;
+report += `- **Passive Openings Expired Unresolved:** ${cityStateAnalysis.totalPassiveOpeningsExpired.toFixed(0)}\n`;
+report += `- **Passive Opening Resolutions by Cause:** ${formatCauseBreakdown(cityStateAnalysis.totalPassiveOpeningsResolvedByCause)}\n`;
+report += `- **Passive Opening Nominated Wins by Cause:** ${formatCauseBreakdown(cityStateAnalysis.totalPassiveOpeningsWonByNominatedByCause)}\n`;
+report += `- **Passive Openings with No Nominated Attempt:** ${cityStateAnalysis.totalPassiveOpeningsNoAttempt.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveOpeningsNoAttempt, cityStateAnalysis.totalPassiveOpenings).toFixed(1)}%)\n`;
+report += `- **No-Attempt Reasons:** Treasury blocked ${cityStateAnalysis.totalPassiveOpeningsNoAttemptTreasuryBlocked.toFixed(0)}, Reserve blocked ${cityStateAnalysis.totalPassiveOpeningsNoAttemptReserveBlocked.toFixed(0)}, No-attempt despite capacity ${cityStateAnalysis.totalPassiveOpeningsNoAttemptDespiteCapacity.toFixed(0)}\n`;
+report += `- **Passive Direct Flip Conversion per 100 Close-Race Pulses:** ${avg(cityStateAnalysis.totalOwnershipTurnoversByCause.PassiveContestation * 100, cityStateAnalysis.totalPassiveCloseRaceTurns).toFixed(2)}\n`;
+report += `- **Passive-Assisted Suzerainty Changes:** ${cityStateAnalysis.totalPassiveAssistedSuzerainChanges.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveAssistedSuzerainChanges, Math.max(1, cityStateAnalysis.totalSuzerainChanges - cityStateAnalysis.totalSuzerainChangesByCause.PassiveContestation)).toFixed(1)}% of non-passive changes)\n`;
+report += `- **Passive-Assisted True Ownership Turnovers:** ${cityStateAnalysis.totalPassiveAssistedOwnershipTurnovers.toFixed(0)} (${pct(cityStateAnalysis.totalPassiveAssistedOwnershipTurnovers, cityStateAnalysis.totalOwnershipTurnovers).toFixed(1)}% of ownership turnover)\n`;
+report += `- **Passive-Assisted Ownership Conversion per 100 Close-Race Pulses:** ${avg(cityStateAnalysis.totalPassiveAssistedOwnershipTurnovers * 100, cityStateAnalysis.totalPassiveCloseRaceTurns).toFixed(2)}\n`;
+report += `- **Passive-Involved Ownership Conversion per 100 Close-Race Pulses:** ${avg((cityStateAnalysis.totalOwnershipTurnoversByCause.PassiveContestation + cityStateAnalysis.totalPassiveAssistedOwnershipTurnovers) * 100, cityStateAnalysis.totalPassiveCloseRaceTurns).toFixed(2)}\n`;
+report += `- **Passive-Assisted Ownership Causes:** ${formatCauseBreakdown(cityStateAnalysis.totalPassiveAssistedOwnershipTurnoversByCause)}\n`;
+report += `- **Pair-Fatigue-Triggered Investment:** ${cityStateAnalysis.totalPairFatigueGold.toFixed(0)}G across ${cityStateAnalysis.totalPairFatigueActions.toFixed(0)} actions\n`;
+report += `- **Pair-Fatigue Share of Challenger Spend:** ${pct(cityStateAnalysis.totalPairFatigueGold, cityStateAnalysis.challengerGold).toFixed(1)}%\n`;
+report += `- **Safe-Maintenance Investment:** ${cityStateAnalysis.totalSafeMaintenanceGold.toFixed(0)}G across ${cityStateAnalysis.totalSafeMaintenanceActions.toFixed(0)} actions\n`;
+report += `- **Focus Turns:** ${cityStateAnalysis.totalFocusTurns.toFixed(0)} (challenge ${cityStateAnalysis.totalFocusChallengeTurns.toFixed(0)}, maintenance ${cityStateAnalysis.totalFocusMaintenanceTurns.toFixed(0)})\n`;
+report += `- **Focus Assignments / Switches:** ${cityStateAnalysis.totalFocusAssignments.toFixed(0)} / ${cityStateAnalysis.totalFocusSwitches.toFixed(0)}\n`;
+report += `- **Flip Conversion per 100 Turnover-Window Turns:** ${avg(cityStateAnalysis.totalSuzerainChanges * 100, cityStateAnalysis.totalTurnoverWindowTurns).toFixed(2)}\n`;
+report += `- **True Ownership Conversion per 100 Turnover-Window Turns:** ${avg(cityStateAnalysis.totalOwnershipTurnovers * 100, cityStateAnalysis.totalTurnoverWindowTurns).toFixed(2)}\n`;
+report += `- **Safe-Maintenance Share of Maintenance Spend:** ${pct(cityStateAnalysis.totalSafeMaintenanceGold, cityStateAnalysis.totalMaintenanceGold).toFixed(1)}%\n\n`;
+
+report += `### Flip Cause Summary\n`;
+for (const cause of SUZERAIN_CHANGE_CAUSES) {
+    const suzerainChanges = num(cityStateAnalysis.totalSuzerainChangesByCause[cause], 0);
+    const ownershipTurnovers = num(cityStateAnalysis.totalOwnershipTurnoversByCause[cause], 0);
+    report += `- **${cause}:** ${suzerainChanges} suzerainty changes, ${ownershipTurnovers} true ownership turnovers (${pct(ownershipTurnovers, Math.max(1, cityStateAnalysis.totalOwnershipTurnovers)).toFixed(1)}% of ownership turnover)\n`;
+}
+report += `\n`;
+
+report += `### Hotspot Diagnostics\n`;
+report += `- **Hotspot Share of Active Turns:** ${pct(cityStateAnalysis.totalHotspotTurns, cityStateAnalysis.totalCityStateActiveTurns).toFixed(2)}%\n`;
+report += `- **City-State Instances with Any Hotspot Time:** ${cityStateAnalysis.hotspotInstanceCount}/${cityStateAnalysis.totalCityStatesCreated}\n`;
+report += `- **True Ownership Turnovers Occurring in Hotspot Instances:** ${cityStateAnalysis.hotspotOwnershipTurnovers}/${cityStateAnalysis.totalOwnershipTurnovers}\n`;
+report += `- **Flip Causes:** ${formatCauseBreakdown(cityStateAnalysis.totalSuzerainChangesByCause)}\n`;
+report += `- **Ownership Causes:** ${formatCauseBreakdown(cityStateAnalysis.totalOwnershipTurnoversByCause)}\n`;
+if (cityStateAnalysis.hotspotInstanceRows.length > 0) {
+    const hotspotList = cityStateAnalysis.hotspotInstanceRows
+        .map(row => `${row.cityName} [${row.mapSize} ${row.seed}] (${row.ownershipTurnovers} ownership, hotspot ${pct(row.hotspotTurns, Math.max(1, row.activeTurns)).toFixed(1)}%, fatigue ${row.pairFatigueGoldSpent.toFixed(0)}G/${row.pairFatigueActions.toFixed(0)}, ${row.ownershipPairBreakdown})`)
+        .join("; ");
+    report += `- **Top Hotspot Instances:** ${hotspotList}\n`;
+}
+report += `\n`;
 
 report += `### Map-Size City-State Activation\n`;
 for (const mapSize of MAP_ORDER) {
@@ -1168,7 +1477,7 @@ report += `### Yield-Type Turnover Summary\n`;
 for (const yieldType of CITY_STATE_YIELD_ORDER) {
     const stats = cityStateAnalysis.yieldStats.get(yieldType);
     if (!stats || stats.cityStates === 0) continue;
-    report += `- **${yieldType}:** ${stats.cityStates} city-states, contested ${pct(stats.contestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}% (No Suz ${pct(stats.noSuzerainContestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, Close-race ${pct(stats.closeRaceContestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%), flip rate ${(stats.suzerainChanges / Math.max(1, stats.activeTurns) * 100).toFixed(2)}/100T, avg unique suzerains ${avg(stats.uniqueSuzerains, stats.cityStates).toFixed(2)}\n`;
+    report += `- **${yieldType}:** ${stats.cityStates} city-states, contested ${pct(stats.contestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}% (No Suz ${pct(stats.noSuzerainContestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, Close-race ${pct(stats.closeRaceContestedTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%), turnover window ${pct(stats.turnoverWindowTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, flip window ${pct(stats.flipWindowTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, safe lead ${pct(stats.safeLeadTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, hotspot ${pct(stats.hotspotTurns, Math.max(1, stats.activeTurns)).toFixed(2)}%, flip rate ${(stats.suzerainChanges / Math.max(1, stats.activeTurns) * 100).toFixed(2)}/100T, ownership turnover ${(stats.ownershipTurnovers / Math.max(1, stats.activeTurns) * 100).toFixed(2)}/100T, avg unique suzerains ${avg(stats.uniqueSuzerains, stats.cityStates).toFixed(2)}\n`;
 }
 report += `\n`;
 

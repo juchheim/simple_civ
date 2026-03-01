@@ -14,7 +14,7 @@ import { isScoutType } from "./units/unit-helpers.js";
 // Constants for camp clearing
 const MIN_MILITARY_FOR_CAMP = 3;  // Require 3 military units before engaging
 const MIN_TURN_FOR_CAMP_PRE_ARMY = 12;
-const MIN_TURN_FOR_CAMP_ARMY_TECH = 4;
+const MIN_TURN_FOR_CAMP_ARMY_TECH = 2;
 const MIN_TURN_FOR_CAMP_ARMY_FIELDED = 2;
 const CAMP_SETTLE_RADIUS_PRE_ARMY = 8;
 const CAMP_SETTLE_RADIUS_ARMY_TECH = 13;
@@ -25,14 +25,14 @@ const MIN_GATHERING_TURNS = 1;    // Minimum turns in gathering phase
 const MIN_POSITIONING_TURNS = 1;  // Minimum turns in positioning phase
 const RETREAT_HP_THRESHOLD = 0.3; // Retreat if HP below 30%
 const CAMP_TARGET_SCORE_MIN_PRE_ARMY = 28;
-const CAMP_TARGET_SCORE_MIN_ARMY_TECH = 12;
-const CAMP_TARGET_SCORE_MIN_ARMY_FIELDED = 5;
+const CAMP_TARGET_SCORE_MIN_ARMY_TECH = 8;
+const CAMP_TARGET_SCORE_MIN_ARMY_FIELDED = 2;
 const CAMP_TARGET_SCORE_EARLY_OVERRIDE = 40;
 const CAMP_EMERGENCY_RADIUS = 2;
 const CAMP_POWER_RADIUS = 5;
-const CAMP_ARMY_URGENCY_TECH_BONUS = 18;
-const CAMP_ARMY_URGENCY_FIELDED_BONUS = 34;
-const CAMP_ARMY_URGENCY_START_TURN = 60;
+const CAMP_ARMY_URGENCY_TECH_BONUS = 22;
+const CAMP_ARMY_URGENCY_FIELDED_BONUS = 40;
+const CAMP_ARMY_URGENCY_START_TURN = 48;
 const CAMP_ARMY_URGENCY_PER_20_TURNS = 4;
 const CAMP_ARMY_URGENCY_MAX_LATE_BONUS = 24;
 const CAMP_PREP_TIMEOUT_PRE_ARMY = 15;
@@ -405,14 +405,18 @@ function evaluateCampTarget(
         );
     const postArmyPushBonus = readiness === "PreArmy" || state.turn < CAMP_ARMY_URGENCY_START_TURN
         ? 0
-        : 16;
+        : nearestCityDist <= 6
+            ? 28
+            : 22;
     const firstSuzerainBonus = mySuzerainCount === 0 ? 24 : 0;
     const globalScarcityBonus = globalCityStateCount < Math.max(1, Math.floor(activePlayerCount / 2))
         ? 10
         : globalCityStateCount < activePlayerCount
             ? 6
             : 0;
-    const nearFrontierBonus = nearestCityDist <= 5 ? 6 : 0;
+    const nearFrontierBonus = nearestCityDist <= 5
+        ? (readiness === "PreArmy" ? 6 : 12)
+        : 0;
     const nativeThreatPenalty = defenders.count * 3;
     const underpoweredPenaltyMultiplier = readiness === "PreArmy"
         ? 26
@@ -459,6 +463,9 @@ function evaluateCampTarget(
     if (readiness === "PreArmy") {
         requiredMilitary += 1;
     } else if (readiness === "ArmyFielded") {
+        requiredMilitary -= 1;
+    }
+    if (readiness !== "PreArmy" && nearestCityDist <= 6 && powerRatio >= 0.9) {
         requiredMilitary -= 1;
     }
     if (readiness === "ArmyFielded" && powerRatio >= 1) {

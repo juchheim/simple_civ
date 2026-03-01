@@ -162,6 +162,23 @@ describe("city-state-policy", () => {
         expect(choice?.cityStateId).toBe("science-cs");
     });
 
+    it("does not default Balanced civs into Production when Gold is equally strong", () => {
+        const state = createBaseState();
+        state.cityStates = [
+            createCityState("prod-cs", "cs_owner_prod", "cs-city-prod", { q: 3, r: 0 }, "Production", {
+                influenceByPlayer: { p1: 8, p2: 24 },
+                suzerainId: "p2",
+            }),
+            createCityState("gold-cs", "cs_owner_gold", "cs-city-gold", { q: 3, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 8, p2: 24 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("gold-cs");
+    });
+
     it("keeps a preferred city-state focus when option remains competitive", () => {
         const state = createBaseState();
         state.cityStates = [
@@ -213,6 +230,27 @@ describe("city-state-policy", () => {
         expect(choice?.cityStateId).toBe("turnover-race");
     });
 
+    it("leans into a non-hotspot close race over a broader live race", () => {
+        const state = createBaseState();
+        state.cityStates = [
+            createCityState("close-race", "cs_owner_close", "cs-city-close", { q: 3, r: 0 }, "Gold", {
+                suzerainId: "p2",
+                influenceByPlayer: { p1: 24, p2: 30 },
+                lastSuzerainChangeTurn: 20,
+                recentSuzerainChangeCount: 1,
+            }),
+            createCityState("broader-race", "cs_owner_broad", "cs-city-broad", { q: 3, r: 1 }, "Gold", {
+                suzerainId: "p2",
+                influenceByPlayer: { p1: 10, p2: 28 },
+                lastSuzerainChangeTurn: 20,
+                recentSuzerainChangeCount: 1,
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("close-race");
+    });
+
     it("keeps city-state target selection deterministic for near-equal options", () => {
         const state = createBaseState();
         state.turn = 81;
@@ -260,6 +298,123 @@ describe("city-state-policy", () => {
 
         const choice = pickCityStateInvestmentTarget(state, "p1", "Progress");
         expect(choice?.cityStateId).toBe("dominant");
+    });
+
+    it("prefers stable turnover races over hotspot ping-pong", () => {
+        const state = createBaseState();
+        state.turn = 90;
+        state.seed = 5;
+        state.cityStates = [
+            createCityState("stable-race", "cs_owner_stable", "cs-city-stable", { q: 2, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 18, p2: 34 },
+                suzerainId: "p2",
+            }),
+            createCityState("hotspot-race", "cs_owner_hot", "cs-city-hot", { q: 2, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 18, p2: 34 },
+                suzerainId: "p2",
+                lastSuzerainChangeTurn: 88,
+                recentSuzerainChangeCount: 4,
+                lastSuzerainChangeCause: "Investment",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("stable-race");
+    });
+
+    it("avoids immediate low-conviction flip-backs after a fresh suzerain change", () => {
+        const state = createBaseState();
+        state.turn = 90;
+        state.seed = 9;
+        state.cityStates = [
+            createCityState("fresh-flip", "cs_owner_flip", "cs-city-flip", { q: 2, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 28, p2: 36 },
+                suzerainId: "p2",
+                lastSuzerainChangeTurn: 87,
+                recentSuzerainChangeCount: 1,
+                lastSuzerainChangeCause: "Investment",
+            }),
+            createCityState("steady-race", "cs_owner_steady", "cs-city-steady", { q: 2, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 18, p2: 34 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("steady-race");
+    });
+
+    it("penalizes reclaiming the same city-state in a recent two-civ ping-pong", () => {
+        const state = createBaseState();
+        state.turn = 92;
+        state.seed = 4;
+        state.cityStates = [
+            createCityState("pair-loop", "cs_owner_pair", "cs-city-pair", { q: 2, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 20, p2: 34 },
+                suzerainId: "p2",
+                lastSuzerainChangeTurn: 90,
+                lastSuzerainChangeCause: "Investment",
+                lastSuzerainHolderId: "p1",
+                recentSuzerainPairKey: "p1|p2",
+                recentSuzerainPairChangeCount: 3,
+                recentSuzerainPairTurn: 90,
+            }),
+            createCityState("fresh-target", "cs_owner_fresh", "cs-city-fresh", { q: 2, r: 1 }, "Gold", {
+                influenceByPlayer: { p1: 18, p2: 34 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("fresh-target");
+    });
+
+    it("throttles hotspot incumbent maintenance once the pair-loop lead is outside the emergency band", () => {
+        const state = createBaseState();
+        state.turn = 96;
+        state.seed = 6;
+        state.cityStates = [
+            createCityState("loop-incumbent", "cs_owner_loop", "cs-city-loop", { q: 2, r: 0 }, "Gold", {
+                suzerainId: "p1",
+                influenceByPlayer: { p1: 40, p2: 28 },
+                lastSuzerainChangeTurn: 94,
+                recentSuzerainChangeCount: 4,
+                lastSuzerainChangeCause: "Investment",
+                lastSuzerainHolderId: "p2",
+                recentSuzerainPairKey: "p1|p2",
+                recentSuzerainPairChangeCount: 4,
+                recentSuzerainPairTurn: 94,
+            }),
+            createCityState("fresh-target", "cs_owner_fresh_2", "cs-city-fresh-2", { q: 3, r: 1 }, "Science", {
+                influenceByPlayer: { p1: 16, p2: 34 },
+                suzerainId: "p2",
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Progress");
+        expect(choice?.cityStateId).toBe("fresh-target");
+    });
+
+    it("still allows hotspot incumbent maintenance when the lead is in the emergency band", () => {
+        const state = createBaseState();
+        state.turn = 96;
+        state.seed = 8;
+        state.cityStates = [
+            createCityState("loop-incumbent", "cs_owner_loop_2", "cs-city-loop-2", { q: 2, r: 0 }, "Gold", {
+                suzerainId: "p1",
+                influenceByPlayer: { p1: 34, p2: 30 },
+                lastSuzerainChangeTurn: 94,
+                recentSuzerainChangeCount: 4,
+                lastSuzerainChangeCause: "Investment",
+                lastSuzerainHolderId: "p2",
+                recentSuzerainPairKey: "p1|p2",
+                recentSuzerainPairChangeCount: 4,
+                recentSuzerainPairTurn: 94,
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("loop-incumbent");
     });
 
     it("respects reserve safety for non-critical investments", () => {
@@ -319,6 +474,47 @@ describe("city-state-policy", () => {
         expect(choice?.cityStateId).toBe("frontier-cs");
     });
 
+    it("allows a recent passive-opening challenge below the normal reserve floor", () => {
+        const state = createBaseState();
+        const p1 = state.players.find(player => player.id === "p1")!;
+        p1.treasury = 52;
+        p1.netGold = 1;
+        state.units = [
+            {
+                id: "u1",
+                type: UnitType.SpearGuard,
+                ownerId: "p1",
+                coord: { q: 1, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "u2",
+                type: UnitType.BowGuard,
+                ownerId: "p1",
+                coord: { q: 1, r: 1 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+        ];
+        state.cityStates = [
+            createCityState("open-race", "cs_owner_open", "cs-city-open", { q: 3, r: 0 }, "Gold", {
+                influenceByPlayer: { p1: 18, p2: 30 },
+                suzerainId: "p2",
+                lastPassiveContestationCloseRaceTurn: state.turn - 1,
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
+        expect(choice?.cityStateId).toBe("open-race");
+    });
+
     it("does not bypass reserve safety for uncontested incumbent leads", () => {
         const state = createBaseState();
         const p1 = state.players.find(player => player.id === "p1")!;
@@ -373,6 +569,22 @@ describe("city-state-policy", () => {
         ];
 
         const choice = pickCityStateInvestmentTarget(state, "p1", "Progress");
+        expect(choice).toBeUndefined();
+    });
+
+    it("skips maintenance when rival influence is still too small to be a real threat", () => {
+        const state = createBaseState();
+        const p1 = state.players.find(player => player.id === "p1")!;
+        p1.treasury = 260;
+        p1.netGold = 10;
+        state.cityStates = [
+            createCityState("light-pressure", "cs_owner_light", "cs-city-light", { q: 3, r: 0 }, "Gold", {
+                suzerainId: "p1",
+                influenceByPlayer: { p1: 28, p2: 2 },
+            }),
+        ];
+
+        const choice = pickCityStateInvestmentTarget(state, "p1", "Balanced");
         expect(choice).toBeUndefined();
     });
 

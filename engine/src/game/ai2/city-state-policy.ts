@@ -1,7 +1,17 @@
-import { CITY_STATE_INVEST_GAIN, UNITS } from "../../core/constants.js";
+import { CITY_STATE_CONTEST_MARGIN, CITY_STATE_INVEST_GAIN, UNITS } from "../../core/constants.js";
 import { hexDistance } from "../../core/hex.js";
-import { AiVictoryGoal, CityState, CityStateYieldType, GameState } from "../../core/types.js";
-import { getCityStateInvestCost } from "../city-states.js";
+import {
+    AiVictoryGoal,
+    CityState,
+    CityStateSuzerainChangeCause,
+    CityStateYieldType,
+    GameState,
+} from "../../core/types.js";
+import {
+    getCityStateInvestCost,
+    getCityStateInvestDecisionCost,
+    isCityStateRecentPassiveOpening,
+} from "../city-states.js";
 import { computeEconomySnapshot } from "./economy/budget.js";
 import { getWarEnemyIds, isMilitaryUnitType } from "./schema.js";
 
@@ -17,22 +27,22 @@ export type CityStateInvestmentPickOptions = {
 
 const YIELD_PRIORITY_BY_GOAL: Record<AiVictoryGoal, Record<CityStateYieldType, number>> = {
     Progress: {
-        Science: 1.4,
-        Production: 0.95,
-        Food: 1.0,
-        Gold: 1.15,
+        Science: 1.46,
+        Production: 0.78,
+        Food: 1.08,
+        Gold: 1.26,
     },
     Conquest: {
-        Science: 0.85,
-        Production: 1.45,
-        Food: 1.05,
-        Gold: 1.2,
+        Science: 0.98,
+        Production: 1.12,
+        Food: 1.12,
+        Gold: 1.3,
     },
     Balanced: {
-        Science: 1.15,
-        Production: 1.1,
-        Food: 1.05,
-        Gold: 1.15,
+        Science: 1.22,
+        Production: 0.92,
+        Food: 1.12,
+        Gold: 1.22,
     },
 };
 
@@ -50,22 +60,55 @@ const INVEST_RESERVE_MULT_BY_STATE: Record<"Healthy" | "Guarded" | "Strained" | 
     Crisis: 1,
 };
 
+const PASSIVE_OPENING_RESERVE_MULT_BY_STATE: Record<"Healthy" | "Guarded" | "Strained" | "Crisis", number> = {
+    Healthy: 0.18,
+    Guarded: 0.28,
+    Strained: 0.42,
+    Crisis: 0.65,
+};
+
 const OFFENSIVE_WAR_SCORE_THRESHOLD = 30;
 const INVEST_PREFERRED_SCORE_FLOOR = 0.66;
 const INCUMBENT_SAFE_LEAD_MULT = 0.85;
 const INCUMBENT_NO_RIVAL_INFLUENCE_FLOOR = 0.45;
+const INCUMBENT_MEANINGFUL_RIVAL_MULT = 0.15;
 const INCUMBENT_WAR_PRESSURE_BONUS_PER_WAR = 6;
 const INCUMBENT_WAR_PRESSURE_BONUS_MAX = 24;
-const TURNOVER_CAMPAIGN_WINDOW_MULT = 3;
+const TURNOVER_CAMPAIGN_WINDOW_MULT = 3.25;
 const TURNOVER_DEEP_BEHIND_MULT = 4;
-const TURNOVER_FLIP_WINDOW_MULT = 1.35;
+const TURNOVER_FLIP_WINDOW_MULT = 1.5;
 const TURNOVER_RACE_COST_RELIEF = 0.55;
-const TURNOVER_LIVE_RACE_GAP_MULT = 3;
+const TURNOVER_LIVE_RACE_GAP_MULT = 3.25;
 const CITY_STATE_SCORE_JITTER = 4;
 const CITY_STATE_TURNOVER_SCORE_JITTER = 6;
 const CITY_STATE_EXPLORATION_CHANCE = 0.24;
 const CITY_STATE_EXPLORATION_POOL = 4;
 const CITY_STATE_EXPLORATION_SCORE_BAND = 0.84;
+const CITY_STATE_HOTSPOT_WINDOW = 16;
+const CITY_STATE_HOTSPOT_THRESHOLD = 3;
+const CITY_STATE_HOTSPOT_CHALLENGE_PENALTY = 14;
+const CITY_STATE_HOTSPOT_INCUMBENT_PENALTY = 18;
+const CITY_STATE_HOTSPOT_DEFENSIVE_PENALTY = 8;
+const CITY_STATE_HOTSPOT_PENALTY_STEP = 4;
+const CITY_STATE_HOTSPOT_PAIR_LOOP_THRESHOLD = 2;
+const CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_MULT = 0.45;
+const CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_PENALTY_BASE = 18;
+const CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_PENALTY_STEP = 8;
+const CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_PENALTY_MAX = 42;
+const CITY_STATE_STABLE_TURNOVER_BONUS = 10;
+const CITY_STATE_STABLE_CLOSE_RACE_BONUS = 14;
+const CITY_STATE_FRESH_FLIP_WINDOW = 6;
+const CITY_STATE_FRESH_RECONTEST_PENALTY = 16;
+const CITY_STATE_FRESH_RECONTEST_STEP = 3;
+const CITY_STATE_FRESH_HOLD_BONUS = 8;
+const CITY_STATE_PAIR_LOOP_WINDOW = 18;
+const CITY_STATE_PAIR_RECLAIM_PENALTY_BASE = 18;
+const CITY_STATE_PAIR_RECLAIM_PENALTY_STEP = 8;
+const CITY_STATE_PAIR_RECLAIM_PENALTY_MAX = 44;
+const CITY_STATE_PASSIVE_OPENING_SCORE_BONUS = 12;
+const CITY_STATE_PASSIVE_OPENING_FLIP_BONUS = 10;
+const CITY_STATE_DEFENSIVE_MAINTENANCE_MULT = 0.85;
+const CITY_STATE_HOTSPOT_DEFENSIVE_MAINTENANCE_MULT = 0.45;
 
 function hashString32(input: string): number {
     let hash = 2166136261;
@@ -99,6 +142,61 @@ function getInfluenceGapToSuzerain(cityState: CityState, playerId: string): numb
     const myInfluence = cityState.influenceByPlayer[playerId] ?? 0;
     const suzerainInfluence = cityState.influenceByPlayer[suzerainId] ?? 0;
     return suzerainInfluence - myInfluence;
+}
+
+function getTurnsSinceSuzerainChange(state: GameState, cityState: CityState): number | undefined {
+    const turn = cityState.lastSuzerainChangeTurn;
+    if (turn === undefined) return undefined;
+    return state.turn - turn;
+}
+
+function isCompetitiveSuzerainChangeCause(
+    cause: CityStateSuzerainChangeCause | undefined,
+): boolean {
+    return cause === "Investment"
+        || cause === "PassiveContestation"
+        || cause === "WartimeRelease";
+}
+
+function isCityStateHotspot(state: GameState, cityState: CityState): boolean {
+    const turnsSinceChange = getTurnsSinceSuzerainChange(state, cityState);
+    if (turnsSinceChange === undefined) return false;
+    if (turnsSinceChange > CITY_STATE_HOTSPOT_WINDOW) return false;
+    return (cityState.recentSuzerainChangeCount ?? 0) >= CITY_STATE_HOTSPOT_THRESHOLD;
+}
+
+function getRecentPairRecaptureCount(
+    state: GameState,
+    cityState: CityState,
+    playerId: string,
+): number {
+    const incumbentId = cityState.suzerainId;
+    if (!incumbentId || incumbentId === playerId) return 0;
+    if (cityState.lastSuzerainHolderId !== playerId) return 0;
+    const pairTurn = cityState.recentSuzerainPairTurn;
+    if (pairTurn === undefined) return 0;
+    if ((state.turn - pairTurn) > CITY_STATE_PAIR_LOOP_WINDOW) return 0;
+    const expectedPairKey = [playerId, incumbentId].sort().join("|");
+    if (cityState.recentSuzerainPairKey !== expectedPairKey) return 0;
+    return cityState.recentSuzerainPairChangeCount ?? 0;
+}
+
+export function getHotspotIncumbentPairLoopCount(
+    state: GameState,
+    cityState: CityState,
+    playerId: string,
+): number {
+    if (cityState.suzerainId !== playerId) return 0;
+    if (!isCityStateHotspot(state, cityState)) return 0;
+    const lastHolderId = cityState.lastSuzerainHolderId;
+    if (!lastHolderId || lastHolderId === playerId) return 0;
+    const pairTurn = cityState.recentSuzerainPairTurn;
+    if (pairTurn === undefined) return 0;
+    if ((state.turn - pairTurn) > CITY_STATE_PAIR_LOOP_WINDOW) return 0;
+    const expectedPairKey = [playerId, lastHolderId].sort().join("|");
+    if (cityState.recentSuzerainPairKey !== expectedPairKey) return 0;
+    const pairCount = cityState.recentSuzerainPairChangeCount ?? 0;
+    return pairCount >= CITY_STATE_HOTSPOT_PAIR_LOOP_THRESHOLD ? pairCount : 0;
 }
 
 export function isCityStateTurnoverCandidate(
@@ -142,7 +240,7 @@ function getYieldPriority(
 
     if (economyState === "Strained" || economyState === "Crisis") {
         if (yieldType === "Gold") priority += 0.35;
-        if (yieldType === "Production") priority += 0.1;
+        if (yieldType === "Food") priority += 0.08;
     }
 
     return priority;
@@ -202,8 +300,10 @@ function scoreCityStateInvestmentOption(
     if (!player) return undefined;
 
     const treasury = player.treasury ?? 0;
-    const cost = getCityStateInvestCost(cityState, playerId);
+    const cost = getCityStateInvestCost(cityState, playerId, state);
     if (treasury < cost) return undefined;
+    const uncappedDecisionCost = getCityStateInvestDecisionCost(cityState, playerId, state);
+    const decisionCost = cost + ((uncappedDecisionCost - cost) * 0.5);
 
     const myInfluence = cityState.influenceByPlayer[playerId] ?? 0;
     const topRivalInfluence = getTopRivalInfluence(state, cityState, playerId);
@@ -224,6 +324,8 @@ function scoreCityStateInvestmentOption(
     const inLiveTurnoverWindow = challengingIncumbent && gapToIncumbent <= turnoverCampaignWindow;
     const inFlipWindow = challengingIncumbent && gapToIncumbent <= turnoverFlipWindow;
     const deeplyBehindIncumbent = challengingIncumbent && gapToIncumbent > turnoverDeepBehindWindow;
+    const recentPassiveOpening = challengingIncumbent && isCityStateRecentPassiveOpening(state, cityState);
+    const passiveOpeningStrikeOpportunity = recentPassiveOpening && (overtakesTop || inFlipWindow || gapToIncumbent <= gain);
     const rivalChallengerCount = state.players
         .filter(p => p.id !== playerId && !p.isEliminated)
         .filter(p => p.id !== incumbentId)
@@ -234,13 +336,36 @@ function scoreCityStateInvestmentOption(
 
     const reserveFloor = Math.ceil(economy.reserveFloor * INVEST_RESERVE_MULT_BY_STATE[economy.economyState]);
     const reserveSafeAfterSpend = (treasury - cost) >= reserveFloor;
-    const defensiveMaintenance = isSuzerain && topRivalInfluence > 0 && contestWindow <= Math.ceil(gain * 0.85);
+    const passiveOpeningReserveFloor = Math.ceil(
+        economy.reserveFloor * PASSIVE_OPENING_RESERVE_MULT_BY_STATE[economy.economyState]
+    );
+    const passiveOpeningReserveSafeAfterSpend = (treasury - cost) >= passiveOpeningReserveFloor;
+    const hotspotIncumbentPairLoopCount = isSuzerain
+        ? getHotspotIncumbentPairLoopCount(state, cityState, playerId)
+        : 0;
+    const meaningfulDefensiveRivalInfluence = Math.ceil(gain * INCUMBENT_MEANINGFUL_RIVAL_MULT);
+    const defensiveMaintenanceLeadLimit = Math.ceil(
+        gain * (hotspotIncumbentPairLoopCount > 0 ? CITY_STATE_HOTSPOT_DEFENSIVE_MAINTENANCE_MULT : CITY_STATE_DEFENSIVE_MAINTENANCE_MULT)
+    );
+    const defensiveMaintenance = isSuzerain
+        && topRivalInfluence >= meaningfulDefensiveRivalInfluence
+        && contestWindow <= defensiveMaintenanceLeadLimit;
     const incumbentReserveFloor = Math.ceil(
         economy.reserveFloor * Math.max(0.75, INVEST_RESERVE_MULT_BY_STATE[economy.economyState] + 0.15)
     );
     const incumbentReserveSafeAfterSpend = (treasury - cost) >= incumbentReserveFloor;
-    if (!reserveSafeAfterSpend && !defensiveMaintenance) return undefined;
+    const canFlexReserveForOpening = passiveOpeningStrikeOpportunity
+        && economy.economyState !== "Crisis"
+        && passiveOpeningReserveSafeAfterSpend;
+    if (!reserveSafeAfterSpend && !defensiveMaintenance && !canFlexReserveForOpening) return undefined;
     if (isSuzerain && !defensiveMaintenance && !incumbentReserveSafeAfterSpend) return undefined;
+    if (
+        hotspotIncumbentPairLoopCount > 0 &&
+        topRivalInfluence > 0 &&
+        leadOverTopRival > defensiveMaintenanceLeadLimit
+    ) {
+        return undefined;
+    }
     if (
         isSuzerain &&
         topRivalInfluence <= 0 &&
@@ -265,7 +390,7 @@ function scoreCityStateInvestmentOption(
 
     let suzerainRaceScore = 0;
     if (isSuzerain) {
-        suzerainRaceScore = topRivalInfluence > 0 && contestWindow <= gain
+        suzerainRaceScore = topRivalInfluence >= meaningfulDefensiveRivalInfluence && contestWindow <= gain
             ? (24 + ((gain - contestWindow) * 1.25))
             : 0;
     } else if (overtakesTop) {
@@ -279,7 +404,7 @@ function scoreCityStateInvestmentOption(
 
     const proximityScore = Math.max(0, 10 - nearestDist) * 1.9;
     const antiIncumbentBonus = challengingIncumbent
-        ? (gapToTop <= (gain * 2) ? 14 : 6)
+        ? (gapToTop <= (gain * 2) ? 16 : 7)
         : 0;
     const incumbentWarCount = incumbentId
         ? getMajorWarCount(state, incumbentId)
@@ -289,25 +414,28 @@ function scoreCityStateInvestmentOption(
         : 0;
     const turnoverMomentumBonus = challengingIncumbent
         ? (gapToTop <= turnoverCampaignWindow
-            ? (8 + (Math.max(0, turnoverCampaignWindow - gapToTop) * 1.05))
+            ? (10 + (Math.max(0, turnoverCampaignWindow - gapToTop) * 1.15))
             : 0)
         : 0;
     const challengerCoalitionBonus = challengingIncumbent
-        ? ((rivalChallengerCount > 0 ? 8 : 0) + (rivalChallengerCount * 4))
+        ? ((rivalChallengerCount > 0 ? 10 : 0) + (rivalChallengerCount * 5))
         : 0;
     const firstMoverChallengeBonus = challengingIncumbent && rivalChallengerCount === 0 && gapToIncumbent <= (gain * 2)
         ? 8
         : 0;
     const turnoverFlipBonus = inFlipWindow
-        ? 28
+        ? 34
         : inLiveTurnoverWindow
-            ? 16
+            ? 20
             : 0;
+    const passiveOpeningBonus = recentPassiveOpening
+        ? (CITY_STATE_PASSIVE_OPENING_SCORE_BONUS + (passiveOpeningStrikeOpportunity ? CITY_STATE_PASSIVE_OPENING_FLIP_BONUS : 0))
+        : 0;
     const entrenchedIncumbentPenalty = deeplyBehindIncumbent
         ? Math.min(26, 10 + ((gapToIncumbent - turnoverDeepBehindWindow) * 0.45))
         : 0;
-    const incumbencyComplacencyPenalty = isSuzerain && !defensiveMaintenance && leadOverTopRival > (gain * 0.35)
-        ? Math.min(34, 10 + ((leadOverTopRival - (gain * 0.35)) * 0.7))
+    const incumbencyComplacencyPenalty = isSuzerain && !defensiveMaintenance && leadOverTopRival > (gain * 0.3)
+        ? Math.min(40, 12 + ((leadOverTopRival - (gain * 0.3)) * 0.8))
         : 0;
     const enemySuzerainPressure = incumbentId && state.diplomacy?.[playerId]?.[incumbentId] === "War"
         ? 18
@@ -318,7 +446,52 @@ function scoreCityStateInvestmentOption(
     const crisisPenalty = economy.economyState === "Crisis" && cityState.yieldType !== "Gold"
         ? 4
         : 0;
-    const costPenalty = cost
+    const turnsSinceSuzerainChange = getTurnsSinceSuzerainChange(state, cityState);
+    const hotspotState = isCityStateHotspot(state, cityState);
+    const hotspotDepth = hotspotState
+        ? Math.max(1, (cityState.recentSuzerainChangeCount ?? CITY_STATE_HOTSPOT_THRESHOLD) - CITY_STATE_HOTSPOT_THRESHOLD + 1)
+        : 0;
+    const freshCompetitiveFlip = turnsSinceSuzerainChange !== undefined
+        && turnsSinceSuzerainChange <= CITY_STATE_FRESH_FLIP_WINDOW
+        && isCompetitiveSuzerainChangeCause(cityState.lastSuzerainChangeCause);
+    const pairRecaptureCount = challengingIncumbent
+        ? getRecentPairRecaptureCount(state, cityState, playerId)
+        : 0;
+    const hotspotPenalty = hotspotState
+        ? isSuzerain
+            ? ((defensiveMaintenance ? CITY_STATE_HOTSPOT_DEFENSIVE_PENALTY : CITY_STATE_HOTSPOT_INCUMBENT_PENALTY) + (hotspotDepth * CITY_STATE_HOTSPOT_PENALTY_STEP))
+            : (CITY_STATE_HOTSPOT_CHALLENGE_PENALTY + (hotspotDepth * CITY_STATE_HOTSPOT_PENALTY_STEP))
+        : 0;
+    const hotspotIncumbentLoopPenalty = hotspotIncumbentPairLoopCount > 0
+        ? Math.min(
+            CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_PENALTY_MAX,
+            CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_PENALTY_BASE
+                + ((hotspotIncumbentPairLoopCount - CITY_STATE_HOTSPOT_PAIR_LOOP_THRESHOLD) * CITY_STATE_HOTSPOT_PAIR_LOOP_MAINTENANCE_PENALTY_STEP),
+        )
+        : 0;
+    const stableTurnoverBonus = challengingIncumbent && inLiveTurnoverWindow && !hotspotState
+        ? CITY_STATE_STABLE_TURNOVER_BONUS
+        : 0;
+    const stableCloseRaceBonus = challengingIncumbent
+        && !hotspotState
+        && !freshCompetitiveFlip
+        && gapToIncumbent <= CITY_STATE_CONTEST_MARGIN
+        ? CITY_STATE_STABLE_CLOSE_RACE_BONUS + Math.max(0, CITY_STATE_CONTEST_MARGIN - gapToIncumbent)
+        : 0;
+    const freshRecontestPenalty = challengingIncumbent && freshCompetitiveFlip
+        ? CITY_STATE_FRESH_RECONTEST_PENALTY
+            + ((CITY_STATE_FRESH_FLIP_WINDOW - (turnsSinceSuzerainChange ?? CITY_STATE_FRESH_FLIP_WINDOW)) * CITY_STATE_FRESH_RECONTEST_STEP)
+        : 0;
+    const pairRecapturePenalty = pairRecaptureCount > 0
+        ? Math.min(
+            CITY_STATE_PAIR_RECLAIM_PENALTY_MAX,
+            CITY_STATE_PAIR_RECLAIM_PENALTY_BASE + ((pairRecaptureCount - 1) * CITY_STATE_PAIR_RECLAIM_PENALTY_STEP),
+        )
+        : 0;
+    const freshHoldBonus = isSuzerain && defensiveMaintenance && freshCompetitiveFlip
+        ? CITY_STATE_FRESH_HOLD_BONUS
+        : 0;
+    const costPenalty = decisionCost
         * INVEST_COST_WEIGHT_BY_STATE[economy.economyState]
         * (inLiveTurnoverWindow ? TURNOVER_RACE_COST_RELIEF : 1);
 
@@ -331,10 +504,18 @@ function scoreCityStateInvestmentOption(
         + challengerCoalitionBonus
         + firstMoverChallengeBonus
         + turnoverFlipBonus
+        + passiveOpeningBonus
+        + stableTurnoverBonus
+        + stableCloseRaceBonus
+        + freshHoldBonus
         + enemySuzerainPressure
         - warPenalty
         - crisisPenalty
         - costPenalty
+        - hotspotPenalty
+        - hotspotIncumbentLoopPenalty
+        - pairRecapturePenalty
+        - freshRecontestPenalty
         - incumbencyComplacencyPenalty
         - entrenchedIncumbentPenalty;
 
