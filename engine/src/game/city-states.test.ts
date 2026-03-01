@@ -132,6 +132,19 @@ describe("city-state influence", () => {
         expect(cityState.suzerainId).toBe("p1");
     });
 
+    it("lets investment resolve a non-hotspot close race on a one-point challenger edge", () => {
+        const state = makeState();
+        const cityState = createCityStateFromClearedCamp(state, { q: 0, r: 0 }, "p1", 20)!;
+
+        cityState.discoveredByPlayer.p2 = true;
+        cityState.influenceByPlayer.p1 = 40;
+        cityState.influenceByPlayer.p2 = 41;
+
+        const suzerain = resolveCityStateSuzerain(state, cityState.id, "Investment");
+        expect(suzerain).toBe("p2");
+        expect(cityState.suzerainId).toBe("p2");
+    });
+
     it("adds extra incumbent stability after repeated recent suzerain flips", () => {
         const state = makeState();
         state.turn = 20;

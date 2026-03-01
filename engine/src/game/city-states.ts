@@ -55,6 +55,7 @@ const SUZERAIN_PAIR_RECLAIM_PRESSURE_REDUCTION_MAX = 9;
 const PASSIVE_CONTESTATION_CLOSE_RACE_EXTRA_DECAY = 1;
 const PASSIVE_CONTESTATION_CLOSE_RACE_EXTRA_GAIN = 1;
 const PASSIVE_CONTESTATION_CLOSE_RACE_FLIP_MARGIN = 1;
+const INVESTMENT_CLOSE_RACE_FLIP_MARGIN = 1;
 const CITY_STATE_PASSIVE_OPENING_WINDOW = 4;
 const CITY_STATE_PASSIVE_OPENING_CHALLENGE_DISCOUNT = 0.8;
 
@@ -507,6 +508,8 @@ export function resolveCityStateSuzerain(
                 const incumbentInfluence = cityState.influenceByPlayer[incumbent] ?? 0;
                 const turnoverMargin = cause === "PassiveContestation" && challengerStabilityMargin === 0
                     ? PASSIVE_CONTESTATION_CLOSE_RACE_FLIP_MARGIN
+                    : cause === "Investment" && challengerStabilityMargin === 0
+                        ? INVESTMENT_CLOSE_RACE_FLIP_MARGIN
                     : Math.max(1, Math.ceil(CITY_STATE_CONTEST_MARGIN / 4));
                 if (
                     topEntry.playerId !== incumbent &&
