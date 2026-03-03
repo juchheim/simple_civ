@@ -21,8 +21,10 @@ const CAMP_SETTLE_RADIUS_ARMY_TECH = 13;
 const CAMP_SETTLE_RADIUS_ARMY_FIELDED = 17;
 const MIN_POSITIONING_UNITS = 2;  // Need 2 units positioned before attacking
 const POSITIONING_RADIUS = 5;     // Units within 5 tiles of camp are "positioned"
-const MIN_GATHERING_TURNS = 1;    // Minimum turns in gathering phase
-const MIN_POSITIONING_TURNS = 1;  // Minimum turns in positioning phase
+const MIN_GATHERING_TURNS_PRE_ARMY = 1;
+const MIN_GATHERING_TURNS_POST_ARMY = 0;
+const MIN_POSITIONING_TURNS_PRE_ARMY = 1;
+const MIN_POSITIONING_TURNS_POST_ARMY = 0;
 const RETREAT_HP_THRESHOLD = 0.3; // Retreat if HP below 30%
 const CAMP_TARGET_SCORE_MIN_PRE_ARMY = 28;
 const CAMP_TARGET_SCORE_MIN_ARMY_TECH = 8;
@@ -122,13 +124,18 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
             aiInfo(`[AI CAMP] ${player.id} building up for camp: ${militaryCount}/${requiredMilitary} units`);
         }
     } else if (prep.state === "Gathering") {
-        if (turnsSinceStart >= MIN_GATHERING_TURNS) {
-            aiInfo(`[AI CAMP] ${player.id} finished Gathering, moving to Positioning`);
-            newState = "Positioning";
+        if (turnsSinceStart >= getMinGatheringTurns(readiness)) {
+            if (readiness !== "PreArmy" && areUnitsPositionedForCamp(state, player.id, camp)) {
+                aiInfo(`[AI CAMP] ${player.id} finished Gathering with units in place, Ready to attack camp!`);
+                newState = "Ready";
+            } else {
+                aiInfo(`[AI CAMP] ${player.id} finished Gathering, moving to Positioning`);
+                newState = "Positioning";
+            }
             return updatePrepState(state, player.id, { ...prep, state: newState });
         }
     } else if (prep.state === "Positioning") {
-        if (turnsSinceStart >= MIN_GATHERING_TURNS + MIN_POSITIONING_TURNS) {
+        if (turnsSinceStart >= getMinGatheringTurns(readiness) + getMinPositioningTurns(readiness)) {
             if (areUnitsPositionedForCamp(state, player.id, camp)) {
                 aiInfo(`[AI CAMP] ${player.id} units positioned, Ready to attack camp!`);
                 newState = "Ready";
@@ -197,6 +204,15 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
         );
     }
 
+    const unitsPositioned = militaryCount >= requiredMilitary && areUnitsPositionedForCamp(state, player.id, best.camp);
+    const initialPrepState = militaryCount < requiredMilitary
+        ? "Buildup"
+        : unitsPositioned && readiness !== "PreArmy"
+            ? "Ready"
+            : readiness === "PreArmy"
+                ? "Gathering"
+                : "Positioning";
+
     return {
         ...state,
         players: state.players.map(p =>
@@ -204,7 +220,7 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
                 ...p,
                 campClearingPrep: {
                     targetCampId: best.camp.id,
-                    state: militaryCount >= requiredMilitary ? "Gathering" : "Buildup",
+                    state: initialPrepState,
                     startedTurn: state.turn
                 }
             } : p
@@ -241,7 +257,7 @@ function getMilitaryCount(state: GameState, playerId: string): number {
 function getCampClearingReadiness(state: GameState, player: Player): CampClearingReadiness {
     const hasArmyTech = player.techs.includes(TechId.DrilledRanks);
     const militaryCount = getMilitaryCount(state, player.id);
-    const hasMilitaryMass = militaryCount >= 4 && state.turn >= 55;
+    const hasMilitaryMass = militaryCount >= 4 && state.turn >= 50;
     const hasFieldedArmy = state.units.some(
         unit =>
             unit.ownerId === player.id &&
@@ -270,6 +286,14 @@ function getCampTargetScoreMin(readiness: CampClearingReadiness): number {
     if (readiness === "ArmyFielded") return CAMP_TARGET_SCORE_MIN_ARMY_FIELDED;
     if (readiness === "ArmyTech") return CAMP_TARGET_SCORE_MIN_ARMY_TECH;
     return CAMP_TARGET_SCORE_MIN_PRE_ARMY;
+}
+
+function getMinGatheringTurns(readiness: CampClearingReadiness): number {
+    return readiness === "PreArmy" ? MIN_GATHERING_TURNS_PRE_ARMY : MIN_GATHERING_TURNS_POST_ARMY;
+}
+
+function getMinPositioningTurns(readiness: CampClearingReadiness): number {
+    return readiness === "PreArmy" ? MIN_POSITIONING_TURNS_PRE_ARMY : MIN_POSITIONING_TURNS_POST_ARMY;
 }
 
 function getCampPrepTimeout(readiness: CampClearingReadiness): number {

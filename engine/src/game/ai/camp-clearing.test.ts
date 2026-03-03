@@ -200,7 +200,7 @@ describe("camp-clearing", () => {
         expect(prep?.targetCampId).toBe("camp-far");
     });
 
-    it("keeps active non-emergency camp prep during single wars after armies are fielded", () => {
+    it("advances active non-emergency camp prep straight to Ready during single wars after armies are fielded", () => {
         const state = baseState();
         state.turn = 95;
         state.diplomacy.p1.p2 = DiplomacyState.War;
@@ -225,7 +225,7 @@ describe("camp-clearing", () => {
         const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
         expect(prep).toBeDefined();
         expect(prep?.targetCampId).toBe("camp-far");
-        expect(prep?.state).toBe("Positioning");
+        expect(prep?.state).toBe("Ready");
     });
 
     it("stays cautious before army tech but engages earlier once army tech is online", () => {
@@ -281,5 +281,46 @@ describe("camp-clearing", () => {
 
         const fieldedArmyNext = manageCampClearing(fieldedArmy, "p1");
         expect(fieldedArmyNext.players.find(p => p.id === "p1")?.campClearingPrep?.targetCampId).toBe("camp-far");
+    });
+
+    it("starts post-army camp prep in Ready when units are already positioned", () => {
+        const state = baseState();
+        state.turn = 80;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-near", 6, 0)];
+        state.visibility.p1 = ["6,0"];
+        addMilitaryAt(state, [{ q: 2, r: 0 }, { q: 3, r: 0 }, { q: 4, r: 0 }]);
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-near");
+        expect(prep?.state).toBe("Ready");
+    });
+
+    it("skips Gathering for post-army camp prep when units still need to close in", () => {
+        const state = baseState();
+        state.turn = 80;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-far", 7, 0)];
+        state.visibility.p1 = ["7,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: 0 }]);
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-far");
+        expect(prep?.state).toBe("Positioning");
+    });
+
+    it("treats a four-unit force as army-ready by turn 50", () => {
+        const state = baseState();
+        state.turn = 50;
+        state.nativeCamps = [makeCamp("camp-far", 10, 0)];
+        state.visibility.p1 = ["10,0"];
+        addMilitaryAt(state, [{ q: 5, r: 0 }, { q: 6, r: 0 }, { q: 6, r: 1 }, { q: 7, r: 0 }]);
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-far");
+        expect(prep?.state).toBe("Ready");
     });
 });
