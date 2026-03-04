@@ -6,6 +6,51 @@ import { tryAction } from "../shared/actions.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { expectedDamageFrom, expectedDamageToUnit, isScoutType } from "./unit-helpers.js";
 
+const CAMP_PRESSURE_ATTACK_MIN_HEALTH_RATIO = 0.45;
+const CAMP_PRESSURE_ATTACK_FINISHABLE_HP = 4;
+
+function getCampAttackers(state: GameState, playerId: string) {
+    return state.units
+        .filter(u =>
+            u.ownerId === playerId &&
+            !u.hasAttacked &&
+            !isScoutType(u.type) &&
+            UNITS[u.type].domain !== "Civilian" &&
+            u.type !== UnitType.Titan
+        )
+        .sort((a, b) => UNITS[b.type].rng - UNITS[a.type].rng);
+}
+
+function shouldForceCampPressureAttack(
+    state: GameState,
+    playerId: string,
+    attacker: GameState["units"][number],
+    target: {
+        unit: GameState["units"][number];
+        dmg: number;
+        counter: number;
+    },
+    campId: string,
+): boolean {
+    const healthRatio = attacker.maxHp > 0 ? attacker.hp / attacker.maxHp : 0;
+    if (healthRatio < CAMP_PRESSURE_ATTACK_MIN_HEALTH_RATIO) return false;
+    if (target.dmg <= 0) return false;
+
+    const defendersRemaining = state.units.filter(unit => unit.campId === campId).length;
+    const availableAttackers = getCampAttackers(state, playerId);
+    const localAdvantage = availableAttackers.length >= defendersRemaining;
+    if (!localAdvantage) return false;
+
+    const followUpAttackers = availableAttackers.filter(other =>
+        other.id !== attacker.id &&
+        hexDistance(other.coord, target.unit.coord) <= UNITS[other.type].rng
+    );
+    if (followUpAttackers.length === 0) return false;
+
+    const targetRemainingHp = target.unit.hp - target.dmg;
+    return targetRemainingHp <= CAMP_PRESSURE_ATTACK_FINISHABLE_HP;
+}
+
 /**
  * Move military units toward a target native camp during camp clearing phases.
  * Called when player has active campClearingPrep in Gathering, Positioning, or Ready state.
@@ -130,12 +175,7 @@ export function attackCampTargets(state: GameState, playerId: string): GameState
     }
 
     // Get our military units that can attack
-    const attackers = next.units.filter(u =>
-        u.ownerId === playerId &&
-        !u.hasAttacked &&
-        !isScoutType(u.type) &&
-        UNITS[u.type].domain !== "Civilian" && u.type !== UnitType.Titan
-    );
+    const attackers = getCampAttackers(next, playerId);
 
     for (const attacker of attackers) {
         const current = next.units.find(u => u.id === attacker.id);
@@ -173,8 +213,9 @@ export function attackCampTargets(state: GameState, playerId: string): GameState
         // Check if attack is worthwhile: survive OR kill
         const wouldSurvive = current.hp > bestTarget.counter;
         const wouldKill = bestTarget.dmg >= bestTarget.unit.hp;
+        const wouldForcePressure = shouldForceCampPressureAttack(next, playerId, current, bestTarget, targetCamp.id);
 
-        if (!wouldSurvive && !wouldKill) {
+        if (!wouldSurvive && !wouldKill && !wouldForcePressure) {
             aiInfo(`[AI CAMP SKIP] ${playerId} ${current.type} skipping attack (would die without killing)`);
             continue;
         }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../../../core/types.js";
-import { moveUnitsForCampClearing } from "./offense-camp-clearing.js";
+import { moveUnitsForCampClearing, attackCampTargets } from "./offense-camp-clearing.js";
+import { expectedDamageToUnit } from "./unit-helpers.js";
 
 function makeState(): GameState {
     const tiles = [];
@@ -134,5 +135,103 @@ describe("offense camp clearing movement", () => {
         const next = moveUnitsForCampClearing(state, "p1");
         const bow = next.units.find(unit => unit.id === "bow-1");
         expect(bow?.coord).toEqual({ q: 2, r: 0 });
+    });
+});
+
+describe("offense camp clearing attacks", () => {
+    it("uses ranged attackers first so melee can finish the camp in the same turn", () => {
+        const state = makeState();
+        state.units = [
+            {
+                id: "spear-1",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 3, r: 0 },
+                hp: 1,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "bow-1",
+                ownerId: "p1",
+                type: UnitType.BowGuard,
+                coord: { q: 2, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+        ];
+        state.units.push({
+            id: "native-1",
+            ownerId: "natives",
+            type: UnitType.NativeChampion,
+            coord: { q: 4, r: 0 },
+            hp: 18,
+            maxHp: 18,
+            movesLeft: 0,
+            state: UnitState.Normal,
+            hasAttacked: false,
+            campId: "camp-1",
+        });
+
+        const spear = state.units.find(unit => unit.id === "spear-1")!;
+        const bow = state.units.find(unit => unit.id === "bow-1")!;
+        const champion = state.units.find(unit => unit.id === "native-1")!;
+        champion.hp = expectedDamageToUnit(spear, champion, state) + expectedDamageToUnit(bow, champion, state) - 1;
+
+        const next = attackCampTargets(state, "p1");
+        expect(next.units.find(unit => unit.id === "native-1")).toBeUndefined();
+    });
+
+    it("takes a pressure trade when another attacker can finish the last defender", () => {
+        const state = makeState();
+        state.units = [
+            {
+                id: "spear-low",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 3, r: 0 },
+                hp: 5,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "spear-full",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 3, r: 1 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+        ];
+        state.units.push({
+            id: "native-1",
+            ownerId: "natives",
+            type: UnitType.NativeChampion,
+            coord: { q: 4, r: 0 },
+            hp: 18,
+            maxHp: 18,
+            movesLeft: 0,
+            state: UnitState.Normal,
+            hasAttacked: false,
+            campId: "camp-1",
+        });
+
+        const low = state.units.find(unit => unit.id === "spear-low")!;
+        const full = state.units.find(unit => unit.id === "spear-full")!;
+        const champion = state.units.find(unit => unit.id === "native-1")!;
+        champion.hp = expectedDamageToUnit(low, champion, state) + expectedDamageToUnit(full, champion, state) - 1;
+
+        const next = attackCampTargets(state, "p1");
+        expect(next.units.find(unit => unit.id === "native-1")).toBeUndefined();
     });
 });
