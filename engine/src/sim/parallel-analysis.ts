@@ -680,6 +680,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             });
         });
 
+        const previousState = state;
         state = runAiTurn(state, actingPlayerId);
         const currentUnitIds = new Set(state.units.map(u => u.id));
         const firstCityIdByOwner = new Map<string, string>();
@@ -689,7 +690,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             }
         }
         recordEconomySample(economyByCiv, state, actingPlayerId);
-        cityStateTelemetry.observe(state);
+        cityStateTelemetry.observe(state, previousState, actingPlayerId);
         if (lastCityStateSampleTurn !== state.turn) {
             cityStateTelemetry.sampleTurn(state);
             lastCityStateSampleTurn = state.turn;

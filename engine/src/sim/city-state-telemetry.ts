@@ -6,13 +6,16 @@ import {
     CITY_STATE_INVEST_SUZERAIN_DISCOUNT,
     CITY_STATE_INVEST_SUZERAIN_RAMP_CAP,
 } from "../core/constants.js";
+import { UNITS } from "../core/constants.js";
 import { CityState, CityStateSuzerainChangeCause, CityStateYieldType, GameState, HistoryEventType } from "../core/types.js";
 import type { CampClearingPrep } from "../core/types.js";
+import { hexDistance } from "../core/hex.js";
 import { getCityStateInvestCost } from "../game/city-states.js";
 import { getCampTargetDiagnostics } from "../game/ai/camp-clearing.js";
 import type { CampClearingReadiness, CampTargetDiagnostics } from "../game/ai/camp-clearing.js";
 import { computeEconomySnapshot } from "../game/ai2/economy/budget.js";
 import { getAiMemoryV2 } from "../game/ai2/memory.js";
+import { isScoutType } from "../game/ai/units/unit-helpers.js";
 
 const CITY_STATE_TURNOVER_WINDOW = Math.ceil(CITY_STATE_INVEST_GAIN * 3);
 const CITY_STATE_FLIP_WINDOW = Math.ceil(CITY_STATE_INVEST_GAIN * 1.5);
@@ -20,6 +23,7 @@ const CITY_STATE_SAFE_MAINTENANCE_LEAD = Math.ceil(CITY_STATE_INVEST_GAIN * 0.85
 const CITY_STATE_HOTSPOT_WINDOW = 16;
 const CITY_STATE_HOTSPOT_THRESHOLD = 3;
 const CITY_STATE_PASSIVE_ASSIST_WINDOW = 2;
+const CAMP_READY_LOCAL_POWER_RADIUS = 5;
 const CITY_STATE_PASSIVE_OPENING_RESERVE_MULT_BY_STATE = {
     Healthy: 0.5,
     Guarded: 0.64,
@@ -162,6 +166,12 @@ export type CampClearingEpisodeTelemetry = {
     gatheringTurns: number;
     positioningTurns: number;
     readyTurns: number;
+    readyTurnsWithoutContact: number;
+    readyTurnsWithAdjacentContact: number;
+    readyTurnsWithAttackOpportunity: number;
+    readyTurnsWithNoProgressOpportunity: number;
+    readyTurnsWithPowerDisadvantage: number;
+    readyTurnsWithProgress: number;
     totalPrepTurns: number;
     outcome: CampClearingEpisodeOutcome;
     resolvedByPlayerId?: string;
@@ -182,7 +192,7 @@ export type CityStateSimulationTelemetry = {
 };
 
 export type CityStateTelemetryTracker = {
-    observe: (state: GameState) => void;
+    observe: (state: GameState, previousState?: GameState, actedPlayerId?: string) => void;
     sampleTurn: (state: GameState) => void;
     finalize: (state: GameState) => CityStateSimulationTelemetry;
 };
@@ -214,6 +224,13 @@ type PassiveOpeningTracker = {
 
 type ActiveCampClearingEpisode = Omit<CampClearingEpisodeTelemetry, "endedTurn" | "outcome"> & {
     currentPhase: CampPrepPhase;
+};
+
+type ReadyTurnDiagnostics = {
+    adjacentContact: boolean;
+    attackOpportunity: boolean;
+    powerDisadvantage: boolean;
+    madeProgress: boolean;
 };
 
 function createSuzeraintyCauseCounter(): SuzeraintyCauseCounter {
@@ -359,6 +376,89 @@ function resolveCivName(state: GameState, playerId: string): string {
 function coordKey(coord: { q: number; r: number } | undefined): string | undefined {
     if (!coord) return undefined;
     return `${coord.q},${coord.r}`;
+}
+
+function isMilitaryCampUnit(unit: GameState["units"][number]): boolean {
+    return unit.ownerId !== "natives"
+        && !isScoutType(unit.type)
+        && UNITS[unit.type].domain !== "Civilian";
+}
+
+function estimateUnitPower(type: GameState["units"][number]["type"]): number {
+    const stats = UNITS[type];
+    return (stats.atk * 1.8) + (stats.def * 1.1) + (stats.hp * 0.12) + (stats.rng * 1.25);
+}
+
+function getCampDefenders(state: GameState, campId: string): GameState["units"] {
+    return state.units.filter(unit => unit.campId === campId);
+}
+
+function getCampReadyTurnDiagnostics(
+    beforeState: GameState,
+    afterState: GameState,
+    playerId: string,
+    campId: string,
+): ReadyTurnDiagnostics {
+    const beforeDefenders = getCampDefenders(beforeState, campId);
+    const afterDefenders = getCampDefenders(afterState, campId);
+    if (beforeDefenders.length === 0) {
+        return {
+            adjacentContact: false,
+            attackOpportunity: false,
+            powerDisadvantage: false,
+            madeProgress: afterDefenders.length < beforeDefenders.length,
+        };
+    }
+
+    const camp = beforeState.nativeCamps.find(entry => entry.id === campId)
+        || afterState.nativeCamps.find(entry => entry.id === campId);
+    const friendlyUnits = beforeState.units.filter(unit => unit.ownerId === playerId && isMilitaryCampUnit(unit));
+    const localFriendlyUnits = camp
+        ? friendlyUnits.filter(unit => hexDistance(unit.coord, camp.coord) <= CAMP_READY_LOCAL_POWER_RADIUS)
+        : friendlyUnits;
+
+    const adjacentContact = localFriendlyUnits.some(unit =>
+        beforeDefenders.some(defender => hexDistance(unit.coord, defender.coord) <= 1)
+    );
+    const attackOpportunity = friendlyUnits.some(unit =>
+        !unit.hasAttacked && beforeDefenders.some(defender => hexDistance(unit.coord, defender.coord) <= UNITS[unit.type].rng)
+    );
+    const localFriendlyPower = localFriendlyUnits.reduce((sum, unit) => sum + estimateUnitPower(unit.type), 0);
+    const defenderPower = beforeDefenders.reduce((sum, unit) => sum + estimateUnitPower(unit.type), 0);
+    const powerDisadvantage = beforeDefenders.length > 0 && localFriendlyPower < defenderPower;
+    const beforeDefenderHp = beforeDefenders.reduce((sum, unit) => sum + unit.hp, 0);
+    const afterDefenderHp = afterDefenders.reduce((sum, unit) => sum + unit.hp, 0);
+    const madeProgress = afterDefenders.length < beforeDefenders.length || afterDefenderHp < beforeDefenderHp;
+
+    return {
+        adjacentContact,
+        attackOpportunity,
+        powerDisadvantage,
+        madeProgress,
+    };
+}
+
+function recordReadyTurnDiagnostics(
+    activeEpisode: ActiveCampClearingEpisode,
+    diagnostics: ReadyTurnDiagnostics,
+): void {
+    if (diagnostics.adjacentContact) {
+        activeEpisode.readyTurnsWithAdjacentContact += 1;
+    } else {
+        activeEpisode.readyTurnsWithoutContact += 1;
+    }
+    if (diagnostics.attackOpportunity) {
+        activeEpisode.readyTurnsWithAttackOpportunity += 1;
+        if (!diagnostics.madeProgress) {
+            activeEpisode.readyTurnsWithNoProgressOpportunity += 1;
+        }
+    }
+    if (diagnostics.powerDisadvantage) {
+        activeEpisode.readyTurnsWithPowerDisadvantage += 1;
+    }
+    if (diagnostics.madeProgress) {
+        activeEpisode.readyTurnsWithProgress += 1;
+    }
 }
 
 function campVisionKey(playerId: string, campId: string): string {
@@ -683,6 +783,12 @@ function createCampClearingEpisode(
         gatheringTurns: 0,
         positioningTurns: 0,
         readyTurns: 0,
+        readyTurnsWithoutContact: 0,
+        readyTurnsWithAdjacentContact: 0,
+        readyTurnsWithAttackOpportunity: 0,
+        readyTurnsWithNoProgressOpportunity: 0,
+        readyTurnsWithPowerDisadvantage: 0,
+        readyTurnsWithProgress: 0,
         totalPrepTurns: 0,
         resolvedByPlayerId: undefined,
         currentPhase: prep.state,
@@ -715,6 +821,12 @@ function finalizeCampClearingEpisode(
         gatheringTurns: activeEpisode.gatheringTurns,
         positioningTurns: activeEpisode.positioningTurns,
         readyTurns: activeEpisode.readyTurns,
+        readyTurnsWithoutContact: activeEpisode.readyTurnsWithoutContact,
+        readyTurnsWithAdjacentContact: activeEpisode.readyTurnsWithAdjacentContact,
+        readyTurnsWithAttackOpportunity: activeEpisode.readyTurnsWithAttackOpportunity,
+        readyTurnsWithNoProgressOpportunity: activeEpisode.readyTurnsWithNoProgressOpportunity,
+        readyTurnsWithPowerDisadvantage: activeEpisode.readyTurnsWithPowerDisadvantage,
+        readyTurnsWithProgress: activeEpisode.readyTurnsWithProgress,
         totalPrepTurns: activeEpisode.totalPrepTurns,
         outcome,
         resolvedByPlayerId: overrides?.resolvedByPlayerId ?? activeEpisode.resolvedByPlayerId,
@@ -849,12 +961,29 @@ export function createCityStateTelemetryTracker(initialState: GameState): CitySt
         lastProcessedHistoryIndex = historyEvents.length;
     }
 
-    function observe(state: GameState): void {
+    function observe(state: GameState, previousState?: GameState, actedPlayerId?: string): void {
         recordVisibleCamps(state);
 
         for (const player of state.players) {
             ensurePlayerTelemetry(byPlayer, player.id, player.civName);
         }
+
+        if (previousState && actedPlayerId) {
+            const previousPlayer = previousState.players.find(player => player.id === actedPlayerId);
+            const activeEpisode = activeCampEpisodesByPlayer.get(actedPlayerId);
+            if (previousPlayer?.campClearingPrep?.state === "Ready" && activeEpisode) {
+                recordReadyTurnDiagnostics(
+                    activeEpisode,
+                    getCampReadyTurnDiagnostics(
+                        previousState,
+                        state,
+                        actedPlayerId,
+                        previousPlayer.campClearingPrep.targetCampId,
+                    ),
+                );
+            }
+        }
+
         processCampClearingHistory(state);
 
         const currentCityStates = state.cityStates ?? [];

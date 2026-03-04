@@ -447,6 +447,16 @@ let campDirectReadyStarts = 0;
 let campReachedReadyEpisodes = 0;
 let campEpisodesWithSighting = 0;
 let campTimeoutAfterReady = 0;
+let campReadyTurnsWithoutContact = 0;
+let campReadyTurnsWithAdjacentContact = 0;
+let campReadyTurnsWithAttackOpportunity = 0;
+let campReadyTurnsWithNoProgressOpportunity = 0;
+let campReadyTurnsWithPowerDisadvantage = 0;
+let campReadyTurnsWithProgress = 0;
+let campReadyTimeoutNoContact = 0;
+let campReadyTimeoutDeclinedAttack = 0;
+let campReadyTimeoutPowerCollapse = 0;
+let campReadyTimeoutOther = 0;
 let campClearedByOtherFromBuildup = 0;
 let campClearedByOtherFromLateStart = 0;
 let campClearedByOtherOther = 0;
@@ -539,6 +549,12 @@ for (const sim of results) {
         const sightedTurn = num(episode.sightedTurn, NaN);
         const initialMilitaryCount = num(episode.initialMilitaryCount, NaN);
         const initialRequiredMilitary = num(episode.initialRequiredMilitary, NaN);
+        const readyTurnsWithoutContact = num(episode.readyTurnsWithoutContact, 0);
+        const readyTurnsWithAdjacentContact = num(episode.readyTurnsWithAdjacentContact, 0);
+        const readyTurnsWithAttackOpportunity = num(episode.readyTurnsWithAttackOpportunity, 0);
+        const readyTurnsWithNoProgressOpportunity = num(episode.readyTurnsWithNoProgressOpportunity, 0);
+        const readyTurnsWithPowerDisadvantage = num(episode.readyTurnsWithPowerDisadvantage, 0);
+        const readyTurnsWithProgress = num(episode.readyTurnsWithProgress, 0);
 
         totalCampClearingEpisodes += 1;
         campOutcomeCounts[outcome] += 1;
@@ -563,6 +579,12 @@ for (const sim of results) {
             readinessEntry.prepToReadySamples += 1;
             campPrepToReadyTurns.push(prepToReady);
         }
+        campReadyTurnsWithoutContact += readyTurnsWithoutContact;
+        campReadyTurnsWithAdjacentContact += readyTurnsWithAdjacentContact;
+        campReadyTurnsWithAttackOpportunity += readyTurnsWithAttackOpportunity;
+        campReadyTurnsWithNoProgressOpportunity += readyTurnsWithNoProgressOpportunity;
+        campReadyTurnsWithPowerDisadvantage += readyTurnsWithPowerDisadvantage;
+        campReadyTurnsWithProgress += readyTurnsWithProgress;
         if (outcome === "ClearedBySelf") {
             readinessEntry.selfClears += 1;
             if (Number.isFinite(campClearedTurn) && Number.isFinite(prepStartedTurn)) {
@@ -573,6 +595,15 @@ for (const sim of results) {
             readinessEntry.timedOut += 1;
             if (Number.isFinite(firstReadyTurn)) {
                 campTimeoutAfterReady += 1;
+                if (readyTurnsWithAdjacentContact === 0) {
+                    campReadyTimeoutNoContact += 1;
+                } else if (readyTurnsWithPowerDisadvantage > readyTurnsWithNoProgressOpportunity) {
+                    campReadyTimeoutPowerCollapse += 1;
+                } else if (readyTurnsWithNoProgressOpportunity > 0 || readyTurnsWithAttackOpportunity > 0) {
+                    campReadyTimeoutDeclinedAttack += 1;
+                } else {
+                    campReadyTimeoutOther += 1;
+                }
             }
         }
         if (outcome === "WarPrepCancelled" || outcome === "WartimeEmergencyCancelled") {
@@ -1223,6 +1254,8 @@ ${markdownTable([
 - Prep start -> self clear (avg / median): ${Number.isFinite(campPrepToSelfClearTiming.avg) ? fmt(campPrepToSelfClearTiming.avg, 2) : "n/a"} / ${Number.isFinite(campPrepToSelfClearTiming.median) ? fmt(campPrepToSelfClearTiming.median, 0) : "n/a"} turns
 - Total prep duration (avg / median): ${Number.isFinite(campTotalPrepTiming.avg) ? fmt(campTotalPrepTiming.avg, 2) : "n/a"} / ${Number.isFinite(campTotalPrepTiming.median) ? fmt(campTotalPrepTiming.median, 0) : "n/a"} turns
 - Timeouts after reaching Ready: ${campTimeoutAfterReady} (${fmt(pct(campTimeoutAfterReady, campOutcomeCounts.TimedOut), 1)}% of timeouts)
+- Ready turn diagnostics: no contact ${campReadyTurnsWithoutContact}, adjacent contact ${campReadyTurnsWithAdjacentContact}, attack opportunity ${campReadyTurnsWithAttackOpportunity}, stalled opportunity ${campReadyTurnsWithNoProgressOpportunity}, power disadvantage ${campReadyTurnsWithPowerDisadvantage}, progress ${campReadyTurnsWithProgress}
+- Ready-timeout primary breakdown: no contact ${campReadyTimeoutNoContact}, declined attack ${campReadyTimeoutDeclinedAttack}, power collapse ${campReadyTimeoutPowerCollapse}, other ${campReadyTimeoutOther}
 - War-interrupted episodes: ${campWarInterruptedEpisodes} (${fmt(pct(campWarInterruptedEpisodes, totalCampClearingEpisodes), 1)}%)
 - Cleared-by-other breakdown: lacked military ${campClearedByOtherFromBuildup}, late start ${campClearedByOtherFromLateStart}, other ${campClearedByOtherOther}
 - Initial prep state mix: ${CAMP_PREP_STATE_ORDER.map(state => `${state} ${campInitialPrepStateCounts[state]}`).join(", ")}

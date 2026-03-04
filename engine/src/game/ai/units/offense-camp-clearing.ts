@@ -1,5 +1,5 @@
 import { aiInfo } from "../debug-logging.js";
-import { hexDistance, hexEquals } from "../../../core/hex.js";
+import { getNeighbors, hexDistance, hexEquals } from "../../../core/hex.js";
 import { GameState, UnitType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
@@ -7,7 +7,8 @@ import { findPath } from "../../helpers/pathfinding.js";
 import { expectedDamageFrom, expectedDamageToUnit, isScoutType } from "./unit-helpers.js";
 
 const CAMP_PRESSURE_ATTACK_MIN_HEALTH_RATIO = 0.45;
-const CAMP_PRESSURE_ATTACK_FINISHABLE_HP = 4;
+const CAMP_PRESSURE_ATTACK_FINISHABLE_HP = 7;
+const CAMP_PRESSURE_ATTACK_MEANINGFUL_TRADE_RATIO = 0.35;
 
 function getCampAttackers(state: GameState, playerId: string) {
     return state.units
@@ -38,7 +39,7 @@ function shouldForceCampPressureAttack(
 
     const defendersRemaining = state.units.filter(unit => unit.campId === campId).length;
     const availableAttackers = getCampAttackers(state, playerId);
-    const localAdvantage = availableAttackers.length >= defendersRemaining;
+    const localAdvantage = availableAttackers.length + 1 >= defendersRemaining;
     if (!localAdvantage) return false;
 
     const followUpAttackers = availableAttackers.filter(other =>
@@ -48,7 +49,78 @@ function shouldForceCampPressureAttack(
     if (followUpAttackers.length === 0) return false;
 
     const targetRemainingHp = target.unit.hp - target.dmg;
-    return targetRemainingHp <= CAMP_PRESSURE_ATTACK_FINISHABLE_HP;
+    if (targetRemainingHp <= CAMP_PRESSURE_ATTACK_FINISHABLE_HP) return true;
+    return target.dmg >= Math.ceil(target.unit.maxHp * CAMP_PRESSURE_ATTACK_MEANINGFUL_TRADE_RATIO);
+}
+
+function canAttackCampDefender(
+    state: GameState,
+    unit: GameState["units"][number],
+    campId: string,
+): boolean {
+    return state.units.some(defender =>
+        defender.campId === campId
+        && hexDistance(unit.coord, defender.coord) <= UNITS[unit.type].rng
+    );
+}
+
+function findCampEscapeHex(
+    state: GameState,
+    blocker: GameState["units"][number],
+    current: GameState["units"][number],
+    moveTarget: GameState["nativeCamps"][number]["coord"],
+    campCoord: GameState["nativeCamps"][number]["coord"],
+): GameState["units"][number]["coord"] | undefined {
+    const candidates = getNeighbors(blocker.coord)
+        .filter(coord => !hexEquals(coord, current.coord))
+        .filter(coord => !state.units.some(unit => hexEquals(unit.coord, coord)))
+        .map(coord => ({
+            coord,
+            path: findPath(blocker.coord, coord, blocker, state),
+            distToTarget: hexDistance(coord, moveTarget),
+            distToCamp: hexDistance(coord, campCoord),
+        }))
+        .filter(candidate => candidate.path.length === 1);
+
+    candidates.sort((a, b) =>
+        a.distToTarget - b.distToTarget
+        || a.distToCamp - b.distToCamp
+        || a.coord.q - b.coord.q
+        || a.coord.r - b.coord.r
+    );
+
+    return candidates[0]?.coord;
+}
+
+function resolveCampFriendlyBlocker(
+    state: GameState,
+    playerId: string,
+    current: GameState["units"][number],
+    blockingUnit: GameState["units"][number],
+    moveTarget: GameState["nativeCamps"][number]["coord"],
+    targetCamp: GameState["nativeCamps"][number],
+): { updatedState: GameState; movedCurrent: boolean } {
+    let next = state;
+
+    if (canAttackCampDefender(next, blockingUnit, targetCamp.id)) {
+        return { updatedState: next, movedCurrent: false };
+    }
+
+    if (blockingUnit.movesLeft > 0) {
+        const escape = findCampEscapeHex(next, blockingUnit, current, moveTarget, targetCamp.coord);
+        if (escape) {
+            const movedBlocker = tryAction(next, {
+                type: "MoveUnit",
+                playerId,
+                unitId: blockingUnit.id,
+                to: escape,
+            });
+            if (movedBlocker !== next) {
+                next = movedBlocker;
+            }
+        }
+    }
+    return { updatedState: next, movedCurrent: false };
 }
 
 /**
@@ -115,20 +187,64 @@ export function moveUnitsForCampClearing(state: GameState, playerId: string): Ga
         }
 
         // Find path to camp
-        let path = findPath(current.coord, moveTarget, current, next);
+        let path = findPath(
+            current.coord,
+            moveTarget,
+            current,
+            next,
+            undefined,
+            phase === "Ready" ? { ignoreFriendlyBlockers: true } : undefined,
+        );
         if (path.length === 0 && !hexEquals(moveTarget, targetCamp.coord)) {
-            path = findPath(current.coord, targetCamp.coord, current, next);
+            path = findPath(
+                current.coord,
+                targetCamp.coord,
+                current,
+                next,
+                undefined,
+                phase === "Ready" ? { ignoreFriendlyBlockers: true } : undefined,
+            );
         }
         if (path.length === 0) continue;
 
-        const step = path[0];
+        let step = path[0];
 
         // Check for friendly military on target tile (Stacking Limit)
         const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, step));
         const friendlyMilitary = unitsOnTarget.some(u =>
             u.ownerId === playerId && UNITS[u.type].domain !== "Civilian"
         );
-        if (friendlyMilitary) continue;
+        if (friendlyMilitary) {
+            if (phase !== "Ready") continue;
+
+            const blockingUnit = unitsOnTarget.find(u =>
+                u.ownerId === playerId && UNITS[u.type].domain !== "Civilian"
+            );
+            if (!blockingUnit) continue;
+
+            const resolved = resolveCampFriendlyBlocker(next, playerId, current, blockingUnit, moveTarget, targetCamp);
+            if (resolved.updatedState !== next) {
+                next = resolved.updatedState;
+            }
+            if (resolved.movedCurrent) {
+                continue;
+            }
+
+            const refreshedCurrent = next.units.find(u => u.id === current.id);
+            if (!refreshedCurrent || refreshedCurrent.movesLeft <= 0) continue;
+            let strictPath = findPath(refreshedCurrent.coord, moveTarget, refreshedCurrent, next);
+            if (strictPath.length === 0 && !hexEquals(moveTarget, targetCamp.coord)) {
+                strictPath = findPath(refreshedCurrent.coord, targetCamp.coord, refreshedCurrent, next);
+            }
+            if (strictPath.length === 0) continue;
+            step = strictPath[0];
+            const blockedAgain = next.units.some(u =>
+                hexEquals(u.coord, step)
+                && u.ownerId === playerId
+                && UNITS[u.type].domain !== "Civilian"
+            );
+            if (blockedAgain) continue;
+        }
 
         const moved = tryAction(next, { type: "MoveUnit", playerId, unitId: current.id, to: step });
         if (moved !== next) {

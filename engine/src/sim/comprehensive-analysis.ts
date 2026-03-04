@@ -71,8 +71,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
             });
         });
 
+        const previousState = state;
         state = runAiTurn(state, playerId);
-        cityStateTelemetry.observe(state);
+        cityStateTelemetry.observe(state, previousState, playerId);
         if (lastCityStateSampleTurn !== state.turn) {
             cityStateTelemetry.sampleTurn(state);
             lastCityStateSampleTurn = state.turn;

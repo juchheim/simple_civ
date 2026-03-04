@@ -386,4 +386,52 @@ describe("camp-clearing", () => {
         expect(prep?.targetCampId).toBe("camp-far");
         expect(prep?.state).toBe("Ready");
     });
+
+    it("prioritizes a contested visible camp once armies are online", () => {
+        const state = baseState();
+        state.turn = 90;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-safe", 3, 0), makeCamp("camp-race", 5, 0)];
+        state.visibility.p1 = ["3,0", "5,0", "7,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 2, r: 1 }]);
+        state.units.push({
+            id: "enemy-racer",
+            ownerId: "p2",
+            type: UnitType.SpearGuard,
+            coord: { q: 7, r: 0 },
+            hp: 10,
+            maxHp: 10,
+            movesLeft: 1,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-race");
+    });
+
+    it("does not overprioritize a contested camp that is too distant to race credibly", () => {
+        const state = baseState();
+        state.turn = 90;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-safe", 3, 0), makeCamp("camp-race", 8, 0)];
+        state.visibility.p1 = ["3,0", "8,0", "9,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 2, r: 1 }]);
+        state.units.push({
+            id: "enemy-racer",
+            ownerId: "p2",
+            type: UnitType.SpearGuard,
+            coord: { q: 9, r: 0 },
+            hp: 10,
+            maxHp: 10,
+            movesLeft: 1,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-safe");
+    });
 });

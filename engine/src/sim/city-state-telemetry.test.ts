@@ -171,7 +171,7 @@ describe("city-state telemetry camp clearing episodes", () => {
                 },
             },
         ];
-        tracker.observe(readyState);
+        tracker.observe(readyState, initial, "p1");
         tracker.sampleTurn(readyState);
 
         const clearedState = structuredClone(readyState);
@@ -213,7 +213,7 @@ describe("city-state telemetry camp clearing episodes", () => {
                 lastPairFatiguePressureReductionByPlayer: { p1: 0, p2: 0 },
             },
         ];
-        tracker.observe(clearedState);
+        tracker.observe(clearedState, readyState, "p1");
 
         const summary = tracker.finalize(clearedState);
         expect(summary.campClearing.episodes).toHaveLength(1);
@@ -257,7 +257,7 @@ describe("city-state telemetry camp clearing episodes", () => {
                 },
             },
         ];
-        tracker.observe(timedOut);
+        tracker.observe(timedOut, initial, "p1");
 
         const summary = tracker.finalize(timedOut);
         expect(summary.campClearing.episodes).toHaveLength(1);
@@ -267,6 +267,61 @@ describe("city-state telemetry camp clearing episodes", () => {
             endedTurn: 81,
             buildupTurns: 1,
             totalPrepTurns: 1,
+        });
+    });
+
+    it("records ready-turn timeout diagnostics for no-contact stalls", () => {
+        const initial = baseState();
+        initial.turn = 90;
+        initial.players[0].campClearingPrep = {
+            targetCampId: "camp-1",
+            state: "Ready",
+            startedTurn: 85,
+        };
+        initial.units.push({
+            id: "native-1",
+            ownerId: "natives",
+            type: UnitType.NativeChampion,
+            coord: { q: 4, r: 0 },
+            hp: 18,
+            maxHp: 18,
+            movesLeft: 0,
+            state: UnitState.Normal,
+            hasAttacked: false,
+            campId: "camp-1",
+        });
+        initial.units[0].coord = { q: 0, r: 1 };
+        initial.units[1].coord = { q: 0, r: 2 };
+        initial.units[2].coord = { q: 1, r: 1 };
+
+        const tracker = createCityStateTelemetryTracker(initial);
+        tracker.sampleTurn(initial);
+
+        const timedOut = structuredClone(initial);
+        timedOut.turn = 91;
+        timedOut.players[0].campClearingPrep = undefined;
+        timedOut.history.events = [
+            {
+                turn: 91,
+                type: HistoryEventType.CampClearingEnded,
+                playerId: "p1",
+                data: {
+                    campId: "camp-1",
+                    campCoord: { q: 4, r: 0 },
+                    outcome: "TimedOut",
+                },
+            },
+        ];
+
+        tracker.observe(timedOut, initial, "p1");
+
+        const summary = tracker.finalize(timedOut);
+        expect(summary.campClearing.episodes[0]).toMatchObject({
+            outcome: "TimedOut",
+            readyTurnsWithoutContact: 1,
+            readyTurnsWithAdjacentContact: 0,
+            readyTurnsWithAttackOpportunity: 0,
+            readyTurnsWithPowerDisadvantage: 0,
         });
     });
 });

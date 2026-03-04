@@ -136,6 +136,52 @@ describe("offense camp clearing movement", () => {
         const bow = next.units.find(unit => unit.id === "bow-1");
         expect(bow?.coord).toEqual({ q: 2, r: 0 });
     });
+
+    it("moves a friendly blocker aside in Ready to keep closing on the camp", () => {
+        const state = makeState();
+        state.units = [
+            {
+                id: "bow-1",
+                ownerId: "p1",
+                type: UnitType.BowGuard,
+                coord: { q: 1, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "spear-blocker",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 2, r: 0 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+        ];
+        state.units.push({
+            id: "native-1",
+            ownerId: "natives",
+            type: UnitType.NativeArcher,
+            coord: { q: 4, r: 1 },
+            hp: 12,
+            maxHp: 12,
+            movesLeft: 0,
+            state: UnitState.Normal,
+            hasAttacked: false,
+            campId: "camp-1",
+        });
+
+        const next = moveUnitsForCampClearing(state, "p1");
+        const bow = next.units.find(unit => unit.id === "bow-1");
+        const blocker = next.units.find(unit => unit.id === "spear-blocker");
+        expect(bow?.coord).toEqual({ q: 2, r: 0 });
+        expect(blocker?.coord).not.toEqual({ q: 2, r: 0 });
+    });
 });
 
 describe("offense camp clearing attacks", () => {

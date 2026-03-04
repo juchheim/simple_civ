@@ -778,6 +778,16 @@ function analyzeCityStateSystems(results) {
     let campReachedReadyEpisodes = 0;
     let campEpisodesWithSighting = 0;
     let campTimeoutAfterReady = 0;
+    let campReadyTurnsWithoutContact = 0;
+    let campReadyTurnsWithAdjacentContact = 0;
+    let campReadyTurnsWithAttackOpportunity = 0;
+    let campReadyTurnsWithNoProgressOpportunity = 0;
+    let campReadyTurnsWithPowerDisadvantage = 0;
+    let campReadyTurnsWithProgress = 0;
+    let campReadyTimeoutNoContact = 0;
+    let campReadyTimeoutDeclinedAttack = 0;
+    let campReadyTimeoutPowerCollapse = 0;
+    let campReadyTimeoutOther = 0;
     let campWarInterruptedEpisodes = 0;
     let campClearedByOtherFromBuildup = 0;
     let campClearedByOtherFromLateStart = 0;
@@ -839,6 +849,12 @@ function analyzeCityStateSystems(results) {
             const totalPrep = num(episode.totalPrepTurns, 0);
             const initialMilitaryCount = num(episode.initialMilitaryCount, NaN);
             const initialRequiredMilitary = num(episode.initialRequiredMilitary, NaN);
+            const readyTurnsWithoutContact = num(episode.readyTurnsWithoutContact, 0);
+            const readyTurnsWithAdjacentContact = num(episode.readyTurnsWithAdjacentContact, 0);
+            const readyTurnsWithAttackOpportunity = num(episode.readyTurnsWithAttackOpportunity, 0);
+            const readyTurnsWithNoProgressOpportunity = num(episode.readyTurnsWithNoProgressOpportunity, 0);
+            const readyTurnsWithPowerDisadvantage = num(episode.readyTurnsWithPowerDisadvantage, 0);
+            const readyTurnsWithProgress = num(episode.readyTurnsWithProgress, 0);
 
             totalCampClearingEpisodes += 1;
             campOutcomeCounts[outcome] += 1;
@@ -862,6 +878,12 @@ function analyzeCityStateSystems(results) {
                 readinessEntry.prepToReadySamples += 1;
                 campPrepToReadyTurns.push(prepToReady);
             }
+            campReadyTurnsWithoutContact += readyTurnsWithoutContact;
+            campReadyTurnsWithAdjacentContact += readyTurnsWithAdjacentContact;
+            campReadyTurnsWithAttackOpportunity += readyTurnsWithAttackOpportunity;
+            campReadyTurnsWithNoProgressOpportunity += readyTurnsWithNoProgressOpportunity;
+            campReadyTurnsWithPowerDisadvantage += readyTurnsWithPowerDisadvantage;
+            campReadyTurnsWithProgress += readyTurnsWithProgress;
             if (outcome === "ClearedBySelf") {
                 readinessEntry.selfClears += 1;
                 if (Number.isFinite(campClearedTurn) && Number.isFinite(prepStartedTurn)) {
@@ -872,6 +894,15 @@ function analyzeCityStateSystems(results) {
                 readinessEntry.timedOut += 1;
                 if (Number.isFinite(firstReadyTurn)) {
                     campTimeoutAfterReady += 1;
+                    if (readyTurnsWithAdjacentContact === 0) {
+                        campReadyTimeoutNoContact += 1;
+                    } else if (readyTurnsWithPowerDisadvantage > readyTurnsWithNoProgressOpportunity) {
+                        campReadyTimeoutPowerCollapse += 1;
+                    } else if (readyTurnsWithNoProgressOpportunity > 0 || readyTurnsWithAttackOpportunity > 0) {
+                        campReadyTimeoutDeclinedAttack += 1;
+                    } else {
+                        campReadyTimeoutOther += 1;
+                    }
                 }
             }
             if (outcome === "WarPrepCancelled" || outcome === "WartimeEmergencyCancelled") {
@@ -1185,6 +1216,16 @@ function analyzeCityStateSystems(results) {
         campReachedReadyEpisodes,
         campEpisodesWithSighting,
         campTimeoutAfterReady,
+        campReadyTurnsWithoutContact,
+        campReadyTurnsWithAdjacentContact,
+        campReadyTurnsWithAttackOpportunity,
+        campReadyTurnsWithNoProgressOpportunity,
+        campReadyTurnsWithPowerDisadvantage,
+        campReadyTurnsWithProgress,
+        campReadyTimeoutNoContact,
+        campReadyTimeoutDeclinedAttack,
+        campReadyTimeoutPowerCollapse,
+        campReadyTimeoutOther,
         campWarInterruptedEpisodes,
         campClearedByOtherFromBuildup,
         campClearedByOtherFromLateStart,
@@ -1521,6 +1562,8 @@ report += `\n`;
     report += `- **Prep Start -> Self Clear (avg / median):** ${Number.isFinite(cityStateAnalysis.campPrepToSelfClearTiming.avg) ? cityStateAnalysis.campPrepToSelfClearTiming.avg.toFixed(2) : "n/a"} / ${Number.isFinite(cityStateAnalysis.campPrepToSelfClearTiming.median) ? cityStateAnalysis.campPrepToSelfClearTiming.median.toFixed(0) : "n/a"} turns\n`;
     report += `- **Total Prep Duration (avg / median):** ${Number.isFinite(cityStateAnalysis.campTotalPrepTiming.avg) ? cityStateAnalysis.campTotalPrepTiming.avg.toFixed(2) : "n/a"} / ${Number.isFinite(cityStateAnalysis.campTotalPrepTiming.median) ? cityStateAnalysis.campTotalPrepTiming.median.toFixed(0) : "n/a"} turns\n`;
     report += `- **Timeouts After Ready:** ${cityStateAnalysis.campTimeoutAfterReady} (${pct(cityStateAnalysis.campTimeoutAfterReady, cityStateAnalysis.campOutcomeCounts.TimedOut).toFixed(1)}% of timeouts)\n`;
+    report += `- **Ready Turn Diagnostics:** no contact ${cityStateAnalysis.campReadyTurnsWithoutContact}, adjacent contact ${cityStateAnalysis.campReadyTurnsWithAdjacentContact}, attack opportunity ${cityStateAnalysis.campReadyTurnsWithAttackOpportunity}, stalled opportunity ${cityStateAnalysis.campReadyTurnsWithNoProgressOpportunity}, power disadvantage ${cityStateAnalysis.campReadyTurnsWithPowerDisadvantage}, progress ${cityStateAnalysis.campReadyTurnsWithProgress}\n`;
+    report += `- **Ready-Timeout Primary Breakdown:** no contact ${cityStateAnalysis.campReadyTimeoutNoContact}, declined attack ${cityStateAnalysis.campReadyTimeoutDeclinedAttack}, power collapse ${cityStateAnalysis.campReadyTimeoutPowerCollapse}, other ${cityStateAnalysis.campReadyTimeoutOther}\n`;
     report += `- **War-Interrupted Episodes:** ${cityStateAnalysis.campWarInterruptedEpisodes} (${pct(cityStateAnalysis.campWarInterruptedEpisodes, cityStateAnalysis.totalCampClearingEpisodes).toFixed(1)}%)\n`;
     report += `- **Cleared-By-Other Breakdown:** lacked military ${cityStateAnalysis.campClearedByOtherFromBuildup}, late start ${cityStateAnalysis.campClearedByOtherFromLateStart}, other ${cityStateAnalysis.campClearedByOtherOther}\n`;
     const campOutcomeLine = CAMP_OUTCOME_ORDER

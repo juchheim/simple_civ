@@ -39,6 +39,14 @@ const CAMP_ARMY_URGENCY_FIELDED_BONUS = 40;
 const CAMP_ARMY_URGENCY_START_TURN = 48;
 const CAMP_ARMY_URGENCY_PER_20_TURNS = 4;
 const CAMP_ARMY_URGENCY_MAX_LATE_BONUS = 24;
+const CAMP_RACE_PRESSURE_RADIUS = 7;
+const CAMP_RACE_PRESSURE_NEAR_BONUS = 18;
+const CAMP_RACE_PRESSURE_CLOSE_BONUS = 30;
+const CAMP_RACE_PRESSURE_CRITICAL_BONUS = 44;
+const CAMP_RACE_PRESSURE_MULTI_UNIT_BONUS = 8;
+const CAMP_RACE_PRESSURE_AGGRO_BONUS = 6;
+const CAMP_RACE_PRESSURE_MAX_CITY_DISTANCE = 6;
+const CAMP_RACE_PRESSURE_MIN_POWER_RATIO = 0.85;
 const CAMP_PREP_TIMEOUT_PRE_ARMY = 15;
 const CAMP_PREP_TIMEOUT_ARMY_TECH = 26;
 const CAMP_PREP_TIMEOUT_ARMY_FIELDED = 34;
@@ -70,6 +78,7 @@ type CampTargetEvaluation = {
     score: number;
     nearestCityDist: number;
     requiredMilitary: number;
+    racePressureBonus: number;
 };
 
 /**
@@ -144,7 +153,6 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
         requiredMilitary,
         nearestCityDist,
     );
-
     if (prep.state === "Buildup") {
         if (hasOperationalForce) {
             aiInfo(
@@ -212,12 +220,7 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
         : visibleCamps;
     if (candidateCamps.length === 0) return state;
 
-    const evaluations = candidateCamps
-        .map(camp => evaluateCampTarget(state, player, camp, readiness))
-        .filter((entry): entry is CampTargetEvaluation => !!entry)
-        .sort((a, b) => b.score - a.score || a.nearestCityDist - b.nearestCityDist);
-
-    const best = evaluations[0];
+    const best = getBestCampTargetEvaluation(state, player, readiness);
     if (!best) return state;
 
     const militaryCount = getMilitaryCount(state, player.id);
@@ -264,19 +267,7 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
         );
     }
 
-    const unitsPositioned = hasOperationalForce && areUnitsPositionedForCamp(state, player.id, best.camp);
-    const initialPrepState = !hasOperationalForce
-        ? "Buildup"
-        : unitsPositioned && readiness !== "PreArmy"
-            ? "Ready"
-            : readiness === "PreArmy"
-                ? "Gathering"
-                : "Positioning";
-    const prep: CampClearingPrep = {
-        targetCampId: best.camp.id,
-        state: initialPrepState,
-        startedTurn: state.turn,
-    };
+    const prep = createCampPrepFromEvaluation(state, player, readiness, best, militaryCount);
     logCampPrepStarted(state, player.id, prep, {
         readiness,
         score: best.score,
@@ -370,6 +361,32 @@ function getCampPrepTimeout(readiness: CampClearingReadiness): number {
     return CAMP_PREP_TIMEOUT_PRE_ARMY;
 }
 
+function getBestCampTargetEvaluation(
+    state: GameState,
+    player: Player,
+    readiness: CampClearingReadiness,
+): CampTargetEvaluation | null {
+    const majorWars = getMajorWarCount(state, player.id);
+    const restrictToEmergency = majorWars >= 3 || (majorWars >= 2 && readiness === "PreArmy");
+    const visibleCamps = getVisibleCamps(state, player.id);
+    if (visibleCamps.length === 0) return null;
+
+    const candidateCamps = restrictToEmergency
+        ? visibleCamps.filter(camp => isCampEmergencyThreatForPlayer(state, player.id, camp))
+        : visibleCamps;
+
+    const evaluations = candidateCamps
+        .map(camp => evaluateCampTarget(state, player, camp, readiness))
+        .filter((entry): entry is CampTargetEvaluation => !!entry)
+        .sort((a, b) =>
+            b.score - a.score
+            || b.racePressureBonus - a.racePressureBonus
+            || a.nearestCityDist - b.nearestCityDist
+        );
+
+    return evaluations[0] ?? null;
+}
+
 function getNearestOwnedCityDistance(state: GameState, playerId: string, camp: NativeCamp): number {
     const myCities = state.cities.filter(city => city.ownerId === playerId);
     if (myCities.length === 0) return Number.POSITIVE_INFINITY;
@@ -399,6 +416,36 @@ function canStartCampBuildup(
     const shortfall = requiredMilitary - militaryCount;
     return shortfall <= CAMP_POST_ARMY_SHORTFALL_ALLOWANCE
         && nearestCityDist <= CAMP_POST_ARMY_SHORTFALL_RADIUS;
+}
+
+function createCampPrepFromEvaluation(
+    state: GameState,
+    player: Player,
+    readiness: CampClearingReadiness,
+    evaluation: CampTargetEvaluation,
+    militaryCount: number,
+): CampClearingPrep {
+    const requiredMilitary = Math.max(MIN_POSITIONING_UNITS, evaluation.requiredMilitary);
+    const hasOperationalForce = canProceedWithCampAssault(
+        readiness,
+        militaryCount,
+        requiredMilitary,
+        evaluation.nearestCityDist,
+    );
+    const unitsPositioned = hasOperationalForce && areUnitsPositionedForCamp(state, player.id, evaluation.camp);
+    const initialPrepState = !hasOperationalForce
+        ? "Buildup"
+        : unitsPositioned && readiness !== "PreArmy"
+            ? "Ready"
+            : readiness === "PreArmy"
+                ? "Gathering"
+                : "Positioning";
+
+    return {
+        targetCampId: evaluation.camp.id,
+        state: initialPrepState,
+        startedTurn: state.turn,
+    };
 }
 
 function projectNextCityStateYieldType(state: GameState): CityStateYieldType {
@@ -485,6 +532,48 @@ function getMajorWarCount(state: GameState, playerId: string): number {
     return wars;
 }
 
+function estimateRivalCampPressure(
+    state: GameState,
+    playerId: string,
+    camp: NativeCamp,
+): { bonus: number; nearestRivalDist: number } {
+    const visibleKeys = new Set(state.visibility?.[playerId] || []);
+    let nearestRivalDist = Number.POSITIVE_INFINITY;
+    let rivalMilitaryCount = 0;
+
+    for (const unit of state.units) {
+        if (unit.ownerId === playerId || unit.ownerId === "natives") continue;
+        if (UNITS[unit.type].domain === "Civilian") continue;
+        if (isScoutType(unit.type)) continue;
+        const coordKey = `${unit.coord.q},${unit.coord.r}`;
+        if (visibleKeys.size > 0 && !visibleKeys.has(coordKey)) continue;
+        const dist = hexDistance(unit.coord, camp.coord);
+        if (dist > CAMP_RACE_PRESSURE_RADIUS) continue;
+        rivalMilitaryCount += 1;
+        nearestRivalDist = Math.min(nearestRivalDist, dist);
+    }
+
+    let bonus = 0;
+    if (nearestRivalDist <= 2) {
+        bonus += CAMP_RACE_PRESSURE_CRITICAL_BONUS;
+    } else if (nearestRivalDist <= 4) {
+        bonus += CAMP_RACE_PRESSURE_CLOSE_BONUS;
+    } else if (nearestRivalDist <= CAMP_RACE_PRESSURE_RADIUS) {
+        bonus += CAMP_RACE_PRESSURE_NEAR_BONUS;
+    }
+    if (rivalMilitaryCount >= 2) {
+        bonus += CAMP_RACE_PRESSURE_MULTI_UNIT_BONUS;
+    }
+    if (camp.state === "Aggro" && rivalMilitaryCount > 0) {
+        bonus += CAMP_RACE_PRESSURE_AGGRO_BONUS;
+    }
+
+    return {
+        bonus,
+        nearestRivalDist,
+    };
+}
+
 function evaluateCampTarget(
     state: GameState,
     player: Player,
@@ -500,6 +589,7 @@ function evaluateCampTarget(
     const yieldPriority = getCityStateYieldPriority(player, yieldType);
     const localPower = estimateNearbyFriendlyPower(state, player.id, camp);
     const defenders = estimateCampDefenderPower(state, camp);
+    const racePressure = estimateRivalCampPressure(state, player.id, camp);
     const powerRatio = localPower / Math.max(1, defenders.power);
     const mySuzerainCount = (state.cityStates ?? []).filter(cityState => cityState.suzerainId === player.id).length;
     const activePlayerCount = state.players.filter(p => !p.isEliminated).length;
@@ -540,6 +630,10 @@ function evaluateCampTarget(
     const nearFrontierBonus = nearestCityDist <= 5
         ? (readiness === "PreArmy" ? 6 : 12)
         : 0;
+    const canCrediblyRaceForCamp = readiness !== "PreArmy"
+        && nearestCityDist <= CAMP_RACE_PRESSURE_MAX_CITY_DISTANCE
+        && (powerRatio >= CAMP_RACE_PRESSURE_MIN_POWER_RATIO || defenders.count <= 1);
+    const rivalPressureBonus = canCrediblyRaceForCamp ? racePressure.bonus : 0;
     const nativeThreatPenalty = defenders.count * 3;
     const underpoweredPenaltyMultiplier = readiness === "PreArmy"
         ? 26
@@ -568,6 +662,7 @@ function evaluateCampTarget(
         + firstSuzerainBonus
         + globalScarcityBonus
         + nearFrontierBonus
+        + rivalPressureBonus
         - nativeThreatPenalty
         - underpoweredPenalty
         - wartimePenalty;
@@ -601,6 +696,7 @@ function evaluateCampTarget(
         score,
         nearestCityDist,
         requiredMilitary,
+        racePressureBonus: rivalPressureBonus,
     };
 }
 
