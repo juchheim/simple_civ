@@ -21,6 +21,7 @@ export function moveUnitsForCampClearing(state: GameState, playerId: string): Ga
 
     const targetCamp = next.nativeCamps.find(c => c.id === player.campClearingPrep!.targetCampId);
     if (!targetCamp) return next;
+    const campDefenders = () => next.units.filter(u => u.campId === targetCamp.id);
 
     // v1.1: Build set of city coordinates for garrison protection
     const myCityCoords = new Set(
@@ -48,16 +49,31 @@ export function moveUnitsForCampClearing(state: GameState, playerId: string): Ga
         if (distToCamp === 0) continue;
 
         // During Ready phase, don't move if we're in attack range
+        let moveTarget = targetCamp.coord;
         if (phase === "Ready") {
             const unitRange = UNITS[current.type].rng;
-            if (distToCamp <= unitRange) {
+            const defenders = campDefenders();
+            const defenderInRange = defenders.some(defender => hexDistance(current.coord, defender.coord) <= unitRange);
+            if (defenderInRange) {
                 aiInfo(`[AI CAMP ATTACK] ${playerId} ${current.type} in range of camp (${distToCamp} tiles)`);
                 continue;
+            }
+            const nearestDefender = defenders
+                .map(defender => ({
+                    coord: defender.coord,
+                    dist: hexDistance(current.coord, defender.coord),
+                }))
+                .sort((a, b) => a.dist - b.dist)[0];
+            if (nearestDefender) {
+                moveTarget = nearestDefender.coord;
             }
         }
 
         // Find path to camp
-        const path = findPath(current.coord, targetCamp.coord, current, next);
+        let path = findPath(current.coord, moveTarget, current, next);
+        if (path.length === 0 && !hexEquals(moveTarget, targetCamp.coord)) {
+            path = findPath(current.coord, targetCamp.coord, current, next);
+        }
         if (path.length === 0) continue;
 
         const step = path[0];

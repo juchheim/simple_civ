@@ -249,6 +249,69 @@ describe("camp-clearing", () => {
         expect(withArmyTechNext.players.find(p => p.id === "p1")?.campClearingPrep?.targetCampId).toBe("camp-mid");
     });
 
+    it("does not start hopeless pre-army buildup when the force is still too small", () => {
+        const state = baseState();
+        state.turn = 40;
+        state.nativeCamps = [makeCamp("camp-mid", 4, 0)];
+        state.visibility.p1 = ["4,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }]);
+
+        const next = manageCampClearing(state, "p1");
+        expect(next.players.find(p => p.id === "p1")?.campClearingPrep).toBeUndefined();
+    });
+
+    it("lets post-army civs skip buildup when they are one unit short of a nearby camp assault", () => {
+        const state = baseState();
+        state.turn = 90;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-mid", 4, 0)];
+        state.visibility.p1 = ["4,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 2, r: 1 }]);
+        state.units.push(
+            {
+                id: "native-1",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 4, r: 0 },
+                hp: 12,
+                maxHp: 12,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-mid",
+            },
+            {
+                id: "native-2",
+                ownerId: "natives",
+                type: UnitType.NativeArcher,
+                coord: { q: 4, r: 1 },
+                hp: 12,
+                maxHp: 12,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-mid",
+            },
+            {
+                id: "native-3",
+                ownerId: "natives",
+                type: UnitType.NativeArcher,
+                coord: { q: 3, r: 1 },
+                hp: 12,
+                maxHp: 12,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-mid",
+            },
+        );
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-mid");
+        expect(prep?.state).toBe("Ready");
+    });
+
     it("allows army-tech civs to start camp prep earlier once armies are available", () => {
         const state = baseState();
         state.turn = 3;

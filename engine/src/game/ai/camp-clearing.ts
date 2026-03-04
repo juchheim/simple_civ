@@ -40,8 +40,10 @@ const CAMP_ARMY_URGENCY_START_TURN = 48;
 const CAMP_ARMY_URGENCY_PER_20_TURNS = 4;
 const CAMP_ARMY_URGENCY_MAX_LATE_BONUS = 24;
 const CAMP_PREP_TIMEOUT_PRE_ARMY = 15;
-const CAMP_PREP_TIMEOUT_ARMY_TECH = 22;
-const CAMP_PREP_TIMEOUT_ARMY_FIELDED = 28;
+const CAMP_PREP_TIMEOUT_ARMY_TECH = 26;
+const CAMP_PREP_TIMEOUT_ARMY_FIELDED = 34;
+const CAMP_POST_ARMY_SHORTFALL_ALLOWANCE = 1;
+const CAMP_POST_ARMY_SHORTFALL_RADIUS = 8;
 
 export type CampClearingReadiness = "PreArmy" | "ArmyTech" | "ArmyFielded";
 type CampPrepPhase = CampClearingPrep["state"];
@@ -135,13 +137,24 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
 
     let newState = prep.state;
     const requiredMilitary = getRequiredMilitaryForCamp(state, player, camp);
+    const nearestCityDist = getNearestOwnedCityDistance(state, player.id, camp);
+    const hasOperationalForce = canProceedWithCampAssault(
+        readiness,
+        militaryCount,
+        requiredMilitary,
+        nearestCityDist,
+    );
 
     if (prep.state === "Buildup") {
-        if (militaryCount >= requiredMilitary) {
+        if (hasOperationalForce) {
             aiInfo(
                 `[AI CAMP] ${player.id} finished Buildup (${militaryCount}/${requiredMilitary} units), moving to Gathering`
             );
-            newState = "Gathering";
+            newState = readiness === "PreArmy"
+                ? "Gathering"
+                : areUnitsPositionedForCamp(state, player.id, camp)
+                    ? "Ready"
+                    : "Positioning";
             const nextPrep = { ...prep, state: newState, startedTurn: state.turn };
             logCampPrepStateChanged(state, player.id, nextPrep, prep.state);
             return updatePrepState(state, player.id, nextPrep);
@@ -224,7 +237,24 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
     if (!scoreGate) return state;
 
     const requiredMilitary = Math.max(MIN_POSITIONING_UNITS, best.requiredMilitary);
-    if (militaryCount < requiredMilitary) {
+    const hasOperationalForce = canProceedWithCampAssault(
+        readiness,
+        militaryCount,
+        requiredMilitary,
+        best.nearestCityDist,
+    );
+    const shouldStartBuildup = canStartCampBuildup(
+        readiness,
+        militaryCount,
+        requiredMilitary,
+        best.nearestCityDist,
+    );
+
+    if (militaryCount < requiredMilitary && !hasOperationalForce && !shouldStartBuildup) {
+        return state;
+    }
+
+    if (militaryCount < requiredMilitary && !hasOperationalForce) {
         aiInfo(
             `[AI CAMP] ${player.id} delaying camp ${best.camp.id}: military ${militaryCount}/${requiredMilitary} (score ${best.score.toFixed(1)}, readiness=${readiness})`
         );
@@ -234,8 +264,8 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
         );
     }
 
-    const unitsPositioned = militaryCount >= requiredMilitary && areUnitsPositionedForCamp(state, player.id, best.camp);
-    const initialPrepState = militaryCount < requiredMilitary
+    const unitsPositioned = hasOperationalForce && areUnitsPositionedForCamp(state, player.id, best.camp);
+    const initialPrepState = !hasOperationalForce
         ? "Buildup"
         : unitsPositioned && readiness !== "PreArmy"
             ? "Ready"
@@ -338,6 +368,37 @@ function getCampPrepTimeout(readiness: CampClearingReadiness): number {
     if (readiness === "ArmyFielded") return CAMP_PREP_TIMEOUT_ARMY_FIELDED;
     if (readiness === "ArmyTech") return CAMP_PREP_TIMEOUT_ARMY_TECH;
     return CAMP_PREP_TIMEOUT_PRE_ARMY;
+}
+
+function getNearestOwnedCityDistance(state: GameState, playerId: string, camp: NativeCamp): number {
+    const myCities = state.cities.filter(city => city.ownerId === playerId);
+    if (myCities.length === 0) return Number.POSITIVE_INFINITY;
+    return Math.min(...myCities.map(city => hexDistance(city.coord, camp.coord)));
+}
+
+function canProceedWithCampAssault(
+    readiness: CampClearingReadiness,
+    militaryCount: number,
+    requiredMilitary: number,
+    nearestCityDist: number,
+): boolean {
+    if (militaryCount >= requiredMilitary) return true;
+    if (readiness === "PreArmy") return false;
+    return nearestCityDist <= CAMP_POST_ARMY_SHORTFALL_RADIUS
+        && militaryCount >= Math.max(MIN_POSITIONING_UNITS, requiredMilitary - CAMP_POST_ARMY_SHORTFALL_ALLOWANCE);
+}
+
+function canStartCampBuildup(
+    readiness: CampClearingReadiness,
+    militaryCount: number,
+    requiredMilitary: number,
+    nearestCityDist: number,
+): boolean {
+    if (militaryCount >= requiredMilitary) return true;
+    if (readiness === "PreArmy") return false;
+    const shortfall = requiredMilitary - militaryCount;
+    return shortfall <= CAMP_POST_ARMY_SHORTFALL_ALLOWANCE
+        && nearestCityDist <= CAMP_POST_ARMY_SHORTFALL_RADIUS;
 }
 
 function projectNextCityStateYieldType(state: GameState): CityStateYieldType {
