@@ -21,6 +21,8 @@ const MAP_ORDER = ["Tiny", "Small", "Standard", "Large", "Huge"];
 const CIVS = ["ForgeClans", "ScholarKingdoms", "RiverLeague", "AetherianVanguard", "StarborneSeekers", "JadeCovenant"];
 const CITY_STATE_YIELD_ORDER = ["Science", "Production", "Food", "Gold"];
 const SUZERAIN_CHANGE_CAUSES = ["Investment", "PassiveContestation", "WartimeRelease", "WarBreak", "Other"];
+const CAMP_OUTCOME_ORDER = ["ClearedBySelf", "ClearedByOther", "TimedOut", "WarPrepCancelled", "WartimeEmergencyCancelled", "CampVanished", "Retargeted", "Eliminated", "OtherCancelled", "StillActive"];
+const CAMP_READINESS_ORDER = ["PreArmy", "ArmyTech", "ArmyFielded"];
 
 // Total techs in game for reference (Hearth/Banner/Engine/Aether eras combined)
 const TOTAL_TECHS = 20;
@@ -40,6 +42,22 @@ function pct(part, total) {
 
 function createCauseAggregate() {
     return Object.fromEntries(SUZERAIN_CHANGE_CAUSES.map(cause => [cause, 0]));
+}
+
+function createCampOutcomeAggregate() {
+    return Object.fromEntries(CAMP_OUTCOME_ORDER.map(outcome => [outcome, 0]));
+}
+
+function createCampReadinessAggregate() {
+    return {
+        episodes: 0,
+        selfClears: 0,
+        timedOut: 0,
+        reachedReady: 0,
+        totalPrepTurns: 0,
+        prepToReadyTurns: 0,
+        prepToReadySamples: 0,
+    };
 }
 
 function addCauseAggregate(target, source) {
@@ -749,6 +767,21 @@ function analyzeCityStateSystems(results) {
     let totalFocusMaintenanceTurns = 0;
     let totalFocusAssignments = 0;
     let totalFocusSwitches = 0;
+    let totalCampClearingEpisodes = 0;
+    const campOutcomeCounts = createCampOutcomeAggregate();
+    const campReadinessAgg = new Map(CAMP_READINESS_ORDER.map(readiness => [readiness, createCampReadinessAggregate()]));
+    const campSightedToPrepTurns = [];
+    const campPrepToReadyTurns = [];
+    const campPrepToSelfClearTurns = [];
+    const campTotalPrepTurns = [];
+    let campDirectReadyStarts = 0;
+    let campReachedReadyEpisodes = 0;
+    let campEpisodesWithSighting = 0;
+    let campTimeoutAfterReady = 0;
+    let campWarInterruptedEpisodes = 0;
+    let campClearedByOtherFromBuildup = 0;
+    let campClearedByOtherFromLateStart = 0;
+    let campClearedByOtherOther = 0;
 
     for (const sim of results) {
         const mapSize = sim.mapSize || "Unknown";
@@ -791,6 +824,70 @@ function analyzeCityStateSystems(results) {
                 const firstCreated = Math.min(...createdTurns);
                 mapEntry.firstCreationTurns.push(firstCreated);
                 firstCreationTurns.push(firstCreated);
+            }
+        }
+
+        const campEpisodes = Array.isArray(summary.campClearing?.episodes) ? summary.campClearing.episodes : [];
+        for (const episode of campEpisodes) {
+            const outcome = CAMP_OUTCOME_ORDER.includes(episode.outcome) ? episode.outcome : "OtherCancelled";
+            const readiness = CAMP_READINESS_ORDER.includes(episode.readinessAtStart) ? episode.readinessAtStart : "PreArmy";
+            const initialPrepState = episode.initialPrepState || "Buildup";
+            const prepStartedTurn = num(episode.prepStartedTurn, NaN);
+            const firstReadyTurn = num(episode.firstReadyTurn, NaN);
+            const campClearedTurn = num(episode.campClearedTurn, NaN);
+            const sightedTurn = num(episode.sightedTurn, NaN);
+            const totalPrep = num(episode.totalPrepTurns, 0);
+            const initialMilitaryCount = num(episode.initialMilitaryCount, NaN);
+            const initialRequiredMilitary = num(episode.initialRequiredMilitary, NaN);
+
+            totalCampClearingEpisodes += 1;
+            campOutcomeCounts[outcome] += 1;
+            const readinessEntry = campReadinessAgg.get(readiness);
+            readinessEntry.episodes += 1;
+            readinessEntry.totalPrepTurns += totalPrep;
+            campTotalPrepTurns.push(totalPrep);
+
+            if (initialPrepState === "Ready") {
+                campDirectReadyStarts += 1;
+            }
+            if (Number.isFinite(sightedTurn) && Number.isFinite(prepStartedTurn)) {
+                campEpisodesWithSighting += 1;
+                campSightedToPrepTurns.push(prepStartedTurn - sightedTurn);
+            }
+            if (Number.isFinite(firstReadyTurn) && Number.isFinite(prepStartedTurn)) {
+                campReachedReadyEpisodes += 1;
+                readinessEntry.reachedReady += 1;
+                const prepToReady = firstReadyTurn - prepStartedTurn;
+                readinessEntry.prepToReadyTurns += prepToReady;
+                readinessEntry.prepToReadySamples += 1;
+                campPrepToReadyTurns.push(prepToReady);
+            }
+            if (outcome === "ClearedBySelf") {
+                readinessEntry.selfClears += 1;
+                if (Number.isFinite(campClearedTurn) && Number.isFinite(prepStartedTurn)) {
+                    campPrepToSelfClearTurns.push(campClearedTurn - prepStartedTurn);
+                }
+            }
+            if (outcome === "TimedOut") {
+                readinessEntry.timedOut += 1;
+                if (Number.isFinite(firstReadyTurn)) {
+                    campTimeoutAfterReady += 1;
+                }
+            }
+            if (outcome === "WarPrepCancelled" || outcome === "WartimeEmergencyCancelled") {
+                campWarInterruptedEpisodes += 1;
+            }
+            if (outcome === "ClearedByOther") {
+                if (
+                    (Number.isFinite(initialMilitaryCount) && Number.isFinite(initialRequiredMilitary) && initialMilitaryCount < initialRequiredMilitary)
+                    || initialPrepState === "Buildup"
+                ) {
+                    campClearedByOtherFromBuildup += 1;
+                } else if (Number.isFinite(sightedTurn) && Number.isFinite(prepStartedTurn) && (prepStartedTurn - sightedTurn) >= 3) {
+                    campClearedByOtherFromLateStart += 1;
+                } else {
+                    campClearedByOtherOther += 1;
+                }
             }
         }
 
@@ -999,6 +1096,10 @@ function analyzeCityStateSystems(results) {
     const contestedButZeroFlipCityStates = cityStateRows.filter(row => row.ownershipTurnovers <= 0 && row.contestedTurns > 0).length;
     const challengerGold = Math.max(0, totalInvestedGold - totalMaintenanceGold);
     const challengerInvestmentActions = Math.max(0, totalInvestmentActions - totalMaintenanceInvestmentActions);
+    const campSightedToPrepTiming = summarizeDistribution(campSightedToPrepTurns);
+    const campPrepToReadyTiming = summarizeDistribution(campPrepToReadyTurns);
+    const campPrepToSelfClearTiming = summarizeDistribution(campPrepToSelfClearTurns);
+    const campTotalPrepTiming = summarizeDistribution(campTotalPrepTurns);
 
     return {
         simsWithTelemetry,
@@ -1077,6 +1178,21 @@ function analyzeCityStateSystems(results) {
         totalFocusMaintenanceTurns,
         totalFocusAssignments,
         totalFocusSwitches,
+        totalCampClearingEpisodes,
+        campOutcomeCounts,
+        campReadinessAgg,
+        campDirectReadyStarts,
+        campReachedReadyEpisodes,
+        campEpisodesWithSighting,
+        campTimeoutAfterReady,
+        campWarInterruptedEpisodes,
+        campClearedByOtherFromBuildup,
+        campClearedByOtherFromLateStart,
+        campClearedByOtherOther,
+        campSightedToPrepTiming,
+        campPrepToReadyTiming,
+        campPrepToSelfClearTiming,
+        campTotalPrepTiming,
         topTurnoverCityStates,
         hotspotInstanceRows: hotspotInstanceRows
             .sort((a, b) => b.ownershipTurnovers - a.ownershipTurnovers || b.hotspotTurns - a.hotspotTurns || a.cityName.localeCompare(b.cityName))
@@ -1395,6 +1511,34 @@ if (cityStateAnalysis.topTurnoverCityStates.length > 0) {
     }
 }
 report += `\n`;
+    report += `### Camp-Clearing Activation Funnel\n`;
+    report += `- **Camp-Clearing Episodes:** ${cityStateAnalysis.totalCampClearingEpisodes}\n`;
+    report += `- **Direct Starts in Ready:** ${cityStateAnalysis.campDirectReadyStarts} (${pct(cityStateAnalysis.campDirectReadyStarts, cityStateAnalysis.totalCampClearingEpisodes).toFixed(1)}%)\n`;
+    report += `- **Episodes Reaching Ready:** ${cityStateAnalysis.campReachedReadyEpisodes} (${pct(cityStateAnalysis.campReachedReadyEpisodes, cityStateAnalysis.totalCampClearingEpisodes).toFixed(1)}%)\n`;
+    report += `- **Episodes with Sighting Telemetry:** ${cityStateAnalysis.campEpisodesWithSighting} (${pct(cityStateAnalysis.campEpisodesWithSighting, cityStateAnalysis.totalCampClearingEpisodes).toFixed(1)}%)\n`;
+    report += `- **Sighted -> Prep Start (avg / median):** ${Number.isFinite(cityStateAnalysis.campSightedToPrepTiming.avg) ? cityStateAnalysis.campSightedToPrepTiming.avg.toFixed(2) : "n/a"} / ${Number.isFinite(cityStateAnalysis.campSightedToPrepTiming.median) ? cityStateAnalysis.campSightedToPrepTiming.median.toFixed(0) : "n/a"} turns\n`;
+    report += `- **Prep Start -> Ready (avg / median):** ${Number.isFinite(cityStateAnalysis.campPrepToReadyTiming.avg) ? cityStateAnalysis.campPrepToReadyTiming.avg.toFixed(2) : "n/a"} / ${Number.isFinite(cityStateAnalysis.campPrepToReadyTiming.median) ? cityStateAnalysis.campPrepToReadyTiming.median.toFixed(0) : "n/a"} turns\n`;
+    report += `- **Prep Start -> Self Clear (avg / median):** ${Number.isFinite(cityStateAnalysis.campPrepToSelfClearTiming.avg) ? cityStateAnalysis.campPrepToSelfClearTiming.avg.toFixed(2) : "n/a"} / ${Number.isFinite(cityStateAnalysis.campPrepToSelfClearTiming.median) ? cityStateAnalysis.campPrepToSelfClearTiming.median.toFixed(0) : "n/a"} turns\n`;
+    report += `- **Total Prep Duration (avg / median):** ${Number.isFinite(cityStateAnalysis.campTotalPrepTiming.avg) ? cityStateAnalysis.campTotalPrepTiming.avg.toFixed(2) : "n/a"} / ${Number.isFinite(cityStateAnalysis.campTotalPrepTiming.median) ? cityStateAnalysis.campTotalPrepTiming.median.toFixed(0) : "n/a"} turns\n`;
+    report += `- **Timeouts After Ready:** ${cityStateAnalysis.campTimeoutAfterReady} (${pct(cityStateAnalysis.campTimeoutAfterReady, cityStateAnalysis.campOutcomeCounts.TimedOut).toFixed(1)}% of timeouts)\n`;
+    report += `- **War-Interrupted Episodes:** ${cityStateAnalysis.campWarInterruptedEpisodes} (${pct(cityStateAnalysis.campWarInterruptedEpisodes, cityStateAnalysis.totalCampClearingEpisodes).toFixed(1)}%)\n`;
+    report += `- **Cleared-By-Other Breakdown:** lacked military ${cityStateAnalysis.campClearedByOtherFromBuildup}, late start ${cityStateAnalysis.campClearedByOtherFromLateStart}, other ${cityStateAnalysis.campClearedByOtherOther}\n`;
+    const campOutcomeLine = CAMP_OUTCOME_ORDER
+        .filter(outcome => cityStateAnalysis.campOutcomeCounts[outcome] > 0)
+        .map(outcome => `${outcome} ${cityStateAnalysis.campOutcomeCounts[outcome]}`)
+        .join(", ");
+    report += `- **Episode Outcomes:** ${campOutcomeLine || "none"}\n`;
+    const readinessLine = CAMP_READINESS_ORDER
+        .map(readiness => {
+            const data = cityStateAnalysis.campReadinessAgg.get(readiness);
+            return data && data.episodes > 0
+                ? `${readiness} ${data.selfClears}/${data.episodes} clears, ${data.timedOut} timeouts`
+                : null;
+        })
+        .filter(Boolean)
+        .join(", ");
+    report += `- **Readiness Breakdown:** ${readinessLine || "none"}\n\n`;
+
 report += `### Investment Mix\n`;
 report += `- **Total City-State Investment:** ${cityStateAnalysis.totalInvestedGold.toFixed(0)}G across ${cityStateAnalysis.totalInvestmentActions.toFixed(0)} actions\n`;
 report += `- **Maintenance Investment:** ${cityStateAnalysis.totalMaintenanceGold.toFixed(0)}G (${pct(cityStateAnalysis.totalMaintenanceGold, cityStateAnalysis.totalInvestedGold).toFixed(1)}%) across ${cityStateAnalysis.totalMaintenanceInvestmentActions.toFixed(0)} actions (${pct(cityStateAnalysis.totalMaintenanceInvestmentActions, cityStateAnalysis.totalInvestmentActions).toFixed(1)}%)\n`;

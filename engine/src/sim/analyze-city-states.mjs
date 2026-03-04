@@ -7,6 +7,9 @@ const YIELD_TYPES = ["Science", "Production", "Food", "Gold"];
 const CIV_ORDER = ["ForgeClans", "ScholarKingdoms", "RiverLeague", "AetherianVanguard", "StarborneSeekers", "JadeCovenant"];
 const MAP_ORDER = ["Tiny", "Small", "Standard", "Large", "Huge"];
 const SUZERAIN_CHANGE_CAUSES = ["Investment", "PassiveContestation", "WartimeRelease", "WarBreak", "Other"];
+const CAMP_OUTCOME_ORDER = ["ClearedBySelf", "ClearedByOther", "TimedOut", "WarPrepCancelled", "WartimeEmergencyCancelled", "CampVanished", "Retargeted", "Eliminated", "OtherCancelled", "StillActive"];
+const CAMP_READINESS_ORDER = ["PreArmy", "ArmyTech", "ArmyFielded"];
+const CAMP_PREP_STATE_ORDER = ["Buildup", "Gathering", "Positioning", "Ready"];
 
 function num(value, fallback = 0) {
     const n = Number(value);
@@ -221,6 +224,22 @@ function createCauseAggregate() {
     return Object.fromEntries(SUZERAIN_CHANGE_CAUSES.map(cause => [cause, 0]));
 }
 
+function createCampOutcomeAggregate() {
+    return Object.fromEntries(CAMP_OUTCOME_ORDER.map(outcome => [outcome, 0]));
+}
+
+function createCampReadinessAggregate() {
+    return {
+        episodes: 0,
+        selfClears: 0,
+        timedOut: 0,
+        reachedReady: 0,
+        totalPrepTurns: 0,
+        prepToReadyTurns: 0,
+        prepToReadySamples: 0,
+    };
+}
+
 function ensureMapValue(map, key, createFn) {
     if (!map.has(key)) {
         map.set(key, createFn());
@@ -416,6 +435,23 @@ let totalFocusMaintenanceTurnsAllParticipants = 0;
 let totalFocusAssignmentsAllParticipants = 0;
 let totalFocusSwitchesAllParticipants = 0;
 let totalSuzerainTurnsAllParticipants = 0;
+let totalCampClearingEpisodes = 0;
+const campOutcomeCounts = createCampOutcomeAggregate();
+const campReadinessAgg = new Map(CAMP_READINESS_ORDER.map(readiness => [readiness, createCampReadinessAggregate()]));
+const campInitialPrepStateCounts = Object.fromEntries(CAMP_PREP_STATE_ORDER.map(state => [state, 0]));
+const campSightedToPrepTurns = [];
+const campPrepToReadyTurns = [];
+const campPrepToSelfClearTurns = [];
+const campTotalPrepTurns = [];
+let campDirectReadyStarts = 0;
+let campReachedReadyEpisodes = 0;
+let campEpisodesWithSighting = 0;
+let campTimeoutAfterReady = 0;
+let campClearedByOtherFromBuildup = 0;
+let campClearedByOtherFromLateStart = 0;
+let campClearedByOtherOther = 0;
+let campWarInterruptedEpisodes = 0;
+const campEpisodeRows = [];
 
 const winFlags = [];
 const suzerainObservations = [];
@@ -488,6 +524,86 @@ for (const sim of results) {
             mapSummary.firstCreationTurns.push(firstCreatedTurn);
             firstCreationTurns.push(firstCreatedTurn);
         }
+    }
+
+    const campEpisodes = Array.isArray(summary.campClearing?.episodes) ? summary.campClearing.episodes : [];
+    for (const episode of campEpisodes) {
+        const outcome = CAMP_OUTCOME_ORDER.includes(episode.outcome) ? episode.outcome : "OtherCancelled";
+        const readiness = CAMP_READINESS_ORDER.includes(episode.readinessAtStart) ? episode.readinessAtStart : "PreArmy";
+        const initialPrepState = CAMP_PREP_STATE_ORDER.includes(episode.initialPrepState) ? episode.initialPrepState : "Buildup";
+        const prepStartedTurn = num(episode.prepStartedTurn, NaN);
+        const endedTurn = num(episode.endedTurn, NaN);
+        const firstReadyTurn = num(episode.firstReadyTurn, NaN);
+        const campClearedTurn = num(episode.campClearedTurn, NaN);
+        const totalPrep = num(episode.totalPrepTurns, 0);
+        const sightedTurn = num(episode.sightedTurn, NaN);
+        const initialMilitaryCount = num(episode.initialMilitaryCount, NaN);
+        const initialRequiredMilitary = num(episode.initialRequiredMilitary, NaN);
+
+        totalCampClearingEpisodes += 1;
+        campOutcomeCounts[outcome] += 1;
+        campInitialPrepStateCounts[initialPrepState] += 1;
+        const readinessEntry = campReadinessAgg.get(readiness);
+        readinessEntry.episodes += 1;
+        readinessEntry.totalPrepTurns += totalPrep;
+        campTotalPrepTurns.push(totalPrep);
+
+        if (initialPrepState === "Ready") {
+            campDirectReadyStarts += 1;
+        }
+        if (Number.isFinite(sightedTurn) && Number.isFinite(prepStartedTurn)) {
+            campEpisodesWithSighting += 1;
+            campSightedToPrepTurns.push(prepStartedTurn - sightedTurn);
+        }
+        if (Number.isFinite(firstReadyTurn) && Number.isFinite(prepStartedTurn)) {
+            campReachedReadyEpisodes += 1;
+            readinessEntry.reachedReady += 1;
+            const prepToReady = firstReadyTurn - prepStartedTurn;
+            readinessEntry.prepToReadyTurns += prepToReady;
+            readinessEntry.prepToReadySamples += 1;
+            campPrepToReadyTurns.push(prepToReady);
+        }
+        if (outcome === "ClearedBySelf") {
+            readinessEntry.selfClears += 1;
+            if (Number.isFinite(campClearedTurn) && Number.isFinite(prepStartedTurn)) {
+                campPrepToSelfClearTurns.push(campClearedTurn - prepStartedTurn);
+            }
+        }
+        if (outcome === "TimedOut") {
+            readinessEntry.timedOut += 1;
+            if (Number.isFinite(firstReadyTurn)) {
+                campTimeoutAfterReady += 1;
+            }
+        }
+        if (outcome === "WarPrepCancelled" || outcome === "WartimeEmergencyCancelled") {
+            campWarInterruptedEpisodes += 1;
+        }
+        if (outcome === "ClearedByOther") {
+            if (
+                (Number.isFinite(initialMilitaryCount) && Number.isFinite(initialRequiredMilitary) && initialMilitaryCount < initialRequiredMilitary)
+                || initialPrepState === "Buildup"
+            ) {
+                campClearedByOtherFromBuildup += 1;
+            } else if (Number.isFinite(sightedTurn) && Number.isFinite(prepStartedTurn) && (prepStartedTurn - sightedTurn) >= 3) {
+                campClearedByOtherFromLateStart += 1;
+            } else {
+                campClearedByOtherOther += 1;
+            }
+        }
+
+        campEpisodeRows.push({
+            mapSize,
+            seed: sim.seed,
+            civName: episode.civName || idToCiv.get(episode.playerId) || episode.playerId,
+            outcome,
+            readiness,
+            initialPrepState,
+            prepStartedTurn,
+            endedTurn,
+            totalPrep,
+            sightedToPrep: Number.isFinite(sightedTurn) && Number.isFinite(prepStartedTurn) ? (prepStartedTurn - sightedTurn) : NaN,
+            prepToReady: Number.isFinite(firstReadyTurn) && Number.isFinite(prepStartedTurn) ? (firstReadyTurn - prepStartedTurn) : NaN,
+        });
     }
 
     const perSimCiv = new Map();
@@ -1002,6 +1118,60 @@ if (mapRows.length === 0) {
     mapRows.push(["No map telemetry", "0", "0", "0", "0.0%", "0", "0.00", "n/a"]);
 }
 
+const campSightedToPrepTiming = summarizeDistribution(campSightedToPrepTurns);
+const campPrepToReadyTiming = summarizeDistribution(campPrepToReadyTurns);
+const campPrepToSelfClearTiming = summarizeDistribution(campPrepToSelfClearTurns);
+const campTotalPrepTiming = summarizeDistribution(campTotalPrepTurns);
+const campOutcomeRows = CAMP_OUTCOME_ORDER
+    .filter(outcome => campOutcomeCounts[outcome] > 0)
+    .map(outcome => [
+        outcome,
+        `${campOutcomeCounts[outcome]}`,
+        `${fmt(pct(campOutcomeCounts[outcome], totalCampClearingEpisodes), 1)}%`,
+    ]);
+if (campOutcomeRows.length === 0) {
+    campOutcomeRows.push(["No camp-clearing telemetry", "0", "0.0%"]);
+}
+
+const campReadinessRows = CAMP_READINESS_ORDER
+    .map(readiness => {
+        const data = campReadinessAgg.get(readiness) || createCampReadinessAggregate();
+        return [
+            readiness,
+            `${data.episodes}`,
+            `${data.selfClears}`,
+            `${fmt(pct(data.selfClears, data.episodes), 1)}%`,
+            `${data.timedOut}`,
+            `${fmt(pct(data.timedOut, data.episodes), 1)}%`,
+            `${fmt(avg(data.totalPrepTurns, data.episodes), 2)}`,
+            data.prepToReadySamples > 0 ? fmt(avg(data.prepToReadyTurns, data.prepToReadySamples), 2) : "n/a",
+            `${fmt(pct(data.reachedReady, data.episodes), 1)}%`,
+        ];
+    })
+    .filter(row => Number(row[1]) > 0);
+if (campReadinessRows.length === 0) {
+    campReadinessRows.push(["No readiness telemetry", "0", "0", "0.0%", "0", "0.0%", "0.00", "n/a", "0.0%"]);
+}
+
+const campSlowestRows = campEpisodeRows
+    .filter(row => Number.isFinite(row.totalPrep) && row.totalPrep > 0)
+    .sort((a, b) => b.totalPrep - a.totalPrep || a.civName.localeCompare(b.civName))
+    .slice(0, 10)
+    .map(row => [
+        row.mapSize,
+        `${row.seed}`,
+        row.civName,
+        row.outcome,
+        row.readiness,
+        row.initialPrepState,
+        Number.isFinite(row.sightedToPrep) ? fmt(row.sightedToPrep, 0) : "n/a",
+        `${fmt(row.totalPrep, 0)}T`,
+        Number.isFinite(row.prepToReady) ? fmt(row.prepToReady, 0) : "n/a",
+    ]);
+if (campSlowestRows.length === 0) {
+    campSlowestRows.push(["-", "-", "No episodes observed", "-", "-", "-", "n/a", "0T", "n/a"]);
+}
+
 const report = `# City-State Simulation Report
 
 Generated: ${new Date().toISOString()}
@@ -1042,6 +1212,53 @@ ${markdownTable([
     "Avg Created / Telemetry Sim",
     "Avg First CS Turn",
 ], mapRows)}
+
+## Camp-Clearing Activation Funnel
+- Camp-clearing episodes observed: ${totalCampClearingEpisodes}
+- Direct starts in Ready: ${campDirectReadyStarts} (${fmt(pct(campDirectReadyStarts, totalCampClearingEpisodes), 1)}%)
+- Episodes that reached Ready: ${campReachedReadyEpisodes} (${fmt(pct(campReachedReadyEpisodes, totalCampClearingEpisodes), 1)}%)
+- Episodes with sighting telemetry: ${campEpisodesWithSighting} (${fmt(pct(campEpisodesWithSighting, totalCampClearingEpisodes), 1)}%)
+- Sighted -> prep start (avg / median): ${Number.isFinite(campSightedToPrepTiming.avg) ? fmt(campSightedToPrepTiming.avg, 2) : "n/a"} / ${Number.isFinite(campSightedToPrepTiming.median) ? fmt(campSightedToPrepTiming.median, 0) : "n/a"} turns
+- Prep start -> first Ready (avg / median): ${Number.isFinite(campPrepToReadyTiming.avg) ? fmt(campPrepToReadyTiming.avg, 2) : "n/a"} / ${Number.isFinite(campPrepToReadyTiming.median) ? fmt(campPrepToReadyTiming.median, 0) : "n/a"} turns
+- Prep start -> self clear (avg / median): ${Number.isFinite(campPrepToSelfClearTiming.avg) ? fmt(campPrepToSelfClearTiming.avg, 2) : "n/a"} / ${Number.isFinite(campPrepToSelfClearTiming.median) ? fmt(campPrepToSelfClearTiming.median, 0) : "n/a"} turns
+- Total prep duration (avg / median): ${Number.isFinite(campTotalPrepTiming.avg) ? fmt(campTotalPrepTiming.avg, 2) : "n/a"} / ${Number.isFinite(campTotalPrepTiming.median) ? fmt(campTotalPrepTiming.median, 0) : "n/a"} turns
+- Timeouts after reaching Ready: ${campTimeoutAfterReady} (${fmt(pct(campTimeoutAfterReady, campOutcomeCounts.TimedOut), 1)}% of timeouts)
+- War-interrupted episodes: ${campWarInterruptedEpisodes} (${fmt(pct(campWarInterruptedEpisodes, totalCampClearingEpisodes), 1)}%)
+- Cleared-by-other breakdown: lacked military ${campClearedByOtherFromBuildup}, late start ${campClearedByOtherFromLateStart}, other ${campClearedByOtherOther}
+- Initial prep state mix: ${CAMP_PREP_STATE_ORDER.map(state => `${state} ${campInitialPrepStateCounts[state]}`).join(", ")}
+
+### Camp Outcomes
+${markdownTable([
+    "Outcome",
+    "Episodes",
+    "Share",
+], campOutcomeRows)}
+
+### Camp Funnel By Readiness
+${markdownTable([
+    "Readiness",
+    "Episodes",
+    "Self Clears",
+    "Self Clear Rate",
+    "Timeouts",
+    "Timeout Rate",
+    "Avg Prep Turns",
+    "Avg Prep->Ready",
+    "Reached Ready",
+], campReadinessRows)}
+
+### Slowest Prep Episodes
+${markdownTable([
+    "Map",
+    "Seed",
+    "Civ",
+    "Outcome",
+    "Readiness",
+    "Initial State",
+    "Sighted->Prep",
+    "Total Prep",
+    "Prep->Ready",
+], campSlowestRows)}
 
 ## Suzerainty vs Winning
 - Winner average suzerain turns: ${fmt(avg(winnerSuzerainTurnsTotal, winnerSamples), 2)}

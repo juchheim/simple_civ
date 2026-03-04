@@ -499,6 +499,14 @@ export function clearNativeCamp(state: GameState, campId: string, killerPlayerId
     // Clear any AI camp prep that targeted this camp
     for (const player of state.players) {
         if (player.campClearingPrep?.targetCampId === campId) {
+            logEvent(state, HistoryEventType.CampClearingEnded, player.id, {
+                campId,
+                campCoord: camp.coord,
+                outcome: killerPlayerId
+                    ? (player.id === killerPlayerId ? "ClearedBySelf" : "ClearedByOther")
+                    : "CampVanished",
+                resolvedByPlayerId: killerPlayerId,
+            });
             player.campClearingPrep = undefined;
         }
     }

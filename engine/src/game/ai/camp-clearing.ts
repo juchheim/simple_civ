@@ -5,11 +5,13 @@
  * Uses a war-prep-like phase system: Buildup -> Gathering -> Positioning -> Ready
  */
 
-import { CityStateYieldType, GameState, Player, DiplomacyState, NativeCamp, TechId, Unit, UnitType } from "../../core/types.js";
+import { CityStateYieldType, GameState, Player, DiplomacyState, NativeCamp, TechId, Unit, UnitType, HistoryEventType } from "../../core/types.js";
+import type { CampClearingPrep } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
 import { UNITS } from "../../core/constants.js";
 import { aiInfo } from "./debug-logging.js";
 import { isScoutType } from "./units/unit-helpers.js";
+import { logEvent } from "../history.js";
 
 // Constants for camp clearing
 const MIN_MILITARY_FOR_CAMP = 3;  // Require 3 military units before engaging
@@ -41,7 +43,25 @@ const CAMP_PREP_TIMEOUT_PRE_ARMY = 15;
 const CAMP_PREP_TIMEOUT_ARMY_TECH = 22;
 const CAMP_PREP_TIMEOUT_ARMY_FIELDED = 28;
 
-type CampClearingReadiness = "PreArmy" | "ArmyTech" | "ArmyFielded";
+export type CampClearingReadiness = "PreArmy" | "ArmyTech" | "ArmyFielded";
+type CampPrepPhase = CampClearingPrep["state"];
+
+export type CampTargetDiagnostics = {
+    readiness: CampClearingReadiness;
+    score: number;
+    nearestCityDist: number;
+    requiredMilitary: number;
+    militaryCount: number;
+};
+
+export type CampPrepCancellationReason = "TimedOut" | "WarPrepCancelled" | "WartimeEmergencyCancelled" | "Other";
+type CampPrepEndTelemetryOutcome =
+    | "TimedOut"
+    | "WarPrepCancelled"
+    | "WartimeEmergencyCancelled"
+    | "CampVanished"
+    | "Retargeted"
+    | "OtherCancelled";
 
 type CampTargetEvaluation = {
     camp: NativeCamp;
@@ -77,6 +97,7 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
     // Cancel if camp is cleared or no longer exists
     if (!camp) {
         aiInfo(`[AI CAMP] ${player.id} cancelling camp prep - camp ${prep.targetCampId} no longer exists`);
+        logCampPrepEnded(state, player.id, prep, "CampVanished");
         return clearCampPrep(state, player.id);
     }
 
@@ -88,12 +109,14 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
         aiInfo(
             `[AI CAMP] ${player.id} cancelling camp prep - wartime emergency-only mode (wars=${majorWars}, readiness=${readiness})`
         );
+        logCampPrepEnded(state, player.id, prep, "WartimeEmergencyCancelled");
         return clearCampPrep(state, player.id);
     }
 
     // Cancel if we're in war prep against a player
     if (player.warPreparation) {
         aiInfo(`[AI CAMP] ${player.id} cancelling camp prep - war preparation takes priority`);
+        logCampPrepEnded(state, player.id, prep, "WarPrepCancelled");
         return clearCampPrep(state, player.id);
     }
 
@@ -106,6 +129,7 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
         aiInfo(
             `[AI CAMP] ${player.id} camp prep TIMEOUT (${turnsSinceStart}/${prepTimeout}, readiness=${readiness}) - giving up on camp ${prep.targetCampId}`
         );
+        logCampPrepEnded(state, player.id, prep, "TimedOut");
         return clearCampPrep(state, player.id);
     }
 
@@ -118,7 +142,9 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
                 `[AI CAMP] ${player.id} finished Buildup (${militaryCount}/${requiredMilitary} units), moving to Gathering`
             );
             newState = "Gathering";
-            return updatePrepState(state, player.id, { ...prep, state: newState, startedTurn: state.turn });
+            const nextPrep = { ...prep, state: newState, startedTurn: state.turn };
+            logCampPrepStateChanged(state, player.id, nextPrep, prep.state);
+            return updatePrepState(state, player.id, nextPrep);
         }
         if (state.turn % 5 === 0) {
             aiInfo(`[AI CAMP] ${player.id} building up for camp: ${militaryCount}/${requiredMilitary} units`);
@@ -132,14 +158,18 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
                 aiInfo(`[AI CAMP] ${player.id} finished Gathering, moving to Positioning`);
                 newState = "Positioning";
             }
-            return updatePrepState(state, player.id, { ...prep, state: newState });
+            const nextPrep = { ...prep, state: newState };
+            logCampPrepStateChanged(state, player.id, nextPrep, prep.state);
+            return updatePrepState(state, player.id, nextPrep);
         }
     } else if (prep.state === "Positioning") {
         if (turnsSinceStart >= getMinGatheringTurns(readiness) + getMinPositioningTurns(readiness)) {
             if (areUnitsPositionedForCamp(state, player.id, camp)) {
                 aiInfo(`[AI CAMP] ${player.id} units positioned, Ready to attack camp!`);
                 newState = "Ready";
-                return updatePrepState(state, player.id, { ...prep, state: newState });
+                const nextPrep = { ...prep, state: newState };
+                logCampPrepStateChanged(state, player.id, nextPrep, prep.state);
+                return updatePrepState(state, player.id, nextPrep);
             }
         }
     }
@@ -212,17 +242,25 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
             : readiness === "PreArmy"
                 ? "Gathering"
                 : "Positioning";
+    const prep: CampClearingPrep = {
+        targetCampId: best.camp.id,
+        state: initialPrepState,
+        startedTurn: state.turn,
+    };
+    logCampPrepStarted(state, player.id, prep, {
+        readiness,
+        score: best.score,
+        nearestCityDist: best.nearestCityDist,
+        requiredMilitary,
+        militaryCount,
+    });
 
     return {
         ...state,
         players: state.players.map(p =>
             p.id === player.id ? {
                 ...p,
-                campClearingPrep: {
-                    targetCampId: best.camp.id,
-                    state: initialPrepState,
-                    startedTurn: state.turn
-                }
+                campClearingPrep: prep
             } : p
         )
     };
@@ -510,6 +548,98 @@ function getRequiredMilitaryForCamp(state: GameState, player: Player, camp: Nati
     const evalResult = evaluateCampTarget(state, player, camp, readiness);
     if (!evalResult) return MIN_MILITARY_FOR_CAMP;
     return Math.max(MIN_POSITIONING_UNITS, evalResult.requiredMilitary);
+}
+
+export function getCampTargetDiagnostics(state: GameState, playerId: string, campId: string): CampTargetDiagnostics | null {
+    const player = state.players.find(entry => entry.id === playerId && !entry.isEliminated);
+    const camp = state.nativeCamps.find(entry => entry.id === campId);
+    if (!player || !camp) return null;
+
+    const readiness = getCampClearingReadiness(state, player);
+    const evaluation = evaluateCampTarget(state, player, camp, readiness);
+    if (!evaluation) return null;
+
+    return {
+        readiness,
+        score: evaluation.score,
+        nearestCityDist: evaluation.nearestCityDist,
+        requiredMilitary: Math.max(MIN_POSITIONING_UNITS, evaluation.requiredMilitary),
+        militaryCount: getMilitaryCount(state, playerId),
+    };
+}
+
+export function classifyCampPrepCancellation(
+    state: GameState,
+    playerId: string,
+    prep: CampClearingPrep,
+): CampPrepCancellationReason {
+    const player = state.players.find(entry => entry.id === playerId);
+    if (!player || player.isEliminated) return "Other";
+    if (player.warPreparation) return "WarPrepCancelled";
+
+    const camp = state.nativeCamps.find(entry => entry.id === prep.targetCampId);
+    if (!camp) return "Other";
+
+    const readiness = getCampClearingReadiness(state, player);
+    const majorWars = getMajorWarCount(state, playerId);
+    const restrictToEmergency = majorWars >= 3 || (majorWars >= 2 && readiness === "PreArmy");
+    if (restrictToEmergency && !isCampEmergencyThreatForPlayer(state, playerId, camp)) {
+        return "WartimeEmergencyCancelled";
+    }
+
+    const prepTimeout = getCampPrepTimeout(readiness);
+    const turnsSinceStart = state.turn - prep.startedTurn;
+    if (turnsSinceStart > prepTimeout) {
+        return "TimedOut";
+    }
+
+    return "Other";
+}
+
+function logCampPrepStarted(
+    state: GameState,
+    playerId: string,
+    prep: CampClearingPrep,
+    diagnostics: CampTargetDiagnostics | null,
+): void {
+    const camp = state.nativeCamps.find(entry => entry.id === prep.targetCampId);
+    logEvent(state, HistoryEventType.CampClearingStarted, playerId, {
+        campId: prep.targetCampId,
+        campCoord: camp?.coord,
+        prepState: prep.state,
+        readiness: diagnostics?.readiness ?? "PreArmy",
+        score: diagnostics?.score,
+        nearestCityDist: diagnostics?.nearestCityDist,
+        requiredMilitary: diagnostics?.requiredMilitary,
+        militaryCount: diagnostics?.militaryCount,
+    });
+}
+
+function logCampPrepStateChanged(
+    state: GameState,
+    playerId: string,
+    prep: CampClearingPrep,
+    fromState: CampPrepPhase,
+): void {
+    logEvent(state, HistoryEventType.CampClearingStateChanged, playerId, {
+        campId: prep.targetCampId,
+        fromState,
+        toState: prep.state,
+    });
+}
+
+function logCampPrepEnded(
+    state: GameState,
+    playerId: string,
+    prep: CampClearingPrep,
+    outcome: CampPrepEndTelemetryOutcome,
+): void {
+    const camp = state.nativeCamps.find(entry => entry.id === prep.targetCampId);
+    logEvent(state, HistoryEventType.CampClearingEnded, playerId, {
+        campId: prep.targetCampId,
+        campCoord: camp?.coord,
+        outcome,
+    });
 }
 
 /**

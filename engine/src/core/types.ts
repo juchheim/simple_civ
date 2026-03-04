@@ -428,6 +428,9 @@ export enum HistoryEventType {
     UnitPromoted = "UnitPromoted",
     VictoryAchieved = "VictoryAchieved",
     TitanStep = "TitanStep", // v2.3: Track Titan movement and support
+    CampClearingStarted = "CampClearingStarted",
+    CampClearingStateChanged = "CampClearingStateChanged",
+    CampClearingEnded = "CampClearingEnded",
 }
 
 export interface HistoryEvent {
