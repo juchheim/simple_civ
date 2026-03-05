@@ -387,6 +387,19 @@ describe("camp-clearing", () => {
         expect(prep?.state).toBe("Ready");
     });
 
+    it("treats a four-unit force as army-ready by turn 44", () => {
+        const state = baseState();
+        state.turn = 44;
+        state.nativeCamps = [makeCamp("camp-far", 10, 0)];
+        state.visibility.p1 = ["10,0"];
+        addMilitaryAt(state, [{ q: 5, r: 0 }, { q: 6, r: 0 }, { q: 6, r: 1 }, { q: 7, r: 0 }]);
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-far");
+        expect(prep?.state).toBe("Ready");
+    });
+
     it("prioritizes a contested visible camp once armies are online", () => {
         const state = baseState();
         state.turn = 90;
@@ -423,6 +436,87 @@ describe("camp-clearing", () => {
             ownerId: "p2",
             type: UnitType.SpearGuard,
             coord: { q: 9, r: 0 },
+            hp: 10,
+            maxHp: 10,
+            movesLeft: 1,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-safe");
+    });
+
+    it("abandons an active prep that is in a high-pressure losing race", () => {
+        const state = baseState();
+        state.turn = 90;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-race", 6, 0)];
+        state.visibility.p1 = ["6,0", "7,0"];
+        addMilitaryAt(state, [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 0 }]);
+        state.players[0].campClearingPrep = {
+            targetCampId: "camp-race",
+            state: "Gathering",
+            startedTurn: state.turn - 3,
+        };
+        state.units.push({
+            id: "enemy-racer",
+            ownerId: "p2",
+            type: UnitType.SpearGuard,
+            coord: { q: 7, r: 0 },
+            hp: 10,
+            maxHp: 10,
+            movesLeft: 1,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        const next = manageCampClearing(state, "p1");
+        expect(next.players.find(p => p.id === "p1")?.campClearingPrep).toBeUndefined();
+    });
+
+    it("immediately retargets when an active prep is cancelled as a losing race", () => {
+        const state = baseState();
+        state.turn = 90;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-safe", 3, 0), makeCamp("camp-race", 6, 0)];
+        state.visibility.p1 = ["3,0", "6,0", "7,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: 0 }], UnitType.SpearGuard, "line");
+        state.players[0].campClearingPrep = {
+            targetCampId: "camp-race",
+            state: "Gathering",
+            startedTurn: state.turn - 3,
+        };
+        state.units.push({
+            id: "enemy-racer",
+            ownerId: "p2",
+            type: UnitType.SpearGuard,
+            coord: { q: 7, r: 0 },
+            hp: 10,
+            maxHp: 10,
+            movesLeft: 1,
+            state: UnitState.Normal,
+            hasAttacked: false,
+        });
+
+        const next = manageCampClearing(state, "p1");
+        const prep = next.players.find(p => p.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-safe");
+    });
+
+    it("falls back to the next viable camp when the top target is a losing contested race", () => {
+        const state = baseState();
+        state.turn = 90;
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.nativeCamps = [makeCamp("camp-safe", 3, 0), makeCamp("camp-race", 6, 0)];
+        state.visibility.p1 = ["3,0", "6,0", "7,0"];
+        addMilitaryAt(state, [{ q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: 0 }], UnitType.SpearGuard, "line");
+        state.units.push({
+            id: "enemy-racer",
+            ownerId: "p2",
+            type: UnitType.SpearGuard,
+            coord: { q: 7, r: 0 },
             hp: 10,
             maxHp: 10,
             movesLeft: 1,

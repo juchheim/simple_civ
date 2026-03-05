@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GameState, PlayerPhase, TerrainType, UnitState, UnitType } from "../../../core/types.js";
+import { GameState, PlayerPhase, TechId, TerrainType, UnitState, UnitType } from "../../../core/types.js";
 import { moveUnitsForCampClearing, attackCampTargets } from "./offense-camp-clearing.js";
 import { expectedDamageToUnit } from "./unit-helpers.js";
 
@@ -185,6 +185,172 @@ describe("offense camp clearing movement", () => {
 });
 
 describe("offense camp clearing attacks", () => {
+    it("downgrades Ready to Positioning when badly outmatched but reinforcements are nearby", () => {
+        const state = makeState();
+        state.nativeCamps[0].coord = { q: 6, r: 0 };
+        state.units = [
+            {
+                id: "spear-front",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 5, r: 0 },
+                hp: 4,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "spear-reinforce",
+                ownerId: "p1",
+                type: UnitType.ArmySpearGuard,
+                coord: { q: 0, r: 2 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "spear-reinforce-2",
+                ownerId: "p1",
+                type: UnitType.ArmySpearGuard,
+                coord: { q: 0, r: 1 },
+                hp: 10,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "native-1",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 6, r: 0 },
+                hp: 18,
+                maxHp: 18,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-1",
+            },
+            {
+                id: "native-2",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 6, r: 1 },
+                hp: 18,
+                maxHp: 18,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-1",
+            },
+        ];
+
+        const next = attackCampTargets(state, "p1");
+        const prep = next.players.find(player => player.id === "p1")?.campClearingPrep;
+        expect(prep?.state).toBe("Positioning");
+    });
+
+    it("ends a doomed Ready assault when no reinforcements are available", () => {
+        const state = makeState();
+        state.units = [
+            {
+                id: "spear-front",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 3, r: 0 },
+                hp: 3,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "native-1",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 4, r: 0 },
+                hp: 18,
+                maxHp: 18,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-1",
+            },
+            {
+                id: "native-2",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 4, r: 1 },
+                hp: 18,
+                maxHp: 18,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-1",
+            },
+        ];
+
+        const next = attackCampTargets(state, "p1");
+        expect(next.players.find(player => player.id === "p1")?.campClearingPrep).toBeUndefined();
+    });
+
+    it("immediately retargets after exiting a doomed Ready assault", () => {
+        const state = makeState();
+        state.players[0].techs = [TechId.DrilledRanks];
+        state.visibility.p1 = ["4,0", "4,1", "1,2"];
+        state.revealed.p1 = ["4,0", "4,1", "1,2"];
+        state.nativeCamps.push({
+            id: "camp-2",
+            coord: { q: 1, r: 2 },
+            state: "Patrol",
+            aggroTurnsRemaining: 0,
+        });
+        state.units = [
+            {
+                id: "spear-front",
+                ownerId: "p1",
+                type: UnitType.SpearGuard,
+                coord: { q: 3, r: 0 },
+                hp: 3,
+                maxHp: 10,
+                movesLeft: 1,
+                state: UnitState.Normal,
+                hasAttacked: false,
+            },
+            {
+                id: "native-1",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 4, r: 0 },
+                hp: 18,
+                maxHp: 18,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-1",
+            },
+            {
+                id: "native-2",
+                ownerId: "natives",
+                type: UnitType.NativeChampion,
+                coord: { q: 4, r: 1 },
+                hp: 18,
+                maxHp: 18,
+                movesLeft: 0,
+                state: UnitState.Normal,
+                hasAttacked: false,
+                campId: "camp-1",
+            },
+        ];
+
+        const next = attackCampTargets(state, "p1");
+        const prep = next.players.find(player => player.id === "p1")?.campClearingPrep;
+        expect(prep?.targetCampId).toBe("camp-2");
+    });
+
     it("uses ranged attackers first so melee can finish the camp in the same turn", () => {
         const state = makeState();
         state.units = [

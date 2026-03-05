@@ -15,9 +15,10 @@ import { logEvent } from "../history.js";
 
 // Constants for camp clearing
 const MIN_MILITARY_FOR_CAMP = 3;  // Require 3 military units before engaging
-const MIN_TURN_FOR_CAMP_PRE_ARMY = 12;
+const MIN_TURN_FOR_CAMP_PRE_ARMY = 10;
 const MIN_TURN_FOR_CAMP_ARMY_TECH = 2;
 const MIN_TURN_FOR_CAMP_ARMY_FIELDED = 2;
+const CAMP_MILITARY_MASS_READINESS_TURN = 44;
 const CAMP_SETTLE_RADIUS_PRE_ARMY = 8;
 const CAMP_SETTLE_RADIUS_ARMY_TECH = 13;
 const CAMP_SETTLE_RADIUS_ARMY_FIELDED = 17;
@@ -28,15 +29,15 @@ const MIN_GATHERING_TURNS_POST_ARMY = 0;
 const MIN_POSITIONING_TURNS_PRE_ARMY = 1;
 const MIN_POSITIONING_TURNS_POST_ARMY = 0;
 const RETREAT_HP_THRESHOLD = 0.3; // Retreat if HP below 30%
-const CAMP_TARGET_SCORE_MIN_PRE_ARMY = 28;
-const CAMP_TARGET_SCORE_MIN_ARMY_TECH = 8;
-const CAMP_TARGET_SCORE_MIN_ARMY_FIELDED = 2;
-const CAMP_TARGET_SCORE_EARLY_OVERRIDE = 40;
+const CAMP_TARGET_SCORE_MIN_PRE_ARMY = 24;
+const CAMP_TARGET_SCORE_MIN_ARMY_TECH = 6;
+const CAMP_TARGET_SCORE_MIN_ARMY_FIELDED = 1;
+const CAMP_TARGET_SCORE_EARLY_OVERRIDE = 34;
 const CAMP_EMERGENCY_RADIUS = 2;
 const CAMP_POWER_RADIUS = 5;
 const CAMP_ARMY_URGENCY_TECH_BONUS = 22;
 const CAMP_ARMY_URGENCY_FIELDED_BONUS = 40;
-const CAMP_ARMY_URGENCY_START_TURN = 48;
+const CAMP_ARMY_URGENCY_START_TURN = 40;
 const CAMP_ARMY_URGENCY_PER_20_TURNS = 4;
 const CAMP_ARMY_URGENCY_MAX_LATE_BONUS = 24;
 const CAMP_RACE_PRESSURE_RADIUS = 7;
@@ -47,6 +48,10 @@ const CAMP_RACE_PRESSURE_MULTI_UNIT_BONUS = 8;
 const CAMP_RACE_PRESSURE_AGGRO_BONUS = 6;
 const CAMP_RACE_PRESSURE_MAX_CITY_DISTANCE = 6;
 const CAMP_RACE_PRESSURE_MIN_POWER_RATIO = 0.85;
+const CAMP_RACE_INTERCEPT_MIN_PRESSURE = CAMP_RACE_PRESSURE_CLOSE_BONUS;
+const CAMP_RACE_INTERCEPT_CANCEL_LAG = 2;
+const CAMP_RACE_INTERCEPT_CANCEL_MIN_TURNS = 2;
+const CAMP_RACE_INTERCEPT_SKIP_ETA_GAP = 3;
 const CAMP_PREP_TIMEOUT_PRE_ARMY = 15;
 const CAMP_PREP_TIMEOUT_ARMY_TECH = 26;
 const CAMP_PREP_TIMEOUT_ARMY_FIELDED = 34;
@@ -81,6 +86,14 @@ type CampTargetEvaluation = {
     racePressureBonus: number;
 };
 
+type CampRaceTiming = {
+    highPressure: boolean;
+    losingEta: boolean;
+    myApproachDist: number;
+    rivalApproachDist: number;
+    etaGap: number;
+};
+
 /**
  * Main entry point for camp clearing management.
  * Called each turn for AI players.
@@ -109,7 +122,7 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
     if (!camp) {
         aiInfo(`[AI CAMP] ${player.id} cancelling camp prep - camp ${prep.targetCampId} no longer exists`);
         logCampPrepEnded(state, player.id, prep, "CampVanished");
-        return clearCampPrep(state, player.id);
+        return clearCampPrepAndRetarget(state, player.id, prep.targetCampId);
     }
 
     const campIsEmergencyThreat = camp ? isCampEmergencyThreatForPlayer(state, player.id, camp) : false;
@@ -121,14 +134,14 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
             `[AI CAMP] ${player.id} cancelling camp prep - wartime emergency-only mode (wars=${majorWars}, readiness=${readiness})`
         );
         logCampPrepEnded(state, player.id, prep, "WartimeEmergencyCancelled");
-        return clearCampPrep(state, player.id);
+        return clearCampPrepAndRetarget(state, player.id, prep.targetCampId);
     }
 
     // Cancel if we're in war prep against a player
     if (player.warPreparation) {
         aiInfo(`[AI CAMP] ${player.id} cancelling camp prep - war preparation takes priority`);
         logCampPrepEnded(state, player.id, prep, "WarPrepCancelled");
-        return clearCampPrep(state, player.id);
+        return clearCampPrepAndRetarget(state, player.id, prep.targetCampId);
     }
 
     const turnsSinceStart = state.turn - prep.startedTurn;
@@ -141,7 +154,7 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
             `[AI CAMP] ${player.id} camp prep TIMEOUT (${turnsSinceStart}/${prepTimeout}, readiness=${readiness}) - giving up on camp ${prep.targetCampId}`
         );
         logCampPrepEnded(state, player.id, prep, "TimedOut");
-        return clearCampPrep(state, player.id);
+        return clearCampPrepAndRetarget(state, player.id, prep.targetCampId);
     }
 
     let newState = prep.state;
@@ -153,6 +166,31 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
         requiredMilitary,
         nearestCityDist,
     );
+    const raceTiming = evaluateCampRaceTiming(state, player.id, camp, readiness, undefined, {
+        score: 0,
+        nearestCityDist,
+        requiredMilitary,
+        militaryCount,
+        racePressureBonus: 0,
+    });
+    const militaryShortfall = Math.max(0, requiredMilitary - militaryCount);
+    if (
+        prep.state !== "Ready"
+        && raceTiming.highPressure
+        && raceTiming.losingEta
+        && (
+            raceTiming.etaGap >= CAMP_RACE_INTERCEPT_SKIP_ETA_GAP
+            || (militaryShortfall >= CAMP_RACE_INTERCEPT_CANCEL_LAG && turnsSinceStart >= CAMP_RACE_INTERCEPT_CANCEL_MIN_TURNS)
+        )
+    ) {
+        aiInfo(
+            `[AI CAMP] ${player.id} abandoning losing race for ${prep.targetCampId} ` +
+            `(myEta=${raceTiming.myApproachDist}, rivalEta=${raceTiming.rivalApproachDist}, etaGap=${raceTiming.etaGap}, shortfall=${militaryShortfall})`
+        );
+        logCampPrepEnded(state, player.id, prep, "OtherCancelled");
+        return clearCampPrepAndRetarget(state, player.id, prep.targetCampId);
+    }
+
     if (prep.state === "Buildup") {
         if (hasOperationalForce) {
             aiInfo(
@@ -201,7 +239,11 @@ function updateCampClearingPrep(state: GameState, player: Player): GameState {
 /**
  * Check if we should start preparing to clear a camp
  */
-function checkForCampTargets(state: GameState, player: Player): GameState {
+function checkForCampTargets(
+    state: GameState,
+    player: Player,
+    excludedCampIds?: Set<string>,
+): GameState {
     if (player.warPreparation) return state; // War prep takes priority
     const readiness = getCampClearingReadiness(state, player);
     const minTurnForCamp = getMinTurnForCamp(readiness);
@@ -212,67 +254,94 @@ function checkForCampTargets(state: GameState, player: Player): GameState {
     const restrictToEmergency = majorWars >= 3 || (majorWars >= 2 && readiness === "PreArmy");
     if (restrictToEmergency && !hasEmergencyCampThreat(state, player.id)) return state;
 
-    // Find visible camps
-    const visibleCamps = getVisibleCamps(state, player.id);
-    if (visibleCamps.length === 0) return state;
-    const candidateCamps = restrictToEmergency
-        ? visibleCamps.filter(camp => isCampEmergencyThreatForPlayer(state, player.id, camp))
-        : visibleCamps;
-    if (candidateCamps.length === 0) return state;
-
-    const best = getBestCampTargetEvaluation(state, player, readiness);
-    if (!best) return state;
+    const evaluations = getCampTargetEvaluations(state, player, readiness);
+    if (evaluations.length === 0) return state;
 
     const militaryCount = getMilitaryCount(state, player.id);
     const globalCityStateCount = state.cityStates?.length ?? 0;
     const activePlayerCount = state.players.filter(p => !p.isEliminated).length;
     const effectiveSettleRadius = readiness === "ArmyFielded" ? settleRadius + 2 : settleRadius;
-    const earlyOverride = best.nearestCityDist <= CAMP_EMERGENCY_RADIUS && best.score >= CAMP_TARGET_SCORE_EARLY_OVERRIDE;
-    const scarcityOverride = readiness !== "PreArmy"
-        && globalCityStateCount <= Math.max(1, Math.floor(activePlayerCount / 2) - 1)
-        && best.score >= (scoreMin - 6);
-    if (state.turn < minTurnForCamp && !earlyOverride) return state;
+    let selected: CampTargetEvaluation | null = null;
 
-    const cityRadiusGate = best.nearestCityDist <= effectiveSettleRadius || best.nearestCityDist <= CAMP_EMERGENCY_RADIUS;
-    if (!cityRadiusGate) return state;
+    for (const candidate of evaluations) {
+        if (excludedCampIds?.has(candidate.camp.id)) {
+            continue;
+        }
+        const earlyOverride = candidate.nearestCityDist <= CAMP_EMERGENCY_RADIUS && candidate.score >= CAMP_TARGET_SCORE_EARLY_OVERRIDE;
+        const scarcityOverride = readiness !== "PreArmy"
+            && globalCityStateCount <= Math.max(1, Math.floor(activePlayerCount / 2) - 1)
+            && candidate.score >= (scoreMin - 6);
+        if (state.turn < minTurnForCamp && !earlyOverride) {
+            continue;
+        }
 
-    const scoreGate = best.score >= scoreMin || earlyOverride || scarcityOverride;
-    if (!scoreGate) return state;
+        const cityRadiusGate = candidate.nearestCityDist <= effectiveSettleRadius || candidate.nearestCityDist <= CAMP_EMERGENCY_RADIUS;
+        if (!cityRadiusGate) {
+            continue;
+        }
 
-    const requiredMilitary = Math.max(MIN_POSITIONING_UNITS, best.requiredMilitary);
-    const hasOperationalForce = canProceedWithCampAssault(
-        readiness,
-        militaryCount,
-        requiredMilitary,
-        best.nearestCityDist,
-    );
-    const shouldStartBuildup = canStartCampBuildup(
-        readiness,
-        militaryCount,
-        requiredMilitary,
-        best.nearestCityDist,
-    );
+        const scoreGate = candidate.score >= scoreMin || earlyOverride || scarcityOverride;
+        if (!scoreGate) {
+            continue;
+        }
 
-    if (militaryCount < requiredMilitary && !hasOperationalForce && !shouldStartBuildup) {
-        return state;
+        const requiredMilitary = Math.max(MIN_POSITIONING_UNITS, candidate.requiredMilitary);
+        const hasOperationalForce = canProceedWithCampAssault(
+            readiness,
+            militaryCount,
+            requiredMilitary,
+            candidate.nearestCityDist,
+        );
+        const shouldStartBuildup = canStartCampBuildup(
+            readiness,
+            militaryCount,
+            requiredMilitary,
+            candidate.nearestCityDist,
+        );
+        const raceTiming = evaluateCampRaceTiming(state, player.id, candidate.camp, readiness, candidate);
+        const militaryShortfall = Math.max(0, requiredMilitary - militaryCount);
+        const unitsAlreadyPositioned = areUnitsPositionedForCamp(state, player.id, candidate.camp);
+        const canAggressivelyEscalate = readiness !== "PreArmy" && militaryShortfall <= CAMP_POST_ARMY_SHORTFALL_ALLOWANCE;
+        if (
+            raceTiming.highPressure
+            && raceTiming.losingEta
+            && raceTiming.etaGap >= CAMP_RACE_INTERCEPT_SKIP_ETA_GAP
+            && !unitsAlreadyPositioned
+            && !canAggressivelyEscalate
+        ) {
+            aiInfo(
+                `[AI CAMP] ${player.id} skipping losing contested camp ${candidate.camp.id} ` +
+                `(myEta=${raceTiming.myApproachDist}, rivalEta=${raceTiming.rivalApproachDist}, etaGap=${raceTiming.etaGap}, shortfall=${militaryShortfall})`
+            );
+            continue;
+        }
+
+        if (militaryCount < requiredMilitary && !hasOperationalForce && !shouldStartBuildup) {
+            continue;
+        }
+
+        if (militaryCount < requiredMilitary && !hasOperationalForce) {
+            aiInfo(
+                `[AI CAMP] ${player.id} delaying camp ${candidate.camp.id}: military ${militaryCount}/${requiredMilitary} (score ${candidate.score.toFixed(1)}, readiness=${readiness})`
+            );
+        } else {
+            aiInfo(
+                `[AI CAMP] ${player.id} targeting camp ${candidate.camp.id}: score ${candidate.score.toFixed(1)}, dist ${candidate.nearestCityDist}, military ${militaryCount}, readiness=${readiness}`
+            );
+        }
+
+        selected = candidate;
+        break;
     }
 
-    if (militaryCount < requiredMilitary && !hasOperationalForce) {
-        aiInfo(
-            `[AI CAMP] ${player.id} delaying camp ${best.camp.id}: military ${militaryCount}/${requiredMilitary} (score ${best.score.toFixed(1)}, readiness=${readiness})`
-        );
-    } else {
-        aiInfo(
-            `[AI CAMP] ${player.id} targeting camp ${best.camp.id}: score ${best.score.toFixed(1)}, dist ${best.nearestCityDist}, military ${militaryCount}, readiness=${readiness}`
-        );
-    }
+    if (!selected) return state;
 
-    const prep = createCampPrepFromEvaluation(state, player, readiness, best, militaryCount);
+    const prep = createCampPrepFromEvaluation(state, player, readiness, selected, militaryCount);
     logCampPrepStarted(state, player.id, prep, {
         readiness,
-        score: best.score,
-        nearestCityDist: best.nearestCityDist,
-        requiredMilitary,
+        score: selected.score,
+        nearestCityDist: selected.nearestCityDist,
+        requiredMilitary: Math.max(MIN_POSITIONING_UNITS, selected.requiredMilitary),
         militaryCount,
     });
 
@@ -316,7 +385,7 @@ function getMilitaryCount(state: GameState, playerId: string): number {
 function getCampClearingReadiness(state: GameState, player: Player): CampClearingReadiness {
     const hasArmyTech = player.techs.includes(TechId.DrilledRanks);
     const militaryCount = getMilitaryCount(state, player.id);
-    const hasMilitaryMass = militaryCount >= 4 && state.turn >= 50;
+    const hasMilitaryMass = militaryCount >= 4 && state.turn >= CAMP_MILITARY_MASS_READINESS_TURN;
     const hasFieldedArmy = state.units.some(
         unit =>
             unit.ownerId === player.id &&
@@ -361,15 +430,15 @@ function getCampPrepTimeout(readiness: CampClearingReadiness): number {
     return CAMP_PREP_TIMEOUT_PRE_ARMY;
 }
 
-function getBestCampTargetEvaluation(
+function getCampTargetEvaluations(
     state: GameState,
     player: Player,
     readiness: CampClearingReadiness,
-): CampTargetEvaluation | null {
+): CampTargetEvaluation[] {
     const majorWars = getMajorWarCount(state, player.id);
     const restrictToEmergency = majorWars >= 3 || (majorWars >= 2 && readiness === "PreArmy");
     const visibleCamps = getVisibleCamps(state, player.id);
-    if (visibleCamps.length === 0) return null;
+    if (visibleCamps.length === 0) return [];
 
     const candidateCamps = restrictToEmergency
         ? visibleCamps.filter(camp => isCampEmergencyThreatForPlayer(state, player.id, camp))
@@ -384,7 +453,7 @@ function getBestCampTargetEvaluation(
             || a.nearestCityDist - b.nearestCityDist
         );
 
-    return evaluations[0] ?? null;
+    return evaluations;
 }
 
 function getNearestOwnedCityDistance(state: GameState, playerId: string, camp: NativeCamp): number {
@@ -700,6 +769,69 @@ function evaluateCampTarget(
     };
 }
 
+function getClosestFriendlyCampApproachDistance(state: GameState, playerId: string, camp: NativeCamp): number {
+    const distances = state.units
+        .filter(unit =>
+            unit.ownerId === playerId
+            && !isScoutType(unit.type)
+            && UNITS[unit.type].domain !== "Civilian"
+        )
+        .map(unit => hexDistance(unit.coord, camp.coord));
+    return distances.length > 0 ? Math.min(...distances) : Number.POSITIVE_INFINITY;
+}
+
+function getClosestVisibleRivalCampApproachDistance(state: GameState, playerId: string, camp: NativeCamp): number {
+    const visibleKeys = new Set(state.visibility?.[playerId] || []);
+    const distances = state.units
+        .filter(unit =>
+            unit.ownerId !== playerId
+            && unit.ownerId !== "natives"
+            && !isScoutType(unit.type)
+            && UNITS[unit.type].domain !== "Civilian"
+        )
+        .filter(unit => {
+            if (visibleKeys.size === 0) return true;
+            const key = `${unit.coord.q},${unit.coord.r}`;
+            return visibleKeys.has(key);
+        })
+        .map(unit => hexDistance(unit.coord, camp.coord));
+    return distances.length > 0 ? Math.min(...distances) : Number.POSITIVE_INFINITY;
+}
+
+function evaluateCampRaceTiming(
+    state: GameState,
+    playerId: string,
+    camp: NativeCamp,
+    readiness: CampClearingReadiness,
+    evaluation?: CampTargetEvaluation,
+    fallback?: {
+        score: number;
+        nearestCityDist: number;
+        requiredMilitary: number;
+        militaryCount: number;
+        racePressureBonus: number;
+    },
+): CampRaceTiming {
+    const player = state.players.find(entry => entry.id === playerId);
+    const targetEvaluation = evaluation
+        ?? (player ? evaluateCampTarget(state, player, camp, readiness) : null)
+        ?? fallback;
+    const racePressureBonus = targetEvaluation?.racePressureBonus ?? 0;
+    const highPressure = racePressureBonus >= CAMP_RACE_INTERCEPT_MIN_PRESSURE;
+    const myApproachDist = getClosestFriendlyCampApproachDistance(state, playerId, camp);
+    const rivalApproachDist = getClosestVisibleRivalCampApproachDistance(state, playerId, camp);
+    const losingEta = Number.isFinite(rivalApproachDist) && myApproachDist > (rivalApproachDist + 1);
+    return {
+        highPressure,
+        losingEta,
+        myApproachDist,
+        rivalApproachDist,
+        etaGap: Number.isFinite(myApproachDist) && Number.isFinite(rivalApproachDist)
+            ? Math.max(0, myApproachDist - rivalApproachDist)
+            : 0,
+    };
+}
+
 function getRequiredMilitaryForCamp(state: GameState, player: Player, camp: NativeCamp): number {
     const readiness = getCampClearingReadiness(state, player);
     const evalResult = evaluateCampTarget(state, player, camp, readiness);
@@ -829,6 +961,14 @@ function clearCampPrep(state: GameState, playerId: string): GameState {
             p.id === playerId ? { ...p, campClearingPrep: undefined } : p
         )
     };
+}
+
+export function clearCampPrepAndRetarget(state: GameState, playerId: string, excludedCampId?: string): GameState {
+    const clearedState = clearCampPrep(state, playerId);
+    const player = clearedState.players.find(entry => entry.id === playerId);
+    if (!player || player.isEliminated || player.campClearingPrep) return clearedState;
+    const excluded = excludedCampId ? new Set([excludedCampId]) : undefined;
+    return checkForCampTargets(clearedState, player, excluded);
 }
 
 /**

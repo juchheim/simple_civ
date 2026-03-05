@@ -1,14 +1,23 @@
 import { aiInfo } from "../debug-logging.js";
 import { getNeighbors, hexDistance, hexEquals } from "../../../core/hex.js";
-import { GameState, UnitType } from "../../../core/types.js";
+import { GameState, HistoryEventType, UnitType } from "../../../core/types.js";
 import { UNITS } from "../../../core/constants.js";
 import { tryAction } from "../shared/actions.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { expectedDamageFrom, expectedDamageToUnit, isScoutType } from "./unit-helpers.js";
+import { logEvent } from "../../history.js";
+import { clearCampPrepAndRetarget } from "../camp-clearing.js";
 
 const CAMP_PRESSURE_ATTACK_MIN_HEALTH_RATIO = 0.45;
 const CAMP_PRESSURE_ATTACK_FINISHABLE_HP = 7;
 const CAMP_PRESSURE_ATTACK_MEANINGFUL_TRADE_RATIO = 0.35;
+const CAMP_READY_BAIL_LOCAL_RADIUS = 5;
+const CAMP_READY_BAIL_POWER_RATIO = 0.8;
+const CAMP_READY_REINFORCE_RADIUS = 9;
+const CAMP_READY_REINFORCE_POWER_TARGET_RATIO = 0.82;
+const CAMP_READY_REINFORCE_POWER_ARRIVAL_DISCOUNT = 0.7;
+
+type CampReadyBailoutDecision = "None" | "Reinforce" | "Exit";
 
 function getCampAttackers(state: GameState, playerId: string) {
     return state.units
@@ -51,6 +60,60 @@ function shouldForceCampPressureAttack(
     const targetRemainingHp = target.unit.hp - target.dmg;
     if (targetRemainingHp <= CAMP_PRESSURE_ATTACK_FINISHABLE_HP) return true;
     return target.dmg >= Math.ceil(target.unit.maxHp * CAMP_PRESSURE_ATTACK_MEANINGFUL_TRADE_RATIO);
+}
+
+function estimateUnitPower(type: UnitType): number {
+    const stats = UNITS[type];
+    return (stats.atk * 1.8) + (stats.def * 1.1) + (stats.hp * 0.12) + (stats.rng * 1.25);
+}
+
+function getCampReadyBailoutDecision(
+    state: GameState,
+    playerId: string,
+    camp: GameState["nativeCamps"][number],
+): CampReadyBailoutDecision {
+    const defenders = state.units.filter(unit => unit.campId === camp.id);
+    if (defenders.length === 0) return "None";
+
+    const friendlyMilitary = state.units.filter(unit =>
+        unit.ownerId === playerId
+        && !isScoutType(unit.type)
+        && UNITS[unit.type].domain !== "Civilian"
+        && unit.type !== UnitType.Titan
+    );
+
+    const localFriendly = friendlyMilitary.filter(unit => hexDistance(unit.coord, camp.coord) <= CAMP_READY_BAIL_LOCAL_RADIUS);
+    if (localFriendly.length === 0) return "Exit";
+
+    const localFriendlyPower = localFriendly.reduce((sum, unit) => sum + estimateUnitPower(unit.type), 0);
+    const defenderPower = defenders.reduce((sum, unit) => sum + estimateUnitPower(unit.type), 0);
+    const powerRatio = defenderPower > 0 ? (localFriendlyPower / defenderPower) : 1;
+    if (powerRatio >= CAMP_READY_BAIL_POWER_RATIO) {
+        return "None";
+    }
+
+    const attackers = getCampAttackers(state, playerId);
+    const canKillThisTurn = attackers.some(attacker =>
+        defenders.some(defender =>
+            hexDistance(attacker.coord, defender.coord) <= UNITS[attacker.type].rng
+            && expectedDamageToUnit(attacker, defender, state) >= defender.hp
+        )
+    );
+    if (canKillThisTurn) {
+        return "None";
+    }
+
+    const nearbyReinforcements = friendlyMilitary.filter(unit =>
+        hexDistance(unit.coord, camp.coord) <= CAMP_READY_REINFORCE_RADIUS
+        && hexDistance(unit.coord, camp.coord) > CAMP_READY_BAIL_LOCAL_RADIUS
+    );
+    if (nearbyReinforcements.length === 0) return "Exit";
+    const reinforcementPower = nearbyReinforcements.reduce((sum, unit) => sum + estimateUnitPower(unit.type), 0);
+    const projectedPower = localFriendlyPower + (reinforcementPower * CAMP_READY_REINFORCE_POWER_ARRIVAL_DISCOUNT);
+    if (projectedPower >= defenderPower * CAMP_READY_REINFORCE_POWER_TARGET_RATIO) {
+        return "Reinforce";
+    }
+    return "Exit";
 }
 
 function canAttackCampDefender(
@@ -288,6 +351,40 @@ export function attackCampTargets(state: GameState, playerId: string): GameState
                 p.id === playerId ? { ...p, campClearingPrep: undefined } : p
             )
         };
+    }
+
+    const bailoutDecision = getCampReadyBailoutDecision(next, playerId, targetCamp);
+    if (bailoutDecision === "Reinforce") {
+        aiInfo(`[AI CAMP] ${playerId} downgrading Ready->Positioning for reinforcements at camp ${targetCamp.id}`);
+        logEvent(next, HistoryEventType.CampClearingStateChanged, playerId, {
+            campId: targetCamp.id,
+            fromState: "Ready",
+            toState: "Positioning",
+        });
+        return {
+            ...next,
+            players: next.players.map(entry =>
+                entry.id === playerId && entry.campClearingPrep
+                    ? {
+                        ...entry,
+                        campClearingPrep: {
+                            ...entry.campClearingPrep,
+                            state: "Positioning",
+                            startedTurn: next.turn,
+                        },
+                    }
+                    : entry
+            ),
+        };
+    }
+    if (bailoutDecision === "Exit") {
+        aiInfo(`[AI CAMP] ${playerId} ending doomed camp assault at ${targetCamp.id} (no viable reinforcements)`);
+        logEvent(next, HistoryEventType.CampClearingEnded, playerId, {
+            campId: targetCamp.id,
+            campCoord: targetCamp.coord,
+            outcome: "OtherCancelled",
+        });
+        return clearCampPrepAndRetarget(next, playerId, targetCamp.id);
     }
 
     // Get our military units that can attack
