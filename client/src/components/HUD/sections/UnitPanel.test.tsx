@@ -56,6 +56,7 @@ describe("UnitPanel", () => {
                 onFortifyUnit={vi.fn()}
                 onDisbandUnit={vi.fn()}
                 onCancelMovement={vi.fn()}
+                onGrantCP={vi.fn()}
                 gameState={mockGameState}
             />,
         );
@@ -88,6 +89,7 @@ describe("UnitPanel", () => {
                 onFortifyUnit={onFortify}
                 onDisbandUnit={onDisband}
                 onCancelMovement={vi.fn()}
+                onGrantCP={vi.fn()}
                 gameState={mockGameState}
             />,
         );
@@ -121,6 +123,7 @@ describe("UnitPanel", () => {
                 onFortifyUnit={onFortify}
                 onDisbandUnit={vi.fn()}
                 onCancelMovement={vi.fn()}
+                onGrantCP={vi.fn()}
                 gameState={mockGameState}
             />,
         );
@@ -148,6 +151,7 @@ describe("UnitPanel", () => {
                 onFortifyUnit={vi.fn()}
                 onDisbandUnit={vi.fn()}
                 onCancelMovement={vi.fn()}
+                onGrantCP={vi.fn()}
                 gameState={mockGameState}
             />,
         );
