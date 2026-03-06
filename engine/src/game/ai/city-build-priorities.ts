@@ -13,6 +13,7 @@ import { AiPersonality, getPersonalityForPlayer } from "./personality.js";
 import { UNITS } from "../../core/constants.js";
 import { getProgressChainStatus } from "./progress-helpers.js";
 import { isDefensiveCiv } from "../helpers/civ-helpers.js";
+import { evaluateSettlerProductionGate } from "./shared/settler-production-gates.js";
 
 export type BuildOption = { type: "Unit" | "Building" | "Project"; id: string };
 
@@ -188,6 +189,11 @@ export function getProgressCityPriorities(player: { techs: TechId[]; completedPr
 
 function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar: boolean, state: GameState, playerId: string): BuildOption[] {
     const player = state.players.find(p => p.id === playerId);
+    const settlerGate = evaluateSettlerProductionGate(state, playerId, atWar);
+    const finalizePriorities = (priorities: BuildOption[]): BuildOption[] =>
+        settlerGate.allowSettlers
+            ? priorities
+            : priorities.filter(option => !(option.type === "Unit" && option.id === UnitType.Settler));
 
     // v2.0: Army sizing intelligence
     const armyStatus = getArmyDeficit(state, playerId);
@@ -231,7 +237,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         const progressFallback = getNextProgressProject(player);
         if (progressFallback) urgentMilitary.push(progressFallback);
 
-        return urgentMilitary;
+        return finalizePriorities(urgentMilitary);
     }
 
     // Check if player can complete victory projects - if so, prioritize them!
@@ -266,7 +272,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         aiInfo(`[AI Build] ${playerId} has StarCharts - prioritizing ${progress.nextProject}`);
         const victoryPath: BuildOption[] = [{ type: "Project" as const, id: progress.nextProject }];
         const normalPriorities = buildNormalPriorities(goal, personality, scoutCount, isSafeEnough);
-        return [...victoryPath, ...normalPriorities];
+        return finalizePriorities([...victoryPath, ...normalPriorities]);
     }
 
     // v0.96 balance: Check for army unit production opportunities (direct build when DrilledRanks unlocked)
@@ -301,7 +307,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
             // v2.1: Always include progress projects as fallback
             const progressFallback = getNextProgressProject(player);
-            return [
+            return finalizePriorities([
                 ...(rushItem ? [rushItem] : []),
                 ...prioritizedArmies,
                 { type: "Unit" as const, id: UnitType.Settler }, // Still allow settlers if safe
@@ -309,7 +315,7 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
                 { type: "Building" as const, id: BuildingType.StoneWorkshop },
                 { type: "Building" as const, id: BuildingType.Farmstead },
                 ...(progressFallback ? [progressFallback] : []),
-            ];
+            ]);
         } else {
             // No armies yet, build varied individual units
             // Check current army composition to balance melee/ranged
@@ -362,13 +368,13 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
 
             // v2.1: Always include progress projects as fallback
             const progressFallback = getNextProgressProject(player);
-            return [
+            return finalizePriorities([
                 ...(rushItem ? [rushItem] : []),
                 ...unitPriority,
                 { type: "Building" as const, id: BuildingType.StoneWorkshop },
                 { type: "Building" as const, id: BuildingType.Farmstead },
                 ...(progressFallback ? [progressFallback] : []),
-            ];
+            ]);
         }
     }
 
@@ -386,18 +392,18 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
     if (armyPriorities.length > 0) {
         // Insert army formation opportunities after first few normal priorities
         // This allows peacetime army building without completely disrupting economy
-        return [
+        return finalizePriorities([
             ...(rushItem ? [rushItem] : []),
             ...normalPriorities.slice(0, 2),
             ...armyPriorities,
             ...normalPriorities.slice(2),
-        ];
+        ]);
     }
 
     // v0.99 Fix: Apply projectRush to the FINAL list, regardless of whether we are at war or not.
     // This ensures Jade Covenant builds their Granary even if they get into an early war.
     if (rushItem) {
-        return [rushItem, ...normalPriorities];
+        return finalizePriorities([rushItem, ...normalPriorities]);
     }
 
     // v1.1: Aetherian War Prep
@@ -432,10 +438,10 @@ function buildPriorities(goal: AiVictoryGoal, personality: AiPersonality, atWar:
         const progressFallback = getNextProgressProject(player);
         if (progressFallback) warPrepPriorities.push(progressFallback);
 
-        return warPrepPriorities;
+        return finalizePriorities(warPrepPriorities);
     }
 
-    return normalPriorities;
+    return finalizePriorities(normalPriorities);
 }
 
 function buildNormalPriorities(goal: AiVictoryGoal, personality: AiPersonality, scoutCount: number, isSafeEnough: boolean): BuildOption[] {

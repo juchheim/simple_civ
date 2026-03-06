@@ -17,6 +17,7 @@ import { tryAction } from "../shared/actions.js";
 import { sortByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { getPersonalityForPlayer } from "../personality.js";
+import { getSettlerThreatOwnerIds, isSettlerEscortCombatUnit } from "../shared/settler-production-gates.js";
 
 function validCityTile(tile: any, state: GameState, playerId: string): boolean {
     if (!tile) return false;
@@ -48,6 +49,53 @@ function settleHereIsBest(tile: any, state: GameState, playerId: string): boolea
     return currentScore >= bestNeighbor - 1;
 }
 
+function nearestFriendlyCity(
+    cities: Array<{ coord: { q: number; r: number } }>,
+    from: { q: number; r: number }
+): { q: number; r: number } | null {
+    if (cities.length === 0) return null;
+    let best = cities[0]!.coord;
+    let bestDist = hexDistance(from, best);
+    for (const city of cities) {
+        const dist = hexDistance(from, city.coord);
+        if (dist < bestDist) {
+            bestDist = dist;
+            best = city.coord;
+        }
+    }
+    return best;
+}
+
+function isInFriendlyCity(
+    cities: Array<{ coord: { q: number; r: number } }>,
+    coord: { q: number; r: number }
+): boolean {
+    return cities.some(city => hexEquals(city.coord, coord));
+}
+
+function firstSettlerEscortExempt(state: GameState, playerId: string, settlerId: string): boolean {
+    if (settlerId !== `u_${playerId}_settler`) return false;
+
+    const myCities = state.cities.filter(city => city.ownerId === playerId);
+    const myEscortMilitary = state.units.filter(unit =>
+        unit.ownerId === playerId &&
+        isSettlerEscortCombatUnit(unit.type)
+    );
+    return myCities.length <= 1 && myEscortMilitary.length === 0;
+}
+
+function sanitizeSettlerLink(next: GameState, playerId: string, settlerId: string): GameState {
+    const settler = next.units.find(unit => unit.id === settlerId);
+    if (!settler?.linkedUnitId) return next;
+
+    const escort = next.units.find(unit => unit.id === settler.linkedUnitId);
+    if (escort && escort.ownerId === playerId && isSettlerEscortCombatUnit(escort.type)) {
+        return next;
+    }
+
+    return tryAction(next, { type: "UnlinkUnits", playerId, unitId: settlerId });
+}
+
 function assessSettlerSafety(
     settlerCoord: { q: number; r: number },
     playerId: string,
@@ -58,29 +106,18 @@ function assessSettlerSafety(
         hexDistance(settlerCoord, city.coord) <= 2
     );
 
-    const potentialThreats = state.players
-        .filter(p => p.id !== playerId && !p.isEliminated)
-        .map(p => p.id);
+    const potentialThreats = getSettlerThreatOwnerIds(state, playerId, false);
+    const warThreats = getSettlerThreatOwnerIds(state, playerId, true);
 
     // Check for enemies within a wider range (5 tiles)
     const nearbyEnemyMilitary = state.units.filter(u =>
-        potentialThreats.includes(u.ownerId) &&
-        UNITS[u.type].domain !== "Civilian" &&
-        u.type !== UnitType.Scout && // v1.0 Fix: Ignore scouts so settlers don't freeze
-        u.type !== UnitType.ArmyScout &&
+        potentialThreats.has(u.ownerId) &&
+        isSettlerEscortCombatUnit(u.type) &&
         hexDistance(settlerCoord, u.coord) <= 3 // v1.0 Fix: Reduced from 5 to 3
     );
 
-    const warEnemies = state.players
-        .filter(p =>
-            p.id !== playerId &&
-            !p.isEliminated &&
-            state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-        )
-        .map(p => p.id);
-
     const warEnemyUnitsNearby = nearbyEnemyMilitary.filter(u =>
-        warEnemies.includes(u.ownerId)
+        warThreats.has(u.ownerId)
     );
 
     // Determine threat level
@@ -113,27 +150,18 @@ function detectNearbyDanger(
     playerId: string,
     state: GameState
 ): { coord: { q: number; r: number }; distance: number; isWarEnemy: boolean } | null {
-    const allOtherPlayers = state.players
-        .filter(p => p.id !== playerId && !p.isEliminated)
-        .map(p => p.id);
-
-    const warEnemies = state.players
-        .filter(p =>
-            p.id !== playerId &&
-            !p.isEliminated &&
-            state.diplomacy?.[playerId]?.[p.id] === DiplomacyState.War
-        )
-        .map(p => p.id);
+    const allThreats = getSettlerThreatOwnerIds(state, playerId, false);
+    const warThreats = getSettlerThreatOwnerIds(state, playerId, true);
 
     const nearbyEnemies = state.units
         .filter(u =>
-            allOtherPlayers.includes(u.ownerId) &&
-            UNITS[u.type].domain !== "Civilian"
+            allThreats.has(u.ownerId) &&
+            isSettlerEscortCombatUnit(u.type)
         )
         .map(u => ({
             coord: u.coord,
             distance: hexDistance(settlerCoord, u.coord),
-            isWarEnemy: warEnemies.includes(u.ownerId)
+            isWarEnemy: warThreats.has(u.ownerId)
         }))
         .filter(({ distance }) => distance <= 3) // v1.0 Fix: Reduced from 5 to 3
         .sort((a, b) => {
@@ -148,16 +176,15 @@ function hasLinkedEscort(state: GameState, settler: any): boolean {
     const linkedEscort = settler.linkedUnitId
         ? state.units.find(u => u.id === settler.linkedUnitId)
         : null;
-    return !!(linkedEscort && hexEquals(linkedEscort.coord, settler.coord));
+    return !!(linkedEscort && isSettlerEscortCombatUnit(linkedEscort.type) && hexEquals(linkedEscort.coord, settler.coord));
 }
 
 function hasNearbyEscort(state: GameState, settler: any, playerId: string, linkedEscortPresent: boolean): boolean {
     return linkedEscortPresent || state.units.some(u =>
         u.ownerId === playerId &&
         u.id !== settler.id &&
-        UNITS[u.type].domain !== "Civilian" &&
-        hexDistance(u.coord, settler.coord) <= 1 &&
-        u.movesLeft > 0
+        isSettlerEscortCombatUnit(u.type) &&
+        hexDistance(u.coord, settler.coord) <= 1
     );
 }
 
@@ -224,7 +251,7 @@ function attemptRetreatFromDanger(
     const neighbors = getNeighbors(settler.coord);
 
     const allNearbyEnemies = next.units
-        .filter(u => u.ownerId !== playerId && UNITS[u.type].domain !== "Civilian")
+        .filter(u => u.ownerId !== playerId && isSettlerEscortCombatUnit(u.type))
         .map(u => ({ coord: u.coord, distance: hexDistance(settler.coord, u.coord) }))
         .filter(e => e.distance <= 4);
 
@@ -233,7 +260,7 @@ function attemptRetreatFromDanger(
             const escortStaysClose = hasAdjacentEscort ? next.units.some(u =>
                 u.ownerId === playerId &&
                 u.id !== settler.id &&
-                UNITS[u.type].domain !== "Civilian" &&
+                isSettlerEscortCombatUnit(u.type) &&
                 hexDistance(u.coord, coord) <= 2
             ) : true;
 
@@ -297,6 +324,36 @@ function attemptRetreatFromDanger(
     }
 
     return { state: next, retreated: false };
+}
+
+function retreatTowardNearestCity(
+    next: GameState,
+    playerId: string,
+    settler: any,
+    myCities: any[]
+): { state: GameState; moved: boolean } {
+    const nearestCityCoord = nearestFriendlyCity(myCities, settler.coord);
+    if (!nearestCityCoord) return { state: next, moved: false };
+    if (hexEquals(nearestCityCoord, settler.coord)) return { state: next, moved: false };
+
+    const path = findPath(settler.coord, nearestCityCoord, settler, next);
+    const preferredMoves = path.length > 0
+        ? [path[0]]
+        : sortByDistance(nearestCityCoord, getNeighbors(settler.coord), coord => coord);
+
+    for (const move of preferredMoves) {
+        const moveResult = tryAction(next, {
+            type: "MoveUnit",
+            playerId,
+            unitId: settler.id,
+            to: move
+        });
+        if (moveResult !== next) {
+            return { state: moveResult, moved: true };
+        }
+    }
+
+    return { state: next, moved: false };
 }
 
 function findPotentialSites(
@@ -392,57 +449,82 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
     const personality = getPersonalityForPlayer(next, playerId);
     const settlers = next.units.filter(u => u.ownerId === playerId && u.type === UnitType.Settler);
 
-    // Find nearest friendly city for retreat logic
-    const myCities = next.cities.filter(c => c.ownerId === playerId);
+    for (const staleSettler of settlers) {
+        next = sanitizeSettlerLink(next, playerId, staleSettler.id);
 
-    for (const settler of settlers) {
-        const liveSettler = next.units.find(u => u.id === settler.id);
+        const liveSettler = next.units.find(u => u.id === staleSettler.id);
         if (!liveSettler) continue;
 
         const currentTile = next.map.tiles.find(t => hexEquals(t.coord, liveSettler.coord));
         if (!currentTile) continue;
 
-        const safety = assessSettlerSafety(liveSettler.coord, playerId, next);
+        // If we are already standing on a valid site, found immediately before any escort checks.
+        const immediateFound = tryFoundCityAt(next, playerId, liveSettler);
+        next = immediateFound.state;
+        if (immediateFound.founded) continue;
 
-        const hasLinkedEscortFlag = hasLinkedEscort(next, liveSettler);
-        const hasAdjacentEscort = hasNearbyEscort(next, liveSettler, playerId, hasLinkedEscortFlag);
+        const activeSettler = next.units.find(u => u.id === staleSettler.id);
+        if (!activeSettler || activeSettler.type !== UnitType.Settler) continue;
 
-        // Safety Check: Wait for escort if threatened or outside borders
-        if (safety.threatLevel !== "none" && !hasLinkedEscortFlag && !hasAdjacentEscort) {
-            // If we are in danger and have no escort, we should RETREAT, not just wait.
-            // Waiting just makes us a sitting duck.
-            const danger = detectNearbyDanger(liveSettler.coord, playerId, next);
-            if (danger) {
-                // Active retreat logic handled below
-            } else {
-                // No visible danger, but we are "unsafe" (e.g. outside borders).
-                // Wait for escort.
-                aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for escort (${safety.threatLevel} threat, no escort)`);
-                continue;
+        const myCities = next.cities.filter(c => c.ownerId === playerId);
+        const escortExempt = firstSettlerEscortExempt(next, playerId, activeSettler.id);
+        const inFriendlyCity = isInFriendlyCity(myCities, activeSettler.coord);
+
+        const safety = assessSettlerSafety(activeSettler.coord, playerId, next);
+        const hasLinkedEscortFlag = hasLinkedEscort(next, activeSettler);
+        const hasAdjacentEscort = hasNearbyEscort(next, activeSettler, playerId, hasLinkedEscortFlag);
+        const hasEscort = hasLinkedEscortFlag || hasAdjacentEscort;
+        const canTravelWithoutRetreat = escortExempt || hasLinkedEscortFlag;
+        const danger = detectNearbyDanger(activeSettler.coord, playerId, next);
+
+        // Enemy contact without an escort always triggers immediate retreat.
+        if (danger && !hasEscort) {
+            const emergencyRetreat = retreatTowardNearestCity(next, playerId, activeSettler, myCities);
+            next = emergencyRetreat.state;
+            if (emergencyRetreat.moved) {
+                aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(activeSettler.coord)} retreating from nearby enemy`);
             }
-        }
-
-        if (safety.threatLevel === "high" && !hasLinkedEscortFlag) {
-            aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(liveSettler.coord)} waiting for linked escort (high threat)`);
             continue;
         }
 
-        const retreatAttempt = attemptRetreatFromDanger(next, playerId, liveSettler, safety, myCities, hasAdjacentEscort);
-        next = retreatAttempt.state;
-        if (retreatAttempt.retreated) continue;
+        // Settlers need a linked escort before leaving city (except the explicit starting-settler exemption).
+        if (!canTravelWithoutRetreat) {
+            if (!inFriendlyCity) {
+                const regroupRetreat = retreatTowardNearestCity(next, playerId, activeSettler, myCities);
+                next = regroupRetreat.state;
+                if (regroupRetreat.moved) {
+                    aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(activeSettler.coord)} regrouping toward nearest city`);
+                }
+            } else {
+                aiInfo(`[AI Settler] ${playerId} settler at ${hexToString(activeSettler.coord)} waiting in city for linked escort`);
+            }
+            continue;
+        }
 
-        if (liveSettler.type !== UnitType.Settler) continue;
+        // Additional caution for edge cases where danger is detected late in evaluation.
+        if (!hasEscort && safety.threatLevel !== "none") {
+            const retreatAttempt = attemptRetreatFromDanger(next, playerId, activeSettler, safety, myCities, hasAdjacentEscort);
+            next = retreatAttempt.state;
+            if (retreatAttempt.retreated) continue;
+        }
 
-        const currentFound = tryFoundCityAt(next, playerId, liveSettler);
+        const updatedSettler = next.units.find(u => u.id === staleSettler.id);
+        if (!updatedSettler || updatedSettler.type !== UnitType.Settler) continue;
+
+        const currentFound = tryFoundCityAt(next, playerId, updatedSettler);
         next = currentFound.state;
         if (currentFound.founded) continue;
 
         const searchRadius = 9; // v0.99 Tuning: Increased from 6 to 9 to find better spots
-        const potentialSites = findPotentialSites(next, liveSettler, playerId, personality, searchRadius);
+        const siteSearchSettler = next.units.find(u => u.id === staleSettler.id);
+        if (!siteSearchSettler || siteSearchSettler.type !== UnitType.Settler) continue;
+        const potentialSites = findPotentialSites(next, siteSearchSettler, playerId, personality, searchRadius);
 
         let moved = false;
         for (const site of potentialSites) {
-            const towardSite = tryMoveTowardSite(next, playerId, liveSettler, site.coord);
+            const movingSettler = next.units.find(u => u.id === staleSettler.id);
+            if (!movingSettler || movingSettler.type !== UnitType.Settler) break;
+            const towardSite = tryMoveTowardSite(next, playerId, movingSettler, site.coord);
             next = towardSite.state;
             moved = towardSite.moved;
 
@@ -450,12 +532,43 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         }
 
         if (!moved) {
-            next = moveTowardBestNeighboringSite(next, playerId, liveSettler, personality);
+            const movingSettler = next.units.find(u => u.id === staleSettler.id);
+            if (movingSettler && movingSettler.type === UnitType.Settler) {
+                next = moveTowardBestNeighboringSite(next, playerId, movingSettler, personality);
+            }
         }
 
-        next = tryFoundCityAfterMove(next, playerId, settler.id);
+        next = tryFoundCityAfterMove(next, playerId, staleSettler.id);
     }
     return next;
+}
+
+function isIdleEscortCandidate(
+    state: GameState,
+    playerId: string,
+    unit: any,
+    enemyOwnerIds: Set<string>
+): boolean {
+    if (unit.ownerId !== playerId) return false;
+    if (!isSettlerEscortCombatUnit(unit.type)) return false;
+    if (unit.movesLeft <= 0 || unit.hasAttacked || unit.linkedUnitId) return false;
+    if (unit.isTitanEscort || unit.isHomeDefender) return false;
+
+    // Do not peel units off active fronts.
+    const enemyNearby = state.units.some(enemy =>
+        enemyOwnerIds.has(enemy.ownerId) &&
+        isSettlerEscortCombatUnit(enemy.type) &&
+        hexDistance(enemy.coord, unit.coord) <= 3
+    );
+    if (enemyNearby) return false;
+
+    const enemyCityNearby = state.cities.some(city =>
+        enemyOwnerIds.has(city.ownerId) &&
+        hexDistance(city.coord, unit.coord) <= 3
+    );
+    if (enemyCityNearby) return false;
+
+    return true;
 }
 
 export function manageSettlerEscorts(state: GameState, playerId: string): GameState {
@@ -488,11 +601,20 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         }
     }
 
+    const warEnemyIds = new Set(
+        next.players
+            .filter(player =>
+                player.id !== playerId &&
+                !player.isEliminated &&
+                next.diplomacy?.[playerId]?.[player.id] === DiplomacyState.War
+            )
+            .map(player => player.id)
+    );
+    const enemyOwnerIds = warEnemyIds;
+
     const militaryUnits = next.units.filter(u =>
         u.ownerId === playerId &&
-        UNITS[u.type].domain !== "Civilian" &&
-        u.movesLeft > 0 &&
-        !u.linkedUnitId
+        isSettlerEscortCombatUnit(u.type)
     );
 
     // v1.2: Exclude both garrison units (on city) AND ring defenders (adjacent to city)
@@ -511,7 +633,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         if (!settler) continue;
         if (settler.linkedUnitId) {
             const linkedEscort = next.units.find(u => u.id === settler.linkedUnitId);
-            if (linkedEscort && hexEquals(linkedEscort.coord, settler.coord)) {
+            if (linkedEscort && isSettlerEscortCombatUnit(linkedEscort.type) && hexEquals(linkedEscort.coord, settler.coord)) {
                 continue;
             }
         }
@@ -519,7 +641,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         const adjacentEscort = next.units.find(u =>
             u.ownerId === playerId &&
             u.id !== settler.id &&
-            UNITS[u.type].domain !== "Civilian" &&
+            isSettlerEscortCombatUnit(u.type) &&
             UNITS[u.type].move > 0 &&  // v5.2: Exclude immobile units like Bulwark
             hexEquals(u.coord, settler.coord) &&
             !u.linkedUnitId
@@ -548,7 +670,7 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
         const nearbyEscort = next.units.find(u =>
             u.ownerId === playerId &&
             u.id !== settler.id &&
-            UNITS[u.type].domain !== "Civilian" &&
+            isSettlerEscortCombatUnit(u.type) &&
             hexDistance(u.coord, settler.coord) === 1 &&
             u.movesLeft > 0 &&
             !u.linkedUnitId
@@ -588,7 +710,10 @@ export function manageSettlerEscorts(state: GameState, playerId: string): GameSt
             }
         }
 
-        const availableUnits = nonGarrisonUnits.filter(u => !escortAssignments.has(u.id));
+        const availableUnits = nonGarrisonUnits.filter(unit =>
+            !escortAssignments.has(unit.id) &&
+            isIdleEscortCandidate(next, playerId, unit, enemyOwnerIds)
+        );
 
         // v1.1: REMOVED garrison fallback - never pull garrisons to escort settlers
         // If no non-garrison units are available, settler must wait

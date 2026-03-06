@@ -130,6 +130,55 @@ describe("UtilityV2 AI production (characterization)", () => {
         expect(build).toEqual({ type: "Unit", id: UnitType.Settler });
     });
 
+    it("pauses settler production when enemy military is near the producing city", () => {
+        const state = baseState();
+        state.turn = 20;
+        state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true, pop: 2 }),
+        ];
+        state.units = [
+            mkUnit("p2", "e1", UnitType.SpearGuard, 4, 0),
+        ];
+        state.diplomacy = { p1: { p2: DiplomacyState.Peace }, p2: { p1: DiplomacyState.Peace } };
+
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+        expect(build).not.toEqual({ type: "Unit", id: UnitType.Settler });
+    });
+
+    it("pauses settler production when native military is near the producing city", () => {
+        const state = baseState();
+        state.turn = 20;
+        state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true, pop: 2 }),
+        ];
+        state.units = [
+            mkUnit("natives", "native-1", UnitType.NativeChampion, 2, 0),
+        ];
+        state.diplomacy = { p1: { p2: DiplomacyState.Peace }, p2: { p1: DiplomacyState.Peace } };
+
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+        expect(build).not.toEqual({ type: "Unit", id: UnitType.Settler });
+    });
+
+    it("pauses settler production near native camps when escort pool is thin", () => {
+        const state = baseState();
+        state.turn = 20;
+        state.players = [mkPlayer("p1", "ForgeClans"), mkPlayer("p2", "RiverLeague")];
+        state.cities = [
+            mkCity("p1", "c1", 0, 0, { capital: true, pop: 2 }),
+        ];
+        state.units = [];
+        state.nativeCamps = [
+            { id: "camp-1", coord: { q: 3, r: 0 }, state: "Patrol", aggroTurnsRemaining: 0 },
+        ];
+        state.diplomacy = { p1: { p2: DiplomacyState.Peace }, p2: { p1: DiplomacyState.Peace } };
+
+        const build = chooseCityBuildV2(state, "p1", state.cities[0], "Balanced");
+        expect(build).not.toEqual({ type: "Unit", id: UnitType.Settler });
+    });
+
     it("prioritizes unit mix during fallback production", () => {
         const state = baseState();
         state.turn = 50;

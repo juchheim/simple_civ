@@ -1,8 +1,14 @@
 import { canBuild } from "../../rules.js";
 import { City, GameState, UnitType } from "../../../core/types.js";
+import { hexDistance } from "../../../core/hex.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import { settlersInFlight } from "./analysis.js";
 import type { BuildOption, ProductionContext } from "../production.js";
+import {
+    hasHostileMilitaryNearCity,
+    isSafeSettlerStagingCity,
+    isSettlerEscortCombatUnit,
+} from "../../ai/shared/settler-production-gates.js";
 
 function shouldPauseJadeSettlers(context: ProductionContext): boolean {
     if (context.profile.civName !== "JadeCovenant") return false;
@@ -11,6 +17,48 @@ function shouldPauseJadeSettlers(context: ProductionContext): boolean {
     const severeUpkeepPressure = context.economy.upkeepRatio > (context.profile.economy.upkeepRatioLimit + 0.08);
     const shortDeficitRunway = context.economy.netGold < 0 && context.economy.deficitRiskTurns <= 6;
     return context.economy.economyState === "Strained" && severeUpkeepPressure && shortDeficitRunway;
+}
+
+function shouldPauseSettlersBySafety(
+    state: GameState,
+    playerId: string,
+    context: ProductionContext,
+    city: City
+): boolean {
+    if (!context.atWar || isSafeSettlerStagingCity(state, playerId, city.id)) return false;
+
+    if (city.isCapital) {
+        aiInfo(`[AI Build] ${context.profile.civName} settler gate active: unsafe-war-city`);
+    }
+
+    return true;
+}
+
+function shouldPauseSettlersForLocalThreat(
+    state: GameState,
+    playerId: string,
+    context: ProductionContext,
+    city: City
+): boolean {
+    if (hasHostileMilitaryNearCity(state, playerId, city.coord, 4, false)) {
+        if (city.isCapital) {
+            aiInfo(`[AI Build] ${context.profile.civName} local settler gate active: hostile-near-city`);
+        }
+        return true;
+    }
+
+    const nearbyNativeCamp = (state.nativeCamps ?? []).some(camp => hexDistance(camp.coord, city.coord) <= 4);
+    if (!nearbyNativeCamp || state.turn > 80) return false;
+
+    const escortUnits = context.myMilitaryUnits.filter(unit => isSettlerEscortCombatUnit(unit.type));
+    if (escortUnits.length < 1) {
+        if (city.isCapital) {
+            aiInfo(`[AI Build] ${context.profile.civName} local settler gate active: nearby-native-camp-no-escort`);
+        }
+        return true;
+    }
+
+    return false;
 }
 
 export function pickEarlyExpansionBuild(
@@ -28,6 +76,12 @@ export function pickEarlyExpansionBuild(
         if (!eliminationRisk) return null;
     }
     if (shouldPauseJadeSettlers(context)) {
+        return null;
+    }
+    if (shouldPauseSettlersBySafety(state, playerId, context, city)) {
+        return null;
+    }
+    if (shouldPauseSettlersForLocalThreat(state, playerId, context, city)) {
         return null;
     }
 
@@ -59,6 +113,12 @@ export function pickExpansionBuild(
         if (!eliminationRisk) return null;
     }
     if (shouldPauseJadeSettlers(context)) {
+        return null;
+    }
+    if (shouldPauseSettlersBySafety(state, playerId, context, city)) {
+        return null;
+    }
+    if (shouldPauseSettlersForLocalThreat(state, playerId, context, city)) {
         return null;
     }
 
