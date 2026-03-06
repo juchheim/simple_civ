@@ -291,6 +291,13 @@ function getEffectiveAttackThreshold(
         effectiveThreshold = 0.85;
     }
 
+    // v6.0: Late-game stall breaker — progressive decay after turn 200
+    if (turn > 200) {
+        const urgency = Math.min(1.0, (turn - 200) / 100); // 0→1 over turns 200-300
+        const floor = 0.5;
+        effectiveThreshold = Math.min(effectiveThreshold, 1.0 - (urgency * (1.0 - floor)));
+    }
+
     return effectiveThreshold;
 }
 

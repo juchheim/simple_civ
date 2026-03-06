@@ -304,6 +304,8 @@ type SelectionStackProps = {
     onSetWorkedTiles: (cityId: string, tiles: HexCoord[]) => void;
     onSelectCoord: (coord: HexCoord | null) => void;
     units: GameState["units"];
+    commandPoints?: number;
+    onGrantCP: (unitId: string) => void;
 };
 
 export const SelectionStack: React.FC<SelectionStackProps> = ({
@@ -328,6 +330,8 @@ export const SelectionStack: React.FC<SelectionStackProps> = ({
     onSetWorkedTiles,
     onSelectCoord,
     units,
+    commandPoints,
+    onGrantCP,
 }) => {
     const { showUnitStack, unitsOnTile, selectedUnitId, selectedUnit, linkedPartner, selectedCoord, selectedCity } = selection;
 
@@ -351,6 +355,8 @@ export const SelectionStack: React.FC<SelectionStackProps> = ({
                             onDisbandUnit={onDisbandUnit}
                             onCancelMovement={onCancelMovement}
                             gameState={gameState}
+                            commandPoints={commandPoints}
+                            onGrantCP={onGrantCP}
                         />
                     )}
                 </div>
@@ -446,6 +452,8 @@ type TurnStackProps = {
     canEndTurn: boolean;
     disableReason?: string;
     onEndTurn: () => void;
+    commandPoints?: number;
+    maxCommandPoints?: number;
 };
 
 export const TurnStack: React.FC<TurnStackProps> = ({
@@ -460,6 +468,8 @@ export const TurnStack: React.FC<TurnStackProps> = ({
     canEndTurn,
     disableReason,
     onEndTurn,
+    commandPoints,
+    maxCommandPoints,
 }) => (
     <div className="hud-turn-stack">
         <TurnTasks
@@ -479,6 +489,8 @@ export const TurnStack: React.FC<TurnStackProps> = ({
                 blockingCount={blockingTasks.length}
                 disableReason={disableReason}
                 onEndTurn={onEndTurn}
+                commandPoints={commandPoints}
+                maxCommandPoints={maxCommandPoints}
             />
         </div>
     </div>

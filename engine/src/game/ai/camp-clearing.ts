@@ -365,7 +365,7 @@ function getVisibleCamps(state: GameState, playerId: string): NativeCamp[] {
     const visibleKeys = new Set(state.visibility?.[playerId] || []);
     const revealedKeys = new Set(state.revealed?.[playerId] || []);
 
-    return state.nativeCamps.filter(camp => {
+    return (state.nativeCamps || []).filter(camp => {
         const key = `${camp.coord.q},${camp.coord.r}`;
         return visibleKeys.has(key) || revealedKeys.has(key);
     });

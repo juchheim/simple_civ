@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 
-const results = JSON.parse(readFileSync('/tmp/comprehensive-simulation-results.json', 'utf8'));
+const resultsFile = process.argv[2] || '/tmp/comprehensive-simulation-results.json';
+const results = JSON.parse(readFileSync(resultsFile, 'utf8'));
 
 console.log(`\n${'='.repeat(80)}`);
 console.log(`ENHANCED COMPREHENSIVE ANALYSIS`);

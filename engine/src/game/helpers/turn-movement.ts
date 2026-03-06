@@ -14,6 +14,8 @@ export function resetUnitsForTurn(state: GameState, player: Player) {
         }
         unit.hasAttacked = false;
         unit.retaliatedAgainstThisTurn = false;
+        unit.cpGranted = false;
+        unit.hasUsedCP = false;
     }
 }
 

@@ -164,6 +164,8 @@ export type Unit = {
     movesLeft: number;
     state: UnitState;
     hasAttacked: boolean;
+    cpGranted?: boolean; // Unit has been granted a CP action this turn
+    hasUsedCP?: boolean; // Unit has already consumed a CP this turn
     linkedUnitId?: string;
     capturedOnTurn?: number; // Turn when unit was captured (for healing prevention)
     lastDamagedOnTurn?: number; // Turn when unit last took damage (for healing prevention / effects)
@@ -224,6 +226,9 @@ export type Player = {
     researchHistory?: Record<string, number>; // TechId -> progress
     hasFoundedFirstCity?: boolean;
     currentEra: EraId;
+    commandPoints?: number; // CP Pool
+    maxCommandPoints?: number;
+    lifetimeCommandPointsSpent?: number; // Telemetry
     scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
     titanStats?: {
         kills: number;
@@ -489,5 +494,6 @@ export type Action =
     | { type: "FortifyUnit"; playerId: string; unitId: string }
     | { type: "DisbandUnit"; playerId: string; unitId: string }
     | { type: "SwapUnits"; playerId: string; unitId: string; targetUnitId: string }
+    | { type: "GrantCommandPoint"; playerId: string; unitId: string }
     | { type: "Resign"; playerId: string }
     | { type: "EndTurn"; playerId: string };

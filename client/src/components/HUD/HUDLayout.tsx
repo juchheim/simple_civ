@@ -174,6 +174,8 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 onSetWorkedTiles={onSetWorkedTiles}
                 onSelectCoord={onSelectCoord}
                 units={gameState.units}
+                commandPoints={gameState.players.find(p => p.id === playerId)?.commandPoints}
+                onGrantCP={(unitId: string) => onAction({ type: "GrantCommandPoint", playerId, unitId })}
             />
 
             <FriendlyCityPanelCard
@@ -203,6 +205,8 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 canEndTurn={canEndTurn}
                 disableReason={endTurnMessage}
                 onEndTurn={onEndTurn}
+                commandPoints={gameState.players.find(p => p.id === playerId)?.commandPoints}
+                maxCommandPoints={gameState.players.find(p => p.id === playerId)?.maxCommandPoints}
             />
         </>
     );

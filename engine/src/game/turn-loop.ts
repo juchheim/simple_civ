@@ -12,6 +12,7 @@ import {
     handleFortifyUnit,
     handleDisbandUnit,
     handleSwapUnits,
+    handleGrantCommandPoint,
 } from "./actions/units.js";
 import {
     handleFoundCity,
@@ -151,6 +152,10 @@ export function applyAction(state: GameState, action: Action): GameState {
         case "SwapUnits":
             updatedState = handleSwapUnits(nextState, action);
             shouldInvalidateInfluence = true;
+            break;
+        case "GrantCommandPoint":
+            updatedState = handleGrantCommandPoint(nextState, action);
+            shouldInvalidateInfluence = true; // Refresh if CP affects UI states quickly
             break;
         case "EndTurn":
             updatedState = handleEndTurn(nextState, action);

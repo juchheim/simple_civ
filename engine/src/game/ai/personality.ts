@@ -6,6 +6,7 @@ type AggressionProfile = {
     warDistanceMax: number;
     peacePowerThreshold: number;
     aggressionSpikeTrigger?: "TitanBuilt" | "ProgressLead";
+    lateGameAggressionFloor?: number; // v6.0: Override warPowerThreshold after turn 200
 };
 
 type SettleBias = {
@@ -60,6 +61,7 @@ const defaultPersonality: AiPersonality = {
         warPowerThreshold: 0.8,
         warDistanceMax: 14,
         peacePowerThreshold: 0.9,
+        lateGameAggressionFloor: 0.7,  // v6.0: Late-game stall breaker
     },
     settleBias: {},
     expansionDesire: 1.3,
@@ -78,6 +80,7 @@ const personalities: Record<CivName, AiPersonality> = {
             warPowerThreshold: 0.65,
             warDistanceMax: 14,       // Good range
             peacePowerThreshold: 0.15, // Fight to the death - almost never surrender
+            lateGameAggressionFloor: 0.5,  // v6.0: Already aggressive, keep going
         },
         settleBias: { hills: 0.75 },
         expansionDesire: 1.15,
@@ -101,6 +104,7 @@ const personalities: Record<CivName, AiPersonality> = {
             warPowerThreshold: 100.0,  // Effectively never attack
             warDistanceMax: 3,         // Only retaliate against immediate threats
             peacePowerThreshold: 100.0,  // Always accept peace
+            lateGameAggressionFloor: 0.8,  // v6.0: Cautious but no longer "never attack" after turn 200
         },
         settleBias: {},
         expansionDesire: 1.0,
@@ -122,6 +126,7 @@ const personalities: Record<CivName, AiPersonality> = {
             warPowerThreshold: 1.25,  // Opportunistic but needs advantage
             warDistanceMax: 14,
             peacePowerThreshold: 1.1,
+            lateGameAggressionFloor: 0.65,  // v6.0: Late-game stall breaker
         },
         settleBias: { rivers: 0.75 },
         expansionDesire: 1.55,
@@ -137,6 +142,7 @@ const personalities: Record<CivName, AiPersonality> = {
             warDistanceMax: 15,
             peacePowerThreshold: 0.7,
             aggressionSpikeTrigger: "TitanBuilt",
+            lateGameAggressionFloor: 0.6,  // v6.0: Late-game stall breaker
         },
         settleBias: {},
         expansionDesire: 1.5,
@@ -157,6 +163,7 @@ const personalities: Record<CivName, AiPersonality> = {
             warPowerThreshold: 100.0,  // Effectively never attack
             warDistanceMax: 3,         // Only retaliate against immediate threats
             peacePowerThreshold: 100.0,  // Always accept peace
+            lateGameAggressionFloor: 0.8,  // v6.0: Cautious but no longer "never attack" after turn 200
         },
         settleBias: {},
         expansionDesire: 1.2,
@@ -179,6 +186,7 @@ const personalities: Record<CivName, AiPersonality> = {
             warDistanceMax: 14,
             peacePowerThreshold: 0.85,
             aggressionSpikeTrigger: "ProgressLead",
+            lateGameAggressionFloor: 0.65,  // v6.0: Late-game stall breaker
         },
         settleBias: {},
         expansionDesire: 2.0, // v0.99: Massive expansion focus
@@ -250,6 +258,31 @@ export function getPersonalityForPlayer(state: GameState, playerId: string): AiP
                     peacePowerThreshold: 0.05,    // Only surrender if crushed
                 }
             };
+        }
+    }
+
+    // v6.0: Late-game aggression floor — break stalls on large maps
+    if (state.turn >= 200) {
+        // v1.0.4: Diplomatic Restraint - if building a victory project, don't lower the aggression threshold.
+        // This prevents civs from starting new wars that could distract from finishing the game.
+        const myCities = state.cities.filter(c => c.ownerId === playerId);
+        const isFocusingProgress = myCities.some(c =>
+            c.currentBuild?.type === "Project" &&
+            (c.currentBuild.id === ProjectId.GrandAcademy || c.currentBuild.id === ProjectId.GrandExperiment)
+        );
+
+        if (!isFocusingProgress) {
+            const floor = basePersonality.aggression.lateGameAggressionFloor ?? 0.7;
+            if (basePersonality.aggression.warPowerThreshold > floor) {
+                return {
+                    ...basePersonality,
+                    aggression: {
+                        ...basePersonality.aggression,
+                        warPowerThreshold: floor,
+                        warDistanceMax: Math.max(basePersonality.aggression.warDistanceMax, 14),
+                    },
+                };
+            }
         }
     }
 

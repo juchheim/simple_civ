@@ -911,13 +911,97 @@ export function executeTacticalPlan(
             aiInfo(`[MOVE-ATTACK] ${playerId} planned ${moveAttackActions.length} move-attack combos`);
             next = executeTacticalActions(next, playerId, moveAttackActions);
         }
+
     } else {
         // During rallying/scattered phases, execute opportunity attacks
         const opportunityActions = offenseActions.filter(isOpportunityAction);
         next = executeTacticalActions(next, playerId, opportunityActions);
     }
 
+    // --- Command Point Pass (runs EVERY turn, regardless of army phase) ---
+    // CP should be spent whenever there's a tactical opportunity, not just during
+    // full offensive phases. This ensures CP is used for opportunity attacks during
+    // rallying, defensive counter-strikes, and approach moves.
+    next = runCommandPointPass(next, playerId, plan.tacticalContext);
+
     return runPostAttackPhase(next, playerId, plan.tacticalContext);
+}
+
+function runCommandPointPass(state: GameState, playerId: string, tacticalContext: TacticalContext): GameState {
+    let next = state;
+    let player = next.players.find(p => p.id === playerId);
+    if (!player || (player.commandPoints || 0) <= 0) return next;
+
+    const visibleTargets = tacticalContext.perception.visibleTargets;
+    const goal = player.aiGoal ?? "Balanced";
+    const offensiveEnemies = getOffensiveEnemyIds(next, playerId, goal);
+
+    // Get all our military units that have attacked or moved fully and can receive CP
+    const candidates = next.units.filter(u =>
+        u.ownerId === playerId &&
+        isMilitary(u) &&
+        (u.hasAttacked || u.movesLeft <= 0) &&
+        !u.hasUsedCP &&
+        !u.cpGranted
+    );
+
+    const cpOpportunities = [];
+    for (const unit of candidates) {
+        // Create a virtual unit tricking the planner into thinking it can act
+        const virtualUnit = { ...unit, hasAttacked: false, movesLeft: Math.max(1, unit.movesLeft) };
+        const best = bestAttackForUnit(next, playerId, virtualUnit, offensiveEnemies, visibleTargets);
+        if (best && best.score > 0) {
+            let wouldKill = false;
+            let targetHp = 0;
+
+            if (best.action.targetType === "Unit") {
+                const target = next.units.find(u => u.id === best.action.targetId);
+                if (target) {
+                    targetHp = target.hp;
+                    const preview = getCombatPreviewUnitVsUnit(next, virtualUnit, target);
+                    wouldKill = preview.estimatedDamage.avg >= target.hp;
+                }
+            } else if (best.action.targetType === "City") {
+                const target = next.cities.find(c => c.id === best.action.targetId);
+                if (target) {
+                    targetHp = target.hp;
+                    const preview = getCombatPreviewUnitVsCity(next, virtualUnit, target);
+                    wouldKill = preview.estimatedDamage.avg >= target.hp;
+                }
+            }
+
+            // Heuristics for CP usage: prioritize kills, city attacks, or positive-value strikes
+            if (wouldKill || best.action.targetType === "City" || (best.score > 0 && targetHp > 0)) {
+                cpOpportunities.push({ unit, bestAction: best.action, score: best.score, wouldKill });
+            }
+        }
+    }
+
+    // Sort opportunities by score descending
+    cpOpportunities.sort((a, b) => b.score - a.score);
+
+    for (const opp of cpOpportunities) {
+        player = next.players.find(p => p.id === playerId);
+        if (!player || (player.commandPoints || 0) <= 0) break;
+
+        const liveUnit = next.units.find(u => u.id === opp.unit.id);
+        if (!liveUnit || liveUnit.hp <= 0 || liveUnit.cpGranted || liveUnit.hasUsedCP) continue;
+
+        if (opp.bestAction.targetType === "Unit") {
+            const target = next.units.find(u => u.id === opp.bestAction.targetId);
+            if (!target || target.hp <= 0) continue;
+        } else {
+            const target = next.cities.find(c => c.id === opp.bestAction.targetId);
+            if (!target || target.hp <= 0) continue;
+        }
+
+        aiInfo(`[COMMAND POINT] ${playerId} spending CP on unit ${liveUnit.id} for extra attack, score: ${opp.score}`);
+
+        next = tryAction(next, { type: "GrantCommandPoint", playerId, unitId: liveUnit.id });
+        next = tryAction(next, opp.bestAction);
+    }
+
+    return next;
 }
 
 export function runTacticalPlanner(

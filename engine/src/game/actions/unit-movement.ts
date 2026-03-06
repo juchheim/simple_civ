@@ -76,6 +76,13 @@ export function handleMoveUnit(state: GameState, action: MoveUnitAction): GameSt
 
     executeUnitMove(state, unit, moveContext, action.to, action.playerId);
 
+    if (unit.cpGranted) {
+        unit.movesLeft = 0;
+        unit.hasAttacked = true;
+        unit.cpGranted = false;
+        unit.hasUsedCP = true;
+    }
+
     if (partnerWillMove && partner && partnerStatsContext) {
         try {
             executeUnitMove(state, partner, partnerStatsContext, action.to, action.playerId);

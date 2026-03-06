@@ -22,12 +22,19 @@ const UnitSprite: React.FC<UnitDescriptor> = React.memo(({ unit, position, isSel
     const unitImageOffset = UNIT_IMAGE_SIZE / 2;
     const hpPct = Math.max(0, Math.min(1, unit.hp / unit.maxHp));
 
+    // Dim the unit if it is completely exhausted from standard actions and has no pending CP action
+    // Only applies to player owner logic technically, but safe to apply visually as a rule
+    const isExhausted = unit.movesLeft <= 0 && unit.hasAttacked && !unit.cpGranted;
+
     return (
         <g
+            className={isExhausted ? "unit-exhausted" : ""}
             style={{
                 pointerEvents: "none",
                 transform: `translate(${position.x}px, ${position.y}px)`,
-                transition: "transform 200ms linear",
+                transition: "transform 200ms linear, opacity 200ms ease, filter 200ms ease",
+                opacity: isExhausted ? 0.6 : 1,
+                filter: isExhausted ? "grayscale(70%)" : "none",
             }}
         >
             {(isSelected || isLinkedPartner) && (

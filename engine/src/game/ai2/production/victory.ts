@@ -38,6 +38,19 @@ export function pickVictoryProject(
     const hasGrandAcademy = player.completedProjects.includes(ProjectId.GrandAcademy);
     const hasInvestedInProgress = hasObservatory || hasGrandAcademy;
 
+    // v6.0: Late-game large-map stall breaker — all civs consider Progress
+    const isLargeMap = state.map.width >= 35;
+    const isLateGame = state.turn > 200;
+    if (isLateGame && isLargeMap && hasStarCharts) {
+        const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
+        for (const pid of progressProjects) {
+            if (canBuild(city, "Project", pid, state)) {
+                aiInfo(`[AI Build] ${profile.civName} LATE-GAME PROGRESS: ${pid} (stall breaker, turn ${state.turn})`);
+                return { type: "Project", id: pid };
+            }
+        }
+    }
+
     const hasDrilledRanks = player.techs.includes(TechId.DrilledRanks);
     const hasArmyDoctrine = player.techs.includes(TechId.ArmyDoctrine);
     const hasCompositeArmor = player.techs.includes(TechId.CompositeArmor);
@@ -47,7 +60,10 @@ export function pickVictoryProject(
     let progressRecommended = false;
     if (atMilitaryMilestone && !hasStarCharts) {
         const victoryEval = evaluateBestVictoryPath(state, playerId);
-        const progressWithinRange = victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 40;
+        // v6.0: Wider range on large maps to encourage earlier Progress pivots
+        // v1.0.4: Increased to +60 to prioritize Progress even more on Large maps.
+        const largeMapBonus = state.map.width >= 35 ? 60 : 0;
+        const progressWithinRange = victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 40 + largeMapBonus;
         const lastChancePivot = hasCompositeArmor && victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 50;
         progressRecommended = victoryEval.progressFaster || progressWithinRange || lastChancePivot;
     }

@@ -34,7 +34,9 @@ export function runSiegeAndRally(state: GameState, playerId: string): GameState 
         isMilitary(u) &&
         hexDistance(u.coord, focusCity.coord) <= SIEGE_WAVE_RADIUS
     ).length;
-    const reinforceHold = tacticalContext.enemyIds.size > 0 && failureCount > 0 && nearCount < requiredNear;
+    // v6.0: After turn 150, reduce staging threshold for faster siege commitment
+    const lateGameRequired = next.turn > 150 ? Math.max(2, Math.floor(requiredNear * 0.6)) : requiredNear;
+    const reinforceHold = tacticalContext.enemyIds.size > 0 && failureCount > 0 && nearCount < lateGameRequired;
 
     // Main siege/capture behavior: coordinate a combined-arms push on the focused city.
     // If we failed a wave and are rebuilding, hold the push and stage instead.
@@ -152,7 +154,9 @@ function runPreWarRally(
         u.type !== UnitType.Titan &&
         hexDistance(u.coord, focusCity.coord) <= 5
     ).length;
-    const shouldStage = (nearCount < requiredNear) && (profile.tactics.forceConcentration >= 0.65);
+    // After turn 200, reduce staging requirements to commit to sieges faster
+    const lateGameRequiredNear = state.turn > 200 ? Math.max(2, Math.floor(requiredNear * 0.6)) : requiredNear;
+    const shouldStage = (nearCount < lateGameRequiredNear) && (profile.tactics.forceConcentration >= 0.65);
 
     const cityTiles = new Set(next.cities.filter(c => c.ownerId === playerId).map(c => `${c.coord.q},${c.coord.r}`));
     const movers = next.units

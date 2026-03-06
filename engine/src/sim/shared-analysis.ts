@@ -54,6 +54,7 @@ export type TurnSnapshot = {
         totalProduction: number;
         totalScience: number;
         isEliminated: boolean;
+        lifetimeCommandPointsSpent?: number;
         scavengerDoctrineStats?: { kills: number; scienceGained: number }; // AetherianVanguard tracking
         titanStats?: { kills: number; cityCaptures: number; deathballCaptures: number; totalSupportAtCaptures: number }; // Titan performance tracking
     }[];
@@ -154,6 +155,7 @@ export function calculateCivStats(state: GameState, civId: string) {
         units: units.length,
         militaryPower: estimateMilitaryPower(civId, state),
         isEliminated: player.isEliminated || false,
+        lifetimeCommandPointsSpent: player.lifetimeCommandPointsSpent ?? 0,
         scavengerDoctrineStats: player.scavengerDoctrineStats,
         titanStats: player.titanStats,
     };

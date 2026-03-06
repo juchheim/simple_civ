@@ -275,6 +275,25 @@
     color: #fecdd3;
 }
 
+.cp-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--color-highlight);
+    box-sizing: border-box;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.cp-pip.filled {
+    background-color: var(--color-highlight);
+    box-shadow: 0 0 4px var(--color-highlight);
+}
+
+.cp-pip.empty {
+    background-color: transparent;
+    opacity: 0.3;
+}
+
 .hud-button {
     background: linear-gradient(180deg, var(--color-bg-panel), var(--color-bg-deep));
     border: 1px solid var(--color-border);

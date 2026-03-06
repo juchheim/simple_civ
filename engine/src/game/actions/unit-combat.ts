@@ -126,6 +126,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             attacker.hasAttacked = true;
             attacker.movesLeft = 0;
             attacker.state = UnitState.Normal;
+
+            if (attacker.cpGranted) {
+                attacker.cpGranted = false;
+                attacker.hasUsedCP = true;
+            }
             return state;
         }
 
@@ -174,6 +179,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;
         attacker.state = UnitState.Normal;
+
+        if (attacker.cpGranted) {
+            attacker.cpGranted = false;
+            attacker.hasUsedCP = true;
+        }
 
         // Native combat triggers
         if (isNativeUnit(defender)) {
@@ -388,6 +398,11 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
         city.lastDamagedOnTurn = state.turn;
         attacker.hasAttacked = true;
         attacker.movesLeft = 0;
+
+        if (attacker.cpGranted) {
+            attacker.cpGranted = false;
+            attacker.hasUsedCP = true;
+        }
 
         // City retaliation via garrison OR Bulwark
         if ((garrison || hasBulwark) && dist <= garrisonRetaliationRange && !attacker.retaliatedAgainstThisTurn) {

@@ -218,7 +218,13 @@ export function handleSetCityBuild(state: GameState, action: { type: "SetCityBui
 
         // v8.9: Scholar/Starborne "Academic Focus" - 20% cheaper Progress projects
         const progressProjects = [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment];
-        if ((player?.civName === "ScholarKingdoms" || player?.civName === "StarborneSeekers")
+
+        // v1.0.4: Iteration 4 "Progress Surge" - 30% discount for all on Large maps after Turn 200
+        const isLargeMap = state.map.width >= 35;
+        const isLateGame = state.turn > 200;
+        if (isLateGame && isLargeMap && progressProjects.includes(action.buildId as ProjectId)) {
+            cost = Math.floor(cost * 0.70); // 30% discount
+        } else if ((player?.civName === "ScholarKingdoms" || player?.civName === "StarborneSeekers")
             && progressProjects.includes(action.buildId as ProjectId)) {
             cost = Math.floor(cost * 0.80);
         }

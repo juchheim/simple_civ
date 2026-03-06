@@ -36,6 +36,14 @@ export const MAX_CIVS_BY_MAP_SIZE: Record<string, number> = {
     Huge: 6,
 };
 
+export const ERA_COMMAND_POINTS: Record<EraId, number> = {
+    [EraId.Primitive]: 0,
+    [EraId.Hearth]: 1,
+    [EraId.Banner]: 2,
+    [EraId.Engine]: 3,
+    [EraId.Aether]: 4,
+};
+
 // Yields
 // Yields
 /** Base science yield for every city (before buildings/modifiers). */

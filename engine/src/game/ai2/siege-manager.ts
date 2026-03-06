@@ -15,9 +15,11 @@ export type SiegePlan = {
 /**
  * Identify if a unit is "wounded" enough to be cycled out
  */
-function isWounded(unit: Unit, doctrine: MilitaryDoctrine): boolean {
+function isWounded(unit: Unit, doctrine: MilitaryDoctrine, turn: number = 0): boolean {
     const maxHp = UNITS[unit.type].hp;
-    const threshold = doctrine.unitCycleAggression > 0.7 ? 0.6 : 0.4; // Aggressive doctrine cycles earlier (at 60% HP)
+    // After turn 200, cycle units more aggressively (at 70% HP) to keep siege pressure up
+    const lateGameBoost = turn > 200 ? 0.1 : 0;
+    const threshold = (doctrine.unitCycleAggression > 0.7 ? 0.6 : 0.4) + lateGameBoost;
     return unit.hp < maxHp * threshold;
 }
 
@@ -61,7 +63,7 @@ function planUnitCycling(
             isMilitary(u)
         );
 
-        if (!woundedUnit || !isWounded(woundedUnit, doctrine)) continue;
+        if (!woundedUnit || !isWounded(woundedUnit, doctrine, state.turn)) continue;
 
         // 2. Find a "Rear" spot behind the frontline unit
         // Ideally directly away from the city, or just any safe adjacent spot

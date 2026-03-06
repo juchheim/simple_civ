@@ -1,202 +1,872 @@
 
-> @simple-civ/engine@1.0.0 test
-> vitest run
+> @simple-civ/engine@1.0.4 test
+> vitest run --reporter=verbose
 
 
  RUN  v1.6.1 /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine
 
- ✓ src/map/generation/landmass.test.ts  (10 tests) 18ms
- ✓ src/map/rivers-polylines.snap.test.ts  (3 tests) 71ms
- ✓ src/game/city_visibility_repro.test.ts  (4 tests) 9ms
- ✓ src/game/garrison.test.ts  (6 tests) 8ms
- ✓ src/game/city-combat.test.ts  (6 tests) 13ms
- ✓ src/game/found_city_validation.test.ts  (7 tests) 10ms
- ✓ src/game/ai/units/tactics.test.ts  (7 tests) 16ms
- ✓ src/game/ai/war-prep.test.ts  (9 tests) 18ms
- ✓ src/game/post-attack-movement.test.ts  (2 tests) 24ms
- ✓ src/game/filler_projects.test.ts  (5 tests) 17ms
- ❯ src/game/ai.test.ts  (23 tests | 1 failed) 264ms
-   ❯ src/game/ai.test.ts > ai personality behaviors > AetherianVanguard prioritizes Titan rush path over Conquest path
-     → expected 'ScriptLore' to be 'DrilledRanks' // Object.is equality
- ✓ src/game/garrison_attack_uncaptured_city.test.ts  (3 tests) 6ms
- ✓ src/game/bug_fixes.test.ts  (3 tests) 8ms
- ✓ src/game/repro_retaliation.test.ts  (3 tests) 7ms
-stdout | src/game/ai.rules-compliance.test.ts > ai rules compliance > keeps AI actions within movement/stacking/terrain rules over multiple turns
-Turn 1: afterP1=true, afterP2=true
-Turn 2: afterP1=true, afterP2=true
-Turn 3: afterP1=false, afterP2=false
+ ✓ src/game/city-states.test.ts > city-state naming > uses the yield pool and falls back with the configured prefix
+ ✓ src/game/city-states.test.ts > city-state naming > assigns deterministic unique names from yield pools on conversion
+ ✓ src/game/city-states.test.ts > city-state influence > applies investment cost ramp and one-invest-per-turn limit
+ ✓ src/game/city-states.test.ts > city-state influence > retains incumbent suzerainty during close contests until challenger has clear edge
+ ✓ src/game/city-states.test.ts > city-state influence > lets investment resolve a non-hotspot close race on a one-point challenger edge
+ ✓ src/game/city-states.test.ts > city-state influence > adds extra incumbent stability after repeated recent suzerain flips
+ ✓ src/game/city-states.test.ts > city-state influence > prevents immediate pairwise reclaim loops without a clear extra margin
+ ✓ src/game/city-states.test.ts > city-state influence > gives challengers extra influence pressure when investing against an incumbent
+ ✓ src/game/city-states.test.ts > city-state influence > discounts challenger investment cost during a recent passive opening
+ ✓ src/game/city-states.test.ts > city-state influence > caps the maintenance ramp for long-held suzerain investments
+ ✓ src/game/city-states.test.ts > city-state influence > applies reclaim fatigue to repeated two-civ suzerain loops
+ ✓ src/game/city-states.test.ts > city-state influence > applies periodic contestation pressure during end-of-round cadence
+ ✓ src/game/city-states.test.ts > city-state influence > continues contestation pressure during wartime lock to allow post-war turnover setup
+ ✓ src/game/city-states.test.ts > city-state influence > lets passive contestation resolve a non-hotspot close race
+ ✓ src/game/city-states.test.ts > city-state influence > keeps hotspot pair-loop close races from flipping on passive pressure alone
+ ✓ src/game/city-states.test.ts > city-state yield bonuses > uses diminishing returns for same yield type
+ ✓ src/game/city-states.test.ts > city-state wartime transfer > does not re-resolve stable city-state suzerainty as wartime release without an actual release
+ ✓ src/game/city-states.test.ts > city-state wartime transfer > temporarily transfers and then releases city-state units
+ ✓ src/map/rivers-polylines.snap.test.ts > river polyline snapshots > matches corner/mouth layout for synthetic Small map seed 12345
+ ✓ src/map/rivers-polylines.snap.test.ts > river polyline snapshots > matches corner/mouth layout for synthetic Standard map seed 98765
+ ✓ src/map/rivers-polylines.snap.test.ts > river polyline snapshots > maintains river overlay counts across sizes
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > prioritizes Science city-states for Progress investment decisions
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > does not default Balanced civs into Production when Gold is equally strong
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > keeps a preferred city-state focus when option remains competitive
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > drops preferred city-state focus when it is no longer competitive
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > can force a turnover-first pick when a live incumbent race is available
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > leans into a non-hotspot close race over a broader live race
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > keeps city-state target selection deterministic for near-equal options
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > does not let stochastic exploration override a dominant best option
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > prefers stable turnover races over hotspot ping-pong
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > avoids immediate low-conviction flip-backs after a fresh suzerain change
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > penalizes reclaiming the same city-state in a recent two-civ ping-pong
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > throttles hotspot incumbent maintenance once the pair-loop lead is outside the emergency band
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > still allows hotspot incumbent maintenance when the lead is in the emergency band
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > respects reserve safety for non-critical investments
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > allows defensive maintenance investments below reserve floor
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > allows a recent passive-opening challenge below the normal reserve floor
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > does not bypass reserve safety for uncontested incumbent leads
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > skips low-value maintenance when incumbency is uncontested
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > skips maintenance when rival influence is still too small to be a real threat
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > identifies opportunistic city-state war targets when local power is favorable
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > treats active city-state wars as valid war enemies
+ ✓ src/game/ai2/city-state-policy.test.ts > city-state-policy > merges major-war and opportunistic city-state enemies for offense planning
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > classifies 5x+ power as dominating (with 100+ power)
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > classifies 2x-5x power as overwhelming
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > classifies 1.2x-2x power as advantaged
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > classifies 0.6x-1.2x power as even
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > classifies <0.6x power as disadvantaged
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > returns isFinishable when target has 1-2 cities and 1.5x power
+ ✓ src/game/ai-decisions.test.ts > evaluatePowerRatio > handles zero enemy units with high power ratio
+ ✓ src/game/ai-decisions.test.ts > evaluateWarStatus > detects stalemate after 25+ turns of even war
+ ✓ src/game/ai-decisions.test.ts > evaluateWarStatus > detects exhaustion after 40+ turns of war
+ ✓ src/game/ai-decisions.test.ts > evaluateWarStatus > excludes stalemate when dominating (5x+ power)
+ ✓ src/game/ai-decisions.test.ts > evaluateWarStatus > detects winning war (1.2x+ power, >= cities)
+ ✓ src/game/ai-decisions.test.ts > evaluateWarStatus > detects losing war (<0.6x power)
+ ✓ src/game/ai-decisions.test.ts > evaluateDistance > calculates closest city distance
+ ✓ src/game/ai-decisions.test.ts > evaluateDistance > returns null distance when no enemy cities
+ ✓ src/game/ai-decisions.test.ts > evaluateDistance > scales warDistanceMax by map size
+ ✓ src/game/ai-decisions.test.ts > evaluateDistance > respects warDistanceMax override
+ ✓ src/game/ai-decisions.test.ts > aiWarPeaceDecision scenario table > declares war when dominating (5x+) in peace
+ ✓ src/game/ai-decisions.test.ts > aiWarPeaceDecision scenario table > continues war when overwhelming
+ ✓ src/game/ai-decisions.test.ts > aiWarPeaceDecision scenario table > proposes peace when losing and exhausted
+ ✓ src/game/ai-decisions.test.ts > aiWarPeaceDecision scenario table > stays at peace when too weak
+ ✓ src/game/ai-decisions.test.ts > aiWarPeaceDecision scenario table > respects min war duration
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > keeps emergency camp prep active during major wars
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > keeps non-emergency camp prep active during a single major war
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > targets only emergency camps while at war
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > allows non-emergency camp targets during single wars after armies are fielded
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > advances active non-emergency camp prep straight to Ready during single wars after armies are fielded
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > stays cautious before army tech but engages earlier once army tech is online
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > does not start hopeless pre-army buildup when the force is still too small
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > lets post-army civs skip buildup when they are one unit short of a nearby camp assault
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > allows army-tech civs to start camp prep earlier once armies are available
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > expands camp targeting radius after fielding armies
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > starts post-army camp prep in Ready when units are already positioned
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > skips Gathering for post-army camp prep when units still need to close in
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > treats a four-unit force as army-ready by turn 50
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > treats a four-unit force as army-ready by turn 44
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > prioritizes a contested visible camp once armies are online
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > does not overprioritize a contested camp that is too distant to race credibly
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > abandons an active prep that is in a high-pressure losing race
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > immediately retargets when an active prep is cancelled as a losing race
+ ✓ src/game/ai/camp-clearing.test.ts > camp-clearing > falls back to the next viable camp when the top target is a losing contested race
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing movement > keeps moving in Ready when only the camp tile is in range but defenders are not
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing movement > holds position in Ready when a defender is already in range
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing movement > moves a friendly blocker aside in Ready to keep closing on the camp
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing attacks > downgrades Ready to Positioning when badly outmatched but reinforcements are nearby
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing attacks > ends a doomed Ready assault when no reinforcements are available
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing attacks > immediately retargets after exiting a doomed Ready assault
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing attacks > uses ranged attackers first so melee can finish the camp in the same turn
+ ✓ src/game/ai/units/offense-camp-clearing.test.ts > offense camp clearing attacks > takes a pressure trade when another attacker can finish the last defender
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > plans Trebuchet attacks only against cities
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > plans move-attack from adjacent tiles only
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > does not plan move-attack when ranged line of sight is blocked
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > does not plan move-attack when exposure is lethal and no kill is available
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > plans move-attack when exposure is non-lethal and the trade is favorable
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > avoids zeroing a city without capture support when a unit kill is available
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > scales focus capital priority with siegeCommitment
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > increases damaged-city focus bias with higher siegeCommitment
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > scales focus proximity bonus with forceConcentration
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > scales ranged exposure penalty with rangedCaution
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > boosts city attacks when follow-up capture is available
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > keeps city-only siege bonus for Trebuchet attacks
+ ✓ src/test/game/ai2/attack_planning.test.ts > AI Attack Planning > scales risk tolerance for risky unit attacks
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Tactical Defense - Garrison Attack Filtering > does not include garrisoned units as attackers in focus-fire actions
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Tactical Defense - Garrison Attack Filtering > assesses defense situations for cities under threat
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Last Stand - Garrison Attack Filtering > does not include garrisoned units in last-stand attacks
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Last Stand - Retreat Detection Fix > checkCanRetreat returns false when unit is blocked by water
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Last Stand - Retreat Detection Fix > triggers last-stand when unit is on an island (blocked by water)
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Last Stand - Retreat Detection Fix > does NOT trigger last-stand when unit has clear path to city
+ ✓ src/test/game/ai2/tactical_defense.test.ts > Last Stand - Retreat Detection Fix > triggers last-stand when unit is completely surrounded by enemy units
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > returns 0 when no city-state is currently investable
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > scales to 5 investments in healthy, high-pressure races
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > stays conservative in guarded economy without pressure
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > commits two spends in guarded economy when a focus campaign exists
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > does not force extra cadence for a purely defensive focus campaign
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > clamps to one investment in crisis
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > caps upkeep spending when already controlling city-states and no races are contested
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > clears stale safe incumbent focus instead of refreshing it indefinitely
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > drops defensive focus when rival influence is below the meaningful threat floor
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > keeps challenger focus fresh while a live turnover campaign is still active
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > keeps the primary turnover target as focus when secondary spends happen later in the turn
+ ✓ src/game/ai2/turn-runner/diplomacy.test.ts > computeCityStateInvestmentCadence > drops hotspot pair-loop incumbent focus and redirects spending to another live race
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Skirmishing (Kiting) > should move BowGuard back to max range when threatened by melee
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Skirmishing (Kiting) > should not move if already at safe max range
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Capital Defense Protocol > should pull units back to defend threatened Capital
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Smart Targeting (Focus Fire) > should prioritize killing low HP unit over full HP unit when safe
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Smart Attack Safety (v3.0) > should skip attacks when outnumbered and would be exposed
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Smart Attack Safety (v3.0) > should attack when at military advantage despite exposure
+ ✓ src/game/ai/units/tactics.test.ts > AI Battle Tactics > Smart Attack Safety (v3.0) > should retreat after attacking if now exposed
+ ✓ src/game/garrison.test.ts > Garrison System v1.0 > ungarrisoned city cannot retaliate
+ ✓ src/game/garrison.test.ts > Garrison System v1.0 > ranged garrison retaliates at range 2
+ ✓ src/game/garrison.test.ts > Garrison System v1.0 > melee garrison does NOT retaliate at range 2
+ ✓ src/game/garrison.test.ts > Garrison System v1.0 > melee garrison DOES retaliate at range 1
+ ✓ src/game/garrison.test.ts > Garrison System v1.0 > settler provides no garrison bonus
+ ✓ src/game/garrison.test.ts > Garrison System v1.0 > garrison destroyed on city capture
+ ✓ src/game/city-combat.test.ts > City Combat > should allow a unit to attack a city and reduce its HP
+ ✓ src/game/city-combat.test.ts > City Combat > should allow capturing a city when HP is 0
+ ✓ src/game/city-combat.test.ts > City Combat > should NOT allow capturing a city if HP > 0
+ ✓ src/game/city-combat.test.ts > City Combat > should NOT allow non-capture units (Scout) to capture city
+ ✓ src/game/city-combat.test.ts > City Combat > should heal cities at the start of the turn
+ ✓ src/game/city-combat.test.ts > City Combat > should NOT heal a city that was damaged this turn
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > full mode garrisons cities while offense-only leaves units in place
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > attacking phase executes attack order and move-attack plans against cities
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > staged phase allows attacking city targets when in contact
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > offense-only mode does not attack units while at peace
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > offense-only mode does not attack cities while at peace
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > border violation declares war before attacking
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > full mode intercepts ranged enemies beyond immediate city radius
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > full mode focus-fires the weakest nearby enemy
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > resolves conflicts by intent first, then by score (regardless of source)
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > orders defense actions before offense actions in the unified plan
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > battle-group attacks can occur during staged phase when attack overrides trigger
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > battle-group attacks appear in plan with source 'offense' during attacking phase
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > battle-group attacks respect movesLeft requirement
+ ✓ src/test/game/ai2/tactical_planner.test.ts > AI Tactical Planner > battle-group attacks respect LoS requirements
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > classifies Healthy/Guarded/Strained/Crisis boundaries
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > never approves rush-buys that would push treasury below reserve floor
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > uses discounted rush-buy costs when checking reserve floor
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > forces economy-recovery production in Crisis
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > spends more aggressively for ForgeClans/Aetherian than Scholar/Starborne
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > prioritizes river/coast cities for RiverLeague economy recovery
+ ✓ src/game/ai2/economy/budget-spending.test.ts > AI economy budget > pauses Jade settler production only under severe economy stress
+ ✓ src/sim/city-state-telemetry.test.ts > city-state telemetry camp clearing episodes > records a prep episode that reaches ready and clears the camp
+ ✓ src/sim/city-state-telemetry.test.ts > city-state telemetry camp clearing episodes > records timeout outcomes when prep is abandoned with the camp still alive
+ ✓ src/sim/city-state-telemetry.test.ts > city-state telemetry camp clearing episodes > records ready-turn timeout diagnostics for no-contact stalls
+ ✓ src/game/ai2/tactical-defense.test.ts > Defense Situation Assessment > detects no threat when no enemies nearby
+ ✓ src/game/ai2/tactical-defense.test.ts > Defense Situation Assessment > detects probe threat with few weak enemies
+ ✓ src/game/ai2/tactical-defense.test.ts > Defense Situation Assessment > detects assault threat with many enemies
+ ✓ src/game/ai2/tactical-defense.test.ts > Defense Situation Assessment > identifies focus target as weakest nearby enemy
+ ✓ src/game/ai2/tactical-defense.test.ts > Early Rush Detection > returns null when turn > 60
+ ✓ src/game/ai2/tactical-defense.test.ts > Early Rush Detection > returns null when civ has no earlyRushChance
+ ✓ src/game/ai2/tactical-defense.test.ts > Counter-Attack Detection > detects opportunity when enemy military is far from their cities
+ ✓ src/game/ai2/tactical-defense.test.ts > Counter-Attack Detection > returns null when enemy has units defending their city
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should start preparation when war conditions are met
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should advance to Positioning when gathered
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should move units towards border during Positioning
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should NOT enter enemy territory during Positioning
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should advance to Ready when positioned
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should declare war when Ready
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should NOT declare war when Gathering or Positioning
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should keep garrison in Capital (Risky Strategy - Odd Turn)
+ ✓ src/game/ai/war-prep.test.ts > AI War Preparation > should keep garrison in Threatened City (Cautious Strategy - Even Turn)
+ ✓ src/map/generation/landmass.test.ts > landmass generation > generateLandmass > produces deterministic output for same seed
+ ✓ src/map/generation/landmass.test.ts > landmass generation > generateLandmass > produces different output for different seeds
+ ✓ src/map/generation/landmass.test.ts > landmass generation > generateLandmass > guarantees ocean at map edges
+ ✓ src/map/generation/landmass.test.ts > landmass generation > generateLandmass > generates some land tiles
+ ✓ src/map/generation/landmass.test.ts > landmass generation > ensureConnectivity > removes isolated land tiles
+ ✓ src/map/generation/landmass.test.ts > landmass generation > ensureConnectivity > keeps largest connected region
+ ✓ src/map/generation/landmass.test.ts > landmass generation > detectCoastline > marks water tiles adjacent to land as coast
+ ✓ src/map/generation/landmass.test.ts > landmass generation > detectCoastline > does not mark water tiles far from land
+ ✓ src/map/generation/landmass.test.ts > landmass generation > isSafeForMountain > returns true for tiles with many land neighbors
+ ✓ src/map/generation/landmass.test.ts > landmass generation > isSafeForMountain > returns false for peninsula tips
+ ✓ src/game/ai.test.ts > ai heuristics > scores city sites with yields, rivers, and overlays per docs
+ ✓ src/game/ai.test.ts > ai heuristics > increases gold-heavy settlement valuation under economic pressure
+ ✓ src/game/ai.test.ts > ai heuristics > orders tile working priority per goal and behind-curve food bias
+ ✓ src/game/ai.test.ts > ai decisions > chooses tech along Progress/Conquest paths
+ ✓ src/game/ai.test.ts > ai decisions > respects era gates when choosing techs
+ ✓ src/game/ai.test.ts > ai decisions > switches victory bias after Observatory or strike-range capital with Armies
+ ✓ src/game/ai.test.ts > ai decisions > declares war at <=8 tiles when stronger and accepts peace when losing
+ ✓ src/game/ai.test.ts > ai decisions > requires visibility before making contact or declaring war
+ ✓ src/game/ai.test.ts > ai decisions > applies civ aggression thresholds (ForgeClans declares, Scholar turtling defers)
+ ✓ src/game/ai.test.ts > ai decisions > escalates aggression in late game for Conquest civs
+ ✓ src/game/ai.test.ts > ai regression safeguards > keeps victory goal fallback order stable
+ ✓ src/game/ai.test.ts > ai regression safeguards > keeps tech picks deterministic for a fixed progress path state
+ ✓ src/game/ai.test.ts > ai regression safeguards > queues city production according to goal build priorities
+ ✓ src/game/ai.test.ts > ai regression safeguards > assigns only the city center when no other workable tiles exist
+ ✓ src/game/ai.test.ts > ai regression safeguards > founds a city on the best available valid tile
+ ✓ src/game/ai.test.ts > ai regression safeguards > moves settlers toward the best scoring city site
+ ✓ src/game/ai.test.ts > ai regression safeguards > attacks the lowest HP enemy city within range first
+ ✓ src/game/ai.test.ts > ai regression safeguards > updates diplomacy state based on declare-war decisions
+ × src/game/ai.test.ts > ai regression safeguards > moves toward wartime targets but fortifies when no wars exist
+   → Cannot read properties of undefined (reading 'filter')
+ ✓ src/game/ai.test.ts > ai personality behaviors > prefers river-biased settling for River League
+ ✓ src/game/ai.test.ts > ai personality behaviors > rushes Steam Forges for Aetherian Vanguard
+ ✓ src/game/ai.test.ts > ai personality behaviors > AetherianVanguard prioritizes Titan rush path over Conquest path
+ × src/game/ai.test.ts > engine AI executor > runs an AI turn choosing tech and assigning goal
+   → Cannot read properties of undefined (reading 'filter')
+ × src/game/ai.test.ts > engine AI executor > produces the same final state via the turn runner sequence
+   → Cannot read properties of undefined (reading 'filter')
+ ✓ src/game/city_visibility_repro.test.ts > City Attack Visibility > should NOT allow city to attack unit behind mountain (but should still see it)
+ ✓ src/game/city_visibility_repro.test.ts > City Attack Visibility > should BLOCK diagonal attack if line passes through mountain (but tile is visible)
+ ✓ src/game/city_visibility_repro.test.ts > City Attack Visibility > should ALLOW diagonal attack if line passes through clear tile (even if other neighbor is mountain)
+ ✓ src/game/city_visibility_repro.test.ts > City Attack Visibility > should BLOCK attack if target is NOT in visibility list (even if LoS is clear)
+ ✓ src/game/ai2/aetherian-victory.test.ts > Aetherian Victory Decision Logic > chooseVictoryGoalV2 - Titan's Core completion > returns Conquest when Aetherian has active Titan (before Titan's Core logic)
+ ✓ src/game/ai2/aetherian-victory.test.ts > Aetherian Victory Decision Logic > chooseVictoryGoalV2 - Titan's Core completion > returns Conquest when Aetherian has Titan's Core and power > 1.5x strongest enemy
+ ✓ src/game/ai2/aetherian-victory.test.ts > Aetherian Victory Decision Logic > chooseVictoryGoalV2 - Titan's Core completion > returns Progress when Aetherian has Titan's Core but power < 1.5x strongest enemy
+ ✓ src/game/ai2/aetherian-victory.test.ts > Aetherian Victory Decision Logic > chooseVictoryGoalV2 - Titan's Core completion > returns Progress when Aetherian has Titan's Core and enemy is stronger
+ ✓ src/game/ai2/aetherian-victory.test.ts > Aetherian Victory Decision Logic > chooseVictoryGoalV2 - Titan's Core completion > non-Aetherian civs ignore Titan's Core logic
+ ✓ src/game/ai2/aetherian-victory.test.ts > Aetherian Victory Decision Logic > chooseVictoryGoalV2 - Titan's Core completion > returns Conquest when Aetherian dominates multiple enemies
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > throws error when too close to enemy city
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > throws error when too close to friendly city
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > does not allow Jade Covenant to found within 2 tiles of own city
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > allows founding at distance 3 from friendly city
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > allows founding at distance 3 from enemy city
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > does not allow Jade Covenant to found within 2 tiles of an enemy city
+ ✓ src/game/found_city_validation.test.ts > FoundCity validation > allows founding city even when settler has no moves left
+ ✓ src/game/settler_capture_bug.test.ts > Settler Capture Bug > enemy military should NOT be able to move onto tile with player's military unit (even with settler stacked)
+ ✓ src/game/settler_capture_bug.test.ts > Settler Capture Bug > attacking a settler with a military on the same tile should redirect attack to the military
+ ✓ src/game/settler_capture_bug.test.ts > Settler Capture Bug > enemy settler should NOT be able to enter player's city
+ ✓ src/game/post-attack-movement.test.ts > Post-Attack Movement Bug > should prevent ranged units (BowGuard) from moving after attacking
+ ✓ src/game/post-attack-movement.test.ts > Post-Attack Movement Bug > should prevent melee units (SpearGuard) from moving after attacking
+ ✓ src/game/ai2/production.test.ts > UtilityV2 AI production (characterization) > builds BowGuard when a city is under direct attack
+ ✓ src/game/ai2/production.test.ts > UtilityV2 AI production (characterization) > stages for war when a focus target is set and no war is active
+ ✓ src/game/ai2/production.test.ts > UtilityV2 AI production (characterization) > builds a Settler in safe early-game expansion windows
+ ✓ src/game/ai2/production.test.ts > UtilityV2 AI production (characterization) > prioritizes unit mix during fallback production
+ ✓ src/game/ai2/production.test.ts > UtilityV2 AI production (characterization) > prioritizes unit mix with 3:2:1 ratio (Spear:Bow:Rider)
+ ✓ src/game/garrison_attack_uncaptured_city.test.ts > Garrison Attack in Unconquered City > should redirect attack to the city when garrisoned city still has health > 0
+ ✓ src/game/garrison_attack_uncaptured_city.test.ts > Garrison Attack in Unconquered City > should allow unit to enter empty tile after defeating enemy unit (no city)
+ ✓ src/game/garrison_attack_uncaptured_city.test.ts > Garrison Attack in Unconquered City > should allow unit to enter city after defeating garrison when city has health <= 0
+ ✓ src/game/filler_projects.test.ts > Filler Projects > should allow building Harvest Festival only with Farmstead
+ ✓ src/game/filler_projects.test.ts > Filler Projects > should allow building Alchemical Experiments only with Scriptorium
+ ✓ src/game/filler_projects.test.ts > Filler Projects > should grant 25 Food on Harvest Festival completion
+ ✓ src/game/filler_projects.test.ts > Filler Projects > should grant 25 Science on Alchemical Experiments completion
+ ✓ src/game/filler_projects.test.ts > Filler Projects > AI should pick filler project when safe and buildings done
+ ✓ src/game/repro_retaliation.test.ts > Garrison Retaliation Bug > should retaliate against SpearGuard (Range 1)
+ ✓ src/game/repro_retaliation.test.ts > Garrison Retaliation Bug > should retaliate against BowGuard (Range 2)
+ ✓ src/game/repro_retaliation.test.ts > Garrison Retaliation Bug > should retaliate when attack is REDIRECTED from garrison to city
+ × src/game/ai.rules-compliance.test.ts > ai rules compliance > keeps AI actions within movement/stacking/terrain rules over multiple turns
+   → Cannot read properties of undefined (reading 'filter')
+ ✓ src/game/ai2/diplomacy.test.ts > UtilityV2 AI diplomacy (characterization) > stages for forced war when units are not yet positioned
+ ✓ src/game/ai2/diplomacy.test.ts > UtilityV2 AI diplomacy (characterization) > declares forced war once units are staged near the target
+ ✓ src/game/ai2/diplomacy.test.ts > UtilityV2 AI diplomacy (characterization) > forces war between 20-tech civs when units are staged
+ ✓ src/game/ai2/diplomacy.test.ts > UtilityV2 AI diplomacy (characterization) > proposes peace after military collapse
+ ✓ src/game/ai2/diplomacy.test.ts > UtilityV2 AI diplomacy (characterization) > proposes peace after repeated siege stalemate
+ ✓ src/test/game/ai2/defense_situation.test.ts > AI Defense Situation > ignores nearby neutral units when not at war
+ ✓ src/test/game/ai2/defense_situation.test.ts > Defense Threat Levels > classifies probe when pressure is very low
+ ✓ src/test/game/ai2/defense_situation.test.ts > Defense Threat Levels > classifies raid when pressure is moderate
+ ✓ src/test/game/ai2/defense_situation.test.ts > Defense Threat Levels > classifies assault when pressure is overwhelming
+ ✓ src/test/game/ai2/defense_situation.test.ts > Assess City Threat Level > returns probe for a single distant threat against prepared defenses
+ ✓ src/test/game/ai2/defense_situation.test.ts > Assess City Threat Level > returns raid for moderate nearby pressure
+ ✓ src/test/game/ai2/defense_situation.test.ts > Assess City Threat Level > returns assault for heavy army pressure
+ ✓ src/test/game/ai2/defense_situation.test.ts > Defense Focus Target Selection > prefers siege targets when under assault pressure
+ ✓ src/game/bug_fixes.test.ts > Bug Fixes > Settler Capture vs City Attack > should attack the city instead of capturing the settler when a settler is in a city
+ ✓ src/game/bug_fixes.test.ts > Bug Fixes > Unit Swapping with Settlers > should prevent swapping if one unit is a settler
+ ✓ src/game/bug_fixes.test.ts > Bug Fixes > Auto-Explore Stuck > should clear autoMoveTarget if path is blocked
+ ✓ src/game/worked-tiles-optimization.test.ts > worked tile optimization > re-optimizes after growth to pick the best available tiles, even replacing weaker ones
+ ✓ src/game/worked-tiles-optimization.test.ts > worked tile optimization > respects player overrides and keeps pinned tiles after auto-optimization
+ ✓ src/game/worked-tiles-optimization.test.ts > worked tile optimization > allows deselecting a worked tile without auto-reassigning it
+ ✓ src/game/ai.behavior.test.ts > ai unit behaviors > pulls healthier defenders from ring 3 toward empty garrisons when safe
+ ✓ src/game/ai.behavior.test.ts > ai unit behaviors > routes capture-capable units to 0-HP cities
+ ✓ src/game/ai.behavior.test.ts > ai unit behaviors > repositions ranged units out of adjacency/crowding and naval units target coastal cities
+ ✓ src/game/ai.behavior.test.ts > ai unit behaviors > does not use Scouts for garrisoning
+ ✓ src/game/ai.behavior.test.ts > ai unit behaviors > allows Scouts to explore during war
+ ✓ src/game/ai/units/ranged-threat-awareness.test.ts > Ranged Threat Awareness > Melee vs Ranged Movement > alone melee unit should prefer path that avoids BowGuard range when possible
+ ✓ src/game/ai/units/ranged-threat-awareness.test.ts > Ranged Threat Awareness > Melee vs Ranged Movement > melee unit with friendly support should still advance toward target
+ ✓ src/game/ai/units/ranged-threat-awareness.test.ts > Ranged Threat Awareness > Melee vs Ranged Movement > melee unit should still advance when siege is critical (no alternative)
+ ✓ src/test/game/ai2/defense_flow_field.test.ts > Defense flow field integration > planCityGarrisons consults the flow field per city
+ ✓ src/test/game/ai2/defense_flow_field.test.ts > Defense flow field integration > planDefensiveRing consults flow field when routing defenders
+ ✓ src/test/game/ai2/defense_flow_field.test.ts > Defense flow field integration > planMutualDefenseReinforcements consults flow field when sending support
+ ✓ src/game/ai2/production/candidate-groups.test.ts > production candidate groups > adds production candidates in stable order
+ ✓ src/game/ai2/production/candidate-groups.test.ts > production candidate groups > skips gated candidates during emergency/recovery
+ ✓ src/game/natives/native-behavior.test.ts > Native camp conversion > creates a neutral city-state when a camp is cleared
+ ✓ src/game/natives/native-behavior.test.ts > Native camp conversion > uses a fallback yield prefix when a yield pool is exhausted
+ ✓ src/game/natives/native-behavior.test.ts > Native camp city interaction > drops back to patrol when only nearby unit is garrisoned in a city
+ ✓ src/game/natives/native-behavior.test.ts > Native camp city interaction > does not step onto city-center tiles while chasing a target
+ ✓ src/game/ai2/siege-routing.test.ts > runFocusSiegeAndCapture > should keep Trebuchets (Range 2) at distance 2
+ ✓ src/game/ai2/siege-routing.test.ts > runFocusSiegeAndCapture > should move Trebuchets (Range 2) from distance 3 to distance 2
+ ✓ src/game/ai2/siege-routing.test.ts > runFocusSiegeAndCapture > should keep Capture units (Range 1) moving to distance 1
+ ✓ src/game/ai2/siege-routing.test.ts > runFocusSiegeAndCapture > consults flow fields for siege approach routing
+ ✓ src/game/ai2/human_bias.test.ts > Human Bias > Diplomacy Bias > declares war on human player due to bias even with equal power
+ ✓ src/game/ai2/human_bias.test.ts > Human Bias > Diplomacy Bias > does NOT declare war on AI player with equal power (insufficient ratio)
+ ✓ src/game/ai2/human_bias.test.ts > Human Bias > Tactical Scoring Bias > prefers attacking human unit over identical AI unit
+ ✓ src/game/ai2/diplomacy/war-triggers.test.ts > diplomacy war trigger helpers > builds border-violation trigger candidates
+ ✓ src/game/ai2/diplomacy/war-triggers.test.ts > diplomacy war trigger helpers > builds tactical trigger candidates when no wars are active
+ ✓ src/game/ai2/diplomacy/war-triggers.test.ts > diplomacy war trigger helpers > declares war from best trigger when ready
+ ✓ src/game/ai2/diplomacy/war-triggers.test.ts > diplomacy war trigger helpers > stages focus instead of declaring when not ready
+ ✓ src/game/actions/diplomacy_verification.test.ts > Diplomacy Action Verification > should log PeaceMade event when PROPOSING peace matches an existing offer
+ ✓ src/game/actions/diplomacy_verification.test.ts > Peace Treaty Cooldown > should block war declaration during peace cooldown (less than 15 turns)
+ ✓ src/game/actions/diplomacy_verification.test.ts > Peace Treaty Cooldown > should allow war declaration after peace cooldown expires (15+ turns)
+ ✓ src/game/actions/diplomacy_verification.test.ts > Peace Treaty Cooldown > should allow war declaration exactly at 15 turn boundary
+ ✓ src/game/actions/diplomacy_verification.test.ts > Peace Treaty Cooldown > should allow war declaration if no diplomacyChangeTurn record exists (initial contact)
+ ✓ src/game/actions/diplomacy_verification.test.ts > Peace Treaty Cooldown > should allow re-declaring war if already at war
+ ✓ src/game/ai/planning-side-effects.test.ts > Planning Validation Side Effects > planDefensiveRing should not reserve tiles during planning
+ ✓ src/game/ai/planning-side-effects.test.ts > Planning Validation Side Effects > planCityGarrisons should not permanently mark actions as failed
+ ✓ src/game/ai/planning-side-effects.test.ts > Planning Validation Side Effects > pure planning checks should not suppress subsequent validity
+ ✓ src/game/ai2/diplomacy/peace-context.test.ts > diplomacy peace context helper > returns null when target has a capturable city
+ ✓ src/game/ai2/diplomacy/peace-context.test.ts > diplomacy peace context helper > returns null when enemy should be finished
+ ✓ src/game/ai2/diplomacy/peace-context.test.ts > diplomacy peace context helper > returns null when minimum stance duration is not met
+ ✓ src/game/ai2/diplomacy/peace-context.test.ts > diplomacy peace context helper > computes war peace context values without changing rules
+ ✓ src/game/helpers/action-helpers.test.ts > action-helpers > gets units or throws with consistent errors
+ ✓ src/game/helpers/action-helpers.test.ts > action-helpers > finds cities at coordinates
+ ✓ src/game/helpers/action-helpers.test.ts > action-helpers > asserts ownership and moves left with shared error strings
+ ✓ src/game/helpers/action-helpers.test.ts > action-helpers > asserts combat engagement state and adjacency
+ ✓ src/game/helpers/action-helpers.test.ts > action-helpers > validates tile occupancy using shared helper
+ ✓ src/game/helpers/action-helpers.test.ts > action-helpers > respects peacetime territory restrictions
+ ✓ src/game/ai/swap_units.test.ts > SwapUnits Action > should swap positions of two adjacent units
+ ✓ src/game/ai/swap_units.test.ts > SwapUnits Action > should fail if units are not adjacent
+ ✓ src/game/ai/swap_units.test.ts > SwapUnits Action > should swap even if target unit has 0 moves
+ ✓ src/game/ai/swap_units.test.ts > AI routeCityCaptures with Swap > should swap with blocking unit to reach capture target
+stdout | src/game/multi_garrison.test.ts > Multi-Unit Garrison Retaliation (v6.7) > should pick ranged garrison for retaliation when both melee and ranged units in city
+Attacker HP after attack: 10 (was 15) - ranged garrison retaliated!
 
- ✓ src/game/ai.rules-compliance.test.ts  (1 test) 875ms
- ✓ src/game/ai/units/ranged-threat-awareness.test.ts  (3 tests) 209ms
- ✓ src/game/worked-tiles-optimization.test.ts  (3 tests) 19ms
- ✓ src/game/balance/balance_round_2.test.ts  (4 tests) 10ms
- ✓ src/game/ai/swap_units.test.ts  (4 tests) 29ms
- ✓ src/game/helpers/action-helpers.test.ts  (6 tests) 7ms
- ✓ src/game/ai.behavior.test.ts  (5 tests) 23ms
- ✓ src/game/era_advancement.test.ts  (4 tests) 8ms
- ✓ src/game/unique_city_names.test.ts  (4 tests) 8ms
- ✓ src/game/army-advance.test.ts  (3 tests) 9ms
- ✓ src/game/city_capture_garrison.test.ts  (2 tests) 7ms
- ✓ src/game/natures_wrath.test.ts  (3 tests) 2478ms
- ✓ src/game/goodie-huts.test.ts  (6 tests) 6ms
- ✓ src/game/expel-units.test.ts  (2 tests) 4ms
- ❯ src/game/bowguard_settler_capture.test.ts  (2 tests | 2 failed) 60ms
-   ❯ src/game/bowguard_settler_capture.test.ts > Bowguard Settler Capture in City > should NOT capture Settler in enemy city (redirects to city damage) for Bowguard
-     → expected 16 to be 15 // Object.is equality
-   ❯ src/game/bowguard_settler_capture.test.ts > Bowguard Settler Capture in City > should NOT capture Settler in enemy city (redirects to city damage) for SpearGuard
-     → expected 16 to be 15 // Object.is equality
- ✓ src/game/turn-loop.test.ts  (10 tests) 4943ms
- ✓ src/game/balance/bulwark_production.test.ts  (8 tests) 70ms
- ✓ src/game/ai/unit-production.test.ts  (3 tests) 6ms
- ✓ src/game/unit-linking.test.ts  (4 tests) 6ms
- ✓ src/map/rivers-selection.test.ts  (3 tests) 7ms
- ✓ src/game/auto_explore.test.ts  (6 tests) 1904ms
- ✓ src/game/balance/nerfs.test.ts  (5 tests) 5ms
- ✓ src/game/balance.test.ts  (9 tests) 5ms
- ✓ src/game/territory-growth.test.ts  (2 tests) 7ms
- ✓ src/game/production_switching.test.ts  (2 tests) 3ms
- ✓ src/game/pathing_fixes.test.ts  (2 tests) 725ms
- ✓ src/game/ai.e2e.test.ts  (2 tests) 74ms
- ✓ src/game/helpers/spawn.test.ts  (3 tests) 4ms
- ✓ src/map/rivers-metrics.snap.test.ts  (1 test) 211ms
- ✓ src/map/generation/noise.test.ts  (11 tests) 189ms
- ✓ src/map/rivers-helpers.test.ts  (3 tests) 3ms
- ✓ src/game/research.test.ts  (3 tests) 5ms
- ✓ src/game/ai/units/titan.leash.test.ts  (4 tests) 3643ms
- ✓ src/game/ai2/behavior.test.ts  (2 tests) 30ms
- ❯ src/game/ai/siege.test.ts  (2 tests | 1 failed) 1554ms
-   ❯ src/game/ai/siege.test.ts > AI Siege Logic > should move units through friendly units to reach target
-     → expected { q: 5, r: 3 } to not deeply equal { q: 5, r: 3 }
- ✓ src/map/rivers-pathfinding.integration.test.ts  (1 test) 182ms
- ✓ src/game/movement.test.ts  (2 tests) 5ms
- ✓ src/game/bowguard_range_attack.test.ts  (1 test) 5ms
- ✓ src/game/repro_garrison_attack.test.ts  (1 test) 3ms
- ✓ src/game/repro_garrison_active_attack.test.ts  (1 test) 5ms
- ✓ src/game/rules.test.ts  (4 tests) 1505ms
- ✓ src/game/cost_scaling.test.ts  (6 tests) 3ms
- ✓ src/game/auto_explore_efficiency.test.ts  (2 tests) 3ms
- ✓ src/game/natives/native-behavior.test.ts  (2 tests) 4ms
- ✓ src/game/repro_fortify_bug.test.ts  (1 test) 4ms
+ ✓ src/game/multi_garrison.test.ts > Multi-Unit Garrison Retaliation (v6.7) > should pick ranged garrison for retaliation when both melee and ranged units in city
+ ✓ src/game/multi_garrison.test.ts > Multi-Unit Garrison Retaliation (v6.7) > combat preview should show return damage when ranged garrison present among multiple units
+stdout | src/game/multi_garrison.test.ts > Multi-Unit Garrison Retaliation (v6.7) > combat preview should show return damage when ranged garrison present among multiple units
+Preview returnDamage: { min: 5, max: 6, avg: 6 }
+
+ ✓ src/game/army-advance.test.ts > Army Advance After Kill > should advance ArmySpearGuard into defender's hex after killing
+ ✓ src/game/army-advance.test.ts > Army Advance After Kill > should advance ArmyRiders into defender's hex after killing
+ ✓ src/game/army-advance.test.ts > Army Advance After Kill > should NOT advance ArmyBowGuard (ranged unit) after killing
+stdout | src/game/ai2/attack-passivity-debug.test.ts > JadeCovenant Passivity Bug > JadeCovenant with many spearguards should attack player city
+=== JADE COVENANT PASSIVITY TEST ===
+Turn: 71
+AI Memory before: { focusTargetPlayerId: 'p2', focusCityId: 'Xylos' }
+AI units count: 8
+=== AFTER AI TURN ===
+AI Memory after: {
+  focusTargetPlayerId: 'p2',
+  focusCityId: 'Xylos',
+  operationalTheaters: [
+    {
+      id: 'front-1',
+      targetPlayerId: 'p2',
+      targetCityId: 'Xylos',
+      anchorCityId: 'AICapital',
+      anchorCoord: [Object],
+      targetCoord: [Object],
+      objective: 'pressure',
+      priority: 0.4801013333638509,
+      threat: 0,
+      friendly: 241.92000007629395,
+      distance: 10,
+      atWar: true,
+      cityCount: 2
+    }
+  ],
+  operationalTurn: 71,
+  focusSetTurn: 71,
+  armyPhase: 'attacking'
+}
+Army phase: attacking
+Xylos HP: 4 / 20
+Cosmos HP: 8 / 20
+Unit u1: hasAttacked=true, moved=false, coord={"q":5,"r":4}
+Unit u2: hasAttacked=true, moved=false, coord={"q":6,"r":4}
+Unit u3: hasAttacked=true, moved=true, coord={"q":5,"r":5}
+Unit u4: hasAttacked=true, moved=false, coord={"q":5,"r":6}
+Unit u5: hasAttacked=false, moved=false, coord={"q":4,"r":6}
+Unit u6: hasAttacked=false, moved=false, coord={"q":4,"r":5}
+Unit u7: hasAttacked=true, moved=false, coord={"q":8,"r":4}
+Unit u8: hasAttacked=true, moved=false, coord={"q":9,"r":5}
+=== RESULT ===
+Units that attacked: 6
+Units that moved: 1
+Xylos damaged: true
+Cosmos damaged: true
+
+ ✓ src/game/ai2/attack-passivity-debug.test.ts > JadeCovenant Passivity Bug > JadeCovenant with many spearguards should attack player city
+ ✓ src/game/titan_pathfinding.test.ts > Titan Movement Repro > should allow Titan to move 2 tiles to an empty tile
+ ✓ src/game/titan_pathfinding.test.ts > Titan Movement Repro > should fail validation if intermediate tile is occupied by friendly unit
+ ✓ src/game/titan_pathfinding.test.ts > Titan Movement Repro > should fail (currently) when moving two linked military units to the same tile
+ ✓ src/game/titan_pathfinding.test.ts > Titan Pathfinding Repro > should generate a path through friendly unit despite it being impassable for movement
+ ✓ src/game/era_advancement.test.ts > Era Advancement > should advance to Banner era when researching a Banner tech
+ ✓ src/game/era_advancement.test.ts > Era Advancement > should advance to Engine era when researching an Engine tech
+ ✓ src/game/era_advancement.test.ts > Era Advancement > should NOT advance if researching a tech from the SAME era
+ ✓ src/game/era_advancement.test.ts > Era Advancement > should advance to Hearth era when researching a Hearth tech from Primitive
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > getTechPathTo > should return empty array if tech already researched
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > getTechPathTo > should return single tech if no prereqs needed
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > getTechPathTo > should return full prereq chain for StarCharts from scratch
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > getTechPathTo > should skip already researched techs in chain
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > calculateTechPathCost > should return 0 for empty path
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > calculateTechPathCost > should sum costs correctly for full StarCharts path
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > estimateTurnsToProgress > should return Infinity for player with no cities
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > estimateTurnsToProgress > should return lower estimate when more techs are already researched
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > estimateTurnsToProgress > should return lower estimate when projects are already completed
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > estimateTurnsToConquest > should return 0 when no enemy capitals remain
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > estimateTurnsToConquest > should return higher estimate with more enemy capitals
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > estimateTurnsToConquest > should return higher estimate when militarily weaker
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > evaluateBestVictoryPath > should calculate estimates and compare them correctly
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > evaluateBestVictoryPath > should return confidence levels based on turn difference
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > shouldConsiderProgressPivot > should return false with fewer than 3 cities
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > shouldConsiderProgressPivot > should return true when already invested in Progress chain
+ ✓ src/game/ai/victory-evaluator.test.ts > Victory Evaluator > shouldConsiderProgressPivot > should return true with 3+ cities and good science output
+ ✓ src/game/ai2/diplomacy/war-context.test.ts > diplomacy war context helper > identifies Aetherian pre-Titan expansion conditions
+ ✓ src/game/ai2/diplomacy/war-context.test.ts > diplomacy war context helper > flags overwhelming peace when ratio is huge and cooldown is active
+ ✓ src/game/ai2/diplomacy/war-context.test.ts > diplomacy war context helper > computes threat overrides and distance allowance
+ ✓ src/game/ai2/diplomacy/war-context.test.ts > diplomacy war context helper > uses Aetherian Titan ratio floor when Titan is present
+ ✓ src/game/unique_city_names.test.ts > Unique City Naming > should track used city names when founding a city
+ ✓ src/game/unique_city_names.test.ts > Unique City Naming > should not reuse a name even if the city is razed
+ ✓ src/game/unique_city_names.test.ts > Unique City Naming > should not reuse a name if the city is captured
+ ✓ src/game/unique_city_names.test.ts > Unique City Naming > getCityName should return a name not in usedCityNames
+ ✓ src/game/rules.test.ts > Rules > Yields > should calculate base city yields correctly
+ ✓ src/game/rules.test.ts > Rules > Yields > should apply building bonuses
+ ✓ src/game/rules.test.ts > Rules > Growth > should calculate growth cost correctly
+ ✓ src/game/rules.test.ts > Rules > Build Requirements > should check tech requirements for buildings
+ ✓ src/game/rules.test.ts > Rules > Build Requirements > requires Bank before Exchange and unlocks Exchange at SignalRelay
+ ✓ src/game/rules.test.ts > Rules > Rush-Buy Discounts > uses the highest completed gold-building discount in a city
+ ✓ src/game/rules.test.ts > Rules > Supply Economy Dependency > economic buildings increase free supply and lower military upkeep
+ ✓ src/game/rules.test.ts > Rules > Supply Economy Dependency > ScholarKingdoms receives a passive free supply bonus
+ ✓ src/game/ai2/siege-manager.test.ts > SiegeManager > should cycle wounded units away from the front
+ ✓ src/game/ai2/siege-manager.test.ts > SiegeManager > should NOT cycle if unit is not wounded enough
+ ✓ src/game/ai2/siege-manager.test.ts > SiegeManager > should NOT cycle if no fresh unit is available
+ ✓ src/game/natures_wrath.test.ts > City Attack / Attrition Reproduction > should NOT deal damage to units near a generic enemy city
+ ✓ src/game/natures_wrath.test.ts > City Attack / Attrition Reproduction > should deal damage to units near a Jade Covenant city (Nature's Wrath) 308ms
+ ✓ src/game/natures_wrath.test.ts > City Attack / Attrition Reproduction > should NOT deal extra damage from garrison if not attacked
+ ✓ src/game/ai2/production/proactive.test.ts > proactive reinforcement production > keeps producing military at war when economy has headroom despite high upkeep ratio
+ ✓ src/game/ai2/diplomacy/war-declaration.test.ts > diplomacy war declaration helpers > applies war declaration action and records initiation turn
+ ✓ src/game/ai2/diplomacy/war-declaration.test.ts > diplomacy war declaration helpers > preserves declaration options in memory updates
+ ✓ src/game/ai2/diplomacy/war-declaration.test.ts > diplomacy war declaration helpers > formats war declaration debug text with influence suffix
+ ✓ src/game/ai2/diplomacy/war-declaration.test.ts > diplomacy war declaration helpers > skips scored declaration when score is not positive
+ ✓ src/game/ai2/diplomacy/war-declaration.test.ts > diplomacy war declaration helpers > applies scored declaration and records focus data
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should allow moving a unit
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should allow founding a city
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should handle end turn and resource accumulation
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should not eliminate a player with no cities if they still have a Settler
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should preserve units across multiple rounds when a Settler is alive
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should allow 1-move units (Settler) to enter high-cost terrain (Hills)
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should apply movement penalty to >1 move units (Scout) entering high-cost terrain
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should prevent >1 move units from entering high-cost terrain if they lack movement
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should move linked stacks together and unlink when the partner cannot follow
+ ✓ src/game/turn-loop.test.ts > Turn Loop & Actions > should enable shared vision on acceptance and revoke it automatically on war
+ ✓ src/game/ai2/behavior.test.ts > UtilityV2 AI (behavior sanity) > ForgeClans does not declare war if forces are not staged near the front
+ ✓ src/game/ai2/behavior.test.ts > UtilityV2 AI (behavior sanity) > Titan agent targets cities on the path to the nearest capital
+ ✓ src/game/ai2/behavior.test.ts > UtilityV2 AI (behavior sanity) > Post-war rally: units move toward focus city on war declaration turn
+ ✓ src/game/ai2/tiles.test.ts > assignWorkedTilesV2 > uses owned city territory instead of only previously worked tiles
+ ✓ src/game/ai2/tiles.test.ts > assignWorkedTilesV2 > reserves an Ore Vein tile when Bank is active
+ ✓ src/game/ai2/tiles.test.ts > assignWorkedTilesV2 > biases toward food when MarketHall is active below pop 5
+ ✓ src/game/goodie-huts.test.ts > Goodie Huts > should remove goodie hut overlay after collection
+ ✓ src/game/goodie-huts.test.ts > Goodie Huts > should return null if tile has no goodie hut
+ ✓ src/game/goodie-huts.test.ts > Goodie Huts > should grant food reward to nearest city
+ ✓ src/game/goodie-huts.test.ts > Goodie Huts > should grant production reward to nearest city
+ ✓ src/game/goodie-huts.test.ts > Goodie Huts > should grant research progress if player has current tech
+ ✓ src/game/goodie-huts.test.ts > Goodie Huts > should spawn a scout unit for scout reward
+ ✓ src/game/city_capture_garrison.test.ts > City Capture with Garrison > Scenario 1: City has unit, 0 HP, enemy attempts capture (MoveUnit)
+ ✓ src/game/city_capture_garrison.test.ts > City Capture with Garrison > Scenario 2: City has unit, 1 HP, attacked by unit who would capture
+ ✓ src/game/bowguard_settler_capture.test.ts > Bowguard Settler Capture in City > should NOT capture Settler in enemy city (redirects to city damage) for Bowguard
+ ✓ src/game/bowguard_settler_capture.test.ts > Bowguard Settler Capture in City > should NOT capture Settler in enemy city (redirects to city damage) for SpearGuard
+ ✓ src/game/ai2/diplomacy/war-resolution.test.ts > war resolution > no-ops when global war intent is already active
+ ✓ src/game/ai2/diplomacy/war-resolution.test.ts > war resolution > declares immediately when dominating power path succeeds
+ ✓ src/game/expel-units.test.ts > expelUnitsFromTerritory > moves intruding units to the nearest passable, unowned, and unoccupied tile
+ ✓ src/game/expel-units.test.ts > expelUnitsFromTerritory > moves unit 2+ hexes when surrounded by water and enemy territory
+ ✓ src/game/unit-linking.test.ts > Unit Linking > links two friendly units sharing a tile
+ ✓ src/game/unit-linking.test.ts > Unit Linking > moves both linked units at the slower unit's pace
+ ✓ src/game/unit-linking.test.ts > Unit Linking > auto-unlinks when the partner cannot enter an enemy-occupied tile
+ ✓ src/game/unit-linking.test.ts > Unit Linking > unlink action clears both units
+ ✓ src/map/rivers-selection.test.ts > river start selection > prefers high elevation away from coast and respects spacing
+ ✓ src/map/rivers-selection.test.ts > river start selection > falls back to shallow and then general when interior options are insufficient
+ ✓ src/map/rivers-selection.test.ts > coast entry builder > only returns coasts adjacent to land
+ ✓ src/game/ai/unit-production.test.ts > AI Unit Production > should cap Scout production in peacetime
+ ✓ src/game/ai/unit-production.test.ts > AI Unit Production > should prioritize military units during war preparation
+ ✓ src/game/ai/unit-production.test.ts > AI Unit Production > should build a mix of units
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Production Restrictions > should allow building military units when no Bulwark Building is present
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Production Restrictions > should PREVENT building military units when a Bulwark Building is present
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Production Restrictions > should ALLOW building Civilian units and Scouts when a Bulwark Building is present
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Production Restrictions > should ALLOW building other Buildings when a Bulwark Building is present
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Construction Restrictions > should ALLOW Scholar Kingdoms to build Bulwark
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Construction Restrictions > should ALLOW Starborne Seekers to build Bulwark
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Construction Restrictions > should PREVENT other civs (e.g. ForgeClans) from building Bulwark
+ ✓ src/game/balance/bulwark_production.test.ts > Bulwark Building Balances > Science Yield > should not grant bonus Science when a Bulwark Building is present
+ ✓ src/game/auto_explore.test.ts > Auto Explore > should set isAutoExploring flag
+ ✓ src/game/auto_explore.test.ts > Auto Explore > should clear isAutoExploring flag
+ ✓ src/game/auto_explore.test.ts > Auto Explore > should automatically pick a target and move towards it immediately
+ ✓ src/game/auto_explore.test.ts > Auto Explore > should continue exploring on next turn
+ ✓ src/game/auto_explore.test.ts > Auto Explore > should stop auto-exploring when manually moved
+ ✓ src/game/auto_explore.test.ts > Auto Explore > should retarget if the closest unexplored tile is unreachable
+ ✓ src/game/movement.test.ts > Movement Logic > should allow a Settler with 1 move (max) to enter Forest (cost 2)
+ ✓ src/game/movement.test.ts > Movement Logic > should allow a SpearGuard to move to the same hex as a Settler (stacking)
+ ✓ src/game/movement.test.ts > Movement Logic > should declare war when moving into enemy territory at peace
+ ✓ src/game/balance.test.ts > Balance Adjustments > Unit Cost Scaling > should have base cost at Turn 1
+ ✓ src/game/balance.test.ts > Balance Adjustments > Unit Cost Scaling > should have base cost at Turn 34
+ ✓ src/game/balance.test.ts > Balance Adjustments > Unit Cost Scaling > should double cost at Turn 35
+ ✓ src/game/balance.test.ts > Balance Adjustments > Unit Cost Scaling > should triple cost at Turn 70
+ ✓ src/game/balance.test.ts > Balance Adjustments > Unit Cost Scaling > should quadruple cost at Turn 105
+ ✓ src/game/balance.test.ts > Balance Adjustments > Unit Cost Scaling > should cap at 4x for late game (Turn 150)
+ ✓ src/game/balance.test.ts > Balance Adjustments > Forge Clans Nerf > should apply bonus to Capital on Hills
+ ✓ src/game/balance.test.ts > Balance Adjustments > Forge Clans Nerf > should NOT apply bonus to Non-Capital on Hills
+ ✓ src/game/balance.test.ts > Balance Adjustments > Combat Constants > should have correct base damage
+ ✓ src/game/balance.test.ts > Balance Adjustments > Combat Constants > should have correct fortify bonus
+ ✓ src/game/balance.test.ts > Balance Adjustments > Jade Covenant Buff > should apply 30% discount to Settlers
+ ✓ src/test/game/ai2/titan_flow_field.test.ts > Titan escort flow field integration > followTitan consults the flow field for escort routing
+ ✓ src/test/game/ai2/titan_flow_field.test.ts > Titan advance flow field integration > runTitanAgent consults flow field during advance
+ ✓ src/game/ai/units/offense-city-attacks.test.ts > tryCityAttacks > prioritizes killable cities over primary and low-HP targets
+ ✓ src/game/ai/units/offense-city-attacks.test.ts > tryCityAttacks > prefers primary targets, then lowest HP when no killable city exists
+ ✓ src/game/balance/balance_round_2.test.ts > Balance Round 2 Checks > RiverLeague Nerf > should floor river production bonus (1 per 2 tiles)
+ ✓ src/game/balance/balance_round_2.test.ts > Balance Round 2 Checks > JadeCovenant Buffs > should have correct JadeGranary stats
+ ✓ src/game/pathing_fixes.test.ts > Pathing Fixes > Scout should move to coast if unexplored tiles are across water (Frontier Search)
+ ✓ src/game/pathing_fixes.test.ts > Pathing Fixes > Unit should move partially if long path is blocked
+ ✓ src/game/balance/nerfs.test.ts > Civ Balance Nerfs > Scholar Kingdoms: Citadel Protocol > should not provide capital Science bonus (removed in v1.1.0)
+ ✓ src/game/balance/nerfs.test.ts > Civ Balance Nerfs > Scholar Kingdoms: Citadel Protocol > should NOT provide capital bonus to non-capital cities
+ ✓ src/game/balance/nerfs.test.ts > Civ Balance Nerfs > Scholar Kingdoms: Citadel Protocol > should provide +1 Science per CityWard (Nerfed from +3)
+ ✓ src/game/balance/nerfs.test.ts > Civ Balance Nerfs > Starborne Seekers: Peaceful Meditation > should provide +1 Science when at peace (Nerfed from +3)
+ ✓ src/game/balance/nerfs.test.ts > Civ Balance Nerfs > Starborne Seekers: Peaceful Meditation > should provide +0 bonus Science when at war
+ × src/game/ai.e2e.test.ts > AI end-to-end > AI picks tech and sets a build while ending its turn
+   → Cannot read properties of undefined (reading 'filter')
+ × src/game/ai.e2e.test.ts > AI end-to-end > AI declares war when enemy city is within 8 tiles and power is higher
+   → Cannot read properties of undefined (reading 'filter')
+ ✓ src/game/territory-growth.test.ts > city territory growth > claims center + ring 1 on founding only
+ ✓ src/game/territory-growth.test.ts > city territory growth > expands to ring 2 at pop 3+ and keeps claimed tiles after pop loss
+ ✓ src/game/ai/units/titan.leash.test.ts > Titan Leash Logic > should wait (leash) when army is far away
+ ✓ src/game/ai/units/titan.leash.test.ts > Titan Leash Logic > should move when army is nearby
+ ✓ src/game/ai/units/titan.leash.test.ts > Titan Leash Logic > should move when army is depleted (no units exist)
+ ✓ src/game/ai/units/titan.leash.test.ts > Titan Leash Logic > should ignore leash when close to target
+ ✓ src/game/ai2/combat-eval.test.ts > bestAttackForUnit > returns null when no enemies in range
+ ✓ src/game/ai2/combat-eval.test.ts > bestAttackForUnit > prefers adjacent lethal city capture
+ ✓ src/game/ai2/combat-eval.test.ts > bestAttackForUnit > filters Trebuchet targets to cities
+ ✓ src/game/ai2/combat-eval.test.ts > bestAttackForUnit > scores focus city higher
+ ✓ src/game/ai/siege.test.ts > AI Siege Logic > should capture a city when having overwhelming force
+ ✓ src/game/ai/siege.test.ts > AI Siege Logic > should move units through friendly units to reach target
+ ✓ src/game/ai2/aetherian-build.test.ts > Aetherian Vanguard Build Priority Integration > should select Aetherian Build (Titan) over Victory Project (Observatory)
+ ✓ src/game/ai2/siege-wave.test.ts > siege wave tracking > records a failed wave when the assault collapses without progress
+ ✓ src/game/ai2/siege-wave.test.ts > siege wave tracking > records a failed wave when no progress is made over the stall window
+ ✓ src/game/ai2/theater-manager.test.ts > Theater Manager > clusters nearby enemy cities and prioritizes progress threats
+ ✓ src/game/ai2/theater-manager.test.ts > Theater Manager > adds active city-state wars to operational theaters
+ ✓ src/test/game/ai2/defense_logic.test.ts > AI Defense Logic (v7.2) > isPerimeterCity > classifies far cities as interior when closer cities exist
+ ✓ src/test/game/ai2/defense_logic.test.ts > AI Defense Logic (v7.2) > shouldPrioritizeDefense > returns 'defend' for assault threats
+ ✓ src/test/game/ai2/defense_logic.test.ts > AI Defense Logic (v7.2) > shouldPrioritizeDefense > returns 'expand' when significantly stronger than enemy
+ ✓ src/game/ai/units/offense-targeting.test.ts > offense-targeting helpers > filters attacking units to exclude garrisons, civilians, scouts, and titans
+ ✓ src/game/ai/units/offense-targeting.test.ts > offense-targeting helpers > returns only war enemies that are still alive
+ ✓ src/game/ai/units/offense-targeting.test.ts > offense-targeting helpers > only includes settlers when they are adjacent
+ ✓ src/game/ai2/diplomacy-helpers.test.ts > diplomacy helpers > computes normalized influence ratio with bounds
+ ✓ src/game/ai2/diplomacy-helpers.test.ts > diplomacy helpers > picks top diplomacy candidate by score
+ ✓ src/game/ai2/diplomacy-helpers.test.ts > diplomacy helpers > formats diplomacy breakdown with sorted components
+ ✓ src/game/ai2/diplomacy-helpers.test.ts > diplomacy helpers > applies standard war timing gates when no threat override is active
+ ✓ src/game/ai2/diplomacy-helpers.test.ts > diplomacy helpers > allows threat overrides but keeps early-rush minimum turn
+ ✓ src/game/ai2/diplomacy-helpers.test.ts > diplomacy helpers > composes war declaration score with floors and influence bonus
+ ✓ src/game/ai2/staging-theater.test.ts > War staging uses theater target > stages toward theater target when no focus target is set
+ ✓ src/game/ai2/staging-theater.test.ts > War staging reinforcement > builds offensive units during war after failed siege waves
+ ✓ src/game/ai2/production/economy.bank.test.ts > pickEconomyBuilding Bank siting > does not choose Bank when city has no owned Ore Vein
+ ✓ src/game/ai2/production/economy.bank.test.ts > pickEconomyBuilding Bank siting > chooses Bank when city owns an Ore Vein tile
+ ✓ src/game/production_switching.test.ts > City Production Switching > should save progress when switching production
+ ✓ src/game/production_switching.test.ts > City Production Switching > should restore progress when switching back
+ ✓ src/game/ai2/diplomacy/peace-resolution.test.ts > peace resolution > returns unchanged state when peace context is unavailable
+ ✓ src/game/ai2/diplomacy/peace-resolution.test.ts > peace resolution > applies top peace decision and records stance turn
+ ✓ src/game/aether_era.test.ts > Aether Era Mechanics > Airship Movement > should allow moving over Mountains
+ ✓ src/game/aether_era.test.ts > Aether Era Mechanics > Airship Movement > should allow moving over DeepSea
+ ✓ src/game/aether_era.test.ts > Aether Era Mechanics > Airship Movement > should always cost 1 movement
+ ✓ src/game/aether_era.test.ts > Aether Era Mechanics > Airship Combat > should throw error when trying to attack an Airship
+ ✓ src/game/aether_era.test.ts > Aether Era Mechanics > AI Tech Gate > should not pick Aether techs if requirements not met
+ ✓ src/game/aether_era.test.ts > Aether Era Mechanics > AI Tech Gate > should allow Aether techs if requirements met
+ ✓ src/game/disband-unit.test.ts > Disband Unit > disbands the selected unit and safely unlinks partner
+ ✓ src/game/disband-unit.test.ts > Disband Unit > rejects disbanding units the player does not own
+ ✓ src/game/disband-unit.test.ts > Disband Unit > refreshes economy snapshot after disbanding military units
+ ✓ src/game/helpers/spawn.test.ts > spawn helpers > advances seed and builds unit ids matching current formulas
+ ✓ src/game/helpers/spawn.test.ts > spawn helpers > finds nearest valid spawn respecting domain and occupancy
+ ✓ src/game/helpers/spawn.test.ts > spawn helpers > falls back to city center when no free tiles exist
+ ✓ src/game/ai2/diplomacy/opponent-context.test.ts > diplomacy opponent context > computes distance, stance, and applies human bias
+ ✓ src/game/ai2/diplomacy/opponent-context.test.ts > diplomacy opponent context > falls back to max distance and keeps AI bias neutral
+ ✓ src/map/rivers-metrics.snap.test.ts > river metrics snapshots > matches metrics for fixed seeds and sizes using modular pathfinder
+ ✓ src/map/generation/noise.test.ts > noise utilities > createNoise2D > produces deterministic output for same seed
+ ✓ src/map/generation/noise.test.ts > noise utilities > createNoise2D > produces different output for different seeds
+ ✓ src/map/generation/noise.test.ts > noise utilities > createNoise2D > returns values in range [-1, 1]
+ ✓ src/map/generation/noise.test.ts > noise utilities > createNoise2D > is continuous (nearby points have similar values)
+ ✓ src/map/generation/noise.test.ts > noise utilities > fractalNoise > produces deterministic output
+ ✓ src/map/generation/noise.test.ts > noise utilities > fractalNoise > returns values approximately in range [-1, 1]
+ ✓ src/map/generation/noise.test.ts > noise utilities > fractalNoise > more octaves adds detail
+ ✓ src/map/generation/noise.test.ts > noise utilities > smoothstep > returns 0 below edge0
+ ✓ src/map/generation/noise.test.ts > noise utilities > smoothstep > returns 1 above edge1
+ ✓ src/map/generation/noise.test.ts > noise utilities > smoothstep > returns 0.5 at midpoint
+ ✓ src/map/generation/noise.test.ts > noise utilities > smoothstep > interpolates smoothly between edges
+ ✓ src/game/ai2/diplomacy/war-staging.test.ts > diplomacy war staging helpers > proceeds when offensive ratio and military count are sufficient
+ ✓ src/game/ai2/diplomacy/war-staging.test.ts > diplomacy war staging helpers > stages for offensive power when only overall ratio is sufficient
+ ✓ src/game/ai2/diplomacy/war-staging.test.ts > diplomacy war staging helpers > stages by influence when close to threshold
+ ✓ src/game/ai2/diplomacy/war-staging.test.ts > diplomacy war staging helpers > computes staging counts from nearby units only
+ ✓ src/game/ai2/diplomacy/war-staging.test.ts > diplomacy war staging helpers > requires more staging unless progress threat bypasses readiness checks
+ ✓ src/game/expel-neighbor.test.ts > Expulsion into Neighbor > moves unit into valid neighbor but NOT into peaceful third party territory
+ ✓ src/map/rivers-helpers.test.ts > rivers helpers > buildElevationMap maps terrain to numeric elevation
+ ✓ src/map/rivers-helpers.test.ts > rivers helpers > buildWaterDistance seeds water at 0 and floods outward
+ ✓ src/map/rivers-helpers.test.ts > rivers helpers > makeRiverEdgeKey canonicalizes edge ordering
+ ✓ src/game/research.test.ts > Research Preservation > should save progress when switching research
+ ✓ src/game/research.test.ts > Research Preservation > should restore progress when switching back
+ ✓ src/game/research.test.ts > Research Preservation > should accumulate progress correctly across switches
+ ✓ src/game/ai2/influence-map.test.ts > Influence Maps > should register enemy threat and friendly control near units
+ ✓ src/game/ai2/influence-map.test.ts > Influence Maps > should support time-sliced cached builds
+ ✓ src/game/ai2/influence-map.test.ts > Influence Maps > should compute border/front/pressure near enemy cities
+ ✓ src/game/conquest-stall.test.ts > Conquest Victory Stall > should award conquest victory when player controls majority of capitals (2 of 2 in 2-player game)
+ ✓ src/game/conquest-stall.test.ts > Conquest Victory Stall > should NOT award conquest victory if player only controls their own capital (1 of 2)
+ ✓ src/game/conquest-stall.test.ts > Conquest Victory Stall > should NOT award conquest victory if opponent has no city but hasnt founded yet (running around)
+ ✓ src/map/rivers-pathfinding.integration.test.ts > river pathfinding parity > module and legacy pathfinders produce matching metrics on a fixed map/seed
+ ✓ src/game/balance/balance_round_3.test.ts > Balance Round 3 Checks > RiverLeague Soft Nerf > should ceil river production bonus (1 for 1 tile)
+ ✓ src/game/balance/balance_round_3.test.ts > Balance Round 3 Checks > RiverLeague Soft Nerf > should ceil river production bonus (2 for 3 tiles)
+ ✓ src/game/bowguard_range_attack.test.ts > Bowguard Ranged Attack on City > should allow Bowguard to attack ungarrisoned city from range 2
+ ✓ src/game/repro_garrison_attack.test.ts > Garrison Attack Reproduction > attacking a garrisoned unit currently damages the unit (BUG)
+ ✓ src/game/ai/city-build-priorities.test.ts > city build priorities helpers > detects war state from diplomacy
+ ✓ src/game/ai/city-build-priorities.test.ts > city build priorities helpers > scales desired army size up during war prep
+ ✓ src/game/ai/city-build-priorities.test.ts > city build priorities helpers > reports army deficit against desired target
+ ✓ src/game/ai/city-build-priorities.test.ts > city build priorities helpers > prioritizes defensive cityward/bulwark for defensive civ progress city
+ ✓ src/game/repro_garrison_active_attack.test.ts > Garrison Active Attack Reproduction > garrisoned unit should NOT be able to attack (BUG)
+ ✓ src/game/ai2/diplomacy-trigger-helpers.test.ts > diplomacy trigger helpers > determines deterministic early-rush activation
+ ✓ src/game/ai2/diplomacy-trigger-helpers.test.ts > diplomacy trigger helpers > computes trigger influence boost from front and pressure maxima
+ ✓ src/game/ai2/diplomacy-trigger-helpers.test.ts > diplomacy trigger helpers > scores border and forced-war triggers with clamping
+ ✓ src/game/ai2/diplomacy-trigger-helpers.test.ts > diplomacy trigger helpers > computes deterministic forced-war trigger turn
+ ✓ src/game/ai2/diplomacy-trigger-helpers.test.ts > diplomacy trigger helpers > selects weakest eligible forced-war target
+ ✓ src/test/game/ai2/production_selectors.test.ts > production selectors > picks Observatory when Progress goal and StarCharts unlocked
+ ✓ src/test/game/ai2/production_selectors.test.ts > production selectors > picks first available gold economy building
+ ✓ src/test/game/ai2/production_selectors.test.ts > production helpers > unlocks army units when DrilledRanks is researched
+ ✓ src/test/game/ai2/production_selectors.test.ts > production helpers > resolves interleave deterministically per city index
+ ✓ src/game/auto_explore_efficiency.test.ts > processAutoExplore > picks the nearest reachable unexplored tile and ignores impassable tiles
+ ✓ src/game/auto_explore_efficiency.test.ts > processAutoExplore > stops auto-exploring when no reachable unexplored tiles exist
+ ✓ src/game/territory-expulsion.test.ts > Territory Expansion Expulsion > expels units when territory expands over them during peace
+ ✓ src/game/ai2/settler-capture.test.ts > Settler Capture Logic > captures adjacent settler even when not in attacking phase
+ ✓ src/game/helpers/combat_bonuses.test.ts > Combat Bonuses > Scholar Kingdoms Defense > should return 0 for non-ScholarKingdoms
+ ✓ src/game/helpers/combat_bonuses.test.ts > Combat Bonuses > Scholar Kingdoms Defense > should correctly divide bonus among cities
+ ✓ src/game/helpers/combat_bonuses.test.ts > Combat Bonuses > Scholar Kingdoms Defense > should verify bonus is global (applies at any distance)
+ ✓ src/game/actions/cities.rush-buy.test.ts > handleRushBuyProduction > applies city rush-buy discounts and tracks saved gold
+ ✓ src/game/actions/cities.rush-buy.test.ts > handleRushBuyProduction > blocks rush-buy while austerity is active
+ ✓ src/game/cost_scaling.test.ts > Project Cost Scaling > should return base cost at turn 0
+ ✓ src/game/cost_scaling.test.ts > Project Cost Scaling > should return base cost at turn 39
+ ✓ src/game/cost_scaling.test.ts > Project Cost Scaling > should return 2x cost at turn 40
+ ✓ src/game/cost_scaling.test.ts > Project Cost Scaling > should return 3x cost at turn 80
+ ✓ src/game/cost_scaling.test.ts > Project Cost Scaling > should NOT scale static projects
+ ✓ src/game/cost_scaling.test.ts > Project Cost Scaling > should set scaled cost in city build
+ ✓ src/test/game/ai2/wait_decision.test.ts > wait decision - no kill scoring > does not wait on low-value pokes under current aggression tuning
+ ✓ src/game/ai2/theater-bias.test.ts > Theater bias in focus selection > prefers target from the top operational theater when available
+ ✓ src/test/game/ai2/retreat_flow_field.test.ts > Retreat flow field integration > retreatIfNeeded consults flow field when routing to safety
+ ✓ src/game/ai2/aetherian-strategy.test.ts > Aetherian Vanguard Strategy > should choose Conquest when dominating (current behavior)
+ ✓ src/game/ai2/aetherian-strategy.test.ts > Aetherian Vanguard Strategy > should defer to victory evaluator after endgame crisis (turn > 225)
+ ✓ src/game/ai2/aetherian-strategy.test.ts > Aetherian Vanguard Strategy > should force Progress if 2/3 science projects are complete
+ ✓ src/game/ai/units/offense-movement-pathing.test.ts > offense movement pathing > returns direct path when target is reachable
+ ✓ src/game/ai/units/offense-movement-pathing.test.ts > offense movement pathing > falls back to adjacent-target path when target tile is blocked
+ ✓ src/game/repro_link_in_city.test.ts > Unit Linking in City > links Bowguard and Settler in a city
+ ✓ src/game/ai/units/offense-movement-target-selection.test.ts > offense movement target selection > prefers capturable city for capture-capable units
+ ✓ src/game/ai/units/offense-movement-target-selection.test.ts > offense movement target selection > uses titan target city for trebuchet support
+ ✓ src/game/ai/units/offense-movement-target-selection.test.ts > offense movement target selection > rallies far units to titan when distant
+ ✓ src/game/ai/units/offense-movement-threat-step.test.ts > offense movement threat step > returns unchanged when path is empty
+ ✓ src/game/ai/units/offense-movement-threat-step.test.ts > offense movement threat step > holds ranged unit in supported firing range
+ ✓ src/game/ai2/diplomacy/peace-candidates.test.ts > diplomacy peace candidate helpers > adds military-collapse peace proposal when badly losing
+ ✓ src/game/ai2/diplomacy/peace-candidates.test.ts > diplomacy peace candidate helpers > suppresses military-collapse branch under active progress threat
+ ✓ src/game/ai2/diplomacy/peace-candidates.test.ts > diplomacy peace candidate helpers > accepts incoming peace for stalled winner conditions
+ ✓ src/game/ai2/diplomacy/peace-candidates.test.ts > diplomacy peace candidate helpers > switches low-advantage action to accept when peace offer is present
+ ✓ src/game/repro_fortify_bug.test.ts > Fortify Bug Reproduction > should keep unit fortified after ending turn
+ ✓ src/game/balance/jade_nerf_verify.test.ts > JadeCovenant Balance Changes > Constants reflect new nerf values
+ ✓ src/game/balance/jade_nerf_verify.test.ts > JadeCovenant Balance Changes > Passive growth discount is removed
+ ✓ src/game/balance/jade_nerf_verify.test.ts > Bulwark Availability > ScholarKingdoms can build Bulwark
+ ✓ src/game/balance/jade_nerf_verify.test.ts > Bulwark Availability > StarborneSeekers can build Bulwark
+ ✓ src/game/balance/jade_nerf_verify.test.ts > Bulwark Availability > Other civs CANNOT build Bulwark
+ ✓ src/game/balance/jade_nerf_verify.test.ts > Bulwark Availability > Bulwark requires StoneworkHalls
+ ✓ src/game/ai2/flow-field.test.ts > FlowField > computes uniform costs matching hex distance on flat terrain
+ ✓ src/game/ai2/flow-field.test.ts > FlowField > treats impassable tiles as unreachable
+ ✓ src/game/ai2/flow-field.test.ts > FlowField > applies cost bias when provided
+ ✓ src/game/ai2/flow-field.test.ts > FlowField > creates an influence bias function when layers provided
+ ✓ src/game/ai2/strategic-plan.test.ts > strategic-plan: getGoalRequirements > should return balanced siege requirements for Conquest in Expand phase
+ ✓ src/game/ai2/strategic-plan.test.ts > strategic-plan: getGoalRequirements > should return scaled siege requirements for Conquest in Execute phase
+ ✓ src/game/ai2/strategic-plan.test.ts > strategic-plan: getGoalRequirements > should return low siege requirements for Balanced in Expand phase
+ ✓ src/game/ai2/strategic-plan.test.ts > strategic-plan: getGoalRequirements > should return 1 siege requirement for Progress in Expand phase
+ ✓ src/game/ai2/strategic-plan.test.ts > strategic-plan: getGoalRequirements > scales conquest force requirements with city count
+ ✓ src/game/ai2/strategic-plan.test.ts > strategic-plan: getGoalRequirements > scales balanced force requirements with city count
+ ✓ src/game/auto_move_debug.test.ts > Auto Movement Persistence > should continue moving across multiple turns
 stdout | src/game/fog_movement.test.ts > Fog of War Movement > findPath should return a valid path to fogged tiles
 Path found: [ { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 } ]
 
- ✓ src/game/fog_movement.test.ts  (1 test) 148ms
- ✓ src/game/actions/diplomacy_verification.test.ts  (1 test) 3ms
- ❯ src/game/titan_stats.test.ts  (2 tests | 1 failed) 10ms
-   ❯ src/game/titan_stats.test.ts > Titan Stats & Mechanics > should have correct Titan stats (as defined in core/constants)
-     → expected 6 to be 5 // Object.is equality
- ✓ src/map/rivers.test.ts  (4 tests) 3ms
- ✓ src/game/auto_move_debug.test.ts  (1 test) 327ms
- ✓ src/game/conquest-stall.test.ts  (2 tests) 3ms
- ✓ src/game/tech_requirements.test.ts  (2 tests) 3ms
- ✓ src/game/balance/army_size.test.ts  (2 tests) 2ms
- ✓ src/game/victory_type.test.ts  (2 tests) 21ms
- ✓ src/game/auto_explore_terrain.test.ts  (1 test) 262ms
- ✓ src/game/defeat_condition.test.ts  (1 test) 417ms
- ✓ src/map/map-generator.test.ts  (8 tests) 10551ms
+ ✓ src/game/fog_movement.test.ts > Fog of War Movement > findPath should return a valid path to fogged tiles
+ ✓ src/game/ai2/tech.test.ts > UtilityV2 AI tech selection > prefers the goal chain tech when available
+ ✓ src/game/ai2/tech.test.ts > UtilityV2 AI tech selection > prefers Progress chain tech when goal is Progress
+ ✓ src/game/ai2/stall-prevention.test.ts > Global Stall Prevention > should use standard logic before Turn 225
+ ✓ src/game/ai2/stall-prevention.test.ts > Global Stall Prevention > should FORCE evaluated path after Turn 225 (Conquest case)
+ ✓ src/game/ai2/stall-prevention.test.ts > Global Stall Prevention > should FORCE evaluated path after Turn 225 (Progress case)
+ ✓ src/game/titan_stats.test.ts > Titan Stats & Mechanics > should have correct Titan stats (as defined in core/constants)
+ ✓ src/game/titan_stats.test.ts > Titan Stats & Mechanics > should regenerate exactly 1 HP per turn
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > flags Trebuchet as city-only siege and not garrison-eligible
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > marks BowGuard as ranged siege skirmisher
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > marks SpearGuard as frontline capturer
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > keeps Riders mobile capturers
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > identifies Titan as a capturer
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > treats Scout as non-garrison vision unit
+ ✓ src/game/ai2/capabilities.test.ts > Unit capability profile > marks Lorekeeper as support
+ ✓ src/map/rivers.test.ts > river helpers > generates stable river edge keys
+ ✓ src/map/rivers.test.ts > river helpers > computes axial direction between neighboring hexes
+ ✓ src/map/rivers.test.ts > river helpers > detects river adjacency from edge data
+ ✓ src/map/rivers.test.ts > river helpers > falls back to overlay adjacency when river edges are absent
+ ✓ src/game/auto_explore_terrain.test.ts > Auto Explore Terrain > should fail to move into hidden high-cost terrain if moves are insufficient
+ ✓ src/game/ai2/production/scoring.test.ts > production scoring helpers > adds scored candidates with clamped totals
+ ✓ src/game/ai2/production/scoring.test.ts > production scoring helpers > ignores null options
+ ✓ src/game/ai2/production/scoring.test.ts > production scoring helpers > formats breakdown with sorted components and notes
+ ✓ src/game/tech_requirements.test.ts > Tech Requirements > should BLOCK researching Banner tech with only 2 Hearth techs
+ ✓ src/game/tech_requirements.test.ts > Tech Requirements > should ALLOW researching Banner tech with 3 Hearth techs
+ ✓ src/game/ai2/production/fallback.test.ts > production fallback helpers > prefers highest rider tier
+ ✓ src/game/ai2/production/fallback.test.ts > production fallback helpers > forces bow-class fallback when defense pick is non-bow
+ ✓ src/game/ai2/production/fallback.test.ts > production fallback helpers > builds a 3:2:1 mix plan and ignores civilian units
+ ✓ src/game/ai2/production/fallback.test.ts > production fallback helpers > picks a stable default capture fallback
+ ✓ src/game/victory_type.test.ts > finalizeVictory > should set conquest victory type in state
+ ✓ src/game/victory_type.test.ts > finalizeVictory > should set progress victory type in state
+ ✓ src/game/ai2/production/metrics.test.ts > production metrics helpers > computes normalized gap severity
+ ✓ src/game/ai2/production/metrics.test.ts > production metrics helpers > returns zero gap severity for missing baseline fields
+ ✓ src/game/ai2/production/metrics.test.ts > production metrics helpers > computes expansion need and clamps bounds
+ ✓ src/game/ai2/production/metrics.test.ts > production metrics helpers > computes influence ratio with guard rails
+ ✓ src/game/cp.test.ts > Command Points (CP) > should grant 0 CP to Primitive era players
+ ✓ src/game/cp.test.ts > Command Points (CP) > should grant 1 CP to Hearth era players
+ ✓ src/game/cp.test.ts > Command Points (CP) > should allow a spent unit to receive a CP and gain an extra action
+ ✓ src/game/cp.test.ts > Command Points (CP) > should throw if trying to grant CP twice in one turn (Rule of Two)
+ ✓ src/game/cp.test.ts > Command Points (CP) > should throw if trying to grant CP when pool is empty
+ ✓ src/game/balance/army_size.test.ts > Peacetime Army Size Checks > should have armyPerCity = 1.6 for ScholarKingdoms
+ ✓ src/game/balance/army_size.test.ts > Peacetime Army Size Checks > should have armyPerCity = 2.5 for StarborneSeekers
+ ✓ src/game/defeat_condition.test.ts > Defeat Condition Bug > should not declare a winner if an opponent has not founded a city yet but has a settler
+ ✓ src/map/map-generator.test.ts > World Generation > should generate a map with correct dimensions
+ ✓ src/map/map-generator.test.ts > World Generation > should place players with starting units 321ms
+ ✓ src/map/map-generator.test.ts > World Generation > should ensure starting positions are on valid terrain
+ ✓ src/map/map-generator.test.ts > World Generation > should emit river polylines with concrete coordinates
+ ✓ src/map/map-generator.test.ts > World Generation > should spawn scout adjacent to settler
+ ✓ src/map/map-generator.test.ts > World Generation > locks river polylines for deterministic seed 1597ms
+ ✓ src/map/map-generator.test.ts > World Generation > maintains start-site spacing and guarantees food/production tiles 742ms
+ ✓ src/map/map-generator.test.ts > World Generation > keeps overlay counts consistent for deterministic terrain noise 781ms
+ ✓ src/map/map-generator.native-camps.test.ts > map-generator native camps > keeps native camp density viable across map sizes 11091ms
+ ✓ src/map/map-generator.native-camps.test.ts > map-generator native camps > varies first city-state yield by seed while staying deterministic 1283ms
 
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
 
- FAIL  src/game/ai.test.ts > ai personality behaviors > AetherianVanguard prioritizes Titan rush path over Conquest path
-AssertionError: expected 'ScriptLore' to be 'DrilledRanks' // Object.is equality
+ FAIL  src/game/ai.e2e.test.ts > AI end-to-end > AI picks tech and sets a build while ending its turn
+TypeError: Cannot read properties of undefined (reading 'filter')
+ ❯ getVisibleCamps src/game/ai/camp-clearing.ts:368:30
+    366|     const revealedKeys = new Set(state.revealed?.[playerId] || []);
+    367| 
+    368|     return state.nativeCamps.filter(camp => {
+       |                              ^
+    369|         const key = `${camp.coord.q},${camp.coord.r}`;
+    370|         return visibleKeys.has(key) || revealedKeys.has(key);
+ ❯ getCampTargetEvaluations src/game/ai/camp-clearing.ts:440:26
+ ❯ checkForCampTargets src/game/ai/camp-clearing.ts:257:25
+ ❯ Module.manageCampClearing src/game/ai/camp-clearing.ts:111:12
+ ❯ Module.runCampClearing src/game/ai2/turn-runner/camp-clearing.ts:6:16
+ ❯ Module.runAiTurnSequenceV2 src/game/ai2/turn-runner.ts:53:13
+ ❯ Module.runAiTurn src/game/ai.ts:6:22
+ ❯ src/game/ai.e2e.test.ts:86:23
 
-- Expected
-+ Received
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
 
-- DrilledRanks
-+ ScriptLore
+ FAIL  src/game/ai.e2e.test.ts > AI end-to-end > AI declares war when enemy city is within 8 tiles and power is higher
+TypeError: Cannot read properties of undefined (reading 'filter')
+ ❯ getVisibleCamps src/game/ai/camp-clearing.ts:368:30
+    366|     const revealedKeys = new Set(state.revealed?.[playerId] || []);
+    367| 
+    368|     return state.nativeCamps.filter(camp => {
+       |                              ^
+    369|         const key = `${camp.coord.q},${camp.coord.r}`;
+    370|         return visibleKeys.has(key) || revealedKeys.has(key);
+ ❯ getCampTargetEvaluations src/game/ai/camp-clearing.ts:440:26
+ ❯ checkForCampTargets src/game/ai/camp-clearing.ts:257:25
+ ❯ Module.manageCampClearing src/game/ai/camp-clearing.ts:111:12
+ ❯ Module.runCampClearing src/game/ai2/turn-runner/camp-clearing.ts:6:16
+ ❯ Module.runAiTurnSequenceV2 src/game/ai2/turn-runner.ts:53:13
+ ❯ Module.runAiTurn src/game/ai.ts:6:22
+ ❯ src/game/ai.e2e.test.ts:136:23
 
- ❯ src/game/ai.test.ts:868:23
-    866|         state.players[0].techs = [TechId.FormationTraining, TechId.Sto…
-    867|         const pick2 = aiChooseTech("p", state as any, "Conquest");
-    868|         expect(pick2).toBe(TechId.DrilledRanks);
-       |                       ^
-    869| 
-    870|         // After DrilledRanks, should pick TimberMills (Titan prereq)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+ FAIL  src/game/ai.rules-compliance.test.ts > ai rules compliance > keeps AI actions within movement/stacking/terrain rules over multiple turns
+TypeError: Cannot read properties of undefined (reading 'filter')
+ ❯ getVisibleCamps src/game/ai/camp-clearing.ts:368:30
+    366|     const revealedKeys = new Set(state.revealed?.[playerId] || []);
+    367| 
+    368|     return state.nativeCamps.filter(camp => {
+       |                              ^
+    369|         const key = `${camp.coord.q},${camp.coord.r}`;
+    370|         return visibleKeys.has(key) || revealedKeys.has(key);
+ ❯ getCampTargetEvaluations src/game/ai/camp-clearing.ts:440:26
+ ❯ checkForCampTargets src/game/ai/camp-clearing.ts:257:25
+ ❯ Module.manageCampClearing src/game/ai/camp-clearing.ts:111:12
+ ❯ Module.runCampClearing src/game/ai2/turn-runner/camp-clearing.ts:6:16
+ ❯ Module.runAiTurnSequenceV2 src/game/ai2/turn-runner.ts:53:13
+ ❯ runAiTurnSequence src/game/ai/turn-runner.ts:6:20
+ ❯ src/game/ai/trace.ts:33:23
+ ❯ Module.runAiTurnSequenceWithTrace src/game/ai/turn-runner.ts:13:12
+ ❯ src/game/ai.rules-compliance.test.ts:98:21
 
- FAIL  src/game/bowguard_settler_capture.test.ts > Bowguard Settler Capture in City > should NOT capture Settler in enemy city (redirects to city damage) for Bowguard
-AssertionError: expected 16 to be 15 // Object.is equality
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
 
-- Expected
-+ Received
+ FAIL  src/game/ai.test.ts > ai regression safeguards > moves toward wartime targets but fortifies when no wars exist
+TypeError: Cannot read properties of undefined (reading 'filter')
+ ❯ getVisibleCamps src/game/ai/camp-clearing.ts:368:30
+    366|     const revealedKeys = new Set(state.revealed?.[playerId] || []);
+    367| 
+    368|     return state.nativeCamps.filter(camp => {
+       |                              ^
+    369|         const key = `${camp.coord.q},${camp.coord.r}`;
+    370|         return visibleKeys.has(key) || revealedKeys.has(key);
+ ❯ getCampTargetEvaluations src/game/ai/camp-clearing.ts:440:26
+ ❯ checkForCampTargets src/game/ai/camp-clearing.ts:257:25
+ ❯ Module.manageCampClearing src/game/ai/camp-clearing.ts:111:12
+ ❯ Module.runCampClearing src/game/ai2/turn-runner/camp-clearing.ts:6:16
+ ❯ Module.runAiTurnSequenceV2 src/game/ai2/turn-runner.ts:53:13
+ ❯ Module.runAiTurn src/game/ai.ts:6:22
+ ❯ src/game/ai.test.ts:821:26
 
-- 15
-+ 16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
 
- ❯ src/game/bowguard_settler_capture.test.ts:104:31
-    102|         expect(updatedBowguard?.coord).toEqual({ q: 0, r: 0 });
-    103|         expect(updatedSettler?.ownerId).toBe('p2');
-    104|         expect(cityAfter?.hp).toBe(15); // v2.0: Civ 6 formula deals 5…
-       |                               ^
-    105|     });
-    106| 
+ FAIL  src/game/ai.test.ts > engine AI executor > runs an AI turn choosing tech and assigning goal
+TypeError: Cannot read properties of undefined (reading 'filter')
+ ❯ getVisibleCamps src/game/ai/camp-clearing.ts:368:30
+    366|     const revealedKeys = new Set(state.revealed?.[playerId] || []);
+    367| 
+    368|     return state.nativeCamps.filter(camp => {
+       |                              ^
+    369|         const key = `${camp.coord.q},${camp.coord.r}`;
+    370|         return visibleKeys.has(key) || revealedKeys.has(key);
+ ❯ getCampTargetEvaluations src/game/ai/camp-clearing.ts:440:26
+ ❯ checkForCampTargets src/game/ai/camp-clearing.ts:257:25
+ ❯ Module.manageCampClearing src/game/ai/camp-clearing.ts:111:12
+ ❯ Module.runCampClearing src/game/ai2/turn-runner/camp-clearing.ts:6:16
+ ❯ Module.runAiTurnSequenceV2 src/game/ai2/turn-runner.ts:53:13
+ ❯ Module.runAiTurn src/game/ai.ts:6:22
+ ❯ src/game/ai.test.ts:929:23
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
 
- FAIL  src/game/bowguard_settler_capture.test.ts > Bowguard Settler Capture in City > should NOT capture Settler in enemy city (redirects to city damage) for SpearGuard
-AssertionError: expected 16 to be 15 // Object.is equality
+ FAIL  src/game/ai.test.ts > engine AI executor > produces the same final state via the turn runner sequence
+TypeError: Cannot read properties of undefined (reading 'filter')
+ ❯ getVisibleCamps src/game/ai/camp-clearing.ts:368:30
+    366|     const revealedKeys = new Set(state.revealed?.[playerId] || []);
+    367| 
+    368|     return state.nativeCamps.filter(camp => {
+       |                              ^
+    369|         const key = `${camp.coord.q},${camp.coord.r}`;
+    370|         return visibleKeys.has(key) || revealedKeys.has(key);
+ ❯ getCampTargetEvaluations src/game/ai/camp-clearing.ts:440:26
+ ❯ checkForCampTargets src/game/ai/camp-clearing.ts:257:25
+ ❯ Module.manageCampClearing src/game/ai/camp-clearing.ts:111:12
+ ❯ Module.runCampClearing src/game/ai2/turn-runner/camp-clearing.ts:6:16
+ ❯ Module.runAiTurnSequenceV2 src/game/ai2/turn-runner.ts:53:13
+ ❯ Module.runAiTurnSequence src/game/ai/turn-runner.ts:6:20
+ ❯ src/game/ai.test.ts:958:27
 
-- Expected
-+ Received
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
 
-- 15
-+ 16
-
- ❯ src/game/bowguard_settler_capture.test.ts:170:31
-    168|         expect(updatedSpearguard?.coord).toEqual({ q: 0, r: 0 });
-    169|         expect(updatedSettler?.ownerId).toBe('p2');
-    170|         expect(cityAfter?.hp).toBe(15); // v2.0: Civ 6 formula deals 5…
-       |                               ^
-    171|     });
-    172| });
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
-
- FAIL  src/game/titan_stats.test.ts > Titan Stats & Mechanics > should have correct Titan stats (as defined in core/constants)
-AssertionError: expected 6 to be 5 // Object.is equality
-
-- Expected
-+ Received
-
-- 5
-+ 6
-
- ❯ src/game/titan_stats.test.ts:11:27
-      9|     it("should have correct Titan stats (as defined in core/constants)…
-     10|         const titan = UNITS[UnitType.Titan];
-     11|         expect(titan.def).toBe(5);
-       |                           ^
-     12|         expect(titan.hp).toBe(20);
-     13|         expect(titan.atk).toBe(22);
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
-
- FAIL  src/game/ai/siege.test.ts > AI Siege Logic > should move units through friendly units to reach target
-AssertionError: expected { q: 5, r: 3 } to not deeply equal { q: 5, r: 3 }
-
-Compared values have no visual difference.
-
- ❯ src/game/ai/siege.test.ts:147:44
-    145| 
-    146|         const updatedAttacker = nextState.units.find(u => u.id === att…
-    147|         expect(updatedAttacker?.coord).not.toEqual({ q: 5, r: 3 });
-       |                                            ^
-    148|     });
-    149| });
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
-
- Test Files  4 failed | 67 passed (71)
-      Tests  5 failed | 271 passed (276)
-   Start at  12:15:27
-   Duration  11.97s (transform 5.96s, setup 3ms, collect 23.47s, tests 31.10s, environment 13ms, prepare 22.03s)
+ Test Files  3 failed | 148 passed (151)
+      Tests  6 failed | 666 passed (672)
+   Start at  10:20:24
+   Duration  16.45s (transform 2.70s, setup 4ms, collect 10.06s, tests 25.31s, environment 14ms, prepare 6.94s)
 
 npm error Lifecycle script `test` failed with error:
 npm error code 1
 npm error path /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine
-npm error workspace @simple-civ/engine@1.0.0
+npm error workspace @simple-civ/engine@1.0.4
 npm error location /Users/ejuchheim/Projects/Simple-Civ/SimpleCiv/engine
 npm error command failed
-npm error command sh -c vitest run
+npm error command sh -c vitest run --reporter=verbose

@@ -12,6 +12,7 @@ import {
     TITAN_REGEN_BASE,
     TITAN_REGEN_TERRITORY,
     TITAN_REGEN_CITY,
+    ERA_COMMAND_POINTS,
 } from "../core/constants.js";
 import { getCityYields, getGrowthCost, getPlayerGoldLedger } from "./rules.js";
 import { buildLookupCache } from "./helpers/lookup-cache.js";
@@ -175,6 +176,10 @@ export function startPlayerTurn(state: GameState, player: Player): void {
 
     resetUnitsForTurn(state, player);
     resetCityFireFlags(state, player.id);
+
+    const maxCp = ERA_COMMAND_POINTS[player.currentEra] ?? 0;
+    player.commandPoints = maxCp;
+    player.maxCommandPoints = maxCp;
 
     // Note: Vision refresh moved to advancePlayerTurn to happen AFTER processPlayerCities
     // This ensures newly expanded territory from city growth is immediately visible
