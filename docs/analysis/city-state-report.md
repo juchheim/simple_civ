@@ -1,299 +1,298 @@
 # City-State Simulation Report
 
-Generated: 2026-03-05T19:06:14.961Z
+Generated: 2026-03-07T14:30:00.151Z
 
 ## Data Coverage
-- Simulations processed: 600
-- Simulations with city-state telemetry: 600
+- Simulations processed: 50
+- Simulations with city-state telemetry: 50
 - Simulations missing city-state telemetry: 0
-- Total city-states created: 2093
-- Total city-state active turns: 274846
-- Total contested turns: 2593 (No Suz: 443, Close-race: 2150)
-- Total turnover-window turns: 177051
-- Total flip-window turns: 173102
-- Total safe-lead incumbent turns: 109801
-- Total hotspot turns: 1479
-- Contest telemetry coverage (city-state entries): 2093 with split fields, 0 legacy-only
-- Global suzerain flip rate: 0.27 per 100 active turns
-- True ownership turnover rate: 0.27 per 100 active turns
-- Average unique suzerains per city-state: 1.18
-- Average city-states created per telemetry simulation: 3.49
-- Average surviving city-states at game end (telemetry sims): 3.40
+- Total city-states created: 188
+- Total city-state active turns: 22094
+- Total contested turns: 220 (No Suz: 19, Close-race: 201)
+- Total turnover-window turns: 12945
+- Total flip-window turns: 12518
+- Total safe-lead incumbent turns: 10578
+- Total hotspot turns: 223
+- Contest telemetry coverage (city-state entries): 188 with split fields, 0 legacy-only
+- Global suzerain flip rate: 0.35 per 100 active turns
+- True ownership turnover rate: 0.35 per 100 active turns
+- Average unique suzerains per city-state: 1.16
+- Average city-states created per telemetry simulation: 3.76
+- Average surviving city-states at game end (telemetry sims): 3.72
 
 
 
 ## Creation Timing
-- Simulations with at least one city-state created: 533/600 (88.8%)
-- First city-state creation turn (min / p25 / median / p75 / max): 45 / 101 / 119 / 144 / 330
-- First city-state creation turn (average, sims with any): 125.6
+- Simulations with at least one city-state created: 48/50 (96.0%)
+- First city-state creation turn (min / p25 / median / p75 / max): 70 / 101 / 130 / 171 / 318
+- First city-state creation turn (average, sims with any): 140.4
 
 ## Map-Size Creation Rates
 | Map | Sims | Telemetry Sims | Sims with >=1 CS | Share with >=1 CS | Total Created | Avg Created / Telemetry Sim | Avg First CS Turn |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Tiny | 120 | 120 | 90 | 75.0% | 145 | 1.21 | 138.5 |
-| Small | 120 | 120 | 90 | 75.0% | 171 | 1.43 | 116.4 |
-| Standard | 120 | 120 | 115 | 95.8% | 388 | 3.23 | 118.4 |
-| Large | 120 | 120 | 120 | 100.0% | 628 | 5.23 | 118.1 |
-| Huge | 120 | 120 | 118 | 98.3% | 761 | 6.34 | 137.3 |
+| Tiny | 10 | 10 | 9 | 90.0% | 14 | 1.40 | 138.7 |
+| Small | 10 | 10 | 9 | 90.0% | 15 | 1.50 | 153.2 |
+| Standard | 10 | 10 | 10 | 100.0% | 42 | 4.20 | 121.0 |
+| Large | 10 | 10 | 10 | 100.0% | 67 | 6.70 | 139.8 |
+| Huge | 10 | 10 | 10 | 100.0% | 50 | 5.00 | 150.3 |
 
 ## Camp-Clearing Activation Funnel
-- Camp-clearing episodes observed: 13855
-- Direct starts in Ready: 8535 (61.6%)
-- Episodes that reached Ready: 12343 (89.1%)
-- Episodes with sighting telemetry: 13855 (100.0%)
-- Sighted -> prep start (avg / median): 82.77 / 69 turns
-- Prep start -> first Ready (avg / median): 1.84 / 0 turns
-- Prep start -> self clear (avg / median): 16.66 / 11 turns
-- Total prep duration (avg / median): 8.75 / 2 turns
-- Timeouts after reaching Ready: 637 (38.4% of timeouts)
-- Ready turn diagnostics: no contact 32369, adjacent contact 11451, attack opportunity 23832, stalled opportunity 16398, power disadvantage 10672, progress 9269
-- Ready-timeout primary breakdown: no contact 217, declined attack 329, power collapse 90, other 1
-- War-interrupted episodes: 407 (2.9%)
-- Cleared-by-other breakdown: lacked military 97, late start 372, other 55
-- Initial prep state mix: Buildup 167, Gathering 447, Positioning 4706, Ready 8535
+- Camp-clearing episodes observed: 2095
+- Direct starts in Ready: 1036 (49.5%)
+- Episodes that reached Ready: 1477 (70.5%)
+- Episodes with sighting telemetry: 1204 (57.5%)
+- Sighted -> prep start (avg / median): 80.49 / 70 turns
+- Prep start -> first Ready (avg / median): 2.51 / 0 turns
+- Prep start -> self clear (avg / median): 14.53 / 10 turns
+- Total prep duration (avg / median): 7.94 / 1 turns
+- Timeouts after reaching Ready: 59 (16.7% of timeouts)
+- Ready turn diagnostics: no contact 2741, adjacent contact 365, attack opportunity 1290, stalled opportunity 721, power disadvantage 936, progress 739
+- Ready-timeout primary breakdown: no contact 37, declined attack 12, power collapse 10, other 0
+- War-interrupted episodes: 354 (16.9%)
+- Cleared-by-other breakdown: lacked military 10, late start 32, other 25
+- Initial prep state mix: Buildup 475, Gathering 36, Positioning 548, Ready 1036
 
 ### Camp Outcomes
 | Outcome | Episodes | Share |
 | --- | --- | --- |
-| ClearedBySelf | 1837 | 13.3% |
-| ClearedByOther | 524 | 3.8% |
-| TimedOut | 1657 | 12.0% |
-| WartimeEmergencyCancelled | 407 | 2.9% |
-| OtherCancelled | 9192 | 66.3% |
-| StillActive | 238 | 1.7% |
+| ClearedBySelf | 178 | 8.5% |
+| ClearedByOther | 67 | 3.2% |
+| TimedOut | 353 | 16.8% |
+| WartimeEmergencyCancelled | 354 | 16.9% |
+| OtherCancelled | 1112 | 53.1% |
+| StillActive | 31 | 1.5% |
 
 ### Camp Funnel By Readiness
 | Readiness | Episodes | Self Clears | Self Clear Rate | Timeouts | Timeout Rate | Avg Prep Turns | Avg Prep->Ready | Reached Ready |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| PreArmy | 447 | 45 | 10.1% | 75 | 16.8% | 9.96 | 3.09 | 90.2% |
-| ArmyTech | 10031 | 696 | 6.9% | 1064 | 10.6% | 6.73 | 1.50 | 90.0% |
-| ArmyFielded | 3377 | 1096 | 32.5% | 518 | 15.3% | 14.57 | 2.72 | 86.3% |
+| PreArmy | 439 | 7 | 1.6% | 174 | 39.6% | 9.90 | 8.71 | 25.7% |
+| ArmyTech | 1230 | 69 | 5.6% | 125 | 10.2% | 6.25 | 1.65 | 87.7% |
+| ArmyFielded | 426 | 102 | 23.9% | 54 | 12.7% | 10.82 | 3.32 | 66.9% |
 
 ### Slowest Prep Episodes
 | Map | Seed | Civ | Outcome | Readiness | Initial State | Sighted->Prep | Total Prep | Prep->Ready |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Huge | 464064 | ForgeClans | StillActive | ArmyFielded | Positioning | 101 | 243T | 20 |
-| Large | 365065 | ForgeClans | StillActive | ArmyTech | Positioning | 138 | 241T | n/a |
-| Huge | 484084 | JadeCovenant | StillActive | ArmyFielded | Positioning | 167 | 229T | n/a |
-| Huge | 509109 | RiverLeague | ClearedBySelf | ArmyTech | Positioning | 45 | 222T | 18 |
-| Large | 360060 | JadeCovenant | StillActive | ArmyFielded | Positioning | 147 | 215T | 2 |
-| Large | 315015 | JadeCovenant | StillActive | ArmyFielded | Positioning | 128 | 192T | n/a |
-| Huge | 458058 | StarborneSeekers | StillActive | ArmyFielded | Positioning | 108 | 191T | 2 |
-| Large | 333033 | ScholarKingdoms | StillActive | ArmyTech | Positioning | 133 | 179T | n/a |
-| Standard | 286086 | AetherianVanguard | StillActive | ArmyFielded | Positioning | 227 | 169T | n/a |
-| Huge | 437037 | ForgeClans | TimedOut | ArmyTech | Positioning | 75 | 159T | 28 |
+| Huge | 405005 | JadeCovenant | StillActive | ArmyTech | Positioning | 93 | 190T | n/a |
+| Huge | 405005 | RiverLeague | OtherCancelled | ArmyTech | Positioning | n/a | 128T | 4 |
+| Standard | 210010 | RiverLeague | ClearedByOther | ArmyTech | Positioning | 95 | 104T | 9 |
+| Large | 307007 | AetherianVanguard | TimedOut | ArmyFielded | Positioning | n/a | 97T | 3 |
+| Large | 308008 | ScholarKingdoms | WartimeEmergencyCancelled | ArmyFielded | Positioning | 5 | 82T | 24 |
+| Huge | 407007 | RiverLeague | WartimeEmergencyCancelled | ArmyTech | Positioning | n/a | 80T | 25 |
+| Standard | 208008 | AetherianVanguard | StillActive | ArmyFielded | Positioning | 161 | 76T | n/a |
+| Large | 307007 | RiverLeague | TimedOut | ArmyTech | Positioning | n/a | 76T | 10 |
+| Large | 301001 | ScholarKingdoms | TimedOut | PreArmy | Buildup | 103 | 74T | 10 |
+| Standard | 208008 | ScholarKingdoms | TimedOut | ArmyTech | Positioning | 123 | 70T | 22 |
 
 ## Suzerainty vs Winning
-- Winner average suzerain turns: 153.69
-- Non-winner average suzerain turns: 96.93
-- Winner average city-state investment: 4081.1G
-- Non-winner average city-state investment: 2426.2G
-- Winners with any suzerainty: 393/531 (74.0%)
-- Winners with any city-state investment: 399/531 (75.1%)
-- Participant win rate with any suzerainty: 27.7%
-- Participant win rate without suzerainty: 12.6%
-- Participant win rate with any city-state investment: 21.2%
-- Correlation (suzerain turns -> win flag): 0.149
-- Correlation (city-state gold invested -> win flag): 0.174
-- Winner share of sim-wide suzerain turns (when any suzerainty existed): 45.7%
+- Winner average suzerain turns: 184.55
+- Non-winner average suzerain turns: 82.21
+- Winner average city-state investment: 3333.3G
+- Non-winner average city-state investment: 2080.5G
+- Winners with any suzerainty: 40/47 (85.1%)
+- Winners with any city-state investment: 37/47 (78.7%)
+- Participant win rate with any suzerainty: 33.1%
+- Participant win rate without suzerainty: 7.9%
+- Participant win rate with any city-state investment: 24.7%
+- Correlation (suzerain turns -> win flag): 0.289
+- Correlation (city-state gold invested -> win flag): 0.161
+- Winner share of sim-wide suzerain turns (when any suzerainty existed): 55.5%
 
 ## Investment Mix
-- Total city-state investment: 6992791G across 94572 actions
-- Maintenance investment: 1438243G (20.6%) across 38912 actions (41.1%)
-- Challenger investment: 5554548G (79.4%) across 55660 actions (58.9%)
-- Maintenance gold per suzerain turn: 5.24
-- Maintenance actions per 100 suzerain turns: 14.18
+- Total city-state investment: 495782G across 7048 actions
+- Maintenance investment: 114048G (23.0%) across 3092 actions (43.9%)
+- Challenger investment: 381734G (77.0%) across 3956 actions (56.1%)
+- Maintenance gold per suzerain turn: 5.17
+- Maintenance actions per 100 suzerain turns: 14.01
 
 ## Turnover Diagnostics
-- Turnover-window challenger investment: 5391608G across 52493 actions
-- Flip-window challenger investment: 5344281G across 51893 actions
-- Deep-challenge investment: 162670G across 3160 actions
-- Neutral-claim investment: 270G across 7 actions
-- Passive contestation pulses: 94830
-- Passive contestation close-race pulses: 80158
-- Passive openings observed: 2
-- Passive openings with treasury to invest: 2 (100.0%)
-- Passive openings with reserve-safe invest: 2 (100.0%)
-- Passive openings avg nominated turn-order delay: 2.00 turns
-- Passive openings attempted by nominated challenger: 2 (100.0%)
+- Turnover-window challenger investment: 374041G across 3761 actions
+- Flip-window challenger investment: 370574G across 3707 actions
+- Deep-challenge investment: 7693G across 195 actions
+- Neutral-claim investment: 0G across 0 actions
+- Passive contestation pulses: 6702
+- Passive contestation close-race pulses: 5499
+- Passive openings observed: 0
+- Passive openings with treasury to invest: 0 (0.0%)
+- Passive openings with reserve-safe invest: 0 (0.0%)
+- Passive openings avg nominated turn-order delay: 0.00 turns
+- Passive openings attempted by nominated challenger: 0 (0.0%)
 - Passive openings avg delay to first nominated attempt: 0.00 turns
-- Passive openings resolved before expiry: 1 (50.0%)
-- Passive openings won by nominated challenger: 1 (50.0%; 100.0% of resolved)
+- Passive openings resolved before expiry: 0 (0.0%)
+- Passive openings won by nominated challenger: 0 (0.0%; 0.0% of resolved)
 - Passive openings lost to someone else: 0
-- Passive openings expired unresolved: 1
-- Passive opening resolutions by cause: Investment 1
-- Passive opening nominated wins by cause: Investment 1
+- Passive openings expired unresolved: 0
+- Passive opening resolutions by cause: None
+- Passive opening nominated wins by cause: None
 - Passive openings with no nominated attempt: 0 (0.0%)
 - No-attempt reasons: treasury blocked 0, reserve blocked 0, no-attempt despite capacity 0
 - Passive direct flip conversion per 100 close-race pulses: 0.00
-- Passive-assisted suzerainty changes: 285 (37.7% of non-passive changes)
-- Passive-assisted true ownership turnovers: 276 (37.4% of ownership turnover)
-- Passive-assisted ownership conversion per 100 close-race pulses: 0.34
-- Passive-involved ownership conversion per 100 close-race pulses: 0.34
-- Passive-assisted ownership causes: WartimeRelease 243, Other 27, Investment 6
-- Pair-fatigue-triggered investment: 145593G across 1817 actions
-- Pair-fatigue share of challenger spend: 2.6%
-- Safe-maintenance investment: 303G across 10 actions
-- Focus turns: 217703 (challenge 176167, maintenance 41536)
-- Focus assignments: 3937, focus switches: 453
-- Flip conversion per 100 turnover-window turns: 0.43
-- True ownership conversion per 100 turnover-window turns: 0.42
-- Flip conversion per 100 challenge-focus turns: 0.43
+- Passive-assisted suzerainty changes: 14 (17.9% of non-passive changes)
+- Passive-assisted true ownership turnovers: 14 (18.2% of ownership turnover)
+- Passive-assisted ownership conversion per 100 close-race pulses: 0.25
+- Passive-involved ownership conversion per 100 close-race pulses: 0.25
+- Passive-assisted ownership causes: WartimeRelease 14
+- Pair-fatigue-triggered investment: 10949G across 149 actions
+- Pair-fatigue share of challenger spend: 2.9%
+- Safe-maintenance investment: 39G across 1 actions
+- Focus turns: 15368 (challenge 12043, maintenance 3325)
+- Focus assignments: 337, focus switches: 32
+- Flip conversion per 100 turnover-window turns: 0.60
+- True ownership conversion per 100 turnover-window turns: 0.59
+- Flip conversion per 100 challenge-focus turns: 0.65
 - Safe-maintenance share of maintenance spend: 0.0%
 
 ## Flip Cause Summary
 | Cause | Suzerainty Changes | True Ownership Turnovers | State Change Share | Ownership Share |
 | --- | --- | --- | --- | --- |
-| Investment | 359 | 353 | 47.5% | 47.8% |
+| Investment | 41 | 41 | 52.6% | 53.2% |
 | PassiveContestation | 0 | 0 | 0.0% | 0.0% |
-| WartimeRelease | 256 | 247 | 33.9% | 33.5% |
-| WarBreak | 1 | 1 | 0.1% | 0.1% |
-| Other | 139 | 137 | 18.4% | 18.6% |
+| WartimeRelease | 15 | 14 | 19.2% | 18.2% |
+| WarBreak | 0 | 0 | 0.0% | 0.0% |
+| Other | 22 | 22 | 28.2% | 28.6% |
 
 ## Hotspot Diagnostics
-- Hotspot turn share of active turns: 0.5%
-- City-state instances with any hotspot time: 55/2093
-- True ownership turnovers occurring in hotspot instances: 374 / 738
+- Hotspot turn share of active turns: 1.0%
+- City-state instances with any hotspot time: 9/188
+- True ownership turnovers occurring in hotspot instances: 55 / 77
 
 ## Hotspot Instances
 | Map | Seed | City-State | Yield | Created | Active | Hotspot | Hotspot Share | Ownership Turnovers | Suz Changes | Turnover Pair | Ownership Causes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Huge | 503103 | Obsidian Kiln | Production | 290 | 104T | 86T | 82.7% | 20 | 20 | JadeCovenant <> ForgeClans 15, JadeCovenant <> ScholarKingdoms 5 | Investment 16, Other 4 |
-| Huge | 402002 | Nectarwind | Food | 118 | 242T | 27T | 11.2% | 17 | 17 | RiverLeague <> ForgeClans 17 | Other 9, Investment 8 |
-| Huge | 402002 | Celestine Scriptorium | Science | 202 | 159T | 118T | 74.2% | 13 | 13 | StarborneSeekers <> JadeCovenant 12, AetherianVanguard <> JadeCovenant 1 | Investment 6, Other 6, WartimeRelease 1 |
-| Huge | 494094 | Eclipsed Theorem | Science | 217 | 120T | 47T | 39.2% | 11 | 11 | ScholarKingdoms <> JadeCovenant 11 | Investment 9, Other 1, WartimeRelease 1 |
-| Large | 334034 | Silverbarley | Food | 135 | 238T | 47T | 19.7% | 11 | 11 | StarborneSeekers <> RiverLeague 11 | Investment 10, Other 1 |
-| Huge | 458058 | Flintspire Works | Production | 225 | 75T | 29T | 38.7% | 11 | 11 | JadeCovenant <> ScholarKingdoms 11 | Investment 6, Other 5 |
-| Huge | 518118 | Moonmeadow | Food | 126 | 178T | 18T | 10.1% | 11 | 11 | ScholarKingdoms <> JadeCovenant 11 | Investment 10, WartimeRelease 1 |
-| Huge | 415015 | Arcstar Repository | Science | 209 | 57T | 40T | 70.2% | 10 | 10 | RiverLeague <> ScholarKingdoms 10 | Investment 5, Other 5 |
-| Huge | 432032 | Voidlight Archive | Science | 135 | 124T | 40T | 32.3% | 10 | 10 | JadeCovenant <> StarborneSeekers 10 | Other 6, Investment 4 |
-| Huge | 510110 | Golden Mirage | Gold | 229 | 157T | 16T | 10.2% | 10 | 10 | ForgeClans <> AetherianVanguard 10 | Investment 8, WartimeRelease 2 |
-| Huge | 510110 | Starglass Athenaeum | Science | 314 | 72T | 46T | 63.9% | 9 | 9 | ForgeClans <> AetherianVanguard 9 | Investment 9 |
-| Huge | 447047 | Prism Oracle | Science | 144 | 148T | 45T | 30.4% | 9 | 9 | JadeCovenant <> ScholarKingdoms 9 | Investment 9 |
-| Huge | 439039 | Prism Oracle | Science | 260 | 67T | 43T | 64.2% | 9 | 9 | ForgeClans <> RiverLeague 9 | Investment 9 |
-| Huge | 410010 | Greenstar Hollow | Food | 142 | 172T | 30T | 17.4% | 9 | 9 | JadeCovenant <> ForgeClans 9 | Investment 9 |
-| Huge | 420020 | Radiant Lexicon | Science | 168 | 68T | 24T | 35.3% | 9 | 9 | AetherianVanguard <> RiverLeague 9 | Investment 4, Other 4, WarBreak 1 |
-| Huge | 503103 | Verdant Myth | Food | 325 | 70T | 25T | 35.7% | 8 | 8 | JadeCovenant <> ForgeClans 8 | Investment 8 |
+| Huge | 401001 | Blackglass Armory | Production | 120 | 166T | 44T | 26.5% | 11 | 11 | RiverLeague <> ForgeClans 11 | Other 6, Investment 5 |
+| Huge | 408008 | Hammerdeep | Production | 185 | 117T | 31T | 26.5% | 7 | 7 | JadeCovenant <> ScholarKingdoms 7 | Investment 4, Other 3 |
+| Huge | 402002 | Bramble Feast | Food | 135 | 135T | 21T | 15.6% | 7 | 7 | StarborneSeekers <> ScholarKingdoms 6, AetherianVanguard <> StarborneSeekers 1 | Investment 6, WartimeRelease 1 |
+| Huge | 401001 | Dawnharvest | Food | 176 | 110T | 26T | 23.6% | 6 | 6 | ScholarKingdoms <> StarborneSeekers 6 | Investment 6 |
+| Tiny | 2002 | Kingsmerch | Gold | 141 | 162T | 26T | 16.0% | 6 | 6 | StarborneSeekers <> RiverLeague 6 | Investment 3, Other 3 |
+| Tiny | 9009 | Dawnharvest | Food | 150 | 140T | 24T | 17.1% | 6 | 6 | AetherianVanguard <> RiverLeague 6 | Other 4, Investment 2 |
+| Huge | 410010 | Bloomtide | Food | 108 | 247T | 19T | 7.7% | 6 | 6 | JadeCovenant <> ForgeClans 6 | Investment 6 |
+| Tiny | 9009 | Auric Bazaar | Gold | 159 | 130T | 16T | 12.3% | 3 | 3 | AetherianVanguard <> RiverLeague 3 | Other 2, Investment 1 |
+| Tiny | 9009 | Starglass Athenaeum | Science | 162 | 127T | 16T | 12.6% | 3 | 3 | AetherianVanguard <> RiverLeague 3 | Other 2, Investment 1 |
+| Huge | 404004 | Ironwyrm Foundry | Production | 214 | 124T | 0T | 0.0% | 2 | 2 | JadeCovenant <> RiverLeague 2 | Investment 2 |
+| Large | 302002 | Kingsmerch | Gold | 273 | 69T | 0T | 0.0% | 2 | 2 | JadeCovenant <> StarborneSeekers 1, ScholarKingdoms <> StarborneSeekers 1 | Other 1, WartimeRelease 1 |
+| Large | 309009 | Sunseed Haven | Food | 197 | 57T | 0T | 0.0% | 2 | 2 | RiverLeague <> AetherianVanguard 1, RiverLeague <> ScholarKingdoms 1 | Investment 1, WartimeRelease 1 |
+| Large | 302002 | Bloomtide | Food | 235 | 107T | 0T | 0.0% | 1 | 1 | ForgeClans <> ScholarKingdoms 1 | WartimeRelease 1 |
+| Large | 301001 | Dawnsmelt Keep | Production | 209 | 59T | 0T | 0.0% | 1 | 1 | RiverLeague <> StarborneSeekers 1 | WartimeRelease 1 |
+| Large | 301001 | Flintspire Works | Production | 126 | 142T | 0T | 0.0% | 1 | 1 | AetherianVanguard <> ScholarKingdoms 1 | Investment 1 |
+| Large | 309009 | Golden Mirage | Gold | 199 | 55T | 0T | 0.0% | 1 | 1 | ForgeClans <> StarborneSeekers 1 | WartimeRelease 1 |
 
 ## Hotspot City Names (Cross-Sim Aggregate)
 | City-State | Yield | Avg Hotspot Turns | Hotspot Share | Avg Ownership Turnovers | Avg Suz Changes | Ownership Causes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Obsidian Kiln | Production | 3.8T | 2.9% | 1.29 | 1.29 | Investment 28, Other 10, WartimeRelease 7 |
-| Nectarwind | Food | 1.6T | 1.2% | 0.89 | 0.95 | Investment 14, Other 13, WartimeRelease 7 |
-| Golden Mirage | Gold | 1.7T | 1.2% | 0.71 | 0.71 | Investment 21, WartimeRelease 9 |
-| Celestine Scriptorium | Science | 3.0T | 2.2% | 0.57 | 0.68 | Investment 10, Other 8, WartimeRelease 5 |
-| Prism Oracle | Science | 2.7T | 2.1% | 0.70 | 0.70 | Investment 18, WartimeRelease 4, Other 1 |
-| Silverbarley | Food | 1.7T | 1.4% | 0.57 | 0.57 | Investment 16, WartimeRelease 6, Other 1 |
-| Starglass Athenaeum | Science | 1.6T | 1.1% | 0.57 | 0.57 | Investment 13, WartimeRelease 9, Other 1 |
-| Eclipsed Theorem | Science | 2.8T | 2.4% | 0.92 | 0.92 | Investment 12, Other 5, WartimeRelease 5 |
-| Radiant Lexicon | Science | 1.5T | 1.2% | 0.64 | 0.64 | Other 9, Investment 6, WartimeRelease 5, WarBreak 1 |
-| Voidlight Archive | Science | 1.6T | 1.2% | 0.57 | 0.57 | Investment 11, Other 6, WartimeRelease 3 |
-| Aetherquill | Science | 2.0T | 2.0% | 0.60 | 0.67 | Investment 12, Other 4, WartimeRelease 2 |
-| Verdant Myth | Food | 1.6T | 1.0% | 0.56 | 0.56 | Investment 12, WartimeRelease 4, Other 2 |
+| Dawnharvest | Food | 12.5T | 8.8% | 3.00 | 3.00 | Investment 8, Other 4 |
+| Blackglass Armory | Production | 8.8T | 7.9% | 2.20 | 2.20 | Other 6, Investment 5 |
+| Kingsmerch | Gold | 5.2T | 5.5% | 1.60 | 1.60 | Other 4, Investment 3, WartimeRelease 1 |
+| Bloomtide | Food | 4.8T | 2.7% | 2.00 | 2.00 | Investment 6, WartimeRelease 2 |
+| Hammerdeep | Production | 15.5T | 8.0% | 3.50 | 3.50 | Investment 4, Other 3 |
+| Bramble Feast | Food | 5.3T | 4.9% | 1.75 | 1.75 | Investment 6, WartimeRelease 1 |
+| Auric Bazaar | Gold | 8.0T | 7.2% | 1.50 | 1.50 | Other 2, Investment 1 |
+| Starglass Athenaeum | Science | 4.0T | 5.0% | 0.75 | 0.75 | Other 2, Investment 1 |
+| Sunseed Haven | Food | 0.0T | 0.0% | 1.00 | 1.00 | WartimeRelease 2, Investment 1 |
+| Aureate Crown | Gold | 0.0T | 0.0% | 0.67 | 0.67 | Investment 1, Other 1 |
+| Ironwyrm Foundry | Production | 0.0T | 0.0% | 0.40 | 0.40 | Investment 2 |
+| Radiant Lexicon | Science | 0.0T | 0.0% | 0.40 | 0.40 | Investment 1, WartimeRelease 1 |
 
 ## Civ Performance
 | Civ | Games | Wins | Win% | Avg Suz Turns | Avg Invested Gold | Avg Maintenance Gold | Avg Invest Actions | Win% (Suz>0) | Win% (Suz=0) | Top Suz Claims |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 415 | 91 | 21.9% | 107.01 | 2185.8 | 467.9 | 32.50 | 26.1% | 16.4% | 347 |
-| ScholarKingdoms | 422 | 88 | 20.9% | 93.83 | 2047.3 | 452.0 | 30.83 | 29.8% | 10.3% | 305 |
-| RiverLeague | 419 | 80 | 19.1% | 111.47 | 3562.7 | 668.0 | 44.56 | 26.8% | 9.9% | 346 |
-| AetherianVanguard | 426 | 105 | 24.6% | 84.56 | 2457.9 | 380.4 | 31.80 | 29.4% | 19.2% | 322 |
-| StarborneSeekers | 421 | 85 | 20.2% | 100.12 | 2266.5 | 498.5 | 32.22 | 29.9% | 10.5% | 291 |
-| JadeCovenant | 417 | 82 | 19.7% | 157.12 | 4143.2 | 962.8 | 53.46 | 25.0% | 7.8% | 476 |
+| ForgeClans | 34 | 10 | 29.4% | 145.29 | 1897.4 | 691.7 | 33.50 | 33.3% | 20.0% | 42 |
+| ScholarKingdoms | 36 | 7 | 19.4% | 111.89 | 1745.3 | 526.2 | 30.36 | 31.8% | 0.0% | 38 |
+| RiverLeague | 35 | 9 | 25.7% | 87.14 | 2888.1 | 476.3 | 35.14 | 40.0% | 6.7% | 27 |
+| AetherianVanguard | 36 | 8 | 22.2% | 43.22 | 1874.1 | 126.0 | 21.83 | 33.3% | 14.3% | 17 |
+| StarborneSeekers | 34 | 8 | 23.5% | 123.24 | 2769.9 | 740.3 | 40.44 | 31.8% | 8.3% | 32 |
+| JadeCovenant | 35 | 5 | 14.3% | 123.17 | 3020.3 | 720.3 | 40.71 | 27.8% | 0.0% | 30 |
 
 ## Turnover Pressure By Civ
 | Civ | Avg Turnover Gold | Avg Deep Gold | Avg Neutral Gold | Avg Pair-Fatigue Gold | Avg Safe Maint Gold | Avg Focus Challenge T | Avg Focus Maint T | Focus Switches / Game |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 1658.6 | 59.3 | 0.0 | 51.7 | 0.3 | 66.34 | 20.37 | 0.23 |
-| ScholarKingdoms | 1522.2 | 72.7 | 0.4 | 37.9 | 0.0 | 71.20 | 18.64 | 0.19 |
-| RiverLeague | 2823.9 | 70.7 | 0.1 | 60.2 | 0.1 | 77.81 | 14.44 | 0.14 |
-| AetherianVanguard | 2009.8 | 67.6 | 0.1 | 84.8 | 0.3 | 63.02 | 10.26 | 0.11 |
-| StarborneSeekers | 1719.4 | 48.7 | 0.0 | 28.8 | 0.0 | 68.49 | 14.97 | 0.14 |
-| JadeCovenant | 3112.0 | 68.3 | 0.1 | 83.2 | 0.1 | 72.66 | 20.36 | 0.27 |
+| ForgeClans | 1140.3 | 65.4 | 0.0 | 39.8 | 0.0 | 55.47 | 25.71 | 0.24 |
+| ScholarKingdoms | 1178.9 | 40.1 | 0.0 | 29.9 | 0.0 | 59.67 | 20.94 | 0.19 |
+| RiverLeague | 2381.2 | 30.7 | 0.0 | 107.3 | 0.0 | 62.57 | 8.80 | 0.11 |
+| AetherianVanguard | 1709.4 | 38.7 | 0.0 | 30.8 | 1.1 | 57.42 | 4.22 | 0.14 |
+| StarborneSeekers | 2002.3 | 27.3 | 0.0 | 50.6 | 0.0 | 54.79 | 20.03 | 0.09 |
+| JadeCovenant | 2282.1 | 18.0 | 0.0 | 55.4 | 0.0 | 53.97 | 15.89 | 0.14 |
 
 ## Yield-Type Summary
 | Yield | City-States | Avg Active Turns | Contested Turn Share | No Suz Share | Close-Race Share | Flip Rate /100T | Avg Unique Suz | Surviving | Removed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Science | 511 | 130.58 | 1.3% | 0.4% | 0.9% | 0.35 | 1.20 | 494 | 17 |
-| Production | 524 | 131.70 | 0.8% | 0.1% | 0.7% | 0.26 | 1.18 | 517 | 7 |
-| Food | 531 | 133.01 | 0.9% | 0.1% | 0.7% | 0.27 | 1.17 | 516 | 15 |
-| Gold | 527 | 129.94 | 0.8% | 0.0% | 0.8% | 0.22 | 1.18 | 515 | 12 |
+| Science | 46 | 119.87 | 0.7% | 0.0% | 0.7% | 0.09 | 1.07 | 45 | 1 |
+| Production | 51 | 114.39 | 0.9% | 0.0% | 0.9% | 0.43 | 1.16 | 50 | 1 |
+| Food | 45 | 117.89 | 1.4% | 0.4% | 1.1% | 0.62 | 1.27 | 45 | 0 |
+| Gold | 46 | 118.28 | 1.0% | 0.0% | 1.0% | 0.28 | 1.17 | 46 | 0 |
 
 ## Yield Turnover Windows
 | Yield | Turnover Window Share | Flip Window Share | Safe Lead Share | Hotspot Share |
 | --- | --- | --- | --- | --- |
-| Science | 65.0% | 63.7% | 38.6% | 0.9% |
-| Production | 63.3% | 61.9% | 41.0% | 0.6% |
-| Food | 64.7% | 63.2% | 40.0% | 0.4% |
-| Gold | 64.7% | 63.2% | 40.1% | 0.3% |
+| Science | 54.4% | 52.8% | 51.3% | 0.3% |
+| Production | 62.0% | 59.4% | 46.3% | 1.3% |
+| Food | 59.0% | 56.6% | 49.1% | 1.7% |
+| Gold | 58.7% | 57.7% | 44.8% | 0.8% |
 
 ## City-State Suzerainty Ledger
 | City-State | Yield | Appearances | Avg Active Turns | Contested Share | No Suz Share | Close-Race Share | Turnover Window Share | Flip Window Share | Safe Lead Share | Hotspot Share | Flip Rate /100T | Avg Unique Suz | Suzerain Turns by Civ | Focus Challenge by Civ | Focus Maintenance by Civ | Investment by Civ (Gold/Actions) | Avg Suz Changes | Avg Ownership Turnovers | Ownership Causes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Amber Orchard | Food | 28 | 149.82 | 0.6% | 0.0% | 0.6% | 70.5% | 69.6% | 32.3% | 0.0% | 0.17 | 1.25 | RiverLeague 989T, ForgeClans 887T, JadeCovenant 773T, StarborneSeekers 720T, ScholarKingdoms 483T, AetherianVanguard 343T | ScholarKingdoms 834T, ForgeClans 588T, StarborneSeekers 582T, JadeCovenant 506T, RiverLeague 506T, AetherianVanguard 411T | StarborneSeekers 248T, RiverLeague 166T, JadeCovenant 131T, ForgeClans 108T, ScholarKingdoms 92T, AetherianVanguard 8T | RiverLeague 30274G/327, maintain 5663G, JadeCovenant 27719G/294, maintain 4829G, ScholarKingdoms 27603G/258, maintain 1465G, StarborneSeekers 14186G/215, maintain 4941G, ForgeClans 11187G/213, maintain 3264G, AetherianVanguard 9085G/113, maintain 334G | 0.25 | 0.25 | WartimeRelease 6, Other 1 |
-| Bloomtide | Food | 37 | 144.27 | 0.6% | 0.0% | 0.6% | 70.2% | 69.2% | 32.5% | 0.0% | 0.07 | 1.08 | RiverLeague 1272T, ForgeClans 1101T, JadeCovenant 993T, StarborneSeekers 908T, AetherianVanguard 591T, ScholarKingdoms 473T | ScholarKingdoms 1310T, StarborneSeekers 777T, JadeCovenant 614T, AetherianVanguard 556T, RiverLeague 537T, ForgeClans 246T | ForgeClans 309T, RiverLeague 304T, JadeCovenant 270T, StarborneSeekers 150T, AetherianVanguard 119T, ScholarKingdoms 25T | JadeCovenant 46860G/422, maintain 6155G, RiverLeague 34593G/351, maintain 6836G, StarborneSeekers 29338G/370, maintain 5080G, ScholarKingdoms 20854G/207, maintain 24G, AetherianVanguard 20518G/264, maintain 3108G, ForgeClans 15681G/254, maintain 5500G | 0.11 | 0.11 | WartimeRelease 2, Investment 1, Other 1 |
-| Bramble Feast | Food | 33 | 117.70 | 1.3% | 0.0% | 1.3% | 56.0% | 52.9% | 53.6% | 0.3% | 0.31 | 1.18 | JadeCovenant 983T, ForgeClans 798T, RiverLeague 698T, ScholarKingdoms 688T, StarborneSeekers 513T, AetherianVanguard 204T | ForgeClans 665T, JadeCovenant 625T, AetherianVanguard 381T, ScholarKingdoms 231T, RiverLeague 112T, StarborneSeekers 35T | ScholarKingdoms 154T, ForgeClans 137T, JadeCovenant 64T, StarborneSeekers 57T, RiverLeague 14T, AetherianVanguard 1T | JadeCovenant 39274G/399, maintain 5197G, ScholarKingdoms 15992G/221, maintain 3596G, AetherianVanguard 14505G/173, maintain 210G, ForgeClans 14436G/253, maintain 4486G, RiverLeague 9885G/185, maintain 3568G, StarborneSeekers 4483G/98, maintain 1847G | 0.36 | 0.36 | Investment 7, WartimeRelease 3, Other 2 |
-| Dawnharvest | Food | 20 | 116.55 | 0.9% | 0.0% | 0.9% | 45.7% | 44.0% | 59.8% | 0.0% | 0.13 | 1.15 | ScholarKingdoms 567T, ForgeClans 550T, JadeCovenant 408T, RiverLeague 325T, StarborneSeekers 242T, AetherianVanguard 239T | ForgeClans 237T, StarborneSeekers 208T, JadeCovenant 82T, ScholarKingdoms 64T, RiverLeague 50T | ForgeClans 171T, ScholarKingdoms 54T, JadeCovenant 40T, StarborneSeekers 25T | JadeCovenant 10220G/165, maintain 2345G, RiverLeague 8630G/97, maintain 780G, ScholarKingdoms 6348G/130, maintain 2735G, StarborneSeekers 5668G/76, maintain 24G, ForgeClans 3626G/91, maintain 2155G, AetherianVanguard 2523G/63, maintain 1582G | 0.15 | 0.15 | WartimeRelease 3 |
-| Evergrain Vale | Food | 38 | 133.95 | 2.2% | 1.8% | 0.4% | 66.9% | 66.2% | 33.0% | 0.0% | 0.18 | 1.21 | JadeCovenant 1205T, StarborneSeekers 1122T, RiverLeague 947T, AetherianVanguard 928T, ForgeClans 417T, ScholarKingdoms 378T | AetherianVanguard 784T, JadeCovenant 767T, ScholarKingdoms 669T, StarborneSeekers 319T, ForgeClans 298T, RiverLeague 56T | JadeCovenant 233T, AetherianVanguard 232T, StarborneSeekers 206T, RiverLeague 157T, ScholarKingdoms 52T | JadeCovenant 32818G/453, maintain 7676G, AetherianVanguard 26003G/338, maintain 5358G, ScholarKingdoms 17802G/190, maintain 1136G, StarborneSeekers 16800G/271, maintain 5085G, RiverLeague 16282G/268, maintain 6248G, ForgeClans 6668G/116, maintain 1093G | 0.24 | 0.21 | WartimeRelease 4, Investment 2, Other 2 |
-| Fernsong | Food | 38 | 139.45 | 0.6% | 0.0% | 0.6% | 71.6% | 69.4% | 35.6% | 0.4% | 0.23 | 1.16 | ForgeClans 1446T, JadeCovenant 1360T, ScholarKingdoms 940T, RiverLeague 789T, AetherianVanguard 398T, StarborneSeekers 366T | AetherianVanguard 799T, JadeCovenant 771T, RiverLeague 683T, StarborneSeekers 675T, ForgeClans 356T, ScholarKingdoms 341T | ForgeClans 383T, ScholarKingdoms 383T, JadeCovenant 234T, StarborneSeekers 115T, RiverLeague 63T, AetherianVanguard 4T | RiverLeague 31789G/345, maintain 6241G, JadeCovenant 31190G/472, maintain 9930G, ForgeClans 20706G/340, maintain 6886G, AetherianVanguard 18963G/251, maintain 311G, StarborneSeekers 17568G/211, maintain 2849G, ScholarKingdoms 14837G/325, maintain 8255G | 0.32 | 0.32 | Investment 6, WartimeRelease 5, Other 1 |
-| Greenstar Hollow | Food | 34 | 135.00 | 0.4% | 0.0% | 0.4% | 69.9% | 68.7% | 33.3% | 0.7% | 0.28 | 1.15 | RiverLeague 1412T, StarborneSeekers 1086T, ForgeClans 1084T, JadeCovenant 717T, AetherianVanguard 180T, ScholarKingdoms 111T | ScholarKingdoms 1013T, JadeCovenant 1002T, StarborneSeekers 768T, RiverLeague 466T, AetherianVanguard 420T, ForgeClans 365T | RiverLeague 318T, ForgeClans 154T, JadeCovenant 77T, StarborneSeekers 54T, AetherianVanguard 51T, ScholarKingdoms 51T | JadeCovenant 32709G/405, maintain 4657G, StarborneSeekers 21100G/240, maintain 3856G, ScholarKingdoms 20256G/235, maintain 763G, AetherianVanguard 16562G/137, maintain 668G, RiverLeague 14856G/279, maintain 7328G, ForgeClans 13848G/235, maintain 3771G | 0.38 | 0.38 | Investment 10, WartimeRelease 2, Other 1 |
-| Hearthbloom | Food | 29 | 132.52 | 0.4% | 0.0% | 0.4% | 56.9% | 54.9% | 49.4% | 0.0% | 0.13 | 1.14 | ForgeClans 1175T, AetherianVanguard 960T, JadeCovenant 648T, StarborneSeekers 519T, RiverLeague 397T, ScholarKingdoms 144T | ScholarKingdoms 649T, ForgeClans 314T, JadeCovenant 279T, RiverLeague 242T, StarborneSeekers 199T | JadeCovenant 130T, ForgeClans 122T, AetherianVanguard 72T, ScholarKingdoms 25T, RiverLeague 5T | JadeCovenant 32980G/398, maintain 5743G, RiverLeague 17946G/216, maintain 2774G, ForgeClans 14821G/242, maintain 5757G, AetherianVanguard 9981G/164, maintain 4066G, ScholarKingdoms 7795G/146, maintain 934G, StarborneSeekers 5906G/90, maintain 78G | 0.17 | 0.17 | Investment 3, WartimeRelease 2 |
-| Moonmeadow | Food | 30 | 123.57 | 0.9% | 0.0% | 0.9% | 50.0% | 48.4% | 54.0% | 0.5% | 0.49 | 1.17 | ForgeClans 1165T, StarborneSeekers 857T, JadeCovenant 666T, AetherianVanguard 606T, RiverLeague 226T, ScholarKingdoms 187T | AetherianVanguard 588T, JadeCovenant 438T, ScholarKingdoms 233T, RiverLeague 110T, ForgeClans 77T | ForgeClans 222T, StarborneSeekers 202T, JadeCovenant 4T, AetherianVanguard 2T, RiverLeague 1T | AetherianVanguard 24167G/189, maintain 813G, ForgeClans 17704G/260, maintain 4378G, RiverLeague 14342G/135, maintain 50G, JadeCovenant 13226G/173, maintain 2395G, ScholarKingdoms 5780G/89, maintain 520G, StarborneSeekers 4691G/125, maintain 4088G | 0.60 | 0.60 | Investment 14, WartimeRelease 3, Other 1 |
-| Nectarwind | Food | 38 | 135.53 | 0.8% | 0.1% | 0.7% | 62.0% | 58.5% | 48.4% | 1.2% | 0.70 | 1.29 | JadeCovenant 1302T, StarborneSeekers 1137T, AetherianVanguard 759T, ForgeClans 720T, ScholarKingdoms 675T, RiverLeague 551T | StarborneSeekers 732T, JadeCovenant 731T, RiverLeague 598T, ForgeClans 531T, AetherianVanguard 521T, ScholarKingdoms 287T | JadeCovenant 208T, StarborneSeekers 182T, RiverLeague 56T, ForgeClans 52T, ScholarKingdoms 41T, AetherianVanguard 20T | JadeCovenant 33983G/486, maintain 9603G, AetherianVanguard 26160G/309, maintain 2356G, RiverLeague 22230G/248, maintain 3655G, ForgeClans 13664G/254, maintain 3947G, ScholarKingdoms 12888G/215, maintain 3268G, StarborneSeekers 9578G/195, maintain 4047G | 0.95 | 0.89 | Investment 14, Other 13, WartimeRelease 7 |
-| Rainpetal Court | Food | 32 | 144.69 | 0.7% | 0.0% | 0.7% | 66.5% | 64.8% | 38.4% | 0.4% | 0.24 | 1.19 | AetherianVanguard 972T, JadeCovenant 935T, StarborneSeekers 910T, ForgeClans 754T, RiverLeague 636T, ScholarKingdoms 423T | RiverLeague 1135T, StarborneSeekers 826T, JadeCovenant 571T, ForgeClans 348T, AetherianVanguard 260T, ScholarKingdoms 181T | StarborneSeekers 212T, ScholarKingdoms 180T, AetherianVanguard 175T, JadeCovenant 154T, RiverLeague 129T, ForgeClans 109T | RiverLeague 32265G/344, maintain 3537G, ScholarKingdoms 21304G/198, maintain 1760G, StarborneSeekers 20460G/294, maintain 4916G, JadeCovenant 17651G/270, maintain 3931G, ForgeClans 13343G/189, maintain 2250G, AetherianVanguard 11681G/240, maintain 6177G | 0.34 | 0.34 | WartimeRelease 6, Investment 3, Other 2 |
-| Silverbarley | Food | 40 | 120.40 | 0.6% | 0.0% | 0.6% | 71.1% | 70.0% | 31.9% | 1.4% | 0.48 | 1.20 | JadeCovenant 2133T, RiverLeague 897T, StarborneSeekers 746T, ForgeClans 562T, AetherianVanguard 295T, ScholarKingdoms 183T | StarborneSeekers 1058T, ForgeClans 788T, RiverLeague 677T, AetherianVanguard 612T, ScholarKingdoms 603T, JadeCovenant 424T | JadeCovenant 394T, ForgeClans 185T, StarborneSeekers 121T, AetherianVanguard 23T, ScholarKingdoms 8T, RiverLeague 4T | JadeCovenant 35962G/644, maintain 16587G, AetherianVanguard 22828G/289, maintain 1644G, ForgeClans 21289G/274, maintain 3464G, RiverLeague 20747G/289, maintain 4879G, StarborneSeekers 20297G/317, maintain 4534G, ScholarKingdoms 14573G/136, maintain 320G | 0.57 | 0.57 | Investment 16, WartimeRelease 6, Other 1 |
-| Sunseed Haven | Food | 35 | 139.00 | 0.7% | 0.0% | 0.7% | 64.9% | 63.2% | 40.9% | 0.0% | 0.08 | 1.11 | JadeCovenant 1293T, ScholarKingdoms 957T, StarborneSeekers 835T, AetherianVanguard 689T, ForgeClans 588T, RiverLeague 503T | StarborneSeekers 773T, JadeCovenant 713T, ForgeClans 687T, RiverLeague 678T, ScholarKingdoms 656T, AetherianVanguard 574T | AetherianVanguard 271T, ForgeClans 256T, JadeCovenant 208T, ScholarKingdoms 156T, StarborneSeekers 95T | JadeCovenant 27275G/336, maintain 5336G, AetherianVanguard 24148G/289, maintain 3776G, RiverLeague 23286G/235, maintain 1197G, ForgeClans 18106G/243, maintain 3498G, StarborneSeekers 17725G/302, maintain 5470G, ScholarKingdoms 12588G/235, maintain 3887G | 0.11 | 0.11 | WartimeRelease 4 |
-| Thistleheart | Food | 31 | 118.16 | 0.9% | 0.0% | 0.9% | 69.5% | 69.0% | 32.5% | 0.2% | 0.22 | 1.10 | JadeCovenant 1622T, RiverLeague 797T, ScholarKingdoms 590T, ForgeClans 395T, StarborneSeekers 140T, AetherianVanguard 119T | ScholarKingdoms 817T, JadeCovenant 698T, StarborneSeekers 647T, ForgeClans 374T, RiverLeague 311T, AetherianVanguard 283T | JadeCovenant 284T, ScholarKingdoms 150T, RiverLeague 111T, ForgeClans 78T, StarborneSeekers 44T | StarborneSeekers 33350G/244, maintain 1582G, JadeCovenant 25144G/428, maintain 9658G, ForgeClans 21106G/180, maintain 2412G, RiverLeague 16789G/203, maintain 3874G, AetherianVanguard 13078G/178, maintain 763G, ScholarKingdoms 12710G/201, maintain 3481G | 0.26 | 0.26 | Investment 6, WartimeRelease 2 |
-| Verdant Myth | Food | 32 | 152.38 | 1.1% | 0.0% | 1.1% | 68.1% | 66.3% | 38.4% | 1.0% | 0.37 | 1.22 | JadeCovenant 1413T, StarborneSeekers 904T, RiverLeague 899T, ForgeClans 810T, AetherianVanguard 616T, ScholarKingdoms 234T | ScholarKingdoms 644T, JadeCovenant 603T, ForgeClans 584T, RiverLeague 526T, StarborneSeekers 449T, AetherianVanguard 392T | StarborneSeekers 242T, JadeCovenant 159T, ForgeClans 95T, RiverLeague 86T, ScholarKingdoms 81T, AetherianVanguard 50T | JadeCovenant 31193G/351, maintain 7409G, AetherianVanguard 23052G/224, maintain 2938G, StarborneSeekers 21828G/312, maintain 5821G, RiverLeague 18062G/262, maintain 2532G, ForgeClans 15878G/293, maintain 4927G, ScholarKingdoms 13068G/174, maintain 1849G | 0.56 | 0.56 | Investment 12, WartimeRelease 4, Other 2 |
-| Wildroot Sanctum | Food | 36 | 120.83 | 0.7% | 0.0% | 0.7% | 60.3% | 59.4% | 42.6% | 0.0% | 0.11 | 1.14 | ScholarKingdoms 1249T, JadeCovenant 781T, StarborneSeekers 778T, RiverLeague 630T, AetherianVanguard 564T, ForgeClans 348T | AetherianVanguard 592T, StarborneSeekers 413T, RiverLeague 404T, ForgeClans 373T, JadeCovenant 218T, ScholarKingdoms 182T | JadeCovenant 211T, ScholarKingdoms 207T, ForgeClans 150T, RiverLeague 92T, StarborneSeekers 55T, AetherianVanguard 19T | AetherianVanguard 28590G/314, maintain 1239G, RiverLeague 24492G/355, maintain 4807G, ScholarKingdoms 24275G/304, maintain 5633G, JadeCovenant 15226G/284, maintain 5690G, StarborneSeekers 11354G/200, maintain 3136G, ForgeClans 10134G/187, maintain 2655G | 0.14 | 0.14 | Other 2, WartimeRelease 2, Investment 1 |
-| Aureate Crown | Gold | 43 | 123.49 | 0.7% | 0.0% | 0.7% | 71.0% | 70.4% | 31.7% | 0.3% | 0.15 | 1.09 | ScholarKingdoms 1419T, RiverLeague 976T, StarborneSeekers 886T, ForgeClans 767T, JadeCovenant 746T, AetherianVanguard 516T | StarborneSeekers 861T, JadeCovenant 673T, RiverLeague 673T, AetherianVanguard 536T, ForgeClans 286T | ScholarKingdoms 277T, ForgeClans 221T, JadeCovenant 204T, StarborneSeekers 126T, RiverLeague 125T, AetherianVanguard 41T | JadeCovenant 40465G/398, maintain 5859G, RiverLeague 24297G/382, maintain 7340G, StarborneSeekers 19852G/321, maintain 3169G, AetherianVanguard 18640G/271, maintain 3529G, ScholarKingdoms 17188G/352, maintain 9280G, ForgeClans 10194G/209, maintain 4595G | 0.19 | 0.19 | Investment 4, Other 2, WartimeRelease 2 |
-| Auric Bazaar | Gold | 25 | 138.72 | 0.7% | 0.0% | 0.7% | 64.9% | 64.3% | 37.6% | 0.0% | 0.06 | 1.08 | JadeCovenant 1138T, StarborneSeekers 973T, AetherianVanguard 523T, ScholarKingdoms 479T, ForgeClans 277T, RiverLeague 78T | ForgeClans 1133T, ScholarKingdoms 521T, RiverLeague 438T, AetherianVanguard 292T, JadeCovenant 197T, StarborneSeekers 189T | JadeCovenant 249T, ForgeClans 172T, ScholarKingdoms 151T, StarborneSeekers 112T, AetherianVanguard 39T, RiverLeague 25T | ForgeClans 28610G/303, maintain 3108G, AetherianVanguard 20063G/204, maintain 3778G, RiverLeague 11549G/132, maintain 724G, ScholarKingdoms 11093G/190, maintain 3598G, JadeCovenant 8753G/215, maintain 6584G, StarborneSeekers 7090G/126, maintain 2735G | 0.08 | 0.08 | Investment 1, WartimeRelease 1 |
-| Brassmoon Mint | Gold | 34 | 133.71 | 0.6% | 0.0% | 0.6% | 63.6% | 62.4% | 39.9% | 0.4% | 0.26 | 1.24 | StarborneSeekers 1443T, JadeCovenant 1178T, AetherianVanguard 622T, ScholarKingdoms 576T, ForgeClans 458T, RiverLeague 269T | JadeCovenant 614T, ForgeClans 441T, ScholarKingdoms 434T, RiverLeague 419T, StarborneSeekers 345T, AetherianVanguard 262T | StarborneSeekers 165T, JadeCovenant 112T, ForgeClans 61T, AetherianVanguard 56T, ScholarKingdoms 41T, RiverLeague 1T | JadeCovenant 27710G/392, maintain 7789G, StarborneSeekers 17958G/343, maintain 8449G, AetherianVanguard 17771G/215, maintain 1095G, RiverLeague 17688G/177, maintain 83G, ScholarKingdoms 14905G/219, maintain 1994G, ForgeClans 12459G/190, maintain 2469G | 0.35 | 0.35 | Investment 6, WartimeRelease 6 |
-| Coinfire Crossing | Gold | 25 | 116.36 | 0.6% | 0.0% | 0.6% | 47.6% | 46.5% | 55.9% | 0.0% | 0.21 | 1.24 | JadeCovenant 842T, StarborneSeekers 729T, ForgeClans 652T, ScholarKingdoms 314T, RiverLeague 249T, AetherianVanguard 123T | JadeCovenant 362T, AetherianVanguard 300T, ForgeClans 215T, ScholarKingdoms 208T, RiverLeague 177T, StarborneSeekers 91T | JadeCovenant 86T, ScholarKingdoms 57T, StarborneSeekers 28T, AetherianVanguard 25T, ForgeClans 1T | RiverLeague 15341G/185, maintain 1333G, AetherianVanguard 11822G/141, maintain 295G, JadeCovenant 10492G/157, maintain 2952G, ScholarKingdoms 7538G/145, maintain 2540G, StarborneSeekers 7291G/166, maintain 4629G, ForgeClans 5495G/77, maintain 434G | 0.24 | 0.24 | WartimeRelease 4, Investment 2 |
-| Cresset Exchange | Gold | 36 | 136.19 | 0.7% | 0.0% | 0.7% | 64.5% | 63.3% | 38.6% | 0.3% | 0.31 | 1.31 | JadeCovenant 1184T, RiverLeague 946T, ForgeClans 919T, ScholarKingdoms 824T, AetherianVanguard 686T, StarborneSeekers 344T | RiverLeague 1064T, StarborneSeekers 721T, ForgeClans 556T, JadeCovenant 384T, ScholarKingdoms 352T, AetherianVanguard 231T | RiverLeague 201T, ScholarKingdoms 191T, ForgeClans 171T, AetherianVanguard 154T, JadeCovenant 142T, StarborneSeekers 5T | JadeCovenant 45265G/468, maintain 6116G, RiverLeague 21393G/340, maintain 5977G, ForgeClans 20416G/251, maintain 3606G, AetherianVanguard 15307G/262, maintain 5665G, ScholarKingdoms 15188G/265, maintain 3247G, StarborneSeekers 12774G/224, maintain 2759G | 0.42 | 0.42 | WartimeRelease 7, Investment 5, Other 3 |
-| Crownmarket | Gold | 44 | 125.82 | 0.5% | 0.0% | 0.5% | 53.7% | 52.1% | 51.6% | 0.0% | 0.09 | 1.11 | JadeCovenant 1563T, ForgeClans 1123T, AetherianVanguard 1072T, ScholarKingdoms 756T, RiverLeague 519T, StarborneSeekers 503T | RiverLeague 729T, AetherianVanguard 594T, StarborneSeekers 336T, JadeCovenant 326T, ForgeClans 322T, ScholarKingdoms 294T | ForgeClans 251T, JadeCovenant 139T, StarborneSeekers 57T, RiverLeague 55T, AetherianVanguard 49T, ScholarKingdoms 36T | RiverLeague 27182G/303, maintain 4044G, ForgeClans 22969G/359, maintain 5416G, JadeCovenant 17740G/337, maintain 8547G, StarborneSeekers 11692G/152, maintain 1706G, ScholarKingdoms 10874G/153, maintain 1462G, AetherianVanguard 9952G/179, maintain 3183G | 0.11 | 0.11 | WartimeRelease 3, Other 2 |
-| Embermint | Gold | 34 | 129.79 | 0.7% | 0.0% | 0.7% | 69.5% | 67.0% | 37.9% | 0.6% | 0.29 | 1.18 | ForgeClans 1146T, ScholarKingdoms 843T, StarborneSeekers 810T, JadeCovenant 648T, RiverLeague 504T, AetherianVanguard 462T | JadeCovenant 710T, StarborneSeekers 710T, ScholarKingdoms 585T, AetherianVanguard 578T, ForgeClans 504T, RiverLeague 105T | ScholarKingdoms 206T, RiverLeague 186T, ForgeClans 157T, StarborneSeekers 130T, JadeCovenant 70T, AetherianVanguard 9T | JadeCovenant 28960G/305, maintain 3337G, StarborneSeekers 18174G/299, maintain 5858G, AetherianVanguard 17407G/227, maintain 2242G, ForgeClans 16985G/335, maintain 9631G, ScholarKingdoms 14804G/231, maintain 4503G, RiverLeague 14648G/202, maintain 2869G | 0.38 | 0.38 | WartimeRelease 5, Investment 4, Other 4 |
-| Gildenspire | Gold | 31 | 123.97 | 0.4% | 0.0% | 0.4% | 64.8% | 63.6% | 38.9% | 0.0% | 0.23 | 1.13 | RiverLeague 912T, AetherianVanguard 818T, ForgeClans 598T, ScholarKingdoms 576T, JadeCovenant 499T, StarborneSeekers 440T | ScholarKingdoms 623T, JadeCovenant 513T, RiverLeague 483T, StarborneSeekers 333T, ForgeClans 263T, AetherianVanguard 198T | StarborneSeekers 126T, ScholarKingdoms 124T, JadeCovenant 101T, AetherianVanguard 63T, ForgeClans 39T, RiverLeague 25T | JadeCovenant 31058G/336, maintain 5609G, RiverLeague 28159G/265, maintain 4354G, StarborneSeekers 14511G/189, maintain 958G, AetherianVanguard 13266G/197, maintain 3364G, ScholarKingdoms 10191G/192, maintain 2885G, ForgeClans 4239G/93, maintain 1394G | 0.29 | 0.29 | Investment 6, WartimeRelease 2, Other 1 |
-| Golden Mirage | Gold | 42 | 144.10 | 0.7% | 0.0% | 0.7% | 67.6% | 65.2% | 39.8% | 1.2% | 0.50 | 1.21 | JadeCovenant 2137T, ScholarKingdoms 1337T, RiverLeague 871T, AetherianVanguard 756T, StarborneSeekers 508T, ForgeClans 443T | ScholarKingdoms 928T, RiverLeague 849T, AetherianVanguard 726T, JadeCovenant 484T, StarborneSeekers 442T, ForgeClans 273T | ScholarKingdoms 268T, JadeCovenant 217T, AetherianVanguard 191T, ForgeClans 172T, RiverLeague 75T, StarborneSeekers 1T | JadeCovenant 46429G/550, maintain 10929G, ScholarKingdoms 36459G/479, maintain 7318G, RiverLeague 31556G/343, maintain 4339G, AetherianVanguard 29325G/362, maintain 4923G, ForgeClans 21251G/237, maintain 2968G, StarborneSeekers 11597G/182, maintain 1348G | 0.71 | 0.71 | Investment 21, WartimeRelease 9 |
-| Kingsmerch | Gold | 34 | 142.85 | 0.7% | 0.0% | 0.7% | 67.9% | 66.7% | 36.4% | 0.0% | 0.21 | 1.29 | JadeCovenant 1521T, ScholarKingdoms 744T, ForgeClans 741T, RiverLeague 650T, AetherianVanguard 617T, StarborneSeekers 584T | RiverLeague 965T, JadeCovenant 860T, ForgeClans 664T, ScholarKingdoms 597T, StarborneSeekers 488T, AetherianVanguard 350T | ForgeClans 255T, AetherianVanguard 205T, ScholarKingdoms 145T, StarborneSeekers 118T, RiverLeague 59T, JadeCovenant 29T | RiverLeague 40153G/413, maintain 3949G, JadeCovenant 31397G/427, maintain 7013G, ForgeClans 20059G/309, maintain 5731G, StarborneSeekers 14879G/221, maintain 3693G, ScholarKingdoms 13363G/211, maintain 2688G, AetherianVanguard 12522G/195, maintain 3722G | 0.29 | 0.29 | WartimeRelease 6, Other 3, Investment 1 |
-| Opaline Vault | Gold | 27 | 107.41 | 0.5% | 0.0% | 0.5% | 67.1% | 66.7% | 33.8% | 0.0% | 0.14 | 1.11 | ScholarKingdoms 791T, JadeCovenant 760T, StarborneSeekers 581T, RiverLeague 424T, AetherianVanguard 202T, ForgeClans 142T | RiverLeague 1032T, ForgeClans 556T, JadeCovenant 207T, StarborneSeekers 127T, AetherianVanguard 40T, ScholarKingdoms 19T | StarborneSeekers 119T, JadeCovenant 109T, ScholarKingdoms 43T, RiverLeague 33T, AetherianVanguard 32T | RiverLeague 30737G/259, maintain 2111G, ForgeClans 21961G/194, JadeCovenant 11279G/191, maintain 3554G, AetherianVanguard 9544G/172, maintain 2935G, StarborneSeekers 9271G/155, maintain 2852G, ScholarKingdoms 5245G/129, maintain 3598G | 0.15 | 0.15 | WartimeRelease 3, Investment 1 |
-| Radiant Hoard | Gold | 35 | 134.94 | 0.7% | 0.0% | 0.7% | 74.2% | 72.9% | 29.8% | 0.0% | 0.19 | 1.23 | StarborneSeekers 1706T, AetherianVanguard 858T, ScholarKingdoms 796T, JadeCovenant 706T, RiverLeague 461T, ForgeClans 196T | JadeCovenant 1055T, AetherianVanguard 825T, ScholarKingdoms 299T, ForgeClans 235T, RiverLeague 167T, StarborneSeekers 150T | StarborneSeekers 192T, JadeCovenant 110T, ScholarKingdoms 92T, RiverLeague 84T, ForgeClans 78T, AetherianVanguard 25T | JadeCovenant 49714G/506, maintain 4729G, RiverLeague 20850G/312, maintain 4434G, ForgeClans 17114G/224, maintain 1331G, StarborneSeekers 14384G/305, maintain 8789G, AetherianVanguard 14209G/227, maintain 3927G, ScholarKingdoms 9473G/184, maintain 3769G | 0.26 | 0.26 | Investment 5, WartimeRelease 3, Other 1 |
-| Saffron Treasury | Gold | 30 | 145.67 | 1.6% | 0.0% | 1.6% | 67.0% | 65.0% | 40.3% | 0.6% | 0.21 | 1.13 | JadeCovenant 951T, AetherianVanguard 908T, ForgeClans 897T, RiverLeague 755T, StarborneSeekers 602T, ScholarKingdoms 257T | JadeCovenant 948T, StarborneSeekers 814T, RiverLeague 661T, ForgeClans 445T, ScholarKingdoms 354T, AetherianVanguard 320T | RiverLeague 268T, AetherianVanguard 74T, ForgeClans 72T, JadeCovenant 60T, StarborneSeekers 44T, ScholarKingdoms 31T | JadeCovenant 32474G/352, maintain 6395G, RiverLeague 22066G/290, maintain 4868G, StarborneSeekers 14011G/209, maintain 3632G, AetherianVanguard 13986G/152, maintain 3030G, ForgeClans 12358G/198, maintain 2814G, ScholarKingdoms 8838G/121, maintain 1392G | 0.30 | 0.30 | Investment 4, Other 4, WartimeRelease 1 |
-| Starcoin Port | Gold | 32 | 105.44 | 0.7% | 0.0% | 0.7% | 54.2% | 53.1% | 48.0% | 0.0% | 0.09 | 1.09 | ForgeClans 817T, RiverLeague 752T, AetherianVanguard 615T, ScholarKingdoms 599T, JadeCovenant 375T, StarborneSeekers 216T | RiverLeague 757T, JadeCovenant 579T, StarborneSeekers 322T, ScholarKingdoms 236T, ForgeClans 157T, AetherianVanguard 150T | ScholarKingdoms 283T, JadeCovenant 127T, RiverLeague 127T, StarborneSeekers 85T, AetherianVanguard 77T, ForgeClans 58T | JadeCovenant 28956G/329, maintain 3561G, RiverLeague 24741G/311, maintain 4136G, StarborneSeekers 13914G/153, maintain 2337G, ScholarKingdoms 11999G/189, maintain 5158G, ForgeClans 9076G/177, maintain 2586G, AetherianVanguard 6420G/148, maintain 3420G | 0.09 | 0.09 | WartimeRelease 3 |
-| Suncoin Citadel | Gold | 28 | 122.00 | 1.6% | 0.0% | 1.6% | 65.5% | 61.6% | 46.1% | 0.0% | 0.18 | 1.18 | RiverLeague 998T, StarborneSeekers 871T, ScholarKingdoms 697T, JadeCovenant 367T, AetherianVanguard 330T, ForgeClans 153T | AetherianVanguard 638T, JadeCovenant 615T, ForgeClans 381T, ScholarKingdoms 335T, StarborneSeekers 242T, RiverLeague 202T | RiverLeague 183T, StarborneSeekers 128T, JadeCovenant 117T, ScholarKingdoms 69T, AetherianVanguard 66T, ForgeClans 31T | AetherianVanguard 25404G/290, maintain 3364G, JadeCovenant 22666G/299, maintain 3576G, RiverLeague 20450G/390, maintain 9429G, StarborneSeekers 7551G/197, maintain 6545G, ScholarKingdoms 4647G/110, maintain 2172G, ForgeClans 4536G/82, maintain 607G | 0.21 | 0.21 | WartimeRelease 4, Other 2 |
-| Velvet Ledger | Gold | 27 | 142.96 | 1.1% | 0.0% | 1.1% | 64.1% | 62.7% | 40.5% | 0.4% | 0.23 | 1.22 | JadeCovenant 1764T, ForgeClans 937T, RiverLeague 421T, ScholarKingdoms 379T, AetherianVanguard 312T, StarborneSeekers 47T | StarborneSeekers 905T, ForgeClans 641T, RiverLeague 523T, ScholarKingdoms 433T, JadeCovenant 344T, AetherianVanguard 316T | JadeCovenant 217T, ForgeClans 170T, ScholarKingdoms 66T, RiverLeague 47T, StarborneSeekers 46T, AetherianVanguard 19T | JadeCovenant 25465G/443, maintain 11135G, StarborneSeekers 21379G/244, maintain 1582G, AetherianVanguard 19949G/170, maintain 1331G, RiverLeague 14414G/210, maintain 2618G, ForgeClans 13413G/210, maintain 3603G, ScholarKingdoms 9932G/160, maintain 1849G | 0.33 | 0.33 | WartimeRelease 6, Investment 3 |
-| Ashen Bellows | Production | 37 | 128.03 | 0.6% | 0.1% | 0.5% | 47.9% | 47.2% | 54.0% | 0.9% | 0.25 | 1.11 | StarborneSeekers 1277T, JadeCovenant 1117T, ForgeClans 803T, RiverLeague 744T, AetherianVanguard 453T, ScholarKingdoms 340T | RiverLeague 838T, ScholarKingdoms 641T, JadeCovenant 533T, AetherianVanguard 436T, StarborneSeekers 255T, ForgeClans 190T | RiverLeague 126T, StarborneSeekers 111T, JadeCovenant 85T, ForgeClans 51T, ScholarKingdoms 31T, AetherianVanguard 21T | RiverLeague 31513G/296, maintain 2718G, JadeCovenant 20560G/295, maintain 5275G, AetherianVanguard 13467G/158, maintain 841G, StarborneSeekers 9712G/220, maintain 6124G, ScholarKingdoms 7907G/133, maintain 512G, ForgeClans 6483G/100, maintain 852G | 0.32 | 0.27 | Investment 6, Other 2, WartimeRelease 2 |
-| Blackglass Armory | Production | 24 | 135.46 | 1.6% | 0.0% | 1.6% | 74.2% | 71.9% | 35.3% | 0.6% | 0.37 | 1.25 | JadeCovenant 1146T, StarborneSeekers 790T, RiverLeague 577T, ForgeClans 481T, AetherianVanguard 247T, ScholarKingdoms 10T | ForgeClans 1102T, RiverLeague 670T, StarborneSeekers 427T, AetherianVanguard 379T, JadeCovenant 279T, ScholarKingdoms 168T | JadeCovenant 262T, StarborneSeekers 193T, ForgeClans 137T, RiverLeague 10T, ScholarKingdoms 2T | RiverLeague 23035G/282, maintain 2777G, ForgeClans 15782G/235, maintain 2877G, JadeCovenant 14301G/310, maintain 8337G, StarborneSeekers 9950G/205, maintain 4716G, AetherianVanguard 7325G/94, maintain 273G, ScholarKingdoms 2897G/40, maintain 78G | 0.50 | 0.50 | Investment 7, WartimeRelease 3, Other 2 |
-| Brasshollow | Production | 31 | 110.29 | 0.8% | 0.0% | 0.8% | 70.8% | 70.1% | 30.7% | 1.0% | 0.26 | 1.16 | RiverLeague 854T, ForgeClans 672T, ScholarKingdoms 641T, StarborneSeekers 523T, AetherianVanguard 373T, JadeCovenant 356T | JadeCovenant 441T, ForgeClans 355T, ScholarKingdoms 343T, StarborneSeekers 265T, RiverLeague 238T, AetherianVanguard 165T | RiverLeague 180T, ForgeClans 169T, ScholarKingdoms 164T, AetherianVanguard 66T, StarborneSeekers 66T, JadeCovenant 56T | JadeCovenant 29244G/207, maintain 1966G, RiverLeague 26971G/323, maintain 5037G, ForgeClans 20212G/223, maintain 2952G, StarborneSeekers 12775G/143, maintain 1660G, ScholarKingdoms 10013G/179, maintain 2350G, AetherianVanguard 7814G/130, maintain 1529G | 0.29 | 0.29 | Investment 4, WartimeRelease 3, Other 2 |
-| Cinderhold | Production | 34 | 142.68 | 2.0% | 1.3% | 0.7% | 57.0% | 56.5% | 43.4% | 0.0% | 0.14 | 1.12 | JadeCovenant 1459T, AetherianVanguard 1020T, ForgeClans 909T, ScholarKingdoms 579T, RiverLeague 490T, StarborneSeekers 330T | ForgeClans 662T, StarborneSeekers 598T, AetherianVanguard 383T, ScholarKingdoms 358T, JadeCovenant 320T, RiverLeague 248T | AetherianVanguard 181T, ScholarKingdoms 146T, ForgeClans 143T, JadeCovenant 127T, StarborneSeekers 96T, RiverLeague 20T | JadeCovenant 25411G/434, maintain 10199G, RiverLeague 21967G/258, maintain 1743G, StarborneSeekers 16911G/182, maintain 1214G, ForgeClans 15155G/275, maintain 3522G, AetherianVanguard 9383G/163, maintain 2411G, ScholarKingdoms 7686G/147, maintain 1526G | 0.21 | 0.15 | WartimeRelease 3, Investment 1, Other 1 |
-| Dawnsmelt Keep | Production | 20 | 100.05 | 0.6% | 0.0% | 0.6% | 65.2% | 62.8% | 42.8% | 0.0% | 0.15 | 1.15 | JadeCovenant 456T, ScholarKingdoms 428T, AetherianVanguard 420T, StarborneSeekers 293T, ForgeClans 213T, RiverLeague 191T | JadeCovenant 481T, AetherianVanguard 256T, ScholarKingdoms 232T, RiverLeague 136T, StarborneSeekers 29T | AetherianVanguard 101T, ForgeClans 96T, RiverLeague 59T, JadeCovenant 53T, StarborneSeekers 30T, ScholarKingdoms 25T | JadeCovenant 23640G/201, maintain 1955G, AetherianVanguard 11543G/167, maintain 2432G, RiverLeague 10834G/127, maintain 1721G, ForgeClans 7774G/98, maintain 1465G, StarborneSeekers 5326G/113, maintain 2735G, ScholarKingdoms 3055G/65, maintain 865G | 0.15 | 0.15 | Investment 1, Other 1, WartimeRelease 1 |
-| Emberforge Bastion | Production | 24 | 129.75 | 0.5% | 0.0% | 0.5% | 58.4% | 57.0% | 46.0% | 0.0% | 0.10 | 1.08 | RiverLeague 944T, JadeCovenant 726T, ForgeClans 519T, AetherianVanguard 386T, ScholarKingdoms 349T, StarborneSeekers 190T | StarborneSeekers 743T, ForgeClans 438T, AetherianVanguard 168T, ScholarKingdoms 160T, RiverLeague 79T, JadeCovenant 25T | JadeCovenant 125T, ForgeClans 118T, RiverLeague 54T, AetherianVanguard 27T, ScholarKingdoms 22T, StarborneSeekers 8T | AetherianVanguard 20362G/248, maintain 2618G, StarborneSeekers 16435G/168, maintain 414G, ForgeClans 10919G/129, maintain 1587G, RiverLeague 10738G/197, maintain 3893G, JadeCovenant 7608G/179, maintain 5275G, ScholarKingdoms 6297G/85, maintain 841G | 0.13 | 0.13 | WartimeRelease 3 |
-| Flintspire Works | Production | 34 | 125.53 | 0.7% | 0.0% | 0.7% | 64.9% | 63.5% | 40.0% | 0.7% | 0.30 | 1.09 | StarborneSeekers 1530T, ForgeClans 748T, RiverLeague 644T, ScholarKingdoms 575T, JadeCovenant 401T, AetherianVanguard 370T | JadeCovenant 501T, AetherianVanguard 473T, ScholarKingdoms 423T, RiverLeague 356T, ForgeClans 309T, StarborneSeekers 253T | StarborneSeekers 233T, ScholarKingdoms 93T, JadeCovenant 88T, ForgeClans 32T, RiverLeague 29T | JadeCovenant 21026G/281, maintain 3825G, RiverLeague 15351G/256, maintain 5960G, ScholarKingdoms 15226G/210, maintain 2033G, StarborneSeekers 12032G/240, maintain 5833G, AetherianVanguard 11651G/157, maintain 1045G, ForgeClans 8284G/126, maintain 670G | 0.38 | 0.38 | Investment 6, Other 6, WartimeRelease 1 |
-| Gearstorm Hold | Production | 40 | 128.22 | 0.8% | 0.0% | 0.8% | 71.8% | 70.7% | 31.2% | 0.3% | 0.16 | 1.15 | JadeCovenant 1886T, ForgeClans 1157T, AetherianVanguard 674T, ScholarKingdoms 617T, RiverLeague 490T, StarborneSeekers 305T | StarborneSeekers 832T, RiverLeague 778T, ScholarKingdoms 683T, AetherianVanguard 553T, JadeCovenant 332T, ForgeClans 257T | ForgeClans 325T, JadeCovenant 228T, AetherianVanguard 206T, ScholarKingdoms 196T, RiverLeague 98T, StarborneSeekers 59T | JadeCovenant 46627G/560, maintain 10761G, ScholarKingdoms 32561G/391, maintain 3951G, AetherianVanguard 31305G/385, maintain 4350G, RiverLeague 26543G/351, maintain 4534G, StarborneSeekers 20235G/217, maintain 1645G, ForgeClans 14582G/295, maintain 6383G | 0.20 | 0.20 | WartimeRelease 4, Investment 2, Other 2 |
-| Hammerdeep | Production | 33 | 142.18 | 0.7% | 0.0% | 0.7% | 68.4% | 67.2% | 35.8% | 0.3% | 0.28 | 1.30 | ForgeClans 932T, JadeCovenant 931T, ScholarKingdoms 774T, RiverLeague 767T, AetherianVanguard 679T, StarborneSeekers 609T | RiverLeague 742T, ScholarKingdoms 555T, ForgeClans 545T, JadeCovenant 454T, AetherianVanguard 438T, StarborneSeekers 268T | RiverLeague 176T, ForgeClans 149T, StarborneSeekers 127T, JadeCovenant 104T, AetherianVanguard 97T, ScholarKingdoms 60T | RiverLeague 27006G/314, maintain 4222G, JadeCovenant 24541G/317, maintain 4445G, StarborneSeekers 22685G/261, maintain 4060G, AetherianVanguard 21236G/257, maintain 3301G, ForgeClans 15036G/234, maintain 3069G, ScholarKingdoms 14274G/218, maintain 1669G | 0.39 | 0.39 | WartimeRelease 6, Investment 5, Other 2 |
-| Ironwyrm Foundry | Production | 34 | 134.71 | 0.7% | 0.0% | 0.7% | 59.2% | 58.0% | 45.3% | 0.0% | 0.09 | 1.12 | JadeCovenant 1227T, AetherianVanguard 948T, StarborneSeekers 917T, ForgeClans 619T, RiverLeague 614T, ScholarKingdoms 255T | ScholarKingdoms 978T, JadeCovenant 588T, ForgeClans 425T, AetherianVanguard 393T, StarborneSeekers 323T, RiverLeague 310T | AetherianVanguard 175T, StarborneSeekers 167T, ScholarKingdoms 118T, JadeCovenant 109T, RiverLeague 97T, ForgeClans 78T | JadeCovenant 22932G/303, maintain 5097G, AetherianVanguard 19014G/223, maintain 5118G, ScholarKingdoms 13366G/200, maintain 1782G, RiverLeague 12406G/227, maintain 4607G, ForgeClans 12288G/199, maintain 2384G, StarborneSeekers 8322G/162, maintain 2935G | 0.12 | 0.12 | WartimeRelease 4 |
-| Molten Crown | Production | 34 | 139.03 | 0.6% | 0.0% | 0.6% | 69.2% | 67.6% | 36.3% | 0.4% | 0.21 | 1.18 | JadeCovenant 1960T, ForgeClans 811T, StarborneSeekers 761T, AetherianVanguard 449T, RiverLeague 398T, ScholarKingdoms 348T | ScholarKingdoms 839T, ForgeClans 634T, JadeCovenant 516T, RiverLeague 449T, StarborneSeekers 442T, AetherianVanguard 173T | ScholarKingdoms 174T, ForgeClans 156T, StarborneSeekers 155T, JadeCovenant 120T, AetherianVanguard 56T, RiverLeague 45T | JadeCovenant 32550G/427, maintain 11376G, RiverLeague 25118G/297, maintain 2690G, StarborneSeekers 15631G/259, maintain 4830G, ForgeClans 15155G/273, maintain 3532G, ScholarKingdoms 11184G/226, maintain 4122G, AetherianVanguard 7337G/143, maintain 2092G | 0.29 | 0.29 | Investment 5, WartimeRelease 3, Other 2 |
-| Obsidian Kiln | Production | 35 | 130.49 | 1.1% | 0.0% | 1.1% | 53.0% | 51.0% | 52.7% | 2.9% | 0.99 | 1.49 | JadeCovenant 1028T, ScholarKingdoms 911T, AetherianVanguard 807T, ForgeClans 697T, RiverLeague 660T, StarborneSeekers 464T | ScholarKingdoms 766T, RiverLeague 367T, JadeCovenant 273T, ForgeClans 271T, StarborneSeekers 193T, AetherianVanguard 154T | ForgeClans 183T, AetherianVanguard 111T, RiverLeague 99T, ScholarKingdoms 85T, StarborneSeekers 40T, JadeCovenant 5T | JadeCovenant 26675G/298, maintain 3537G, ScholarKingdoms 24450G/310, maintain 3475G, RiverLeague 23837G/296, maintain 3713G, ForgeClans 13011G/207, maintain 2838G, AetherianVanguard 10191G/206, maintain 4714G, StarborneSeekers 8615G/127, maintain 1000G | 1.29 | 1.29 | Investment 28, Other 10, WartimeRelease 7 |
-| Runehammer Gate | Production | 36 | 146.61 | 0.7% | 0.0% | 0.7% | 73.4% | 71.0% | 33.9% | 0.3% | 0.19 | 1.17 | JadeCovenant 1321T, ScholarKingdoms 1138T, ForgeClans 960T, RiverLeague 765T, AetherianVanguard 566T, StarborneSeekers 528T | ScholarKingdoms 1060T, RiverLeague 816T, ForgeClans 631T, AetherianVanguard 589T, StarborneSeekers 391T, JadeCovenant 324T | JadeCovenant 282T, ForgeClans 165T, ScholarKingdoms 155T, AetherianVanguard 125T, RiverLeague 65T, StarborneSeekers 26T | JadeCovenant 30168G/453, maintain 10884G, RiverLeague 28929G/392, maintain 5434G, ScholarKingdoms 27613G/296, maintain 3459G, ForgeClans 19189G/293, maintain 3748G, AetherianVanguard 16755G/247, maintain 4512G, StarborneSeekers 9849G/162, maintain 1557G | 0.28 | 0.28 | WartimeRelease 6, Investment 4 |
-| Skyfurnace | Production | 33 | 127.85 | 0.6% | 0.0% | 0.6% | 65.4% | 64.3% | 38.0% | 0.4% | 0.24 | 1.21 | RiverLeague 1131T, JadeCovenant 1025T, ForgeClans 951T, AetherianVanguard 528T, ScholarKingdoms 358T, StarborneSeekers 226T | RiverLeague 734T, JadeCovenant 670T, StarborneSeekers 650T, ScholarKingdoms 286T, ForgeClans 258T, AetherianVanguard 207T | ForgeClans 157T, AetherianVanguard 103T, RiverLeague 83T, ScholarKingdoms 64T, JadeCovenant 50T | RiverLeague 30327G/374, maintain 6196G, JadeCovenant 21749G/267, maintain 3717G, AetherianVanguard 20794G/232, maintain 2412G, ForgeClans 15871G/172, maintain 2476G, ScholarKingdoms 13870G/185, maintain 1275G, StarborneSeekers 12833G/149, maintain 319G | 0.30 | 0.30 | WartimeRelease 5, Investment 4, Other 1 |
-| Stonewake Crucible | Production | 40 | 122.80 | 0.6% | 0.0% | 0.6% | 55.2% | 54.6% | 46.9% | 0.3% | 0.20 | 1.18 | JadeCovenant 1474T, AetherianVanguard 947T, RiverLeague 874T, ForgeClans 749T, ScholarKingdoms 465T, StarborneSeekers 403T | StarborneSeekers 784T, ScholarKingdoms 432T, AetherianVanguard 338T, RiverLeague 328T, JadeCovenant 273T, ForgeClans 246T | ForgeClans 224T, RiverLeague 150T, AetherianVanguard 118T, JadeCovenant 104T, StarborneSeekers 33T, ScholarKingdoms 1T | JadeCovenant 33524G/472, maintain 10940G, StarborneSeekers 26590G/284, maintain 482G, AetherianVanguard 19453G/275, maintain 2698G, ForgeClans 16922G/260, maintain 4168G, RiverLeague 16212G/297, maintain 6676G, ScholarKingdoms 5798G/89, maintain 217G | 0.25 | 0.25 | WartimeRelease 5, Investment 3, Other 2 |
-| Thunder Anvil | Production | 35 | 150.46 | 0.7% | 0.1% | 0.6% | 62.2% | 60.6% | 43.4% | 0.5% | 0.23 | 1.17 | JadeCovenant 1718T, ScholarKingdoms 1017T, RiverLeague 820T, StarborneSeekers 607T, AetherianVanguard 573T, ForgeClans 528T | RiverLeague 823T, ForgeClans 722T, AetherianVanguard 718T, ScholarKingdoms 536T, StarborneSeekers 361T, JadeCovenant 194T | ScholarKingdoms 359T, JadeCovenant 295T, ForgeClans 96T, RiverLeague 55T, StarborneSeekers 33T, AetherianVanguard 10T | RiverLeague 37254G/353, maintain 4339G, AetherianVanguard 25245G/230, maintain 593G, ForgeClans 20842G/240, maintain 1509G, JadeCovenant 20184G/333, maintain 8927G, ScholarKingdoms 19705G/329, maintain 6060G, StarborneSeekers 18796G/227, maintain 3047G | 0.34 | 0.29 | WartimeRelease 4, Investment 3, Other 3 |
-| Aetherquill | Science | 30 | 97.60 | 1.3% | 0.0% | 1.3% | 73.2% | 72.9% | 27.7% | 2.0% | 0.68 | 1.17 | RiverLeague 986T, ForgeClans 631T, ScholarKingdoms 628T, StarborneSeekers 521T, AetherianVanguard 109T, JadeCovenant 52T | ScholarKingdoms 698T, AetherianVanguard 500T, JadeCovenant 469T, RiverLeague 218T, ForgeClans 141T, StarborneSeekers 89T | ScholarKingdoms 214T, StarborneSeekers 159T, ForgeClans 132T, RiverLeague 117T, JadeCovenant 25T, AetherianVanguard 2T | RiverLeague 26898G/388, maintain 5476G, JadeCovenant 23157G/253, maintain 178G, AetherianVanguard 18031G/201, maintain 1414G, ScholarKingdoms 12260G/290, maintain 7491G, StarborneSeekers 5692G/133, maintain 3373G, ForgeClans 4891G/123, maintain 2770G | 0.67 | 0.60 | Investment 12, Other 4, WartimeRelease 2 |
-| Arcstar Repository | Science | 29 | 130.83 | 0.7% | 0.0% | 0.7% | 64.4% | 63.4% | 38.4% | 1.1% | 0.45 | 1.24 | JadeCovenant 1075T, ScholarKingdoms 752T, StarborneSeekers 581T, AetherianVanguard 554T, ForgeClans 510T, RiverLeague 322T | RiverLeague 695T, JadeCovenant 347T, ForgeClans 313T, ScholarKingdoms 249T, AetherianVanguard 242T, StarborneSeekers 242T | ScholarKingdoms 185T, StarborneSeekers 128T, ForgeClans 103T, JadeCovenant 101T, AetherianVanguard 70T, RiverLeague 12T | RiverLeague 30804G/299, maintain 1378G, JadeCovenant 19911G/310, maintain 7145G, StarborneSeekers 13650G/170, maintain 4317G, ScholarKingdoms 6495G/141, maintain 2807G, AetherianVanguard 5993G/112, maintain 1983G, ForgeClans 2600G/61, maintain 629G | 0.59 | 0.59 | Other 7, Investment 6, WartimeRelease 4 |
-| Celestine Scriptorium | Science | 40 | 136.00 | 2.6% | 1.6% | 1.0% | 67.1% | 65.6% | 35.1% | 2.2% | 0.50 | 1.23 | RiverLeague 1603T, AetherianVanguard 1017T, StarborneSeekers 903T, ForgeClans 818T, JadeCovenant 524T, ScholarKingdoms 489T | ForgeClans 957T, StarborneSeekers 935T, JadeCovenant 818T, AetherianVanguard 669T, ScholarKingdoms 485T, RiverLeague 268T | ForgeClans 229T, RiverLeague 229T, AetherianVanguard 156T, ScholarKingdoms 148T, StarborneSeekers 120T, JadeCovenant 66T | JadeCovenant 32686G/415, maintain 3554G, RiverLeague 27415G/402, maintain 10567G, StarborneSeekers 26885G/361, maintain 3832G, AetherianVanguard 22281G/345, maintain 5874G, ForgeClans 17209G/274, maintain 2879G, ScholarKingdoms 11791G/205, maintain 2896G | 0.68 | 0.57 | Investment 10, Other 8, WartimeRelease 5 |
-| Dreaming Calculus | Science | 35 | 134.09 | 3.6% | 2.9% | 0.7% | 54.7% | 53.6% | 46.3% | 0.4% | 0.13 | 1.06 | JadeCovenant 1078T, ForgeClans 1013T, ScholarKingdoms 919T, RiverLeague 677T, StarborneSeekers 624T, AetherianVanguard 246T | RiverLeague 1147T, AetherianVanguard 423T, JadeCovenant 365T, ScholarKingdoms 286T, ForgeClans 97T | JadeCovenant 177T, ScholarKingdoms 165T, StarborneSeekers 109T, ForgeClans 104T, RiverLeague 76T, AetherianVanguard 65T | RiverLeague 32853G/384, maintain 4342G, JadeCovenant 27977G/329, maintain 5002G, ScholarKingdoms 13238G/226, maintain 4854G, ForgeClans 12202G/181, maintain 3700G, AetherianVanguard 9760G/140, maintain 1754G, StarborneSeekers 6756G/117, maintain 2352G | 0.17 | 0.14 | Investment 2, WartimeRelease 2, Other 1 |
-| Eclipsed Theorem | Science | 24 | 116.88 | 1.5% | 0.0% | 1.5% | 67.9% | 66.7% | 37.3% | 2.4% | 0.78 | 1.33 | JadeCovenant 696T, ScholarKingdoms 660T, AetherianVanguard 454T, StarborneSeekers 387T, ForgeClans 321T, RiverLeague 287T | StarborneSeekers 487T, JadeCovenant 315T, RiverLeague 259T, ForgeClans 234T, ScholarKingdoms 173T, AetherianVanguard 161T | ScholarKingdoms 91T, JadeCovenant 74T, StarborneSeekers 25T, AetherianVanguard 1T, ForgeClans 1T | JadeCovenant 39424G/391, maintain 5747G, AetherianVanguard 13424G/144, maintain 1175G, ScholarKingdoms 9970G/138, maintain 1776G, RiverLeague 9637G/145, maintain 1763G, StarborneSeekers 8907G/130, maintain 1498G, ForgeClans 2335G/46, maintain 63G | 0.92 | 0.92 | Investment 12, Other 5, WartimeRelease 5 |
-| Halcyon Loom | Science | 33 | 129.91 | 1.3% | 0.0% | 1.3% | 62.9% | 61.3% | 42.2% | 0.0% | 0.16 | 1.18 | StarborneSeekers 1096T, JadeCovenant 978T, RiverLeague 806T, ScholarKingdoms 776T, AetherianVanguard 405T, ForgeClans 226T | ForgeClans 668T, AetherianVanguard 491T, ScholarKingdoms 486T, JadeCovenant 274T, RiverLeague 257T, StarborneSeekers 203T | ScholarKingdoms 199T, JadeCovenant 136T, StarborneSeekers 124T, RiverLeague 68T, AetherianVanguard 25T | JadeCovenant 32399G/433, maintain 8946G, ForgeClans 28868G/249, maintain 1158G, ScholarKingdoms 22832G/323, maintain 5826G, StarborneSeekers 19822G/257, maintain 5860G, AetherianVanguard 16259G/210, maintain 401G, RiverLeague 14561G/261, maintain 4612G | 0.21 | 0.21 | WartimeRelease 5, Investment 1, Other 1 |
-| Lunarchive | Science | 30 | 123.37 | 1.9% | 1.4% | 0.5% | 58.0% | 57.3% | 43.2% | 0.0% | 0.14 | 1.13 | JadeCovenant 821T, ForgeClans 706T, AetherianVanguard 673T, StarborneSeekers 609T, ScholarKingdoms 471T, RiverLeague 370T | ScholarKingdoms 411T, StarborneSeekers 385T, RiverLeague 356T, ForgeClans 336T, AetherianVanguard 273T, JadeCovenant 150T | StarborneSeekers 168T, ScholarKingdoms 80T, JadeCovenant 58T, RiverLeague 35T, AetherianVanguard 21T | ForgeClans 18678G/192, maintain 1877G, JadeCovenant 17178G/302, maintain 6529G, RiverLeague 11874G/149, maintain 1212G, StarborneSeekers 11054G/177, maintain 2289G, AetherianVanguard 9634G/152, maintain 1977G, ScholarKingdoms 8695G/147, maintain 2991G | 0.17 | 0.13 | Investment 3, WartimeRelease 1 |
-| Meridian of Runes | Science | 30 | 144.33 | 0.6% | 0.0% | 0.6% | 67.5% | 66.4% | 35.5% | 0.4% | 0.18 | 1.17 | ScholarKingdoms 926T, RiverLeague 904T, StarborneSeekers 835T, ForgeClans 724T, JadeCovenant 629T, AetherianVanguard 312T | RiverLeague 1144T, StarborneSeekers 638T, ScholarKingdoms 456T, AetherianVanguard 331T, ForgeClans 139T, JadeCovenant 57T | ScholarKingdoms 281T, RiverLeague 191T, ForgeClans 106T, AetherianVanguard 84T, JadeCovenant 45T, StarborneSeekers 28T | RiverLeague 48847G/465, maintain 5161G, ScholarKingdoms 11268G/211, maintain 4291G, StarborneSeekers 9397G/119, maintain 512G, ForgeClans 8699G/200, maintain 5236G, AetherianVanguard 7931G/119, maintain 1253G, JadeCovenant 3698G/96, maintain 2548G | 0.27 | 0.27 | Investment 5, Other 2, WartimeRelease 1 |
-| Nyx Codex | Science | 31 | 139.71 | 1.0% | 0.0% | 1.0% | 71.4% | 69.0% | 36.2% | 0.0% | 0.16 | 1.23 | RiverLeague 1270T, ScholarKingdoms 942T, JadeCovenant 676T, ForgeClans 502T, AetherianVanguard 496T, StarborneSeekers 445T | AetherianVanguard 623T, ScholarKingdoms 610T, ForgeClans 498T, StarborneSeekers 448T, JadeCovenant 358T, RiverLeague 96T | ScholarKingdoms 325T, RiverLeague 113T, JadeCovenant 97T, ForgeClans 95T, AetherianVanguard 64T, StarborneSeekers 58T | JadeCovenant 35998G/324, maintain 4395G, StarborneSeekers 22680G/291, maintain 4334G, AetherianVanguard 17222G/232, maintain 2367G, ScholarKingdoms 15922G/300, maintain 6953G, RiverLeague 12466G/276, maintain 7746G, ForgeClans 11525G/192, maintain 2267G | 0.23 | 0.23 | WartimeRelease 6, Other 1 |
-| Observatory of Whispers | Science | 26 | 143.54 | 0.4% | 0.0% | 0.4% | 69.2% | 68.8% | 32.1% | 0.0% | 0.16 | 1.08 | ForgeClans 1200T, ScholarKingdoms 873T, RiverLeague 759T, StarborneSeekers 692T, AetherianVanguard 172T, JadeCovenant 36T | RiverLeague 714T, StarborneSeekers 521T, AetherianVanguard 452T, JadeCovenant 384T, ForgeClans 283T, ScholarKingdoms 137T | ForgeClans 367T, ScholarKingdoms 160T, RiverLeague 134T, StarborneSeekers 79T | RiverLeague 27918G/298, maintain 3312G, StarborneSeekers 21730G/281, maintain 6002G, ForgeClans 19907G/337, maintain 6807G, JadeCovenant 19391G/140, AetherianVanguard 17530G/179, ScholarKingdoms 7411G/156, maintain 3261G | 0.23 | 0.23 | Investment 4, WartimeRelease 2 |
-| Prism Oracle | Science | 33 | 124.73 | 0.9% | 0.0% | 0.9% | 56.3% | 54.1% | 50.8% | 2.1% | 0.56 | 1.21 | AetherianVanguard 1120T, RiverLeague 967T, ScholarKingdoms 619T, ForgeClans 597T, JadeCovenant 516T, StarborneSeekers 297T | ScholarKingdoms 527T, JadeCovenant 509T, ForgeClans 475T, RiverLeague 256T, StarborneSeekers 140T, AetherianVanguard 76T | ForgeClans 124T, StarborneSeekers 107T, RiverLeague 100T, AetherianVanguard 99T, ScholarKingdoms 85T | JadeCovenant 22897G/286, maintain 2585G, RiverLeague 17385G/333, maintain 6941G, ForgeClans 15339G/221, maintain 1736G, ScholarKingdoms 15223G/230, maintain 3333G, AetherianVanguard 12512G/220, maintain 5792G, StarborneSeekers 11357G/193, maintain 3303G | 0.70 | 0.70 | Investment 18, WartimeRelease 4, Other 1 |
-| Quillspire | Science | 34 | 133.71 | 1.0% | 0.0% | 1.0% | 63.2% | 61.7% | 41.0% | 0.4% | 0.40 | 1.35 | JadeCovenant 1114T, ScholarKingdoms 879T, AetherianVanguard 787T, StarborneSeekers 678T, ForgeClans 665T, RiverLeague 423T | RiverLeague 713T, StarborneSeekers 576T, ScholarKingdoms 558T, AetherianVanguard 543T, JadeCovenant 346T, ForgeClans 199T | ScholarKingdoms 151T, StarborneSeekers 141T, ForgeClans 114T, JadeCovenant 69T, AetherianVanguard 29T, RiverLeague 14T | RiverLeague 28298G/311, maintain 3240G, StarborneSeekers 26248G/339, maintain 2913G, JadeCovenant 22482G/397, maintain 8788G, ScholarKingdoms 17131G/245, maintain 3344G, AetherianVanguard 13512G/210, maintain 2016G, ForgeClans 12214G/234, maintain 4190G | 0.53 | 0.53 | Investment 8, WartimeRelease 7, Other 3 |
-| Radiant Lexicon | Science | 33 | 117.48 | 1.1% | 0.0% | 1.1% | 69.3% | 67.9% | 34.7% | 1.2% | 0.54 | 1.24 | RiverLeague 1224T, ScholarKingdoms 847T, ForgeClans 673T, AetherianVanguard 588T, JadeCovenant 526T, StarborneSeekers 19T | AetherianVanguard 506T, StarborneSeekers 481T, JadeCovenant 450T, RiverLeague 446T, ScholarKingdoms 251T, ForgeClans 180T | RiverLeague 249T, ForgeClans 102T, ScholarKingdoms 75T, JadeCovenant 68T, AetherianVanguard 23T, StarborneSeekers 10T | RiverLeague 31768G/511, maintain 9792G, JadeCovenant 25914G/330, maintain 5898G, StarborneSeekers 18555G/155, maintain 256G, AetherianVanguard 17020G/243, maintain 1886G, ScholarKingdoms 16209G/209, maintain 3327G, ForgeClans 5575G/129, maintain 2852G | 0.64 | 0.64 | Other 9, Investment 6, WartimeRelease 5, WarBreak 1 |
-| Sapphire Mnemos | Science | 28 | 130.79 | 0.8% | 0.0% | 0.8% | 64.3% | 63.5% | 38.7% | 0.7% | 0.16 | 1.04 | JadeCovenant 1265T, RiverLeague 798T, AetherianVanguard 605T, ScholarKingdoms 580T, StarborneSeekers 286T, ForgeClans 128T | ForgeClans 961T, RiverLeague 795T, AetherianVanguard 733T, JadeCovenant 424T, StarborneSeekers 214T, ScholarKingdoms 119T | ScholarKingdoms 128T, JadeCovenant 122T, ForgeClans 107T, AetherianVanguard 64T, RiverLeague 50T, StarborneSeekers 3T | RiverLeague 30347G/263, maintain 3364G, JadeCovenant 29008G/322, maintain 6796G, AetherianVanguard 23473G/217, maintain 3277G, StarborneSeekers 12015G/127, maintain 103G, ForgeClans 10736G/168, maintain 1426G, ScholarKingdoms 6276G/138, maintain 3033G | 0.21 | 0.21 | Investment 5, Other 1 |
-| Starglass Athenaeum | Science | 40 | 144.65 | 1.0% | 0.0% | 1.0% | 68.5% | 67.4% | 35.0% | 1.1% | 0.40 | 1.25 | JadeCovenant 2505T, RiverLeague 1032T, AetherianVanguard 679T, ScholarKingdoms 633T, ForgeClans 572T, StarborneSeekers 365T | ForgeClans 931T, AetherianVanguard 724T, RiverLeague 650T, ScholarKingdoms 629T, JadeCovenant 556T, StarborneSeekers 529T | JadeCovenant 341T, RiverLeague 172T, ForgeClans 126T, ScholarKingdoms 93T, StarborneSeekers 50T, AetherianVanguard 49T | RiverLeague 38453G/460, maintain 8389G, JadeCovenant 36868G/568, maintain 14028G, StarborneSeekers 24807G/251, maintain 1721G, ForgeClans 23970G/290, maintain 1197G, ScholarKingdoms 14313G/239, maintain 2735G, AetherianVanguard 13434G/227, maintain 2573G | 0.57 | 0.57 | Investment 13, WartimeRelease 9, Other 1 |
-| Voidlight Archive | Science | 35 | 134.29 | 1.0% | 0.0% | 1.0% | 64.0% | 62.3% | 41.1% | 1.2% | 0.43 | 1.23 | RiverLeague 1561T, JadeCovenant 1184T, StarborneSeekers 1034T, AetherianVanguard 483T, ForgeClans 308T, ScholarKingdoms 130T | AetherianVanguard 747T, StarborneSeekers 597T, ScholarKingdoms 581T, JadeCovenant 362T, RiverLeague 343T, ForgeClans 172T | RiverLeague 146T, JadeCovenant 127T, StarborneSeekers 126T, ScholarKingdoms 53T, AetherianVanguard 51T, ForgeClans 25T | RiverLeague 33499G/432, maintain 9765G, AetherianVanguard 28761G/335, maintain 2231G, JadeCovenant 25713G/375, maintain 8021G, StarborneSeekers 17283G/297, maintain 6221G, ForgeClans 11530G/161, maintain 638G, ScholarKingdoms 8602G/114, maintain 529G | 0.57 | 0.57 | Investment 11, Other 6, WartimeRelease 3 |
+| Amber Orchard | Food | 2 | 170.00 | 2.1% | 0.0% | 2.1% | 47.6% | 37.4% | 86.5% | 0.0% | 0.29 | 1.50 | ForgeClans 285T, ScholarKingdoms 55T | ScholarKingdoms 117T, ForgeClans 55T | ForgeClans 17T, ScholarKingdoms 1T | ForgeClans 2271G/45, maintain 1253G, ScholarKingdoms 1372G/33, maintain 663G, RiverLeague 222G/6 | 0.50 | 0.50 | WartimeRelease 1 |
+| Bloomtide | Food | 4 | 179.00 | 1.3% | 0.0% | 1.3% | 92.2% | 89.7% | 17.5% | 2.7% | 1.12 | 1.75 | JadeCovenant 556T, ScholarKingdoms 89T, ForgeClans 70T, StarborneSeekers 1T | RiverLeague 313T, ScholarKingdoms 246T, ForgeClans 234T, JadeCovenant 3T | JadeCovenant 68T, ScholarKingdoms 6T, ForgeClans 3T | ScholarKingdoms 8619G/59, maintain 326G, RiverLeague 5630G/36, JadeCovenant 3415G/89, maintain 2931G, StarborneSeekers 1673G/22, ForgeClans 1508G/30, maintain 298G | 2.00 | 2.00 | Investment 6, WartimeRelease 2 |
+| Bramble Feast | Food | 4 | 107.25 | 2.1% | 0.0% | 2.1% | 47.6% | 44.1% | 66.9% | 4.9% | 1.63 | 1.50 | JadeCovenant 166T, StarborneSeekers 128T, ScholarKingdoms 122T, AetherianVanguard 13T | AetherianVanguard 122T, ScholarKingdoms 108T, StarborneSeekers 11T | AetherianVanguard 9T, StarborneSeekers 7T, ScholarKingdoms 1T | ForgeClans 2873G/28, StarborneSeekers 2647G/58, maintain 1287G, AetherianVanguard 1298G/20, maintain 295G, ScholarKingdoms 1019G/17, JadeCovenant 177G/5 | 1.75 | 1.75 | Investment 6, WartimeRelease 1 |
+| Dawnharvest | Food | 4 | 142.25 | 1.4% | 0.0% | 1.4% | 61.0% | 55.4% | 53.6% | 8.8% | 2.11 | 1.50 | ScholarKingdoms 259T, ForgeClans 162T, RiverLeague 134T, StarborneSeekers 8T, AetherianVanguard 6T | AetherianVanguard 141T, StarborneSeekers 98T, RiverLeague 6T, ScholarKingdoms 6T | ScholarKingdoms 29T, StarborneSeekers 1T | JadeCovenant 3714G/31, AetherianVanguard 3473G/38, maintain 106G, StarborneSeekers 2853G/28, maintain 67G, ScholarKingdoms 1008G/25, maintain 649G, RiverLeague 854G/21, maintain 479G, ForgeClans 24G/1, maintain 24G | 3.00 | 3.00 | Investment 8, Other 4 |
+| Evergrain Vale | Food | 1 | 64.00 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 100.0% | 0.0% | 0.00 | 1.00 | AetherianVanguard 64T | None | None | None | 0.00 | 0.00 | None |
+| Fernsong | Food | 1 | 166.00 | 11.4% | 11.4% | 0.0% | 63.3% | 63.3% | 25.3% | 0.0% | 0.60 | 1.00 | AetherianVanguard 147T | ForgeClans 60T | AetherianVanguard 52T | ForgeClans 820G/15, StarborneSeekers 731G/14, AetherianVanguard 217G/7, maintain 217G | 1.00 | 0.00 | None |
+| Greenstar Hollow | Food | 5 | 100.80 | 0.4% | 0.0% | 0.4% | 65.5% | 65.5% | 34.5% | 0.0% | 0.00 | 1.00 | StarborneSeekers 196T, ForgeClans 155T, AetherianVanguard 105T, ScholarKingdoms 48T | AetherianVanguard 186T, JadeCovenant 180T, ScholarKingdoms 72T | StarborneSeekers 101T | AetherianVanguard 5808G/42, maintain 178G, JadeCovenant 5426G/54, StarborneSeekers 4020G/64, maintain 1387G, ScholarKingdoms 946G/25, maintain 568G, ForgeClans 270G/7 | 0.00 | 0.00 | None |
+| Hearthbloom | Food | 3 | 153.33 | 0.2% | 0.0% | 0.2% | 28.5% | 28.5% | 71.5% | 0.0% | 0.00 | 1.00 | JadeCovenant 199T, StarborneSeekers 168T, ScholarKingdoms 93T | AetherianVanguard 111T, RiverLeague 91T | None | RiverLeague 1457G/27, JadeCovenant 1309G/35, maintain 1309G, AetherianVanguard 438G/10 | 0.00 | 0.00 | None |
+| Moonmeadow | Food | 3 | 129.67 | 1.3% | 0.0% | 1.3% | 55.3% | 52.7% | 55.0% | 0.0% | 0.00 | 1.00 | StarborneSeekers 184T, JadeCovenant 118T, ScholarKingdoms 87T | ScholarKingdoms 71T, ForgeClans 55T, JadeCovenant 27T | JadeCovenant 37T, ScholarKingdoms 34T | ScholarKingdoms 2186G/50, maintain 1270G, JadeCovenant 1852G/49, maintain 1582G, AetherianVanguard 1131G/18, StarborneSeekers 256G/8, maintain 256G, ForgeClans 222G/6, RiverLeague 63G/2 | 0.00 | 0.00 | None |
+| Nectarwind | Food | 3 | 104.67 | 1.3% | 0.0% | 1.3% | 76.8% | 72.9% | 40.4% | 0.0% | 0.00 | 1.00 | StarborneSeekers 250T, JadeCovenant 53T, RiverLeague 11T | ScholarKingdoms 201T | JadeCovenant 35T, StarborneSeekers 28T | ScholarKingdoms 3535G/45, StarborneSeekers 1582G/42, maintain 1582G, JadeCovenant 256G/8, maintain 256G | 0.00 | 0.00 | None |
+| Rainpetal Court | Food | 3 | 147.00 | 0.0% | 0.0% | 0.0% | 61.7% | 60.8% | 41.3% | 0.0% | 0.23 | 1.33 | ForgeClans 238T, StarborneSeekers 133T, ScholarKingdoms 39T, AetherianVanguard 31T | StarborneSeekers 237T, RiverLeague 37T | StarborneSeekers 19T | StarborneSeekers 5112G/60, maintain 894G, ForgeClans 1465G/39, maintain 1465G, RiverLeague 438G/10, ScholarKingdoms 30G/1 | 0.33 | 0.33 | WartimeRelease 1 |
+| Silverbarley | Food | 1 | 74.00 | 0.0% | 0.0% | 0.0% | 51.4% | 51.4% | 48.6% | 0.0% | 0.00 | 1.00 | ScholarKingdoms 74T | ForgeClans 30T | None | RiverLeague 4041G/32, ForgeClans 378G/9, ScholarKingdoms 78G/3, maintain 78G | 0.00 | 0.00 | None |
+| Sunseed Haven | Food | 3 | 71.67 | 4.2% | 0.0% | 4.2% | 82.8% | 80.5% | 24.2% | 0.0% | 1.40 | 2.00 | StarborneSeekers 121T, ScholarKingdoms 43T, ForgeClans 35T, AetherianVanguard 12T, RiverLeague 4T | AetherianVanguard 41T, ForgeClans 6T, ScholarKingdoms 3T | ScholarKingdoms 13T | ScholarKingdoms 2160G/53, maintain 1083G, AetherianVanguard 1948G/32, maintain 24G, RiverLeague 438G/10, ForgeClans 63G/2 | 1.00 | 1.00 | WartimeRelease 2, Investment 1 |
+| Thistleheart | Food | 5 | 73.40 | 0.5% | 0.0% | 0.5% | 30.8% | 30.8% | 69.2% | 0.0% | 0.00 | 1.00 | JadeCovenant 200T, ScholarKingdoms 94T, ForgeClans 73T | ForgeClans 53T, JadeCovenant 42T | None | ForgeClans 4864G/55, maintain 646G, JadeCovenant 2504G/38, maintain 490G, ScholarKingdoms 178G/6, maintain 178G | 0.00 | 0.00 | None |
+| Verdant Myth | Food | 2 | 58.00 | 0.0% | 0.0% | 0.0% | 47.4% | 47.4% | 52.6% | 0.0% | 0.00 | 1.00 | AetherianVanguard 116T | RiverLeague 14T | None | RiverLeague 1521G/21, AetherianVanguard 724G/20, maintain 724G | 0.00 | 0.00 | None |
+| Wildroot Sanctum | Food | 1 | 141.00 | 0.7% | 0.0% | 0.7% | 57.4% | 57.4% | 42.6% | 0.0% | 0.00 | 1.00 | RiverLeague 141T | JadeCovenant 81T | RiverLeague 58T | JadeCovenant 1837G/23, RiverLeague 1582G/42, maintain 1582G | 0.00 | 0.00 | None |
+| Aureate Crown | Gold | 3 | 100.00 | 0.3% | 0.0% | 0.3% | 62.0% | 62.0% | 39.3% | 0.0% | 0.67 | 1.67 | ForgeClans 196T, JadeCovenant 63T, ScholarKingdoms 41T | JadeCovenant 60T | ForgeClans 50T, ScholarKingdoms 18T | JadeCovenant 2205G/25, RiverLeague 1657G/25, ForgeClans 1474G/41, maintain 1346G, ScholarKingdoms 253G/8, maintain 193G | 0.67 | 0.67 | Investment 1, Other 1 |
+| Auric Bazaar | Gold | 2 | 110.50 | 4.5% | 0.0% | 4.5% | 80.5% | 71.5% | 51.6% | 7.2% | 1.36 | 1.50 | RiverLeague 99T, StarborneSeekers 91T, AetherianVanguard 31T | AetherianVanguard 79T, RiverLeague 5T | StarborneSeekers 33T, RiverLeague 26T, AetherianVanguard 4T | AetherianVanguard 1638G/22, maintain 142G, StarborneSeekers 1582G/42, maintain 1582G, RiverLeague 1509G/39, maintain 1287G, ScholarKingdoms 916G/16 | 1.50 | 1.50 | Other 2, Investment 1 |
+| Brassmoon Mint | Gold | 8 | 124.13 | 0.2% | 0.0% | 0.2% | 68.4% | 68.4% | 31.6% | 0.0% | 0.00 | 1.00 | StarborneSeekers 353T, ForgeClans 329T, ScholarKingdoms 132T, RiverLeague 117T, JadeCovenant 62T | JadeCovenant 453T, AetherianVanguard 97T, StarborneSeekers 96T | StarborneSeekers 185T, ForgeClans 25T | JadeCovenant 14535G/105, AetherianVanguard 4248G/49, StarborneSeekers 4041G/99, maintain 3125G, ScholarKingdoms 916G/16, ForgeClans 301G/11, maintain 301G | 0.00 | 0.00 | None |
+| Coinfire Crossing | Gold | 3 | 114.67 | 0.6% | 0.0% | 0.6% | 63.1% | 63.1% | 36.9% | 0.0% | 0.00 | 1.00 | JadeCovenant 171T, ScholarKingdoms 100T, StarborneSeekers 73T | ForgeClans 118T | JadeCovenant 73T, ScholarKingdoms 25T | AetherianVanguard 4775G/34, JadeCovenant 3635G/67, maintain 1621G, ForgeClans 1186G/23, ScholarKingdoms 245G/8, maintain 109G | 0.00 | 0.00 | None |
+| Cresset Exchange | Gold | 3 | 162.33 | 0.4% | 0.0% | 0.4% | 48.3% | 45.2% | 61.0% | 0.0% | 0.00 | 1.00 | RiverLeague 231T, JadeCovenant 180T, ScholarKingdoms 76T | ScholarKingdoms 168T, JadeCovenant 55T | JadeCovenant 39T, RiverLeague 12T | ScholarKingdoms 4375G/42, maintain 334G, JadeCovenant 1573G/42, maintain 1543G, RiverLeague 587G/17, maintain 451G, ForgeClans 378G/9 | 0.00 | 0.00 | None |
+| Crownmarket | Gold | 1 | 45.00 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 100.0% | 0.0% | 0.00 | 1.00 | ForgeClans 45T | None | None | None | 0.00 | 0.00 | None |
+| Embermint | Gold | 1 | 198.00 | 1.5% | 0.0% | 1.5% | 83.3% | 83.3% | 16.7% | 0.0% | 0.00 | 1.00 | ScholarKingdoms 198T | JadeCovenant 165T, StarborneSeekers 131T | ScholarKingdoms 25T | StarborneSeekers 3714G/31, JadeCovenant 2014G/24, ScholarKingdoms 958G/26, maintain 958G | 0.00 | 0.00 | None |
+| Gildenspire | Gold | 1 | 202.00 | 0.5% | 0.0% | 0.5% | 33.7% | 33.7% | 66.3% | 0.0% | 0.00 | 1.00 | AetherianVanguard 202T | StarborneSeekers 68T | AetherianVanguard 25T | StarborneSeekers 820G/15, AetherianVanguard 490G/14, maintain 490G | 0.00 | 0.00 | None |
+| Golden Mirage | Gold | 2 | 115.00 | 0.9% | 0.0% | 0.9% | 71.7% | 71.7% | 28.3% | 0.0% | 0.43 | 1.50 | StarborneSeekers 205T, ForgeClans 25T | AetherianVanguard 138T | StarborneSeekers 47T | AetherianVanguard 2411G/26, StarborneSeekers 1606G/43, maintain 1606G, ForgeClans 177G/5 | 0.50 | 0.50 | WartimeRelease 1 |
+| Kingsmerch | Gold | 5 | 95.00 | 2.3% | 0.0% | 2.3% | 68.6% | 66.5% | 36.4% | 5.5% | 1.68 | 1.60 | ForgeClans 233T, StarborneSeekers 190T, JadeCovenant 23T, RiverLeague 20T, ScholarKingdoms 9T | RiverLeague 186T, ForgeClans 32T, JadeCovenant 32T, StarborneSeekers 9T | StarborneSeekers 66T, ForgeClans 64T, RiverLeague 1T | RiverLeague 9095G/71, maintain 145G, AetherianVanguard 5186G/35, StarborneSeekers 3189G/82, maintain 2759G, ForgeClans 3165G/78, maintain 2345G, JadeCovenant 1131G/18, ScholarKingdoms 438G/10 | 1.60 | 1.60 | Other 4, Investment 3, WartimeRelease 1 |
+| Opaline Vault | Gold | 2 | 109.50 | 0.5% | 0.0% | 0.5% | 17.4% | 16.0% | 92.2% | 0.0% | 0.00 | 1.00 | JadeCovenant 110T, RiverLeague 109T | AetherianVanguard 38T | JadeCovenant 11T | JadeCovenant 607G/17, maintain 607G, AetherianVanguard 177G/5 | 0.00 | 0.00 | None |
+| Radiant Hoard | Gold | 6 | 85.67 | 0.2% | 0.0% | 0.2% | 47.3% | 47.3% | 52.7% | 0.0% | 0.00 | 1.00 | ForgeClans 263T, AetherianVanguard 92T, JadeCovenant 75T, ScholarKingdoms 63T, StarborneSeekers 21T | AetherianVanguard 70T, RiverLeague 34T | AetherianVanguard 33T, JadeCovenant 26T | RiverLeague 3652G/44, AetherianVanguard 2050G/36, maintain 529G, JadeCovenant 1734G/44, maintain 1231G, ForgeClans 1582G/42, maintain 1582G, StarborneSeekers 763G/21, maintain 763G | 0.00 | 0.00 | None |
+| Saffron Treasury | Gold | 2 | 93.00 | 0.5% | 0.0% | 0.5% | 73.1% | 73.1% | 26.9% | 0.0% | 0.00 | 1.00 | ForgeClans 96T, ScholarKingdoms 90T | ForgeClans 72T, RiverLeague 58T, JadeCovenant 31T | ScholarKingdoms 48T | ForgeClans 1133G/23, maintain 217G, JadeCovenant 1131G/18, ScholarKingdoms 1075G/29, maintain 1075G, RiverLeague 1019G/17, StarborneSeekers 573G/12 | 0.00 | 0.00 | None |
+| Starcoin Port | Gold | 4 | 152.00 | 1.5% | 0.0% | 1.5% | 77.6% | 77.0% | 24.8% | 0.0% | 0.00 | 1.00 | JadeCovenant 211T, RiverLeague 175T, StarborneSeekers 160T, ForgeClans 62T | RiverLeague 178T, ScholarKingdoms 137T, ForgeClans 118T, JadeCovenant 109T | RiverLeague 62T, JadeCovenant 40T, StarborneSeekers 5T | RiverLeague 14195G/89, maintain 1621G, JadeCovenant 4753G/72, maintain 1621G, StarborneSeekers 2225G/51, maintain 1309G, AetherianVanguard 2205G/25, ScholarKingdoms 1809G/26, ForgeClans 876G/22, maintain 373G | 0.00 | 0.00 | None |
+| Suncoin Citadel | Gold | 1 | 119.00 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 100.0% | 0.0% | 0.00 | 1.00 | RiverLeague 119T | None | None | None | 0.00 | 0.00 | None |
+| Velvet Ledger | Gold | 2 | 150.00 | 2.0% | 0.0% | 2.0% | 29.3% | 28.7% | 75.3% | 0.0% | 0.33 | 1.50 | ScholarKingdoms 184T, RiverLeague 115T, StarborneSeekers 1T | JadeCovenant 30T, ScholarKingdoms 1T | ScholarKingdoms 35T, RiverLeague 30T | JadeCovenant 2633G/27, StarborneSeekers 1837G/23, RiverLeague 1348G/36, maintain 1348G, ScholarKingdoms 826G/23, maintain 763G | 0.50 | 0.50 | WartimeRelease 1 |
+| Ashen Bellows | Production | 2 | 65.50 | 0.0% | 0.0% | 0.0% | 55.0% | 55.0% | 45.0% | 0.0% | 0.00 | 1.00 | RiverLeague 79T, StarborneSeekers 52T | ScholarKingdoms 72T | None | RiverLeague 1465G/39, maintain 1465G, ScholarKingdoms 1019G/17 | 0.00 | 0.00 | None |
+| Blackglass Armory | Production | 5 | 111.80 | 1.8% | 0.0% | 1.8% | 47.4% | 45.3% | 59.2% | 7.9% | 1.97 | 1.20 | RiverLeague 300T, ForgeClans 184T, AetherianVanguard 75T | RiverLeague 95T, ForgeClans 48T | ForgeClans 19T, RiverLeague 1T | RiverLeague 7328G/41, maintain 571G, StarborneSeekers 2873G/28, ForgeClans 2498G/55, maintain 1454G, ScholarKingdoms 322G/8, AetherianVanguard 142G/5, maintain 142G | 2.20 | 2.20 | Other 6, Investment 5 |
+| Brasshollow | Production | 1 | 213.00 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 100.0% | 0.0% | 0.00 | 1.00 | StarborneSeekers 213T | None | None | None | 0.00 | 0.00 | None |
+| Cinderhold | Production | 3 | 51.67 | 0.6% | 0.0% | 0.6% | 48.4% | 48.4% | 51.6% | 0.0% | 0.00 | 1.00 | ForgeClans 72T, ScholarKingdoms 65T, RiverLeague 18T | ForgeClans 56T, JadeCovenant 44T, AetherianVanguard 19T | ScholarKingdoms 51T, ForgeClans 18T | JadeCovenant 4775G/34, AetherianVanguard 649G/13, ForgeClans 604G/17, maintain 334G, ScholarKingdoms 490G/14, maintain 490G | 0.00 | 0.00 | None |
+| Dawnsmelt Keep | Production | 5 | 66.80 | 0.0% | 0.0% | 0.0% | 46.1% | 46.1% | 53.9% | 0.0% | 0.30 | 1.20 | ScholarKingdoms 104T, AetherianVanguard 98T, ForgeClans 48T, RiverLeague 43T, StarborneSeekers 41T | ScholarKingdoms 91T, StarborneSeekers 51T | None | ScholarKingdoms 4728G/43, maintain 334G, StarborneSeekers 4152G/41, AetherianVanguard 247G/8, maintain 217G, RiverLeague 130G/4, maintain 24G | 0.20 | 0.20 | WartimeRelease 1 |
+| Emberforge Bastion | Production | 3 | 62.00 | 1.6% | 0.0% | 1.6% | 76.3% | 76.3% | 23.7% | 0.0% | 0.00 | 1.00 | ForgeClans 158T, JadeCovenant 28T | ScholarKingdoms 75T, JadeCovenant 49T, StarborneSeekers 38T | ForgeClans 73T | StarborneSeekers 2873G/28, JadeCovenant 2124G/35, maintain 451G, ForgeClans 1487G/41, maintain 1487G, RiverLeague 1251G/19, ScholarKingdoms 916G/16 | 0.00 | 0.00 | None |
+| Flintspire Works | Production | 3 | 126.00 | 1.3% | 0.0% | 1.3% | 79.9% | 75.9% | 31.0% | 0.0% | 0.26 | 1.33 | StarborneSeekers 179T, ScholarKingdoms 77T, AetherianVanguard 65T, RiverLeague 57T | AetherianVanguard 220T, ForgeClans 60T | ScholarKingdoms 48T, RiverLeague 10T | AetherianVanguard 6707G/61, RiverLeague 763G/21, maintain 763G, ForgeClans 731G/14, ScholarKingdoms 496G/14, maintain 466G, JadeCovenant 136G/4 | 0.33 | 0.33 | Investment 1 |
+| Gearstorm Hold | Production | 1 | 165.00 | 0.0% | 0.0% | 0.0% | 31.5% | 31.5% | 68.5% | 0.0% | 0.00 | 1.00 | AetherianVanguard 165T | None | AetherianVanguard 15T | RiverLeague 1381G/20, AetherianVanguard 919G/25, maintain 919G | 0.00 | 0.00 | None |
+| Hammerdeep | Production | 2 | 193.50 | 1.6% | 0.0% | 1.6% | 95.9% | 91.0% | 21.2% | 8.0% | 1.81 | 1.50 | StarborneSeekers 270T, JadeCovenant 103T, ScholarKingdoms 14T | ForgeClans 260T, ScholarKingdoms 100T, RiverLeague 60T, JadeCovenant 8T | StarborneSeekers 25T, JadeCovenant 7T | ForgeClans 2873G/28, JadeCovenant 1673G/38, maintain 1034G, ScholarKingdoms 1186G/19, maintain 111G, RiverLeague 731G/14, StarborneSeekers 451G/13, maintain 451G | 3.50 | 3.50 | Investment 4, Other 3 |
+| Ironwyrm Foundry | Production | 5 | 145.40 | 0.8% | 0.0% | 0.8% | 78.4% | 73.7% | 34.9% | 0.0% | 0.28 | 1.20 | ScholarKingdoms 380T, ForgeClans 173T, JadeCovenant 123T, AetherianVanguard 50T, RiverLeague 1T | StarborneSeekers 162T, ForgeClans 160T, RiverLeague 154T, AetherianVanguard 95T | ScholarKingdoms 149T, JadeCovenant 10T | JadeCovenant 8845G/67, maintain 958G, StarborneSeekers 7467G/59, RiverLeague 7456G/67, ForgeClans 7237G/41, maintain 50G, ScholarKingdoms 2696G/72, maintain 2696G, AetherianVanguard 2411G/26 | 0.40 | 0.40 | Investment 2 |
+| Molten Crown | Production | 3 | 57.67 | 0.6% | 0.0% | 0.6% | 23.7% | 23.7% | 76.3% | 0.0% | 0.58 | 1.33 | JadeCovenant 114T, ScholarKingdoms 45T, AetherianVanguard 14T | ForgeClans 22T, ScholarKingdoms 13T, AetherianVanguard 4T | JadeCovenant 22T, AetherianVanguard 13T, ScholarKingdoms 1T | ForgeClans 2205G/25, ScholarKingdoms 731G/14, AetherianVanguard 659G/15, maintain 412G, JadeCovenant 295G/9, maintain 295G, StarborneSeekers 98G/3 | 0.33 | 0.33 | WartimeRelease 1 |
+| Obsidian Kiln | Production | 2 | 112.00 | 1.3% | 0.0% | 1.3% | 37.9% | 34.8% | 70.5% | 0.0% | 0.00 | 1.00 | RiverLeague 125T, ScholarKingdoms 99T | RiverLeague 59T | ScholarKingdoms 35T, RiverLeague 3T | RiverLeague 2967G/37, maintain 334G, ScholarKingdoms 607G/17, maintain 607G, StarborneSeekers 98G/3, JadeCovenant 63G/2 | 0.00 | 0.00 | None |
+| Runehammer Gate | Production | 5 | 157.40 | 1.4% | 0.0% | 1.4% | 64.7% | 62.1% | 44.9% | 0.0% | 0.13 | 1.20 | ForgeClans 242T, ScholarKingdoms 217T, JadeCovenant 196T, StarborneSeekers 132T | StarborneSeekers 377T, RiverLeague 139T, AetherianVanguard 78T | ForgeClans 75T, JadeCovenant 31T, StarborneSeekers 29T | StarborneSeekers 14174G/108, maintain 1363G, ForgeClans 2231G/55, maintain 1582G, JadeCovenant 1582G/42, maintain 1582G, RiverLeague 747G/16, AetherianVanguard 649G/13, ScholarKingdoms 322G/8 | 0.20 | 0.20 | Investment 1 |
+| Skyfurnace | Production | 4 | 125.75 | 0.2% | 0.0% | 0.2% | 63.6% | 63.6% | 36.4% | 0.0% | 0.00 | 1.00 | ForgeClans 260T, ScholarKingdoms 161T, AetherianVanguard 82T | RiverLeague 158T, JadeCovenant 123T, ForgeClans 31T | ForgeClans 93T | JadeCovenant 9201G/63, ForgeClans 2713G/60, maintain 1582G, RiverLeague 2590G/35, ScholarKingdoms 1465G/39, maintain 1465G, StarborneSeekers 820G/15 | 0.00 | 0.00 | None |
+| Stonewake Crucible | Production | 4 | 170.25 | 0.7% | 0.0% | 0.7% | 68.7% | 62.4% | 53.5% | 0.0% | 0.15 | 1.25 | JadeCovenant 586T, ForgeClans 79T, AetherianVanguard 16T | AetherianVanguard 263T, ScholarKingdoms 226T, StarborneSeekers 149T, RiverLeague 140T, ForgeClans 133T | JadeCovenant 80T, AetherianVanguard 1T | ForgeClans 4041G/32, JadeCovenant 3203G/85, maintain 3203G, AetherianVanguard 2873G/28, RiverLeague 2411G/26, StarborneSeekers 1837G/23, ScholarKingdoms 648G/16 | 0.25 | 0.25 | WartimeRelease 1 |
+| Thunder Anvil | Production | 3 | 77.00 | 0.4% | 0.0% | 0.4% | 82.3% | 82.3% | 17.7% | 0.0% | 0.00 | 1.00 | ForgeClans 196T, StarborneSeekers 20T, ScholarKingdoms 15T | RiverLeague 180T | ForgeClans 52T | StarborneSeekers 1809G/26, RiverLeague 1381G/20, ForgeClans 568G/16, maintain 568G, ScholarKingdoms 320G/9, maintain 50G, AetherianVanguard 270G/7 | 0.00 | 0.00 | None |
+| Aetherquill | Science | 2 | 111.50 | 0.4% | 0.0% | 0.4% | 19.7% | 19.7% | 80.3% | 0.0% | 0.00 | 1.00 | ScholarKingdoms 114T, ForgeClans 109T | RiverLeague 44T | ScholarKingdoms 26T | RiverLeague 2633G/27, ScholarKingdoms 412G/12, maintain 412G | 0.00 | 0.00 | None |
+| Arcstar Repository | Science | 4 | 96.00 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 100.0% | 0.0% | 0.00 | 1.00 | RiverLeague 201T, StarborneSeekers 85T, ForgeClans 53T, AetherianVanguard 45T | None | None | None | 0.00 | 0.00 | None |
+| Celestine Scriptorium | Science | 1 | 125.00 | 0.0% | 0.0% | 0.0% | 96.8% | 96.8% | 3.2% | 0.0% | 0.00 | 1.00 | ScholarKingdoms 125T | ForgeClans 112T | ScholarKingdoms 47T | ForgeClans 2873G/28, ScholarKingdoms 529G/15, maintain 529G, JadeCovenant 177G/5, RiverLeague 98G/3 | 0.00 | 0.00 | None |
+| Dreaming Calculus | Science | 4 | 122.00 | 0.2% | 0.0% | 0.2% | 63.7% | 63.7% | 36.3% | 0.0% | 0.00 | 1.00 | ForgeClans 369T, ScholarKingdoms 119T | ScholarKingdoms 173T, JadeCovenant 81T, StarborneSeekers 61T | ForgeClans 213T | JadeCovenant 5337G/54, ForgeClans 3503G/85, maintain 2484G, ScholarKingdoms 2392G/33, StarborneSeekers 1019G/17 | 0.00 | 0.00 | None |
+| Eclipsed Theorem | Science | 4 | 133.00 | 0.4% | 0.0% | 0.4% | 56.0% | 56.0% | 44.0% | 0.0% | 0.00 | 1.00 | ForgeClans 221T, JadeCovenant 192T, ScholarKingdoms 119T | StarborneSeekers 219T, RiverLeague 79T, AetherianVanguard 51T | ScholarKingdoms 76T, ForgeClans 52T | RiverLeague 2411G/26, StarborneSeekers 2014G/24, ScholarKingdoms 1660G/44, maintain 1660G, ForgeClans 919G/25, maintain 919G, AetherianVanguard 438G/10 | 0.00 | 0.00 | None |
+| Halcyon Loom | Science | 1 | 144.00 | 0.0% | 0.0% | 0.0% | 91.7% | 91.7% | 8.3% | 0.0% | 0.00 | 1.00 | ForgeClans 144T | None | None | StarborneSeekers 3714G/31, ForgeClans 1621G/43, maintain 1621G | 0.00 | 0.00 | None |
+| Lunarchive | Science | 4 | 107.00 | 0.9% | 0.0% | 0.9% | 33.4% | 31.8% | 71.5% | 0.0% | 0.00 | 1.00 | StarborneSeekers 179T, RiverLeague 100T, ForgeClans 88T, JadeCovenant 61T | None | RiverLeague 9T | StarborneSeekers 1913G/51, maintain 1777G, RiverLeague 1182G/27, maintain 451G, AetherianVanguard 30G/1, ForgeClans 30G/1 | 0.00 | 0.00 | None |
+| Meridian of Runes | Science | 3 | 101.67 | 0.7% | 0.0% | 0.7% | 65.2% | 57.0% | 64.3% | 0.0% | 0.00 | 1.00 | ForgeClans 159T, RiverLeague 146T | ScholarKingdoms 187T, AetherianVanguard 12T | ForgeClans 39T, RiverLeague 11T | RiverLeague 1231G/33, maintain 1231G, ScholarKingdoms 1052G/20, ForgeClans 590G/18, maintain 590G, AetherianVanguard 136G/4, StarborneSeekers 30G/1 | 0.00 | 0.00 | None |
+| Nyx Codex | Science | 4 | 168.00 | 0.1% | 0.0% | 0.1% | 53.1% | 53.1% | 46.9% | 0.0% | 0.00 | 1.00 | StarborneSeekers 357T, JadeCovenant 286T, AetherianVanguard 29T | JadeCovenant 164T, StarborneSeekers 133T, RiverLeague 44T | StarborneSeekers 42T | AetherianVanguard 4394G/33, JadeCovenant 3865G/69, maintain 1660G, StarborneSeekers 3440G/62, maintain 1426G, ScholarKingdoms 1837G/23, RiverLeague 820G/15, ForgeClans 270G/7 | 0.00 | 0.00 | None |
+| Observatory of Whispers | Science | 3 | 120.00 | 1.1% | 0.0% | 1.1% | 62.5% | 62.2% | 39.2% | 0.0% | 0.00 | 1.00 | StarborneSeekers 130T, JadeCovenant 122T, ScholarKingdoms 108T | AetherianVanguard 147T, StarborneSeekers 20T | StarborneSeekers 46T, ScholarKingdoms 24T, JadeCovenant 15T | StarborneSeekers 4071G/70, maintain 1660G, AetherianVanguard 3354G/35, RiverLeague 1521G/21, JadeCovenant 997G/27, maintain 997G, ScholarKingdoms 78G/3, maintain 78G | 0.00 | 0.00 | None |
+| Prism Oracle | Science | 4 | 114.25 | 0.4% | 0.0% | 0.4% | 30.4% | 27.4% | 80.1% | 0.0% | 0.00 | 1.00 | StarborneSeekers 164T, RiverLeague 119T, JadeCovenant 96T, ScholarKingdoms 78T | JadeCovenant 77T | StarborneSeekers 6T | JadeCovenant 2014G/24, StarborneSeekers 568G/16, maintain 568G, ForgeClans 438G/10, ScholarKingdoms 355G/11, maintain 178G | 0.00 | 0.00 | None |
+| Quillspire | Science | 1 | 224.00 | 3.1% | 0.0% | 3.1% | 95.1% | 84.4% | 50.4% | 0.0% | 0.00 | 1.00 | RiverLeague 224T | ForgeClans 169T | RiverLeague 17T | RiverLeague 2089G/55, maintain 2089G, ScholarKingdoms 1837G/23, ForgeClans 916G/16 | 0.00 | 0.00 | None |
+| Radiant Lexicon | Science | 5 | 127.80 | 0.5% | 0.0% | 0.5% | 76.7% | 74.3% | 26.6% | 0.0% | 0.31 | 1.40 | ScholarKingdoms 292T, RiverLeague 263T, JadeCovenant 84T | AetherianVanguard 153T, JadeCovenant 75T, StarborneSeekers 3T, ForgeClans 2T | ScholarKingdoms 62T, JadeCovenant 50T, RiverLeague 30T | JadeCovenant 4298G/57, maintain 1153G, AetherianVanguard 4028G/49, ScholarKingdoms 2270G/56, maintain 1621G, RiverLeague 1766G/48, maintain 1736G, StarborneSeekers 222G/6, ForgeClans 136G/4 | 0.40 | 0.40 | Investment 1, WartimeRelease 1 |
+| Starglass Athenaeum | Science | 4 | 80.50 | 3.4% | 0.0% | 3.4% | 66.1% | 64.3% | 42.5% | 5.0% | 0.93 | 1.25 | RiverLeague 99T, AetherianVanguard 98T, StarborneSeekers 85T, JadeCovenant 40T | ScholarKingdoms 81T, AetherianVanguard 2T | StarborneSeekers 41T, RiverLeague 38T, JadeCovenant 12T | ScholarKingdoms 1521G/26, AetherianVanguard 1346G/20, maintain 142G, RiverLeague 1314G/34, maintain 1092G, StarborneSeekers 1309G/35, maintain 1309G, JadeCovenant 685G/19, maintain 685G | 0.75 | 0.75 | Other 2, Investment 1 |
+| Voidlight Archive | Science | 2 | 105.50 | 0.5% | 0.0% | 0.5% | 55.0% | 55.0% | 45.0% | 0.0% | 0.00 | 1.00 | ForgeClans 118T, JadeCovenant 93T | RiverLeague 116T | ForgeClans 81T | RiverLeague 6110G/37, ForgeClans 997G/27, maintain 997G | 0.00 | 0.00 | None |
 
 ## Notes
 - "Maintenance Gold" counts investment spend that occurred while the investor was the incumbent suzerain for that city-state.

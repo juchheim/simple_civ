@@ -521,7 +521,7 @@ describe("ai regression safeguards", () => {
         ] as any;
         state.units = [
             {
-                id: "settler",
+                id: "u_p_settler",
                 ownerId: "p",
                 type: UnitType.Settler,
                 coord: start,
@@ -559,7 +559,7 @@ describe("ai regression safeguards", () => {
         ] as any;
         state.units = [
             {
-                id: "settler",
+                id: "u_p_settler",
                 ownerId: "p",
                 type: UnitType.Settler,
                 coord: origin,
@@ -573,6 +573,271 @@ describe("ai regression safeguards", () => {
         const foundedCity = after.cities.find(c => hexEquals(c.coord, rich));
         expect(foundedCity).toBeDefined();
         expect(foundedCity?.ownerId).toBe("p");
+    });
+
+    it("prefers a safer adjacent site over a richer exposed site", () => {
+        const state = baseState();
+        state.currentPlayerId = "p";
+        state.players = [
+            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+            { id: "e", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ] as any;
+        const home = hex(-3, 0);
+        const origin = hex(0, 0);
+        const rich = hex(1, 0);
+        const safe = hex(0, 1);
+        const enemyPos = hex(2, 0);
+        state.diplomacy = { p: { e: DiplomacyState.Peace }, e: { p: DiplomacyState.Peace } } as any;
+        state.map.tiles = [
+            { coord: home, terrain: TerrainType.Plains, overlays: [], hasCityCenter: true, ownerId: "p" },
+            { coord: origin, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: rich, terrain: TerrainType.Hills, overlays: [OverlayType.OreVein], hasCityCenter: false },
+            { coord: safe, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: enemyPos, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+        ] as any;
+        state.cities = [
+            {
+                id: "cap",
+                ownerId: "p",
+                coord: home,
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                currentBuild: null,
+                buildProgress: 0,
+                buildings: [],
+                workedTiles: [home],
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            } as any,
+        ];
+        state.units = [
+            {
+                id: "settler",
+                ownerId: "p",
+                type: UnitType.Settler,
+                coord: origin,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: "Normal",
+                linkedUnitId: "escort",
+            },
+            {
+                id: "escort",
+                ownerId: "p",
+                type: UnitType.SpearGuard,
+                coord: origin,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: "Normal",
+                linkedUnitId: "settler",
+            },
+            {
+                id: "enemy",
+                ownerId: "e",
+                type: UnitType.SpearGuard,
+                coord: enemyPos,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: "Normal",
+            },
+        ] as any;
+
+        const after = moveSettlersAndFound(state as any, "p");
+        const foundedCity = after.cities.find(c => hexEquals(c.coord, safe));
+        const liveSettler = after.units.find(u => u.id === "settler");
+        expect(foundedCity || liveSettler).toBeDefined();
+        if (liveSettler) {
+            expect(liveSettler.coord).toEqual(safe);
+        }
+        expect(after.cities.find(c => hexEquals(c.coord, rich))).toBeUndefined();
+    });
+
+    it("avoids entering a native camp buffer for a richer site", () => {
+        const state = baseState();
+        state.currentPlayerId = "p";
+        state.players = [
+            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ] as any;
+        const home = hex(-3, 0);
+        const origin = hex(0, 0);
+        const rich = hex(1, 0);
+        const safe = hex(-1, 1);
+        const camp = hex(4, 0);
+        state.map.tiles = [
+            { coord: home, terrain: TerrainType.Plains, overlays: [], hasCityCenter: true, ownerId: "p" },
+            { coord: origin, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: rich, terrain: TerrainType.Hills, overlays: [OverlayType.OreVein], hasCityCenter: false },
+            { coord: safe, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: camp, terrain: TerrainType.Plains, overlays: [OverlayType.NativeCamp], hasCityCenter: false },
+        ] as any;
+        state.cities = [
+            {
+                id: "cap",
+                ownerId: "p",
+                coord: home,
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                currentBuild: null,
+                buildProgress: 0,
+                buildings: [],
+                workedTiles: [home],
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            } as any,
+        ];
+        state.units = [
+            {
+                id: "u_p_settler",
+                ownerId: "p",
+                type: UnitType.Settler,
+                coord: origin,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: "Normal",
+            },
+        ] as any;
+        state.nativeCamps = [
+            { id: "camp-1", coord: camp, state: "Patrol", aggroTurnsRemaining: 0 },
+        ] as any;
+
+        const after = moveSettlersAndFound(state as any, "p");
+        const foundedCity = after.cities.find(c => hexEquals(c.coord, safe));
+        const liveSettler = after.units.find(u => u.id === "u_p_settler");
+        expect(foundedCity || liveSettler).toBeDefined();
+        if (liveSettler) {
+            expect(liveSettler.coord).toEqual(safe);
+        }
+        expect(after.cities.find(c => hexEquals(c.coord, rich))).toBeUndefined();
+    });
+
+    it("holds in a camp-pressured city and prioritizes clearing the blocking camp", () => {
+        const state = baseState();
+        state.currentPlayerId = "p";
+        state.players = [
+            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ] as any;
+        const home = hex(0, 0);
+        const camp = hex(3, 0);
+        const frontierTarget = hex(7, 0);
+        state.map.tiles = [
+            { coord: home, terrain: TerrainType.Plains, overlays: [], hasCityCenter: true, ownerId: "p" },
+            { coord: hex(1, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(2, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: camp, terrain: TerrainType.Plains, overlays: [OverlayType.NativeCamp], hasCityCenter: false },
+            { coord: hex(4, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(5, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(6, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: frontierTarget, terrain: TerrainType.Plains, overlays: [OverlayType.RichSoil], hasCityCenter: false },
+        ] as any;
+        state.cities = [
+            {
+                id: "cap",
+                ownerId: "p",
+                coord: home,
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                currentBuild: null,
+                buildProgress: 0,
+                buildings: [],
+                workedTiles: [home],
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            } as any,
+        ];
+        state.units = [
+            {
+                id: "u_p_settler",
+                ownerId: "p",
+                type: UnitType.Settler,
+                coord: home,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: "Normal",
+            },
+        ] as any;
+        state.nativeCamps = [
+            { id: "camp-1", coord: camp, state: "Patrol", aggroTurnsRemaining: 0 },
+        ] as any;
+
+        const after = moveSettlersAndFound(state as any, "p");
+        const liveSettler = after.units.find(u => u.id === "u_p_settler");
+        expect(liveSettler?.coord).toEqual(home);
+        expect(after.players.find(p => p.id === "p")?.campClearingPrep?.targetCampId).toBe("camp-1");
+    });
+
+    it("retreats toward the nearest city when a frontier route is blocked by a native camp", () => {
+        const state = baseState();
+        state.currentPlayerId = "p";
+        state.players = [
+            { id: "p", aiGoal: "Balanced", techs: [], currentTech: null, completedProjects: [], isEliminated: false },
+        ] as any;
+        const home = hex(-2, 0);
+        const retreat = hex(-1, 0);
+        const origin = hex(0, 0);
+        const camp = hex(3, 0);
+        const frontierTarget = hex(7, 0);
+        state.map.tiles = [
+            { coord: home, terrain: TerrainType.Plains, overlays: [], hasCityCenter: true, ownerId: "p" },
+            { coord: retreat, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: origin, terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(1, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(2, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: camp, terrain: TerrainType.Plains, overlays: [OverlayType.NativeCamp], hasCityCenter: false },
+            { coord: hex(4, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(5, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: hex(6, 0), terrain: TerrainType.Plains, overlays: [], hasCityCenter: false },
+            { coord: frontierTarget, terrain: TerrainType.Plains, overlays: [OverlayType.RichSoil], hasCityCenter: false },
+        ] as any;
+        state.cities = [
+            {
+                id: "cap",
+                ownerId: "p",
+                coord: home,
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                currentBuild: null,
+                buildProgress: 0,
+                buildings: [],
+                workedTiles: [home],
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            } as any,
+        ];
+        state.units = [
+            {
+                id: "u_p_settler",
+                ownerId: "p",
+                type: UnitType.Settler,
+                coord: origin,
+                movesLeft: 2,
+                hasAttacked: false,
+                state: "Normal",
+            },
+        ] as any;
+        state.nativeCamps = [
+            { id: "camp-1", coord: camp, state: "Patrol", aggroTurnsRemaining: 0 },
+        ] as any;
+
+        const after = moveSettlersAndFound(state as any, "p");
+        const liveSettler = after.units.find(u => u.id === "u_p_settler");
+        expect(liveSettler?.coord).toEqual(retreat);
+        expect(after.players.find(p => p.id === "p")?.campClearingPrep?.targetCampId).toBe("camp-1");
     });
 
     it("attacks the lowest HP enemy city within range first", () => {
@@ -850,7 +1115,7 @@ describe("ai personality behaviors", () => {
         ] as any;
         state.map.rivers = [{ a: riverTile, b: dryTile }];
         state.units = [
-            { id: "settler", ownerId: "p", type: UnitType.Settler, coord: coast, movesLeft: 2, hasAttacked: false, state: UnitState.Normal },
+            { id: "u_p_settler", ownerId: "p", type: UnitType.Settler, coord: coast, movesLeft: 2, hasAttacked: false, state: UnitState.Normal },
         ] as any;
 
         const after = moveSettlersAndFound(state as any, "p");

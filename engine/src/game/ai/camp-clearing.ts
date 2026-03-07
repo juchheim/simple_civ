@@ -8,7 +8,7 @@
 import { CityStateYieldType, GameState, Player, DiplomacyState, NativeCamp, TechId, Unit, UnitType, HistoryEventType } from "../../core/types.js";
 import type { CampClearingPrep } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
-import { UNITS } from "../../core/constants.js";
+import { NATIVE_CAMP_TERRITORY_RADIUS, UNITS } from "../../core/constants.js";
 import { aiInfo } from "./debug-logging.js";
 import { isScoutType } from "./units/unit-helpers.js";
 import { logEvent } from "../history.js";
@@ -969,6 +969,56 @@ export function clearCampPrepAndRetarget(state: GameState, playerId: string, exc
     if (!player || player.isEliminated || player.campClearingPrep) return clearedState;
     const excluded = excludedCampId ? new Set([excludedCampId]) : undefined;
     return checkForCampTargets(clearedState, player, excluded);
+}
+
+export function prioritizeCampClearingTarget(state: GameState, playerId: string, campId: string): GameState {
+    const player = state.players.find(entry => entry.id === playerId);
+    if (!player || player.isEliminated || player.warPreparation) return state;
+    if (player.campClearingPrep?.targetCampId === campId) return state;
+    if (player.campClearingPrep?.state === "Ready") return state;
+
+    const camp = state.nativeCamps.find(entry => entry.id === campId);
+    if (!camp) return state;
+
+    const readiness = getCampClearingReadiness(state, player);
+    const evaluation = evaluateCampTarget(state, player, camp, readiness);
+    if (!evaluation) return state;
+
+    const minTurnForCamp = getMinTurnForCamp(readiness);
+    const scoreMin = getCampTargetScoreMin(readiness);
+    const effectiveSettleRadius = readiness === "ArmyFielded"
+        ? getCampSettleRadius(readiness) + 2
+        : getCampSettleRadius(readiness);
+    const activePlayerCount = state.players.filter(entry => !entry.isEliminated).length;
+    const globalCityStateCount = state.cityStates?.length ?? 0;
+    const earlyOverride = evaluation.nearestCityDist <= CAMP_EMERGENCY_RADIUS
+        && evaluation.score >= CAMP_TARGET_SCORE_EARLY_OVERRIDE;
+    const settlerBlockingOverride = getNearestSettlerDistance(state, player.id, camp) <= (NATIVE_CAMP_TERRITORY_RADIUS + 1);
+    const scarcityOverride = readiness !== "PreArmy"
+        && globalCityStateCount <= Math.max(1, Math.floor(activePlayerCount / 2) - 1)
+        && evaluation.score >= (scoreMin - 6);
+    const cityRadiusGate = evaluation.nearestCityDist <= effectiveSettleRadius
+        || evaluation.nearestCityDist <= CAMP_EMERGENCY_RADIUS;
+    const scoreGate = evaluation.score >= scoreMin || earlyOverride || scarcityOverride;
+
+    if (state.turn < minTurnForCamp && !earlyOverride && !settlerBlockingOverride) return state;
+    if (!cityRadiusGate) return state;
+    if (!scoreGate && !settlerBlockingOverride) return state;
+
+    const militaryCount = getMilitaryCount(state, player.id);
+    const prep = createCampPrepFromEvaluation(state, player, readiness, evaluation, militaryCount);
+    aiInfo(
+        `[AI CAMP] ${player.id} prioritizing blocked-settler camp ${camp.id}: ` +
+        `score ${evaluation.score.toFixed(1)}, dist ${evaluation.nearestCityDist}, readiness=${readiness}`
+    );
+    logCampPrepStarted(state, player.id, prep, {
+        readiness,
+        score: evaluation.score,
+        nearestCityDist: evaluation.nearestCityDist,
+        requiredMilitary: Math.max(MIN_POSITIONING_UNITS, evaluation.requiredMilitary),
+        militaryCount,
+    });
+    return updatePrepState(state, player.id, prep);
 }
 
 /**

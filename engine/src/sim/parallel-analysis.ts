@@ -15,6 +15,7 @@ import { performance } from "node:perf_hooks";
 import {
     Event,
     TurnSnapshot,
+    buildSettlerDeathTelemetry,
     estimateMilitaryPower,
     civList,
     createTurnSnapshot
@@ -637,6 +638,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     }
 
     const events: Event[] = [];
+    const producedSettlerIds = new Set<string>();
     const turnSnapshots: TurnSnapshot[] = [];
     const keyTurns = new Set([25, 50, 75, 100, 125, 150, 175, 200]);
 
@@ -657,7 +659,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
         const actingPlayerId = state.currentPlayerId;
 
         // Capture snapshot BEFORE turn
-        const beforeUnits = new Map(state.units.map(u => [u.id, { type: u.type, ownerId: u.ownerId }]));
+        const beforeUnits = new Map(state.units.map(u => [u.id, { ...u, coord: { ...u.coord } }]));
         if (state.currentPlayerId === state.players[0].id && process.env.SIM_QUIET !== "true") {
             console.log(`--- TURN ${state.turn} ---`);
         }
@@ -719,6 +721,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                 const isSettlerWhoFounded = prevUnit.type === "Settler" && newCityOwners.has(prevUnit.ownerId);
 
                 if (!isSettlerWhoFounded) {
+                    const settlerTelemetry = prevUnit.type === UnitType.Settler
+                        ? buildSettlerDeathTelemetry(previousState, state, unitId, producedSettlerIds.has(unitId))
+                        : undefined;
                     // Unit actually died in combat or was disbanded
                     events.push({
                         type: "UnitDeath",
@@ -726,6 +731,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         unitId,
                         unitType: prevUnit.type,
                         owner: prevUnit.ownerId,
+                        settlerTelemetry: settlerTelemetry ?? undefined,
                     });
                 }
             }
@@ -745,6 +751,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         unitType: u.type,
                         unitId: u.id,
                     });
+                    if (u.type === UnitType.Settler) {
+                        producedSettlerIds.add(u.id);
+                    }
                     recordMilitaryProductionEvent(economyByCiv, state, u.ownerId, u.type);
                 }
             } else {
@@ -761,6 +770,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                             unitType: u.type,
                             unitId: u.id,
                         });
+                        if (u.type === UnitType.Settler) {
+                            producedSettlerIds.add(u.id);
+                        }
                         recordMilitaryProductionEvent(economyByCiv, state, u.ownerId, u.type);
                     }
                 }

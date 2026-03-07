@@ -1,5 +1,7 @@
 import { GameState, UnitType, DiplomacyState, TechId, ProjectId, BuildingType } from "../core/types.js";
+import { hexDistance } from "../core/hex.js";
 import { UNITS } from "../core/constants.js";
+import { getSettlerThreatOwnerIds, hasHostileMilitaryNearCity, isSettlerEscortCombatUnit } from "../game/ai/shared/settler-production-gates.js";
 
 // Simple military power estimation
 export function estimateMilitaryPower(playerId: string, state: GameState): number {
@@ -20,10 +22,23 @@ export type CivName =
     | "StarborneSeekers"
     | "JadeCovenant";
 
+export type SettlerDeathTelemetry = {
+    produced: boolean;
+    atWar: boolean;
+    hadLinkedEscort: boolean;
+    hadAdjacentEscort: boolean;
+    linkedEscortLost: boolean;
+    nearNativeCamp: boolean;
+    nearbyEnemyMilitary: boolean;
+    nearbyNativeMilitary: boolean;
+    enemyNearFriendlyCity: boolean;
+    nearestFriendlyCityDistance: number | null;
+};
+
 export type Event =
     | { type: "WarDeclaration"; turn: number; initiator: string; target: string; initiatorPower: number; targetPower: number }
     | { type: "PeaceTreaty"; turn: number; civ1: string; civ2: string }
-    | { type: "UnitDeath"; turn: number; unitId: string; unitType: UnitType; owner: string; killedBy?: string }
+    | { type: "UnitDeath"; turn: number; unitId: string; unitType: UnitType; owner: string; killedBy?: string; settlerTelemetry?: SettlerDeathTelemetry }
     | { type: "UnitProduction"; turn: number; cityId: string; owner: string; unitType: UnitType; unitId?: string }
     | { type: "CityCapture"; turn: number; cityId: string; from: string; to: string }
     | { type: "CityFound"; turn: number; cityId: string; owner: string }
@@ -179,5 +194,76 @@ export function createTurnSnapshot(state: GameState): TurnSnapshot {
             type: u.type,
         })),
         diplomacy: [],
+    };
+}
+
+export function buildSettlerDeathTelemetry(
+    previousState: GameState,
+    currentState: GameState,
+    unitId: string,
+    produced: boolean
+): SettlerDeathTelemetry | null {
+    const deadSettler = previousState.units.find(unit => unit.id === unitId && unit.type === UnitType.Settler);
+    if (!deadSettler) return null;
+
+    const myCities = previousState.cities.filter(city => city.ownerId === deadSettler.ownerId);
+    const nearestFriendlyCityDistance = myCities.length > 0
+        ? Math.min(...myCities.map(city => hexDistance(city.coord, deadSettler.coord)))
+        : null;
+
+    const linkedEscort = deadSettler.linkedUnitId
+        ? previousState.units.find(unit => unit.id === deadSettler.linkedUnitId)
+        : null;
+    const hadLinkedEscort = !!(
+        linkedEscort &&
+        linkedEscort.ownerId === deadSettler.ownerId &&
+        isSettlerEscortCombatUnit(linkedEscort.type) &&
+        hexDistance(linkedEscort.coord, deadSettler.coord) <= 1
+    );
+    const hadAdjacentEscort = previousState.units.some(unit =>
+        unit.ownerId === deadSettler.ownerId &&
+        unit.id !== deadSettler.id &&
+        isSettlerEscortCombatUnit(unit.type) &&
+        hexDistance(unit.coord, deadSettler.coord) <= 1
+    );
+    const linkedEscortLost = !!(
+        deadSettler.linkedUnitId &&
+        hadLinkedEscort &&
+        !currentState.units.some(unit =>
+            unit.id === deadSettler.linkedUnitId &&
+            unit.ownerId === deadSettler.ownerId &&
+            isSettlerEscortCombatUnit(unit.type)
+        )
+    );
+
+    const atWar = previousState.players.some(player =>
+        player.id !== deadSettler.ownerId &&
+        !player.isEliminated &&
+        previousState.diplomacy?.[deadSettler.ownerId]?.[player.id] === DiplomacyState.War
+    );
+
+    const threatOwnerIds = getSettlerThreatOwnerIds(previousState, deadSettler.ownerId, false);
+    const nearbyThreats = previousState.units.filter(unit =>
+        threatOwnerIds.has(unit.ownerId) &&
+        isSettlerEscortCombatUnit(unit.type) &&
+        hexDistance(unit.coord, deadSettler.coord) <= 3
+    );
+    const nearNativeCamp = previousState.nativeCamps.some(camp => hexDistance(camp.coord, deadSettler.coord) <= 4);
+    const enemyNearFriendlyCity = myCities.some(city =>
+        hexDistance(city.coord, deadSettler.coord) <= 4 &&
+        hasHostileMilitaryNearCity(previousState, deadSettler.ownerId, city.coord, 4, false)
+    );
+
+    return {
+        produced,
+        atWar,
+        hadLinkedEscort,
+        hadAdjacentEscort,
+        linkedEscortLost,
+        nearNativeCamp,
+        nearbyEnemyMilitary: nearbyThreats.some(unit => unit.ownerId !== "natives"),
+        nearbyNativeMilitary: nearbyThreats.some(unit => unit.ownerId === "natives"),
+        enemyNearFriendlyCity,
+        nearestFriendlyCityDistance,
     };
 }

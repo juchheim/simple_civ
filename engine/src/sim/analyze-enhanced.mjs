@@ -9,6 +9,29 @@ console.log(`${'='.repeat(80)}\n`);
 
 const MAP_ORDER = ["Tiny", "Small", "Standard", "Large", "Huge"];
 const CIVS = ["ForgeClans", "ScholarKingdoms", "RiverLeague", "AetherianVanguard", "StarborneSeekers", "JadeCovenant"];
+const SETTLER_DEATH_CAUSE_ORDER = ["escort_lost", "unescorted", "native_camp", "enemy_near_city", "wartime", "long_route", "other"];
+const NATIVE_CAMP_CONTEXT_ORDER = ["near_city", "frontier_route", "deep_field"];
+
+function classifyProducedSettlerDeath(event) {
+    const telemetry = event?.settlerTelemetry;
+    if (!telemetry?.produced) return null;
+    if (telemetry.linkedEscortLost) return "escort_lost";
+    if (!telemetry.hadLinkedEscort && !telemetry.hadAdjacentEscort) return "unescorted";
+    if (telemetry.nearNativeCamp || telemetry.nearbyNativeMilitary) return "native_camp";
+    if (telemetry.enemyNearFriendlyCity) return "enemy_near_city";
+    if (telemetry.atWar) return "wartime";
+    if ((telemetry.nearestFriendlyCityDistance ?? 0) >= 5) return "long_route";
+    return "other";
+}
+
+function classifyNativeCampSettlerDeathContext(event) {
+    if (classifyProducedSettlerDeath(event) !== "native_camp") return null;
+    const telemetry = event?.settlerTelemetry;
+    const nearestFriendlyCityDistance = telemetry?.nearestFriendlyCityDistance;
+    if ((nearestFriendlyCityDistance ?? Number.POSITIVE_INFINITY) <= 1) return "near_city";
+    if ((nearestFriendlyCityDistance ?? Number.POSITIVE_INFINITY) <= 4) return "frontier_route";
+    return "deep_field";
+}
 
 // ============================================================================
 // QUESTION 1: Which civs win by which victory type
@@ -219,6 +242,8 @@ function analyzeStallDiagnostics(results) {
 function analyzeSettlerStats(results) {
     const settlerDeaths = [];
     const settlerProductions = [];
+    const producedDeathCauseBreakdown = Object.fromEntries(SETTLER_DEATH_CAUSE_ORDER.map(cause => [cause, 0]));
+    const nativeCampDeathContextBreakdown = Object.fromEntries(NATIVE_CAMP_CONTEXT_ORDER.map(context => [context, 0]));
     const byCiv = new Map();
     CIVS.forEach(civ => {
         byCiv.set(civ, { deaths: 0, productions: 0, gamesPlayed: 0, citiesFounded: 0 });
@@ -233,11 +258,20 @@ function analyzeSettlerStats(results) {
 
         sim.events.forEach(e => {
             if (e.type === "UnitDeath" && e.unitType === "Settler") {
+                const producedDeathCause = classifyProducedSettlerDeath(e);
                 settlerDeaths.push({
                     turn: e.turn,
                     owner: e.owner,
                     mapSize: sim.mapSize,
+                    producedDeathCause,
                 });
+                if (producedDeathCause) {
+                    producedDeathCauseBreakdown[producedDeathCause]++;
+                }
+                const nativeCampContext = classifyNativeCampSettlerDeathContext(e);
+                if (nativeCampContext) {
+                    nativeCampDeathContextBreakdown[nativeCampContext]++;
+                }
                 const civ = sim.finalState?.civs.find(c => c.id === e.owner);
                 if (civ) {
                     const stats = byCiv.get(civ.civName);
@@ -264,7 +298,7 @@ function analyzeSettlerStats(results) {
         });
     });
 
-    return { settlerDeaths, settlerProductions, byCiv };
+    return { settlerDeaths, settlerProductions, producedDeathCauseBreakdown, nativeCampDeathContextBreakdown, byCiv };
 }
 
 // ============================================================================
@@ -639,6 +673,28 @@ Array.from(settlerStats.byCiv.entries()).forEach(([civ, stats]) => {
 });
 report += `\n`;
 
+const producedSettlerDeaths = settlerStats.settlerDeaths.filter(death => death.producedDeathCause);
+if (producedSettlerDeaths.length > 0) {
+    report += `### Produced Settler Death Causes\n`;
+    SETTLER_DEATH_CAUSE_ORDER.forEach(cause => {
+        const count = settlerStats.producedDeathCauseBreakdown[cause] || 0;
+        const share = producedSettlerDeaths.length > 0 ? ((count / producedSettlerDeaths.length) * 100).toFixed(1) : "0.0";
+        report += `- **${cause}:** ${count} (${share}% of produced settler deaths)\n`;
+    });
+    report += `\n`;
+
+    const nativeCampDeaths = settlerStats.producedDeathCauseBreakdown.native_camp || 0;
+    if (nativeCampDeaths > 0) {
+        report += `### Native Camp Death Context\n`;
+        NATIVE_CAMP_CONTEXT_ORDER.forEach(context => {
+            const count = settlerStats.nativeCampDeathContextBreakdown[context] || 0;
+            const share = nativeCampDeaths > 0 ? ((count / nativeCampDeaths) * 100).toFixed(1) : "0.0";
+            report += `- **${context}:** ${count} (${share}% of native camp settler deaths)\n`;
+        });
+        report += `\n`;
+    }
+}
+
 // QUESTION 5: Army Usage
 report += `## 5. Army Usage Patterns\n\n`;
 report += `### Overall Statistics\n`;
@@ -739,4 +795,3 @@ tStats.byCiv.forEach((stats, civ) => {
 writeFileSync('/tmp/enhanced-analysis-report.md', report);
 console.log("Enhanced analysis complete!");
 console.log(`Report written to /tmp/enhanced-analysis-report.md`);
-

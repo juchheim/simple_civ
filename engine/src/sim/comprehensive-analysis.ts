@@ -1,10 +1,11 @@
 import { generateWorld } from "../map/map-generator.js";
 import { runAiTurn } from "../game/ai.js";
-import { MapSize, DiplomacyState, ProjectId } from "../core/types.js";
+import { MapSize, DiplomacyState, ProjectId, UnitType } from "../core/types.js";
 import { clearWarVetoLog } from "../game/ai-decisions.js";
 import {
     Event,
     TurnSnapshot,
+    buildSettlerDeathTelemetry,
     estimateMilitaryPower,
     civList,
     createTurnSnapshot
@@ -29,6 +30,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     }
 
     const events: Event[] = [];
+    const producedSettlerIds = new Set<string>();
     const turnSnapshots: TurnSnapshot[] = [];
     const keyTurns = [25, 50, 75, 100, 125, 150, 175, 200];
 
@@ -98,12 +100,16 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                 const isSettlerWhoFounded = prevUnit.type === "Settler" && newCityOwners.has(prevUnit.ownerId);
 
                 if (!isSettlerWhoFounded) {
+                    const settlerTelemetry = prevUnit.type === UnitType.Settler
+                        ? buildSettlerDeathTelemetry(previousState, state, unitId, producedSettlerIds.has(unitId))
+                        : undefined;
                     events.push({
                         type: "UnitDeath",
                         turn: state.turn,
                         unitId,
                         unitType: prevUnit.type,
                         owner: prevUnit.ownerId,
+                        settlerTelemetry: settlerTelemetry ?? undefined,
                     });
                 }
             }
@@ -121,6 +127,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                         unitType: u.type,
                         unitId: u.id,
                     });
+                    if (u.type === UnitType.Settler) {
+                        producedSettlerIds.add(u.id);
+                    }
                 }
             } else {
                 const prevUnit = beforeUnits.get(u.id)!;
@@ -135,6 +144,9 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                             unitType: u.type,
                             unitId: u.id,
                         });
+                        if (u.type === UnitType.Settler) {
+                            producedSettlerIds.add(u.id);
+                        }
                     }
                 }
             }

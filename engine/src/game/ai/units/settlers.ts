@@ -8,6 +8,8 @@ import {
 } from "../../../core/types.js";
 import {
     CITY_NAMES,
+    NATIVE_CAMP_CHASE_DISTANCE,
+    NATIVE_CAMP_TERRITORY_RADIUS,
     TERRAIN,
     UNITS
 } from "../../../core/constants.js";
@@ -17,7 +19,10 @@ import { tryAction } from "../shared/actions.js";
 import { sortByDistance } from "../shared/metrics.js";
 import { findPath } from "../../helpers/pathfinding.js";
 import { getPersonalityForPlayer } from "../personality.js";
+import { prioritizeCampClearingTarget } from "../camp-clearing.js";
 import { getSettlerThreatOwnerIds, isSettlerEscortCombatUnit } from "../shared/settler-production-gates.js";
+
+const SETTLER_NATIVE_CAMP_BUFFER_RADIUS = NATIVE_CAMP_TERRITORY_RADIUS + NATIVE_CAMP_CHASE_DISTANCE;
 
 function validCityTile(tile: any, state: GameState, playerId: string): boolean {
     if (!tile) return false;
@@ -38,7 +43,101 @@ function validCityTile(tile: any, state: GameState, playerId: string): boolean {
     return true;
 }
 
+function getNearestNativeCampDistance(
+    coord: { q: number; r: number },
+    state: GameState
+): number | null {
+    const camp = getNearestNativeCamp(coord, state);
+    return camp ? hexDistance(camp.coord, coord) : null;
+}
+
+function getNearestNativeCamp(
+    coord: { q: number; r: number },
+    state: GameState
+): GameState["nativeCamps"][number] | null {
+    const camps = state.nativeCamps ?? [];
+    if (camps.length === 0) return null;
+    const ranked = [...camps].sort((a, b) =>
+        hexDistance(coord, a.coord) - hexDistance(coord, b.coord)
+    );
+    return ranked[0] ?? null;
+}
+
+function isInsideNativeCampTerritory(
+    coord: { q: number; r: number },
+    state: GameState
+): boolean {
+    const nearestCampDistance = getNearestNativeCampDistance(coord, state);
+    return nearestCampDistance !== null && nearestCampDistance <= NATIVE_CAMP_TERRITORY_RADIUS;
+}
+
+function isAllowedSettlerCampMove(
+    fromCoord: { q: number; r: number },
+    toCoord: { q: number; r: number },
+    state: GameState
+): boolean {
+    const fromCampDistance = getNearestNativeCampDistance(fromCoord, state);
+    const toCampDistance = getNearestNativeCampDistance(toCoord, state);
+    const fromInside = fromCampDistance !== null && fromCampDistance <= SETTLER_NATIVE_CAMP_BUFFER_RADIUS;
+    const toInside = toCampDistance !== null && toCampDistance <= SETTLER_NATIVE_CAMP_BUFFER_RADIUS;
+
+    if (!toInside) return true;
+    if (!fromInside) return false;
+    return (toCampDistance ?? Number.NEGATIVE_INFINITY) > (fromCampDistance ?? Number.NEGATIVE_INFINITY);
+}
+
+function routeBlockedByNativeCamp(
+    fromCoord: { q: number; r: number },
+    toCoord: { q: number; r: number },
+    settler: any,
+    state: GameState
+): GameState["nativeCamps"][number] | null {
+    const path = findPath(fromCoord, toCoord, settler, state);
+    for (const step of path) {
+        const nearestCamp = getNearestNativeCamp(step, state);
+        if (nearestCamp && hexDistance(nearestCamp.coord, step) <= SETTLER_NATIVE_CAMP_BUFFER_RADIUS) {
+            return nearestCamp;
+        }
+    }
+    return null;
+}
+
+function getCampPressureExitCamp(
+    coord: { q: number; r: number },
+    myCities: Array<{ coord: { q: number; r: number } }>,
+    state: GameState
+): GameState["nativeCamps"][number] | null {
+    if (!isInFriendlyCity(myCities, coord)) return null;
+    const nearestCamp = getNearestNativeCamp(coord, state);
+    if (!nearestCamp) return null;
+    return hexDistance(nearestCamp.coord, coord) <= SETTLER_NATIVE_CAMP_BUFFER_RADIUS
+        ? nearestCamp
+        : null;
+}
+
+function isCampExitMoveSafe(
+    fromCoord: { q: number; r: number },
+    toCoord: { q: number; r: number },
+    camp: GameState["nativeCamps"][number] | null
+): boolean {
+    if (!camp) return true;
+    return hexDistance(toCoord, camp.coord) > hexDistance(fromCoord, camp.coord);
+}
+
+function chooseBlockingCamp(
+    campIds: Set<string>,
+    coord: { q: number; r: number },
+    state: GameState
+): GameState["nativeCamps"][number] | null {
+    if (campIds.size === 0) return null;
+    const camps = (state.nativeCamps ?? []).filter(camp => campIds.has(camp.id));
+    if (camps.length === 0) return null;
+    camps.sort((a, b) => hexDistance(coord, a.coord) - hexDistance(coord, b.coord));
+    return camps[0] ?? null;
+}
+
 function settleHereIsBest(tile: any, state: GameState, playerId: string): boolean {
+    if (isInsideNativeCampTerritory(tile.coord, state)) return false;
     const personality = getPersonalityForPlayer(state, playerId);
     const currentScore = scoreCitySite(tile, state, playerId, personality);
     const neighborScores = getNeighbors(tile.coord)
@@ -170,6 +269,86 @@ function detectNearbyDanger(
         });
 
     return nearbyEnemies.length > 0 ? nearbyEnemies[0] : null;
+}
+
+type SettlerTravelRisk = {
+    threatScore: number;
+    nearNativeCamp: boolean;
+    insideNativeCampTerritory: boolean;
+    nearestNativeCampDistance: number | null;
+    nearestFriendlyCityDistance: number | null;
+};
+
+function assessSettlerTravelRisk(
+    coord: { q: number; r: number },
+    playerId: string,
+    state: GameState
+): SettlerTravelRisk {
+    const threatOwnerIds = getSettlerThreatOwnerIds(state, playerId, false);
+    const nearbyThreats = state.units.filter(unit =>
+        threatOwnerIds.has(unit.ownerId) &&
+        isSettlerEscortCombatUnit(unit.type) &&
+        hexDistance(unit.coord, coord) <= 4
+    );
+
+    let threatScore = 0;
+    for (const threat of nearbyThreats) {
+        const distance = hexDistance(threat.coord, coord);
+        if (distance <= 1) {
+            threatScore += threat.ownerId === "natives" ? 8 : 10;
+        } else if (distance === 2) {
+            threatScore += threat.ownerId === "natives" ? 4 : 6;
+        } else if (distance === 3) {
+            threatScore += threat.ownerId === "natives" ? 2 : 3;
+        } else {
+            threatScore += 1;
+        }
+    }
+
+    const nearestNativeCampDistance = getNearestNativeCampDistance(coord, state);
+    const insideNativeCampTerritory = nearestNativeCampDistance !== null
+        && nearestNativeCampDistance <= NATIVE_CAMP_TERRITORY_RADIUS;
+    const nearNativeCamp = nearestNativeCampDistance !== null
+        && nearestNativeCampDistance <= SETTLER_NATIVE_CAMP_BUFFER_RADIUS;
+    if (insideNativeCampTerritory) {
+        threatScore += 9 + ((NATIVE_CAMP_TERRITORY_RADIUS - nearestNativeCampDistance!) * 2);
+    } else if (nearNativeCamp) {
+        threatScore += nearestNativeCampDistance === SETTLER_NATIVE_CAMP_BUFFER_RADIUS ? 2 : 4;
+    }
+
+    const myCities = state.cities.filter(city => city.ownerId === playerId);
+    const nearestFriendlyCityDistance = myCities.length > 0
+        ? Math.min(...myCities.map(city => hexDistance(city.coord, coord)))
+        : null;
+    if (nearestFriendlyCityDistance !== null && nearestFriendlyCityDistance > 4) {
+        threatScore += (nearestFriendlyCityDistance - 4) * 0.5;
+    }
+
+    return {
+        threatScore,
+        nearNativeCamp,
+        insideNativeCampTerritory,
+        nearestNativeCampDistance,
+        nearestFriendlyCityDistance,
+    };
+}
+
+function adjustedSettlerSiteScore(
+    coord: { q: number; r: number },
+    rawScore: number,
+    distance: number,
+    playerId: string,
+    state: GameState
+): number {
+    const risk = assessSettlerTravelRisk(coord, playerId, state);
+    const distancePenalty = Math.max(0, distance - 3) * 0.9;
+    const frontierPenalty = Math.max(0, (risk.nearestFriendlyCityDistance ?? distance) - 4) * 0.6;
+    const campPenalty = risk.insideNativeCampTerritory
+        ? 14
+        : risk.nearNativeCamp
+            ? 4.5
+            : 0;
+    return rawScore - distancePenalty - frontierPenalty - campPenalty - (risk.threatScore * 2.2);
 }
 
 function hasLinkedEscort(state: GameState, settler: any): boolean {
@@ -330,18 +509,22 @@ function retreatTowardNearestCity(
     next: GameState,
     playerId: string,
     settler: any,
-    myCities: any[]
+    myCities: any[],
+    avoidCamp: GameState["nativeCamps"][number] | null = null
 ): { state: GameState; moved: boolean } {
     const nearestCityCoord = nearestFriendlyCity(myCities, settler.coord);
     if (!nearestCityCoord) return { state: next, moved: false };
     if (hexEquals(nearestCityCoord, settler.coord)) return { state: next, moved: false };
 
     const path = findPath(settler.coord, nearestCityCoord, settler, next);
+    const fallbackMoves = sortByDistance(nearestCityCoord, getNeighbors(settler.coord), coord => coord);
     const preferredMoves = path.length > 0
-        ? [path[0]]
-        : sortByDistance(nearestCityCoord, getNeighbors(settler.coord), coord => coord);
+        ? [path[0], ...fallbackMoves.filter(coord => !hexEquals(coord, path[0]))]
+        : fallbackMoves;
 
     for (const move of preferredMoves) {
+        if (!isCampExitMoveSafe(settler.coord, move, avoidCamp)) continue;
+        if (!isAllowedSettlerCampMove(settler.coord, move, next)) continue;
         const moveResult = tryAction(next, {
             type: "MoveUnit",
             playerId,
@@ -369,15 +552,22 @@ function findPotentialSites(
         .filter(({ coord, tile }) =>
             tile &&
             validCityTile(tile, next, playerId) &&
+            !isInsideNativeCampTerritory(coord, next) &&
             !hexEquals(coord, settler.coord)
         )
         .map(({ coord, tile }) => ({
             coord,
             tile,
             score: tile ? scoreCitySite(tile, next, playerId, personality) : -Infinity,
+            adjustedScore: tile
+                ? adjustedSettlerSiteScore(coord, scoreCitySite(tile, next, playerId, personality), hexDistance(settler.coord, coord), playerId, next)
+                : -Infinity,
             distance: hexDistance(settler.coord, coord)
         }))
         .sort((a, b) => {
+            if (Math.abs(a.adjustedScore - b.adjustedScore) > 0.5) {
+                return b.adjustedScore - a.adjustedScore;
+            }
             if (Math.abs(a.score - b.score) > 1) {
                 return b.score - a.score;
             }
@@ -389,13 +579,40 @@ function tryMoveTowardSite(
     next: GameState,
     playerId: string,
     settler: any,
-    siteCoord: { q: number; r: number }
-): { state: GameState; moved: boolean } {
+    siteCoord: { q: number; r: number },
+    campExitPressureCamp: GameState["nativeCamps"][number] | null
+): { state: GameState; moved: boolean; campBlocked: boolean } {
     const neighbors = getNeighbors(settler.coord);
-    const neighborsWithDistance = sortByDistance(siteCoord, neighbors, coord => coord);
+    const currentRisk = assessSettlerTravelRisk(settler.coord, playerId, next);
+    const currentDistance = hexDistance(settler.coord, siteCoord);
+    let campBlocked = false;
+    const neighborsWithDistance = neighbors
+        .map(coord => ({
+            coord,
+            remainingDistance: hexDistance(coord, siteCoord),
+            risk: assessSettlerTravelRisk(coord, playerId, next),
+        }))
+        .sort((a, b) => {
+            if (a.risk.threatScore !== b.risk.threatScore) {
+                return a.risk.threatScore - b.risk.threatScore;
+            }
+            return a.remainingDistance - b.remainingDistance;
+        });
     for (const neighbor of neighborsWithDistance) {
+        if (neighbor.remainingDistance > currentDistance) continue;
+        if (!isCampExitMoveSafe(settler.coord, neighbor.coord, campExitPressureCamp)) {
+            campBlocked = true;
+            continue;
+        }
+        if (!isAllowedSettlerCampMove(settler.coord, neighbor.coord, next)) {
+            campBlocked = true;
+            continue;
+        }
+        const steppingIntoHotTile = neighbor.risk.threatScore >= Math.max(6, currentRisk.threatScore + 3);
+        if (steppingIntoHotTile) continue;
+
         if (settler.linkedUnitId) {
-            const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, neighbor));
+            const unitsOnTarget = next.units.filter(u => hexEquals(u.coord, neighbor.coord));
             const hasMilitary = unitsOnTarget.some(u => UNITS[u.type].domain !== "Civilian");
             if (hasMilitary) continue;
         }
@@ -404,30 +621,45 @@ function tryMoveTowardSite(
             type: "MoveUnit",
             playerId,
             unitId: settler.id,
-            to: neighbor
+            to: neighbor.coord
         });
         if (moveResult !== next) {
-            return { state: moveResult, moved: true };
+            return { state: moveResult, moved: true, campBlocked: false };
         }
     }
-    return { state: next, moved: false };
+    return { state: next, moved: false, campBlocked };
 }
 
 function moveTowardBestNeighboringSite(
     next: GameState,
     playerId: string,
     settler: any,
-    personality: any
-): GameState {
+    personality: any,
+    campExitPressureCamp: GameState["nativeCamps"][number] | null
+): { state: GameState; moved: boolean } {
     const neighborOptions = getNeighbors(settler.coord)
         .map(coord => ({ coord, tile: next.map.tiles.find(t => hexEquals(t.coord, coord)) }))
-        .filter(({ tile }) => tile && validCityTile(tile, next, playerId));
+        .filter(({ coord, tile }) =>
+            tile &&
+            validCityTile(tile, next, playerId) &&
+            !isInsideNativeCampTerritory(coord, next) &&
+            isAllowedSettlerCampMove(settler.coord, coord, next) &&
+            isCampExitMoveSafe(settler.coord, coord, campExitPressureCamp)
+        );
     const scored = neighborOptions
         .map(({ coord, tile }) => ({
             coord,
             score: tile ? scoreCitySite(tile, next, playerId, personality) : -Infinity,
+            adjustedScore: tile
+                ? adjustedSettlerSiteScore(coord, scoreCitySite(tile, next, playerId, personality), 1, playerId, next)
+                : -Infinity,
         }))
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => {
+            if (Math.abs(a.adjustedScore - b.adjustedScore) > 0.5) {
+                return b.adjustedScore - a.adjustedScore;
+            }
+            return b.score - a.score;
+        });
 
     for (const candidate of scored) {
         if (settler.linkedUnitId) {
@@ -438,10 +670,10 @@ function moveTowardBestNeighboringSite(
 
         const moveResult = tryAction(next, { type: "MoveUnit", playerId, unitId: settler.id, to: candidate.coord });
         if (moveResult !== next) {
-            return moveResult;
+            return { state: moveResult, moved: true };
         }
     }
-    return next;
+    return { state: next, moved: false };
 }
 
 export function moveSettlersAndFound(state: GameState, playerId: string): GameState {
@@ -518,15 +750,28 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         const searchRadius = 9; // v0.99 Tuning: Increased from 6 to 9 to find better spots
         const siteSearchSettler = next.units.find(u => u.id === staleSettler.id);
         if (!siteSearchSettler || siteSearchSettler.type !== UnitType.Settler) continue;
+        const campExitPressureCamp = getCampPressureExitCamp(siteSearchSettler.coord, myCities, next);
         const potentialSites = findPotentialSites(next, siteSearchSettler, playerId, personality, searchRadius);
+        const blockedCampIds = new Set<string>();
 
         let moved = false;
         for (const site of potentialSites) {
             const movingSettler = next.units.find(u => u.id === staleSettler.id);
             if (!movingSettler || movingSettler.type !== UnitType.Settler) break;
-            const towardSite = tryMoveTowardSite(next, playerId, movingSettler, site.coord);
+            const routeBlockingCamp = routeBlockedByNativeCamp(movingSettler.coord, site.coord, movingSettler, next);
+            if (routeBlockingCamp) {
+                blockedCampIds.add(routeBlockingCamp.id);
+                continue;
+            }
+            const towardSite = tryMoveTowardSite(next, playerId, movingSettler, site.coord, campExitPressureCamp);
             next = towardSite.state;
             moved = towardSite.moved;
+            if (towardSite.campBlocked) {
+                const nearestCamp = getNearestNativeCamp(movingSettler.coord, next);
+                if (nearestCamp) {
+                    blockedCampIds.add(nearestCamp.id);
+                }
+            }
 
             if (moved) break;
         }
@@ -534,8 +779,42 @@ export function moveSettlersAndFound(state: GameState, playerId: string): GameSt
         if (!moved) {
             const movingSettler = next.units.find(u => u.id === staleSettler.id);
             if (movingSettler && movingSettler.type === UnitType.Settler) {
-                next = moveTowardBestNeighboringSite(next, playerId, movingSettler, personality);
+                const fallbackMove = moveTowardBestNeighboringSite(next, playerId, movingSettler, personality, campExitPressureCamp);
+                next = fallbackMove.state;
+                moved = fallbackMove.moved;
             }
+        }
+
+        if (!moved && campExitPressureCamp) {
+            blockedCampIds.add(campExitPressureCamp.id);
+        }
+
+        if (!moved && blockedCampIds.size > 0) {
+            const blockedSettler = next.units.find(u => u.id === staleSettler.id);
+            const blockingCamp = blockedSettler
+                ? chooseBlockingCamp(blockedCampIds, blockedSettler.coord, next)
+                : chooseBlockingCamp(blockedCampIds, activeSettler.coord, next);
+
+            if (blockingCamp) {
+                next = prioritizeCampClearingTarget(next, playerId, blockingCamp.id);
+            }
+
+            const latestSettler = next.units.find(u => u.id === staleSettler.id);
+            if (latestSettler && latestSettler.type === UnitType.Settler && !inFriendlyCity) {
+                const blockedRetreat = retreatTowardNearestCity(next, playerId, latestSettler, myCities, blockingCamp);
+                next = blockedRetreat.state;
+                if (blockedRetreat.moved) {
+                    aiInfo(
+                        `[AI Settler] ${playerId} settler at ${hexToString(latestSettler.coord)} ` +
+                        `retreating from native camp block`
+                    );
+                    continue;
+                }
+            }
+
+            const holdCoord = latestSettler ? hexToString(latestSettler.coord) : hexToString(activeSettler.coord);
+            aiInfo(`[AI Settler] ${playerId} settler at ${holdCoord} holding for camp clearing`);
+            continue;
         }
 
         next = tryFoundCityAfterMove(next, playerId, staleSettler.id);
