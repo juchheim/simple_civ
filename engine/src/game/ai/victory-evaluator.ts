@@ -5,11 +5,12 @@
  * that considers actual game state: science output, tech progress, military power.
  */
 
-import { TECHS, PROJECTS, UNITS } from "../../core/constants.js";
+import { TECHS, UNITS } from "../../core/constants.js";
 import { GameState, ProjectId, TechId, UnitType } from "../../core/types.js";
 import { hexDistance } from "../../core/hex.js";
 import { aiInfo } from "./debug-logging.js";
-import { getCityYields } from "../rules.js";
+import { getCityYields, getProgressVictoryCityRequirement, getProgressVictoryCityShortfall, getProjectCost } from "../rules.js";
+import { getUnitCost } from "../units.js";
 
 export interface VictoryEstimate {
     path: "Progress" | "Conquest";
@@ -97,22 +98,36 @@ export function estimateTurnsToProgress(state: GameState, playerId: string): num
     }
     bestProd = Math.max(1, bestProd);
 
+    const getRemainingProgressProjectCost = (projectId: ProjectId): number => {
+        const totalCost = getProjectCost(projectId, state.turn, state.map);
+        const inProgressCity = myCities.find(city =>
+            city.currentBuild?.type === "Project" &&
+            city.currentBuild.id === projectId
+        );
+        if (!inProgressCity) return totalCost;
+        return Math.max(0, totalCost - inProgressCity.buildProgress);
+    };
+
     // Project costs: Observatory, GrandAcademy, GrandExperiment
     let productionNeeded = 0;
     if (!player.completedProjects.includes(ProjectId.Observatory)) {
-        productionNeeded += PROJECTS[ProjectId.Observatory].cost;
+        productionNeeded += getRemainingProgressProjectCost(ProjectId.Observatory);
     }
     if (!player.completedProjects.includes(ProjectId.GrandAcademy)) {
-        productionNeeded += PROJECTS[ProjectId.GrandAcademy].cost;
+        productionNeeded += getRemainingProgressProjectCost(ProjectId.GrandAcademy);
     }
     if (!player.completedProjects.includes(ProjectId.GrandExperiment)) {
-        productionNeeded += PROJECTS[ProjectId.GrandExperiment].cost;
+        productionNeeded += getRemainingProgressProjectCost(ProjectId.GrandExperiment);
     }
 
     const turnsForProjects = Math.ceil(productionNeeded / bestProd);
+    const requiredCities = getProgressVictoryCityRequirement(state.map);
+    const missingCities = getProgressVictoryCityShortfall(state, playerId);
+    const turnsPerExtraCity = Math.ceil(getUnitCost(UnitType.Settler, state.turn) / bestProd) + 4;
+    const turnsForCityRequirement = missingCities * turnsPerExtraCity;
 
-    // Total: tech research + project production (sequential, not parallel)
-    return turnsForTech + turnsForProjects;
+    // Total: tech research + project production + any city requirement.
+    return turnsForTech + turnsForProjects + turnsForCityRequirement;
 }
 
 // =============================================================================
@@ -143,6 +158,11 @@ export function estimateTurnsToConquest(state: GameState, playerId: string): num
     );
 
     if (enemyCapitals.length === 0) return 0; // Already won
+
+    const enemyCities = state.cities.filter(c =>
+        c.ownerId !== playerId &&
+        !state.players.find(p => p.id === c.ownerId)?.isEliminated
+    );
 
     // Calculate military strength
     const myMilitaryPower = myUnits
@@ -203,8 +223,20 @@ export function estimateTurnsToConquest(state: GameState, playerId: string): num
 
     // UNCERTAINTY: Base buffer for things going wrong
     const uncertaintyBuffer = 10;
+    // MULTI-FRONT LOGISTICS: serial wars, reinforcements, and retargeting add real time
+    // in crowded late games. Without this, Conquest time is consistently underestimated.
+    const frontSwitchTurns = Math.max(0, enemyCapitals.length - 1) * 8;
+    const cityCleanupTurns = Math.floor(enemyCities.length / 4);
+    const lateGameCoordinationTurns = state.turn > 180 ? enemyCapitals.length * 4 : 0;
 
-    return buildupTurns + marchTurns + siegeTurns + attritionTurns + uncertaintyBuffer;
+    return buildupTurns
+        + marchTurns
+        + siegeTurns
+        + attritionTurns
+        + uncertaintyBuffer
+        + frontSwitchTurns
+        + cityCleanupTurns
+        + lateGameCoordinationTurns;
 }
 
 // =============================================================================

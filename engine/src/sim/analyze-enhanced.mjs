@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs';
+import { analyzeWarConversion } from './war-conversion-analysis.mjs';
 
 const resultsFile = process.argv[2] || '/tmp/comprehensive-simulation-results.json';
 const results = JSON.parse(readFileSync(resultsFile, 'utf8'));
@@ -11,6 +12,10 @@ const MAP_ORDER = ["Tiny", "Small", "Standard", "Large", "Huge"];
 const CIVS = ["ForgeClans", "ScholarKingdoms", "RiverLeague", "AetherianVanguard", "StarborneSeekers", "JadeCovenant"];
 const SETTLER_DEATH_CAUSE_ORDER = ["escort_lost", "unescorted", "native_camp", "enemy_near_city", "wartime", "long_route", "other"];
 const NATIVE_CAMP_CONTEXT_ORDER = ["near_city", "frontier_route", "deep_field"];
+
+function formatMaybe(value, digits = 1) {
+    return value == null || !Number.isFinite(value) ? 'N/A' : value.toFixed(digits);
+}
 
 function classifyProducedSettlerDeath(event) {
     const telemetry = event?.settlerTelemetry;
@@ -31,6 +36,35 @@ function classifyNativeCampSettlerDeathContext(event) {
     if ((nearestFriendlyCityDistance ?? Number.POSITIVE_INFINITY) <= 1) return "near_city";
     if ((nearestFriendlyCityDistance ?? Number.POSITIVE_INFINITY) <= 4) return "frontier_route";
     return "deep_field";
+}
+
+function countSimulationsByMapSize(results) {
+    const counts = new Map();
+    MAP_ORDER.forEach(size => counts.set(size, 0));
+
+    results.forEach(sim => {
+        counts.set(sim.mapSize, (counts.get(sim.mapSize) ?? 0) + 1);
+    });
+
+    return counts;
+}
+
+function formatSimulationSummary(results, simulationCountsByMapSize) {
+    const counts = MAP_ORDER.map(size => simulationCountsByMapSize.get(size) ?? 0).filter(count => count > 0);
+    if (counts.length === 0) {
+        return `${results.length} total`;
+    }
+
+    const allEqual = counts.every(count => count === counts[0]);
+    if (allEqual) {
+        return `${results.length} total (${counts[0]} per map size)`;
+    }
+
+    const breakdown = MAP_ORDER
+        .map(size => `${size}: ${simulationCountsByMapSize.get(size) ?? 0}`)
+        .join(", ");
+
+    return `${results.length} total (${breakdown})`;
 }
 
 // ============================================================================
@@ -546,8 +580,10 @@ const participationRates = analyzeParticipationAndWinRates(results);
 const stallDiagnostics = analyzeStallDiagnostics(results);
 const settlerStats = analyzeSettlerStats(results);
 const armyUsage = analyzeArmyUsage(results);
+const warConversion = analyzeWarConversion(results, CIVS);
 const pop10VsVictory = analyzePop10VsVictory(results);
 const titanPerformance = analyzeTitanPerformance(results);
+const simulationCountsByMapSize = countSimulationsByMapSize(results);
 
 // ============================================================================
 // GENERATE ENHANCED REPORT
@@ -555,7 +591,7 @@ const titanPerformance = analyzeTitanPerformance(results);
 
 let report = `# Enhanced Comprehensive Analysis Report\n\n`;
 report += `**Date:** ${new Date().toISOString().split('T')[0]}\n`;
-report += `**Simulations:** ${results.length} total (10 per map size)\n\n`;
+report += `**Simulations:** ${formatSimulationSummary(results, simulationCountsByMapSize)}\n\n`;
 
 report += `---\n\n`;
 
@@ -615,12 +651,16 @@ sortedParticipation.forEach(([civ, stats]) => {
 });
 
 // QUESTION 3: Stall Diagnostics
-report += `## 3. Why Smaller Maps Stall - Detailed Diagnostics\n\n`;
+report += `## 3. No-Victory & Stall Diagnostics by Map Size\n\n`;
 MAP_ORDER.forEach(mapSize => {
     const stats = stallDiagnostics.get(mapSize);
+    const totalGames = simulationCountsByMapSize.get(mapSize) ?? 0;
+    const noVictoryPct = totalGames > 0 ? ((stats.noVictory.length / totalGames) * 100).toFixed(1) : "0.0";
+    const uniqueStalledSeeds = new Set(stats.stalls.map(stall => stall.seed)).size;
     report += `### ${mapSize} Maps\n`;
-    report += `- **Games Without Victory:** ${stats.noVictory.length} of 10 (${((stats.noVictory.length / 10) * 100).toFixed(0)}%)\n`;
-    report += `- **Detected Stalls:** ${stats.stalls.length}\n\n`;
+    report += `- **Games Without Victory:** ${stats.noVictory.length} of ${totalGames} (${noVictoryPct}%)\n`;
+    report += `- **Games With Stall Windows:** ${uniqueStalledSeeds} of ${totalGames}\n`;
+    report += `- **Detected Stall Windows:** ${stats.stalls.length}\n\n`;
 
     if (stats.noVictory.length > 0) {
         report += `#### No-Victory Game Details:\n`;
@@ -710,8 +750,54 @@ Array.from(armyUsage.byCiv.entries()).forEach(([civ, stats]) => {
 });
 report += `\n`;
 
-// QUESTION 6: Pop 10 vs Victory
-report += `## 6. Pop 10 vs Victory Timing Gap\n\n`;
+// QUESTION 6: War Conversion
+report += `## 6. War-to-Win Conversion Telemetry\n\n`;
+report += `### By Civilization\n`;
+CIVS.forEach(civ => {
+    const stats = warConversion.byCiv.get(civ);
+    if (!stats || stats.gamesPlayed === 0) return;
+
+    report += `#### ${civ}\n`;
+    report += `- **Initiated Wars:** ${stats.initiatedWars}\n`;
+    report += `- **Average Declaration Power Ratio:** ${formatMaybe(stats.avgDeclarationPowerRatio, 2)}\n`;
+    report += `- **Initiated Wars With Capture:** ${stats.initiatedWarsWithCapture} (${formatMaybe(stats.warCaptureConversionRate)}%)\n`;
+    report += `- **Cities Captured per Initiated War:** ${formatMaybe(stats.capturesPerInitiatedWar, 2)} (${stats.citiesCapturedInInitiatedWars} total)\n`;
+    report += `- **Capital Captures per Initiated War:** ${formatMaybe(stats.capitalCapturesPerInitiatedWar, 2)} (${stats.capitalCapturesInInitiatedWars} total)\n`;
+    report += `- **Eliminations per Initiated War:** ${formatMaybe(stats.eliminationsPerInitiatedWar, 2)} (${stats.eliminationsCausedInInitiatedWars} total)\n`;
+    report += `- **Win Rate After Any Capture:** ${stats.winsWithAnyCapture}/${stats.gamesWithAnyCapture} (${formatMaybe(stats.winRateAfterAnyCapture)}%)\n`;
+    report += `- **Win Rate When First to Capture:** ${stats.winsWithFirstCapture}/${stats.gamesWithFirstCapture} (${formatMaybe(stats.winRateAfterFirstCapture)}%)\n`;
+    report += `- **Median Turns from Declared War to First Capture:** ${formatMaybe(stats.medianTurnsToFirstCaptureFromDeclaredWar)}\n`;
+    report += `- **Median First War Turn:** wins ${formatMaybe(stats.medianFirstWarTurnInWins)}, losses ${formatMaybe(stats.medianFirstWarTurnInLosses)}\n`;
+    report += `- **Median First Capture Turn:** wins ${formatMaybe(stats.medianFirstCaptureTurnInWins)}, losses ${formatMaybe(stats.medianFirstCaptureTurnInLosses)}\n`;
+    report += `- **Median ${warConversion.captureBurstWindow}-Turn Capture Burst:** wins ${formatMaybe(stats.medianCaptureBurst25InWins)}, losses ${formatMaybe(stats.medianCaptureBurst25InLosses)}\n`;
+    report += `- **Median Turns from First Capture to Win:** ${formatMaybe(stats.medianTurnsFromFirstCaptureToWin)}\n`;
+    if (stats.progressWins > 0) {
+        report += `- **Progress Wins With Prior Captures:** ${stats.progressWinsWithPriorCapture}/${stats.progressWins} (${formatMaybe(stats.progressWinPivotRate)}%), avg ${formatMaybe(stats.avgCapturesBeforeFirstProgressProject)} captures before first progress project\n`;
+        report += `- **Progress Wins With Prior Capital Capture:** ${stats.progressWinsWithPriorCapitalCapture}/${stats.progressWins} (${formatMaybe(stats.progressWinCapitalPivotRate)}%)\n`;
+    }
+    report += `\n`;
+});
+
+const forgeConversion = warConversion.byCiv.get("ForgeClans");
+if (forgeConversion) {
+    const forgeBaseWinRate = forgeConversion.gamesPlayed > 0
+        ? (forgeConversion.wins / forgeConversion.gamesPlayed) * 100
+        : 0;
+    report += `### ForgeClans Focus\n`;
+    report += `- **Base Win Rate:** ${formatMaybe(forgeBaseWinRate)}%\n`;
+    report += `- **Capture Conversion:** ${forgeConversion.initiatedWarsWithCapture}/${forgeConversion.initiatedWars} initiated wars led to captures (${formatMaybe(forgeConversion.warCaptureConversionRate)}%)\n`;
+    report += `- **Elimination Conversion:** ${forgeConversion.initiatedWarsWithElimination}/${forgeConversion.initiatedWars} initiated wars led to eliminations (${formatMaybe(forgeConversion.warEliminationConversionRate)}%)\n`;
+    report += `- **Capture-Conditional Win Rate:** ${forgeConversion.winsWithAnyCapture}/${forgeConversion.gamesWithAnyCapture} (${formatMaybe(forgeConversion.winRateAfterAnyCapture)}%)\n`;
+    report += `- **First-Capture Win Rate:** ${forgeConversion.winsWithFirstCapture}/${forgeConversion.gamesWithFirstCapture} (${formatMaybe(forgeConversion.winRateAfterFirstCapture)}%)\n`;
+    report += `- **Median Time to First Capture After War Declaration:** ${formatMaybe(forgeConversion.medianTurnsToFirstCaptureFromDeclaredWar)} turns\n`;
+    if (forgeConversion.progressWins > 0) {
+        report += `- **Progress Pivot Wins With Prior Captures:** ${forgeConversion.progressWinsWithPriorCapture}/${forgeConversion.progressWins} (${formatMaybe(forgeConversion.progressWinPivotRate)}%)\n`;
+    }
+    report += `\n`;
+}
+
+// QUESTION 7: Pop 10 vs Victory
+report += `## 7. Pop 10 vs Victory Timing Gap\n\n`;
 if (pop10VsVictory.length > 0) {
     const avgGap = pop10VsVictory.reduce((sum, d) => sum + d.gap, 0) / pop10VsVictory.length;
     const avgWinTurn = pop10VsVictory.reduce((sum, d) => sum + d.winTurn, 0) / pop10VsVictory.length;
@@ -748,8 +834,8 @@ if (pop10VsVictory.length > 0) {
     });
 }
 
-// QUESTION 7: Titan Performance
-report += `## 7. Titan Performance Analysis\n\n`;
+// QUESTION 8: Titan Performance
+report += `## 8. Titan Performance Analysis\n\n`;
 const tStats = titanPerformance;
 const survivalRate = tStats.totalTitans > 0 ? ((1 - tStats.totalDeaths / tStats.totalTitans) * 100).toFixed(1) : 'N/A';
 const winRateWithTitan = tStats.totalTitans > 0 ? ((tStats.totalWinsWithTitan / tStats.totalTitans) * 100).toFixed(1) : 'N/A';

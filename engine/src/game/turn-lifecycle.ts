@@ -14,7 +14,7 @@ import {
     TITAN_REGEN_CITY,
     ERA_COMMAND_POINTS,
 } from "../core/constants.js";
-import { getCityYields, getGrowthCost, getPlayerGoldLedger } from "./rules.js";
+import { getCityYields, getGrowthCost, getPlayerGoldLedger, meetsProgressVictoryCityRequirement } from "./rules.js";
 import { buildLookupCache } from "./helpers/lookup-cache.js";
 import { ensureWorkedTiles, claimCityTerritory, maxClaimableRing, getClaimedRing } from "./helpers/cities.js";
 import { expelUnitsFromTerritory } from "./helpers/movement.js";
@@ -296,8 +296,7 @@ export function runEndOfRound(state: GameState) {
 function checkProgressVictory(state: GameState): string | null {
     for (const player of state.players) {
         const hasProject = player.completedProjects.includes(ProjectId.GrandExperiment);
-        const ownsCity = state.cities.some(c => c.ownerId === player.id);
-        if (hasProject && ownsCity) return player.id;
+        if (hasProject && meetsProgressVictoryCityRequirement(state, player.id)) return player.id;
     }
     return null;
 }

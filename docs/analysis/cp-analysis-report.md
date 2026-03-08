@@ -1,23 +1,23 @@
 # AI Command Point Usage Analysis
 
-This report analyzes how frequently AI civilizations spend Command Points (CP) to grant bonus tactical actions to their exhausted units over the course of 50 simulated games.
+This report analyzes how frequently AI civilizations spend Command Points (CP) to grant bonus tactical actions to their exhausted units over the course of 100 simulated games.
 
 ## Overall Summary
 
-- **Total Sims Analyzed**: 50
-- **Total CPs Spent Across All Civs & Sims**: 6515
-- **Average Network-Wide CPs Spent Per Game**: 130.3
+- **Total Sims Analyzed**: 100
+- **Total CPs Spent Across All Civs & Sims**: 13365
+- **Average Network-Wide CPs Spent Per Game**: 133.7
 
 ## Breakdown By Civilization
 
 | Civilization | Total Games Sampled | Total CPs Spent | Average CPs Spent/Game |
 |--------------|---------------------|-----------------|------------------------|
-| StarborneSeekers | 34                  | 1725            | 50.74                  |
-| ForgeClans   | 34                  | 1284            | 37.76                  |
-| ScholarKingdoms | 36                  | 1097            | 30.47                  |
-| JadeCovenant | 35                  | 1037            | 29.63                  |
-| RiverLeague  | 35                  | 798             | 22.80                  |
-| AetherianVanguard | 36                  | 574             | 15.94                  |
+| ScholarKingdoms | 70                  | 2752            | 39.31                  |
+| StarborneSeekers | 68                  | 2652            | 39.00                  |
+| JadeCovenant | 67                  | 2100            | 31.34                  |
+| ForgeClans   | 74                  | 2316            | 31.30                  |
+| RiverLeague  | 70                  | 1878            | 26.83                  |
+| AetherianVanguard | 71                  | 1667            | 23.48                  |
 
 ## Insights
 

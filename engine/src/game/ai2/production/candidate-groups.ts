@@ -1,7 +1,8 @@
-import type { AiVictoryGoal, City, GameState } from "../../../core/types.js";
+import { ProjectId, TechId, type AiVictoryGoal, type City, type GameState } from "../../../core/types.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 import type { EconomySnapshot } from "../economy/budget.js";
 import type { DefenseDecision } from "./defense-priority.js";
+import { getProgressEndgameTurn } from "../../ai/progress-helpers.js";
 import {
     pickCityUnderAttackBuild,
     pickGarrisonReplenishmentBuild,
@@ -19,6 +20,7 @@ import {
 import { pickTechUnlockBuild } from "./tech-unlocks.js";
 import { pickPhaseDefensePriorityBuild, pickPhaseDefenseSupportBuild } from "./phases/defense.js";
 import { pickPhaseEarlyExpansionBuild, pickPhaseExpansionBuild } from "./phases/expansion.js";
+import { getProgressVictoryExpansionNeed } from "./expansion.js";
 import { pickProactiveReinforcementBuild } from "./proactive.js";
 import { pickWarStagingProduction } from "./staging.js";
 import { pickTrebuchetProduction } from "./war.js";
@@ -134,6 +136,7 @@ function addProgressAndDefenseCandidates(params: ProductionCandidateGroupParams)
         economy,
         warEmergency,
         isEconomyRecoveryState,
+        isCrisis,
         defenseDecision,
         shouldBuildDefender,
         threatMod,
@@ -142,13 +145,40 @@ function addProgressAndDefenseCandidates(params: ProductionCandidateGroupParams)
         expansionMod,
         supplyGap,
     } = params;
+    const progressExpansionNeed = getProgressVictoryExpansionNeed(state, playerId, context);
+    const progressExpansionBoost = progressExpansionNeed
+        ? 0.30 + Math.max(0, progressExpansionNeed.cityShortfall - 1) * 0.06
+        : 0;
+    const hasStarCharts = context.player.techs.includes(TechId.StarCharts);
+    const progressEndgameTurn = getProgressEndgameTurn(state.map);
+    const lateProgressWindow = hasStarCharts && state.turn >= progressEndgameTurn;
+    const anyBuildingProgress = myCities.some(c =>
+        c.currentBuild?.type === "Project" &&
+        [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment].includes(c.currentBuild.id as ProjectId)
+    );
+    const allowLateProgressRecovery = !warEmergency
+        && isEconomyRecoveryState
+        && lateProgressWindow
+        && !isCrisis;
+    const progressScoreBoost = goal === "Progress" ? 0.08 : 0;
+    const lateProgressBoost = lateProgressWindow ? (anyBuildingProgress ? 0.04 : 0.08) : 0;
 
-    if (!warEmergency && !isEconomyRecoveryState) {
+    if (!warEmergency && (!isEconomyRecoveryState || allowLateProgressRecovery)) {
         addCandidate({
             option: pickVictoryProject(state, playerId, city, goal, profile, myCities),
             reason: "victory-project",
             base: PRODUCTION_BASE_SCORES.victoryProject,
-            components: { progress: goal === "Progress" ? 0.01 : 0 },
+            components: {
+                progress: progressScoreBoost,
+                lateProgress: lateProgressBoost,
+                gatePenalty: progressExpansionNeed ? -0.06 : 0,
+            },
+            notes: progressExpansionNeed
+                ? [
+                    `progress-gate:${progressExpansionNeed.plannedCities}/${progressExpansionNeed.requiredCities}`,
+                    ...(allowLateProgressRecovery ? ["late-progress-recovery"] : []),
+                ]
+                : (allowLateProgressRecovery ? ["late-progress-recovery"] : undefined),
         });
     }
 
@@ -180,9 +210,13 @@ function addProgressAndDefenseCandidates(params: ProductionCandidateGroupParams)
         components: {
             safety: safetyMod,
             expansion: expansionMod,
+            progressGateBoost: progressExpansionBoost,
             recoveryPenalty: isEconomyRecoveryState ? -0.03 : 0,
             supplyPressurePenalty: getEarlyExpansionSupplyPenalty(supplyGap, economy.atWar),
         },
+        notes: progressExpansionNeed
+            ? [`progress-gate:${progressExpansionNeed.plannedCities}/${progressExpansionNeed.requiredCities}`]
+            : undefined,
     });
 
     addCandidate({
@@ -222,6 +256,10 @@ function addStrategicCandidates(params: ProductionCandidateGroupParams): void {
         supplyGap,
         economy,
     } = params;
+    const progressExpansionNeed = getProgressVictoryExpansionNeed(state, playerId, context);
+    const progressExpansionBoost = progressExpansionNeed
+        ? 0.30 + Math.max(0, progressExpansionNeed.cityShortfall - 1) * 0.06
+        : 0;
 
     addCandidate({
         option: pickTechUnlockBuild(state, city, context),
@@ -257,10 +295,14 @@ function addStrategicCandidates(params: ProductionCandidateGroupParams): void {
         components: {
             safety: safetyMod,
             expansion: expansionMod,
+            progressGateBoost: progressExpansionBoost,
             pressure: -pressureMod,
             recoveryPenalty: isEconomyRecoveryState ? -0.04 : 0,
             supplyPressurePenalty: getExpansionSupplyPenalty(supplyGap, economy.atWar),
         },
+        notes: progressExpansionNeed
+            ? [`progress-gate:${progressExpansionNeed.plannedCities}/${progressExpansionNeed.requiredCities}`]
+            : undefined,
     });
 }
 

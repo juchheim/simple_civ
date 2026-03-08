@@ -1,5 +1,5 @@
 import React from "react";
-import { DifficultyLevel, MAP_DIMS, MapSize, MAX_CIVS_BY_MAP_SIZE } from "@simple-civ/engine";
+import { DifficultyLevel, getMapSpecificVictoryRules, MAP_DIMS, MapSize, MAX_CIVS_BY_MAP_SIZE } from "@simple-civ/engine";
 import { CIV_OPTIONS, CivId, CivOption } from "../../data/civs";
 
 type CivSelectionScreenProps = {
@@ -28,6 +28,7 @@ export const CivSelectionScreen: React.FC<CivSelectionScreenProps> = ({
     onBack,
 }) => {
     const maxCivsGlobal = Math.max(...Object.values(MAX_CIVS_BY_MAP_SIZE));
+    const mapSpecificVictoryRules = getMapSpecificVictoryRules(selectedMapSize);
 
     return (
         <div style={{ position: "fixed", inset: 0, background: "var(--color-bg-deep)", color: "var(--color-text-main)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
@@ -167,6 +168,33 @@ export const CivSelectionScreen: React.FC<CivSelectionScreenProps> = ({
                                     </div>
                                 </div>
                             </div>
+                            {mapSpecificVictoryRules.length > 0 && (
+                                <div
+                                    style={{
+                                        borderRadius: 12,
+                                        border: "1px solid rgba(205, 138, 54, 0.35)",
+                                        background: "rgba(205, 138, 54, 0.08)",
+                                        padding: "14px 16px",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 8,
+                                    }}
+                                >
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-highlight)" }}>
+                                        Map-Specific Victory Rules
+                                    </div>
+                                    {mapSpecificVictoryRules.map(rule => (
+                                        <div key={rule.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-main)" }}>
+                                                {rule.title}
+                                            </div>
+                                            <div style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                                                {rule.summary}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             {/* Buttons */}
                             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                                 <button

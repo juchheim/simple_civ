@@ -1,5 +1,5 @@
-import { canBuild } from "../../rules.js";
-import { City, GameState, UnitType } from "../../../core/types.js";
+import { canBuild, getProgressVictoryCityRequirement } from "../../rules.js";
+import { City, GameState, ProjectId, UnitType } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import { settlersInFlight } from "./analysis.js";
@@ -61,6 +61,47 @@ function shouldPauseSettlersForLocalThreat(
     return false;
 }
 
+export type ProgressVictoryExpansionNeed = {
+    ownedCities: number;
+    plannedCities: number;
+    requiredCities: number;
+    cityShortfall: number;
+};
+
+export function getProgressVictoryExpansionNeed(
+    state: GameState,
+    playerId: string,
+    context: ProductionContext
+): ProgressVictoryExpansionNeed | null {
+    const ownedCities = context.myCities.length;
+    const plannedCities = ownedCities + settlersInFlight(state, playerId);
+    const requiredCities = getProgressVictoryCityRequirement(state.map);
+    const cityShortfall = Math.max(0, requiredCities - plannedCities);
+    if (cityShortfall <= 0) return null;
+
+    const completedProjects = context.player.completedProjects ?? [];
+    const hasProgressInvestment =
+        completedProjects.includes(ProjectId.Observatory) ||
+        completedProjects.includes(ProjectId.GrandAcademy) ||
+        completedProjects.includes(ProjectId.GrandExperiment);
+    if (!hasProgressInvestment) return null;
+
+    return {
+        ownedCities,
+        plannedCities,
+        requiredCities,
+        cityShortfall,
+    };
+}
+
+export function shouldExpandForProgressVictoryGate(
+    state: GameState,
+    playerId: string,
+    context: ProductionContext
+): boolean {
+    return getProgressVictoryExpansionNeed(state, playerId, context) !== null;
+}
+
 export function pickEarlyExpansionBuild(
     state: GameState,
     playerId: string,
@@ -105,7 +146,8 @@ export function pickExpansionBuild(
     context: ProductionContext,
     defenseDecision: "defend" | "expand" | "interleave"
 ): BuildOption | null {
-    if (context.phase !== "Expand") return null;
+    const progressVictoryExpansionNeed = getProgressVictoryExpansionNeed(state, playerId, context);
+    if (context.phase !== "Expand" && !progressVictoryExpansionNeed) return null;
     const economyState = context.economy.economyState;
     if (economyState === "Crisis") {
         const eliminationRisk = context.myCities.length <= 1 &&
@@ -123,10 +165,21 @@ export function pickExpansionBuild(
     }
 
     const { settlerCap, desiredCities } = context.profile.build;
-    if (context.myCities.length < desiredCities && settlersInFlight(state, playerId) < settlerCap) {
-        if (context.capabilities.garrison >= context.myCities.length || defenseDecision === "expand") {
+    const targetCities = Math.max(desiredCities, progressVictoryExpansionNeed?.requiredCities ?? desiredCities);
+    if (context.myCities.length < targetCities && settlersInFlight(state, playerId) < settlerCap) {
+        const expansionAllowed = progressVictoryExpansionNeed
+            ? defenseDecision !== "defend"
+            : (context.capabilities.garrison >= context.myCities.length || defenseDecision === "expand");
+        if (expansionAllowed) {
             if (canBuild(city, "Unit", UnitType.Settler, state)) {
-                aiInfo(`[AI Build] ${context.profile.civName} EXPAND: Settler`);
+                if (progressVictoryExpansionNeed) {
+                    aiInfo(
+                        `[AI Build] ${context.profile.civName} PROGRESS GATE EXPAND: Settler ` +
+                        `(${progressVictoryExpansionNeed.ownedCities}/${progressVictoryExpansionNeed.requiredCities} cities)`
+                    );
+                } else {
+                    aiInfo(`[AI Build] ${context.profile.civName} EXPAND: Settler`);
+                }
                 return { type: "Unit", id: UnitType.Settler };
             }
         }

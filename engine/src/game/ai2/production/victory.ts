@@ -1,10 +1,53 @@
-import { canBuild } from "../../rules.js";
+import { canBuild, getProgressVictoryCityRequirement } from "../../rules.js";
 import { AiVictoryGoal, City, GameState, ProjectId, TechId } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
+import { getProgressEndgameTurn } from "../../ai/progress-helpers.js";
 import { evaluateBestVictoryPath } from "../../ai/victory-evaluator.js";
 import { getAiMemoryV2 } from "../memory.js";
+import { settlersInFlight } from "./analysis.js";
 import type { BuildOption } from "../production.js";
 import type { CivAiProfileV2 } from "../rules.js";
+
+function getProjectedProgressCityPlan(state: GameState, playerId: string): {
+    ownedCities: number;
+    plannedCities: number;
+    requiredCities: number;
+    cityShortfall: number;
+} {
+    const ownedCities = state.cities.filter(c => c.ownerId === playerId).length;
+    const plannedCities = ownedCities + settlersInFlight(state, playerId);
+    const requiredCities = getProgressVictoryCityRequirement(state.map);
+    const cityShortfall = Math.max(0, requiredCities - plannedCities);
+
+    return {
+        ownedCities,
+        plannedCities,
+        requiredCities,
+        cityShortfall,
+    };
+}
+
+function getEligibleProgressProjects(state: GameState, playerId: string, player: GameState["players"][number]): ProjectId[] {
+    const { cityShortfall } = getProjectedProgressCityPlan(state, playerId);
+    const projectOrder = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
+
+    if (cityShortfall <= 0) return projectOrder;
+    if (!player.completedProjects.includes(ProjectId.Observatory)) {
+        return [ProjectId.Observatory];
+    }
+
+    return [];
+}
+
+function getProgressCityGateReason(state: GameState, playerId: string): string | null {
+    const { ownedCities, plannedCities, requiredCities, cityShortfall } = getProjectedProgressCityPlan(state, playerId);
+    if (requiredCities <= 1) return null;
+    if (cityShortfall <= 0) return null;
+    if (plannedCities > ownedCities) {
+        return `need-${cityShortfall}-more-cities planned (${plannedCities}/${requiredCities})`;
+    }
+    return `need-${cityShortfall}-more-cities (${ownedCities}/${requiredCities})`;
+}
 
 /**
  * Selects a Progress victory project if appropriate for the player's goal/civ.
@@ -20,13 +63,15 @@ export function pickVictoryProject(
 ): BuildOption | null {
     const player = state.players.find(p => p.id === playerId);
     if (!player) return null;
+    const progressProjects = getEligibleProgressProjects(state, playerId, player);
+    const cityGateReason = getProgressCityGateReason(state, playerId);
 
     // Primary Progress / science civ path
     if (goal === "Progress" || profile.civName === "ScholarKingdoms" || profile.civName === "StarborneSeekers") {
-        const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
         for (const pid of progressProjects) {
             if (canBuild(city, "Project", pid, state)) {
-                aiInfo(`[AI Build] ${profile.civName} PRIORITY: ${pid} (Victory)`);
+                const reason = cityGateReason ? `Victory, ${cityGateReason}` : "Victory";
+                aiInfo(`[AI Build] ${profile.civName} PRIORITY: ${pid} (${reason})`);
                 return { type: "Project", id: pid };
             }
         }
@@ -38,14 +83,14 @@ export function pickVictoryProject(
     const hasGrandAcademy = player.completedProjects.includes(ProjectId.GrandAcademy);
     const hasInvestedInProgress = hasObservatory || hasGrandAcademy;
 
-    // v6.0: Late-game large-map stall breaker — all civs consider Progress
-    const isLargeMap = state.map.width >= 35;
-    const isLateGame = state.turn > 200;
-    if (isLateGame && isLargeMap && hasStarCharts) {
-        const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
+    // Shared late-game stall breaker: once a map is in its endgame window, any
+    // civ with StarCharts should consider converting science into an actual win.
+    const isLateGame = state.turn >= getProgressEndgameTurn(state.map);
+    if (isLateGame && hasStarCharts) {
         for (const pid of progressProjects) {
             if (canBuild(city, "Project", pid, state)) {
-                aiInfo(`[AI Build] ${profile.civName} LATE-GAME PROGRESS: ${pid} (stall breaker, turn ${state.turn})`);
+                const reason = cityGateReason ? `stall breaker, ${cityGateReason}` : `stall breaker, turn ${state.turn}`;
+                aiInfo(`[AI Build] ${profile.civName} LATE-GAME PROGRESS: ${pid} (${reason})`);
                 return { type: "Project", id: pid };
             }
         }
@@ -60,10 +105,7 @@ export function pickVictoryProject(
     let progressRecommended = false;
     if (atMilitaryMilestone && !hasStarCharts) {
         const victoryEval = evaluateBestVictoryPath(state, playerId);
-        // v6.0: Wider range on large maps to encourage earlier Progress pivots
-        // v1.0.4: Increased to +60 to prioritize Progress even more on Large maps.
-        const largeMapBonus = state.map.width >= 35 ? 60 : 0;
-        const progressWithinRange = victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 40 + largeMapBonus;
+        const progressWithinRange = victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 40;
         const lastChancePivot = hasCompositeArmor && victoryEval.turnsToProgress <= victoryEval.turnsToConquest + 50;
         progressRecommended = victoryEval.progressFaster || progressWithinRange || lastChancePivot;
     }
@@ -83,13 +125,13 @@ export function pickVictoryProject(
         const allowMultipleCities = forceProgressFinish || progressRecommended || hasMonsterEmpire;
 
         if (!anyBuildingProgress || allowMultipleCities) {
-            const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
             for (const pid of progressProjects) {
                 if (canBuild(city, "Project", pid, state)) {
                     const milestone = hasCompositeArmor ? "CompositeArmor" : hasArmyDoctrine ? "ArmyDoctrine" : "DrilledRanks";
                     const reason = forceProgressFinish ? "STALL PREVENTION" :
                         progressRecommended ? `PIVOT at ${milestone}` : "has StarCharts";
-                    aiInfo(`[AI Build] ${profile.civName} PROGRESS: ${pid} (${reason})`);
+                    const fullReason = cityGateReason ? `${reason}, ${cityGateReason}` : reason;
+                    aiInfo(`[AI Build] ${profile.civName} PROGRESS: ${pid} (${fullReason})`);
                     return { type: "Project", id: pid };
                 }
             }
@@ -102,10 +144,10 @@ export function pickVictoryProject(
     if (profile.civName === "ScholarKingdoms" && focusCityId && hasStarCharts) {
         const focusCity = state.cities.find(c => c.id === focusCityId);
         if (focusCity && focusCity.ownerId === playerId && focusCity.id !== city.id) {
-            const progressProjects = [ProjectId.GrandExperiment, ProjectId.GrandAcademy, ProjectId.Observatory];
             for (const pid of progressProjects) {
                 if (canBuild(city, "Project", pid, state)) {
-                    aiInfo(`[AI Build] ScholarKingdoms SUPPORT: ${pid} (Focus city ${focusCity.name})`);
+                    const reason = cityGateReason ? `Focus city ${focusCity.name}, ${cityGateReason}` : `Focus city ${focusCity.name}`;
+                    aiInfo(`[AI Build] ScholarKingdoms SUPPORT: ${pid} (${reason})`);
                     return { type: "Project", id: pid };
                 }
             }

@@ -28,36 +28,42 @@ describe("Global Stall Prevention", () => {
             players: [mockPlayer],
             cities: [],
             units: [],
+            map: { width: 30, height: 22, tiles: [] },
             diplomacy: {},
         } as unknown as GameState;
     });
 
-    it("should use standard logic before Turn 225", () => {
-        mockState.turn = 220;
-        // Mock evaluator to return Progress, but strategy should ignore it if < 225
+    it("uses standard logic before the standard-map endgame threshold", () => {
+        mockState.turn = 189;
         (evaluateBestVictoryPath as any).mockReturnValue({ path: "Progress" });
 
-        // RiverLeague defaults to Conquest in standard logic
         const goal = chooseVictoryGoalV2(mockState, "p1");
         expect(goal).toBe("Conquest");
     });
 
-    it("should FORCE evaluated path after Turn 225 (Conquest case)", () => {
-        mockState.turn = 226;
-        // Mock evaluator to say Conquest is best
+    it("forces the evaluated path at the standard-map endgame threshold", () => {
+        mockState.turn = 190;
+        (evaluateBestVictoryPath as any).mockReturnValue({ path: "Progress" });
+
+        const goal = chooseVictoryGoalV2(mockState, "p1");
+        expect(goal).toBe("Progress");
+    });
+
+    it("does not force the evaluated path early on huge maps", () => {
+        mockState.map = { width: 40, height: 30, tiles: [] } as any;
+        mockState.turn = 229;
+        (evaluateBestVictoryPath as any).mockReturnValue({ path: "Progress" });
+
+        const goal = chooseVictoryGoalV2(mockState, "p1");
+        expect(goal).toBe("Conquest");
+    });
+
+    it("forces the evaluated path once huge maps hit their endgame threshold", () => {
+        mockState.map = { width: 40, height: 30, tiles: [] } as any;
+        mockState.turn = 230;
         (evaluateBestVictoryPath as any).mockReturnValue({ path: "Conquest" });
 
         const goal = chooseVictoryGoalV2(mockState, "p1");
         expect(goal).toBe("Conquest");
-    });
-
-    it("should FORCE evaluated path after Turn 225 (Progress case)", () => {
-        mockState.turn = 230;
-        // Mock evaluator to say Progress is best
-        (evaluateBestVictoryPath as any).mockReturnValue({ path: "Progress" });
-
-        // Even though RiverLeague normally hates Progress, it must obey the stall breaker
-        const goal = chooseVictoryGoalV2(mockState, "p1");
-        expect(goal).toBe("Progress");
     });
 });

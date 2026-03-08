@@ -1,7 +1,7 @@
 # Tech Path Analysis Report
 
-**Date:** 2026-03-07
-**Simulations Analyzed:** 50
+**Date:** 2026-03-08
+**Simulations Analyzed:** 100
 
 ---
 
@@ -13,151 +13,151 @@ Shows when each civ typically researches each tech.
 
 | Tech | Times Researched | Avg Turn |
 |------|-----------------|----------|
-| ScriptLore | 33 | 50 |
-| FormationTraining | 34 | 60 |
-| Fieldcraft | 33 | 72 |
-| DrilledRanks | 32 | 106 |
-| StoneworkHalls | 32 | 114 |
-| TimberMills | 30 | 141 |
-| ArmyDoctrine | 29 | 183 |
-| SteamForges | 12 | 228 |
-| CompositeArmor | 24 | 231 |
-| ScholarCourts | 20 | 236 |
-| Wellworks | 11 | 249 |
-| SignalRelay | 11 | 267 |
-| StarCharts | 8 | 267 |
-| UrbanPlans | 10 | 270 |
-| Aerodynamics | 8 | 290 |
-| CityWards | 6 | 313 |
-| ZeroPointEnergy | 6 | 314 |
-| TrailMaps | 5 | 315 |
-| DimensionalGate | 4 | 330 |
-| PlasmaShields | 3 | 359 |
+| ScriptLore | 71 | 52 |
+| FormationTraining | 73 | 59 |
+| Fieldcraft | 72 | 77 |
+| DrilledRanks | 65 | 109 |
+| StoneworkHalls | 66 | 118 |
+| TimberMills | 60 | 152 |
+| ArmyDoctrine | 54 | 194 |
+| CompositeArmor | 38 | 228 |
+| ScholarCourts | 36 | 234 |
+| SteamForges | 28 | 269 |
+| Wellworks | 28 | 270 |
+| SignalRelay | 28 | 279 |
+| UrbanPlans | 27 | 282 |
+| StarCharts | 24 | 285 |
+| Aerodynamics | 21 | 305 |
+| ZeroPointEnergy | 17 | 332 |
+| TrailMaps | 16 | 333 |
+| CityWards | 17 | 334 |
+| PlasmaShields | 12 | 348 |
+| DimensionalGate | 16 | 348 |
 
 ### ScholarKingdoms
 
 | Tech | Times Researched | Avg Turn |
 |------|-----------------|----------|
-| ScriptLore | 36 | 38 |
-| StoneworkHalls | 34 | 53 |
-| Fieldcraft | 34 | 81 |
-| CityWards | 26 | 109 |
-| ScholarCourts | 24 | 141 |
-| FormationTraining | 31 | 151 |
-| DrilledRanks | 27 | 177 |
-| SignalRelay | 16 | 188 |
-| Wellworks | 23 | 201 |
-| ArmyDoctrine | 23 | 215 |
-| StarCharts | 12 | 218 |
-| PlasmaShields | 11 | 240 |
-| CompositeArmor | 14 | 243 |
-| UrbanPlans | 16 | 247 |
-| TimberMills | 11 | 268 |
-| ZeroPointEnergy | 12 | 269 |
-| SteamForges | 10 | 271 |
-| TrailMaps | 6 | 283 |
-| DimensionalGate | 2 | 287 |
-| Aerodynamics | 5 | 301 |
+| ScriptLore | 68 | 40 |
+| StoneworkHalls | 66 | 50 |
+| Fieldcraft | 67 | 76 |
+| CityWards | 58 | 105 |
+| ScholarCourts | 51 | 149 |
+| FormationTraining | 59 | 158 |
+| DrilledRanks | 53 | 190 |
+| SignalRelay | 33 | 195 |
+| StarCharts | 26 | 217 |
+| Wellworks | 28 | 224 |
+| ArmyDoctrine | 42 | 226 |
+| UrbanPlans | 25 | 250 |
+| PlasmaShields | 22 | 250 |
+| CompositeArmor | 29 | 277 |
+| ZeroPointEnergy | 18 | 277 |
+| TimberMills | 18 | 284 |
+| SteamForges | 15 | 286 |
+| TrailMaps | 15 | 306 |
+| Aerodynamics | 14 | 318 |
+| DimensionalGate | 12 | 339 |
 
 ### RiverLeague
 
 | Tech | Times Researched | Avg Turn |
 |------|-----------------|----------|
-| ScriptLore | 31 | 55 |
-| FormationTraining | 34 | 55 |
-| Fieldcraft | 32 | 73 |
-| DrilledRanks | 31 | 103 |
-| Wellworks | 29 | 123 |
-| TrailMaps | 17 | 164 |
-| ArmyDoctrine | 28 | 165 |
-| CompositeArmor | 18 | 196 |
-| ScholarCourts | 12 | 203 |
-| UrbanPlans | 14 | 223 |
-| SignalRelay | 10 | 226 |
-| StarCharts | 10 | 239 |
-| ZeroPointEnergy | 12 | 242 |
-| StoneworkHalls | 9 | 256 |
-| TimberMills | 9 | 261 |
-| CityWards | 7 | 265 |
-| SteamForges | 7 | 276 |
-| DimensionalGate | 7 | 281 |
-| Aerodynamics | 5 | 283 |
-| PlasmaShields | 4 | 310 |
+| FormationTraining | 66 | 57 |
+| ScriptLore | 63 | 59 |
+| Fieldcraft | 65 | 75 |
+| DrilledRanks | 64 | 115 |
+| Wellworks | 59 | 136 |
+| ArmyDoctrine | 51 | 172 |
+| TrailMaps | 29 | 174 |
+| CompositeArmor | 39 | 233 |
+| ScholarCourts | 28 | 239 |
+| SignalRelay | 22 | 254 |
+| StarCharts | 20 | 260 |
+| UrbanPlans | 32 | 272 |
+| ZeroPointEnergy | 20 | 284 |
+| StoneworkHalls | 16 | 287 |
+| TimberMills | 15 | 291 |
+| CityWards | 15 | 296 |
+| SteamForges | 13 | 299 |
+| PlasmaShields | 6 | 303 |
+| DimensionalGate | 11 | 309 |
+| Aerodynamics | 12 | 310 |
 
 ### AetherianVanguard
 
 | Tech | Times Researched | Avg Turn |
 |------|-----------------|----------|
-| FormationTraining | 35 | 45 |
-| Fieldcraft | 28 | 65 |
-| StoneworkHalls | 32 | 76 |
-| ScriptLore | 33 | 88 |
-| DrilledRanks | 29 | 120 |
-| TimberMills | 31 | 123 |
-| ScholarCourts | 21 | 168 |
-| ArmyDoctrine | 24 | 174 |
-| Wellworks | 13 | 182 |
-| SteamForges | 25 | 201 |
-| SignalRelay | 6 | 224 |
-| CompositeArmor | 15 | 227 |
-| StarCharts | 5 | 230 |
-| Aerodynamics | 5 | 268 |
-| UrbanPlans | 8 | 269 |
-| DimensionalGate | 2 | 278 |
-| CityWards | 5 | 280 |
-| ZeroPointEnergy | 5 | 287 |
-| TrailMaps | 4 | 288 |
-| PlasmaShields | 2 | 290 |
+| FormationTraining | 69 | 46 |
+| Fieldcraft | 56 | 66 |
+| StoneworkHalls | 70 | 92 |
+| ScriptLore | 68 | 93 |
+| DrilledRanks | 60 | 124 |
+| TimberMills | 67 | 130 |
+| ScholarCourts | 54 | 178 |
+| ArmyDoctrine | 38 | 186 |
+| SteamForges | 54 | 197 |
+| Wellworks | 27 | 213 |
+| CompositeArmor | 29 | 246 |
+| SignalRelay | 26 | 267 |
+| StarCharts | 24 | 282 |
+| UrbanPlans | 22 | 294 |
+| ZeroPointEnergy | 15 | 311 |
+| Aerodynamics | 20 | 311 |
+| TrailMaps | 14 | 319 |
+| CityWards | 15 | 320 |
+| DimensionalGate | 12 | 331 |
+| PlasmaShields | 8 | 335 |
 
 ### StarborneSeekers
 
 | Tech | Times Researched | Avg Turn |
 |------|-----------------|----------|
-| ScriptLore | 34 | 24 |
-| StoneworkHalls | 33 | 28 |
-| Fieldcraft | 33 | 47 |
-| ScholarCourts | 30 | 82 |
-| Wellworks | 31 | 115 |
-| FormationTraining | 30 | 128 |
-| DrilledRanks | 28 | 149 |
-| SignalRelay | 22 | 180 |
-| ArmyDoctrine | 26 | 181 |
-| StarCharts | 17 | 215 |
-| CompositeArmor | 19 | 216 |
-| UrbanPlans | 19 | 234 |
-| PlasmaShields | 14 | 240 |
-| CityWards | 16 | 241 |
-| TimberMills | 10 | 247 |
-| ZeroPointEnergy | 15 | 247 |
-| SteamForges | 9 | 263 |
-| TrailMaps | 9 | 267 |
-| Aerodynamics | 6 | 294 |
-| DimensionalGate | 6 | 316 |
+| ScriptLore | 68 | 24 |
+| StoneworkHalls | 67 | 28 |
+| Fieldcraft | 64 | 47 |
+| ScholarCourts | 59 | 88 |
+| Wellworks | 59 | 115 |
+| FormationTraining | 57 | 147 |
+| DrilledRanks | 54 | 170 |
+| SignalRelay | 43 | 174 |
+| ArmyDoctrine | 44 | 191 |
+| StarCharts | 37 | 217 |
+| CompositeArmor | 34 | 230 |
+| PlasmaShields | 30 | 239 |
+| UrbanPlans | 36 | 247 |
+| CityWards | 34 | 252 |
+| ZeroPointEnergy | 31 | 278 |
+| TimberMills | 29 | 284 |
+| SteamForges | 24 | 290 |
+| TrailMaps | 18 | 296 |
+| Aerodynamics | 15 | 320 |
+| DimensionalGate | 9 | 331 |
 
 ### JadeCovenant
 
 | Tech | Times Researched | Avg Turn |
 |------|-----------------|----------|
-| ScriptLore | 32 | 43 |
-| FormationTraining | 34 | 46 |
-| Fieldcraft | 34 | 61 |
-| DrilledRanks | 34 | 95 |
-| Wellworks | 32 | 124 |
-| ArmyDoctrine | 29 | 166 |
-| StoneworkHalls | 13 | 196 |
-| CompositeArmor | 18 | 220 |
-| UrbanPlans | 16 | 243 |
-| ScholarCourts | 16 | 247 |
-| SignalRelay | 13 | 267 |
-| StarCharts | 12 | 272 |
-| ZeroPointEnergy | 11 | 282 |
-| TimberMills | 9 | 286 |
-| SteamForges | 7 | 292 |
-| Aerodynamics | 4 | 308 |
-| CityWards | 4 | 312 |
-| TrailMaps | 4 | 321 |
-| PlasmaShields | 3 | 326 |
-| DimensionalGate | 4 | 333 |
+| FormationTraining | 65 | 51 |
+| ScriptLore | 61 | 57 |
+| Fieldcraft | 65 | 66 |
+| DrilledRanks | 61 | 102 |
+| Wellworks | 58 | 132 |
+| ArmyDoctrine | 49 | 179 |
+| StoneworkHalls | 22 | 189 |
+| CompositeArmor | 35 | 236 |
+| UrbanPlans | 27 | 258 |
+| ScholarCourts | 31 | 269 |
+| SignalRelay | 22 | 283 |
+| StarCharts | 20 | 284 |
+| ZeroPointEnergy | 16 | 289 |
+| SteamForges | 12 | 296 |
+| TimberMills | 15 | 309 |
+| Aerodynamics | 10 | 316 |
+| CityWards | 10 | 321 |
+| TrailMaps | 10 | 323 |
+| DimensionalGate | 10 | 341 |
+| PlasmaShields | 7 | 344 |
 
 ---
 
@@ -167,50 +167,51 @@ Shows the most common early research sequences for each civ.
 
 ### ForgeClans
 
-1. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → StoneworkHalls** (28 games)
-2. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks → ScriptLore** (4 games)
-3. **FormationTraining → Fieldcraft** (1 games)
-4. **ScriptLore → FormationTraining** (1 games)
+1. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → StoneworkHalls** (53 games)
+2. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks → ScriptLore** (11 games)
+3. **ScriptLore → FormationTraining → Fieldcraft** (5 games)
+4. **FormationTraining → Fieldcraft → StoneworkHalls** (1 games)
+5. **ScriptLore** (1 games)
 
 ### ScholarKingdoms
 
-1. **ScriptLore → StoneworkHalls → Fieldcraft → CityWards → ScholarCourts** (16 games)
-2. **ScriptLore → StoneworkHalls → FormationTraining → DrilledRanks → Fieldcraft** (6 games)
-3. **StoneworkHalls → Fieldcraft → ScriptLore → CityWards → ScholarCourts** (4 games)
-4. **ScriptLore → StoneworkHalls → Fieldcraft → CityWards → FormationTraining** (2 games)
-5. **ScriptLore** (1 games)
+1. **ScriptLore → StoneworkHalls → Fieldcraft → CityWards → ScholarCourts** (30 games)
+2. **ScriptLore → StoneworkHalls → Fieldcraft → CityWards → FormationTraining** (10 games)
+3. **StoneworkHalls → Fieldcraft → ScriptLore → CityWards → ScholarCourts** (8 games)
+4. **ScriptLore → StoneworkHalls → Fieldcraft → FormationTraining → DrilledRanks** (5 games)
+5. **ScriptLore → StoneworkHalls → FormationTraining → DrilledRanks → Fieldcraft** (4 games)
 
 ### RiverLeague
 
-1. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → Wellworks** (22 games)
-2. **FormationTraining → Fieldcraft → TrailMaps → DrilledRanks → Wellworks** (6 games)
-3. **FormationTraining** (1 games)
-4. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks** (1 games)
-5. **FormationTraining → Fieldcraft → TrailMaps → DrilledRanks → ScriptLore** (1 games)
+1. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → Wellworks** (47 games)
+2. **FormationTraining → Fieldcraft → TrailMaps → DrilledRanks → Wellworks** (10 games)
+3. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks** (4 games)
+4. **ScriptLore** (3 games)
+5. **FormationTraining → Fieldcraft → TrailMaps → DrilledRanks → ScriptLore** (2 games)
 
 ### AetherianVanguard
 
-1. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks → TimberMills** (9 games)
-2. **FormationTraining → Fieldcraft → StoneworkHalls → TimberMills → ScriptLore** (5 games)
-3. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → Wellworks** (5 games)
-4. **ScriptLore → StoneworkHalls → FormationTraining → TimberMills → ScholarCourts** (4 games)
-5. **ScriptLore → FormationTraining → Fieldcraft → StoneworkHalls → TimberMills** (2 games)
+1. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks → TimberMills** (17 games)
+2. **FormationTraining → Fieldcraft → StoneworkHalls → TimberMills → ScriptLore** (9 games)
+3. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → Wellworks** (9 games)
+4. **ScriptLore → StoneworkHalls → FormationTraining → TimberMills → ScholarCourts** (8 games)
+5. **ScriptLore → FormationTraining → StoneworkHalls → TimberMills → ScholarCourts** (5 games)
 
 ### StarborneSeekers
 
-1. **ScriptLore → StoneworkHalls → Fieldcraft → ScholarCourts → Wellworks** (13 games)
-2. **StoneworkHalls → ScriptLore → Fieldcraft → ScholarCourts → Wellworks** (6 games)
-3. **ScriptLore → StoneworkHalls → Fieldcraft → ScholarCourts → FormationTraining** (4 games)
-4. **StoneworkHalls → ScriptLore → Fieldcraft → FormationTraining → DrilledRanks** (2 games)
-5. **ScriptLore → StoneworkHalls → Fieldcraft → FormationTraining → ScholarCourts** (2 games)
+1. **ScriptLore → StoneworkHalls → Fieldcraft → ScholarCourts → Wellworks** (31 games)
+2. **StoneworkHalls → ScriptLore → Fieldcraft → ScholarCourts → Wellworks** (11 games)
+3. **ScriptLore → StoneworkHalls → Fieldcraft → ScholarCourts → FormationTraining** (7 games)
+4. **ScriptLore → StoneworkHalls → Fieldcraft → FormationTraining → DrilledRanks** (5 games)
+5. **StoneworkHalls → ScriptLore → Fieldcraft → FormationTraining → DrilledRanks** (4 games)
 
 ### JadeCovenant
 
-1. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → Wellworks** (28 games)
-2. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks → Wellworks** (4 games)
-3. **ScriptLore** (1 games)
-4. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks** (1 games)
-5. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks** (1 games)
+1. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks → Wellworks** (50 games)
+2. **FormationTraining → Fieldcraft → StoneworkHalls → DrilledRanks → Wellworks** (8 games)
+3. **ScriptLore** (2 games)
+4. **ScriptLore → FormationTraining → Fieldcraft** (2 games)
+5. **ScriptLore → FormationTraining → Fieldcraft → DrilledRanks** (2 games)
 
 ---
 
@@ -222,58 +223,61 @@ Shows which position in the research order correlates with wins for key techs.
 
 | Tech | Best Position for Wins | Win Rate at Best |
 |------|----------------------|------------------|
-| StarCharts | #12 | 75.0% |
-| PlasmaShields | #20 | 100.0% |
-| CompositeArmor | #8 | 33.3% |
-| SignalRelay | #11 | 100.0% |
-| CityWards | #17 | 100.0% |
+| StarCharts | #15 | 75.0% |
+| PlasmaShields | #20 | 50.0% |
+| CompositeArmor | #8 | 29.7% |
+| SignalRelay | #14 | 75.0% |
+| CityWards | #17 | 46.7% |
 
 ### ScholarKingdoms
 
 | Tech | Best Position for Wins | Win Rate at Best |
 |------|----------------------|------------------|
-| StarCharts | #7 | 71.4% |
-| PlasmaShields | #8 | 71.4% |
-| CompositeArmor | #19 | 100.0% |
-| SignalRelay | #6 | 46.2% |
-| CityWards | #4 | 26.1% |
+| StarCharts | #7 | 38.5% |
+| PlasmaShields | #8 | 45.5% |
+| CompositeArmor | #19 | 40.0% |
+| SignalRelay | #6 | 24.0% |
+| CityWards | #7 | 33.3% |
 
 ### RiverLeague
 
 | Tech | Best Position for Wins | Win Rate at Best |
 |------|----------------------|------------------|
-| StarCharts | #13 | 100.0% |
-| PlasmaShields | #20 | 33.3% |
-| CompositeArmor | #7 | 44.4% |
-| SignalRelay | #12 | 100.0% |
-| CityWards | #16 | 25.0% |
+| StarCharts | #10 | 33.3% |
+| PlasmaShields | #20 | 66.7% |
+| CompositeArmor | #7 | 26.3% |
+| SignalRelay | #12 | 66.7% |
+| CityWards | #16 | 42.9% |
 
 ### AetherianVanguard
 
 | Tech | Best Position for Wins | Win Rate at Best |
 |------|----------------------|------------------|
-| StarCharts | #11 | 33.3% |
-| SignalRelay | #10 | 33.3% |
-| CityWards | #17 | 33.3% |
+| StarCharts | #13 | 28.6% |
+| PlasmaShields | #20 | 50.0% |
+| CompositeArmor | #10 | 42.9% |
+| SignalRelay | #10 | 66.7% |
+| CityWards | #17 | 38.5% |
 
 ### StarborneSeekers
 
 | Tech | Best Position for Wins | Win Rate at Best |
 |------|----------------------|------------------|
-| StarCharts | #7 | 57.1% |
-| PlasmaShields | #8 | 57.1% |
-| CompositeArmor | #8 | 28.6% |
-| SignalRelay | #6 | 37.5% |
-| CityWards | #9 | 57.1% |
+| StarCharts | #7 | 52.4% |
+| PlasmaShields | #8 | 57.9% |
+| CompositeArmor | #19 | 80.0% |
+| SignalRelay | #6 | 48.4% |
+| CityWards | #9 | 64.7% |
 
 ### JadeCovenant
 
 | Tech | Best Position for Wins | Win Rate at Best |
 |------|----------------------|------------------|
-| StarCharts | #11 | 37.5% |
-| CompositeArmor | #7 | 27.8% |
-| SignalRelay | #9 | 50.0% |
-| CityWards | #17 | 50.0% |
+| StarCharts | #11 | 25.0% |
+| PlasmaShields | #20 | 28.6% |
+| CompositeArmor | #7 | 14.3% |
+| SignalRelay | #10 | 20.0% |
+| CityWards | #17 | 20.0% |
 
 ---
 
@@ -283,7 +287,7 @@ Tracks whether Conquest civs are researching StarCharts (hybrid path).
 
 | Civ | StarCharts Researched | Avg Turn | SignalRelay Researched | Avg Turn |
 |-----|----------------------|----------|----------------------|----------|
-| ForgeClans | 8 | 267 | 11 | 267 |
-| AetherianVanguard | 5 | 230 | 6 | 224 |
-| JadeCovenant | 12 | 272 | 13 | 267 |
+| ForgeClans | 24 | 285 | 28 | 279 |
+| AetherianVanguard | 24 | 282 | 26 | 267 |
+| JadeCovenant | 20 | 284 | 22 | 283 |
 

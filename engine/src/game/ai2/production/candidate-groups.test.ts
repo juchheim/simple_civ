@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TechId } from "../../../core/types.js";
 import { addPrimaryProductionCandidates, type ProductionCandidateAddInput } from "./candidate-groups.js";
 
 const option = (id: string) => ({ type: "Unit", id } as const);
@@ -101,11 +102,21 @@ function baseParams(overrides: Partial<Parameters<typeof addPrimaryProductionCan
 
     return {
         addCandidate: () => {},
-        state: {} as any,
+        state: {
+            turn: 100,
+            map: { width: 30, height: 22, tiles: [] },
+            units: [],
+            cities: [{ id: "c1", ownerId: "p1", currentBuild: null }],
+        } as any,
         playerId: "p1",
         city: { id: "c1" } as any,
         goal: "Balanced",
-        context: {} as any,
+        context: {
+            player: {
+                techs: [],
+            },
+            myCities: [{ id: "c1" }],
+        } as any,
         profile,
         myCities: [{ id: "c1" } as any],
         economy,
@@ -174,5 +185,29 @@ describe("production candidate groups", () => {
         expect(reasons.includes("victory-project")).toBe(false);
         expect(reasons.includes("defensive-army")).toBe(false);
         expect(reasons.includes("economy")).toBe(true);
+    });
+
+    it("keeps victory projects available in late Progress windows even while recovering", () => {
+        const added: ProductionCandidateAddInput[] = [];
+        addPrimaryProductionCandidates(baseParams({
+            addCandidate: input => added.push(input),
+            state: {
+                turn: 190,
+                map: { width: 30, height: 22, tiles: [] },
+                units: [],
+                cities: [{ id: "c1", ownerId: "p1", currentBuild: null }],
+            } as any,
+            goal: "Progress",
+            context: {
+                player: {
+                    techs: [TechId.StarCharts],
+                },
+                myCities: [{ id: "c1" }],
+            } as any,
+            isEconomyRecoveryState: true,
+            isCrisis: false,
+        }));
+
+        expect(added.map(c => c.reason)).toContain("victory-project");
     });
 });

@@ -798,6 +798,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                     cityId,
                     from: prevCity.ownerId,
                     to: currentCity.ownerId,
+                    isCapital: !!currentCity.isCapital,
                 });
             }
         });
@@ -1055,17 +1056,28 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     };
 }
 
+function getTurnLimitForMapSize(mapSize: MapSize): number {
+    switch (mapSize) {
+        case "Huge":
+            return 500;
+        case "Large":
+            return 450;
+        default:
+            return 400;
+    }
+}
+
 // ==========================================
 // PARALLEL EXECUTION LOGIC
 // ==========================================
 
 if (isMainThread) {
-    const allConfigs: { size: MapSize; maxCivs: number }[] = [
-        { size: "Tiny", maxCivs: 2 },
-        { size: "Small", maxCivs: 3 },
-        { size: "Standard", maxCivs: 4 },
-        { size: "Large", maxCivs: 6 },
-        { size: "Huge", maxCivs: 6 },
+    const allConfigs: { size: MapSize; maxCivs: number; turnLimit: number }[] = [
+        { size: "Tiny", maxCivs: 2, turnLimit: getTurnLimitForMapSize("Tiny") },
+        { size: "Small", maxCivs: 3, turnLimit: getTurnLimitForMapSize("Small") },
+        { size: "Standard", maxCivs: 4, turnLimit: getTurnLimitForMapSize("Standard") },
+        { size: "Large", maxCivs: 6, turnLimit: getTurnLimitForMapSize("Large") },
+        { size: "Huge", maxCivs: 6, turnLimit: getTurnLimitForMapSize("Huge") },
     ];
 
     const allowedSizes = process.env.SIM_MAP_SIZES
@@ -1216,7 +1228,7 @@ if (isMainThread) {
     const start = performance.now();
 
     try {
-        const result = runComprehensiveSimulation(seed, config.size, 400, config.maxCivs); // v9.12: 300→400 turns
+        const result = runComprehensiveSimulation(seed, config.size, config.turnLimit, config.maxCivs);
         const duration = performance.now() - start;
         parentPort?.postMessage({ ...result, duration });
     } catch (err) {

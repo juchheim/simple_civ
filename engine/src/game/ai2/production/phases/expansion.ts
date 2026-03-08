@@ -1,5 +1,5 @@
 import { City, GameState } from "../../../../core/types.js";
-import { pickEarlyExpansionBuild, pickExpansionBuild } from "../expansion.js";
+import { pickEarlyExpansionBuild, pickExpansionBuild, shouldExpandForProgressVictoryGate } from "../expansion.js";
 import type { DefenseDecision } from "../defense-priority.js";
 import type { BuildOption, ProductionContext } from "../../production.js";
 
@@ -63,22 +63,28 @@ function pickExpandPhaseExpansionBuild(
 }
 
 function pickDevelopPhaseExpansionBuild(
-    _state: GameState,
-    _playerId: string,
-    _city: City,
-    _context: ProductionContext,
-    _defenseDecision: DefenseDecision
+    state: GameState,
+    playerId: string,
+    city: City,
+    context: ProductionContext,
+    defenseDecision: DefenseDecision
 ): BuildOption | null {
+    if (shouldExpandForProgressVictoryGate(state, playerId, context)) {
+        return pickExpansionBuild(state, playerId, city, context, defenseDecision);
+    }
     return null;
 }
 
 function pickExecutePhaseExpansionBuild(
-    _state: GameState,
-    _playerId: string,
-    _city: City,
-    _context: ProductionContext,
-    _defenseDecision: DefenseDecision
+    state: GameState,
+    playerId: string,
+    city: City,
+    context: ProductionContext,
+    defenseDecision: DefenseDecision
 ): BuildOption | null {
+    if (shouldExpandForProgressVictoryGate(state, playerId, context)) {
+        return pickExpansionBuild(state, playerId, city, context, defenseDecision);
+    }
     return null;
 }
 

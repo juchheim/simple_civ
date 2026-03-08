@@ -1,6 +1,7 @@
 import { AiVictoryGoal, GameState, ProjectId, TechId, UnitType } from "../../../core/types.js";
 import type { CivAiProfileV2 } from "../rules.js";
 import { estimateMilitaryPower } from "../../ai/goals.js";
+import { getProgressEndgameTurn } from "../../ai/progress-helpers.js";
 import { evaluateBestVictoryPath } from "../../ai/victory-evaluator.js";
 import { clamp01 } from "../util.js";
 import { isProgressThreat } from "../diplomacy/utils.js";
@@ -73,8 +74,9 @@ export function computeForcedGoal(
     playerId: string,
     player: GameState["players"][number]
 ): ForcedGoal | null {
-    // v9.10: Endgame crisis overrides all other logic.
-    if (state.turn > 225) {
+    // Endgame crisis overrides all other logic once the current map is past its
+    // normal resolution window, so tech/build choices can pivot in time.
+    if (state.turn >= getProgressEndgameTurn(state.map)) {
         const evaluation = evaluateBestVictoryPath(state, playerId);
         const notes = [
             evaluation.reason ? `eval:${evaluation.reason}` : "eval",

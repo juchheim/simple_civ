@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs';
+import { analyzeWarConversion } from './war-conversion-analysis.mjs';
 
 const results = JSON.parse(readFileSync('/tmp/comprehensive-simulation-results.json', 'utf8'));
 
@@ -38,6 +39,10 @@ function avg(total, count) {
 
 function pct(part, total) {
     return total > 0 ? (part / total) * 100 : 0;
+}
+
+function formatMaybe(value, digits = 1) {
+    return value == null || !Number.isFinite(value) ? 'N/A' : value.toFixed(digits);
 }
 
 function createCauseAggregate() {
@@ -1266,6 +1271,7 @@ const civAnalysis = analyzeCivPerformance(results);
 const stallAnalysis = analyzeStalls(results);
 const titanAnalysis = analyzeTitanStats(results);
 const cityStateAnalysis = analyzeCityStateSystems(results);
+const warConversion = analyzeWarConversion(results, CIVS);
 const mapSizeBreakdown = MAP_ORDER
     .map(mapSize => `${mapSize}: ${(byMapSize.get(mapSize) || []).length}`)
     .join(", ");
@@ -1360,6 +1366,35 @@ CIVS.forEach(civ => {
     }
 });
 report += `\n`;
+
+report += `### War-to-Win Conversion by Civilization\n`;
+CIVS.forEach(civ => {
+    const stats = warConversion.byCiv.get(civ);
+    if (!stats || stats.gamesPlayed === 0) return;
+    report += `- **${civ}:** ${stats.initiatedWarsWithCapture}/${stats.initiatedWars} initiated wars led to captures (${formatMaybe(stats.warCaptureConversionRate)}%), `;
+    report += `${formatMaybe(stats.capturesPerInitiatedWar, 2)} cities per initiated war, `;
+    report += `${formatMaybe(stats.eliminationsPerInitiatedWar, 2)} eliminations per initiated war, `;
+    report += `${stats.winsWithAnyCapture}/${stats.gamesWithAnyCapture} wins after any capture (${formatMaybe(stats.winRateAfterAnyCapture)}%)`;
+    if (stats.progressWins > 0) {
+        report += `, ${stats.progressWinsWithPriorCapture}/${stats.progressWins} Progress wins after prior captures`;
+    }
+    report += `\n`;
+});
+report += `\n`;
+
+const forgeConversion = warConversion.byCiv.get("ForgeClans");
+if (forgeConversion) {
+    report += `### ForgeClans Conversion Focus\n`;
+    report += `- **Average Declaration Power Ratio:** ${formatMaybe(forgeConversion.avgDeclarationPowerRatio, 2)}\n`;
+    report += `- **Median Turns from Declared War to First Capture:** ${formatMaybe(forgeConversion.medianTurnsToFirstCaptureFromDeclaredWar)}\n`;
+    report += `- **Median First Capture Turn:** wins ${formatMaybe(forgeConversion.medianFirstCaptureTurnInWins)}, losses ${formatMaybe(forgeConversion.medianFirstCaptureTurnInLosses)}\n`;
+    report += `- **Median ${warConversion.captureBurstWindow}-Turn Capture Burst:** wins ${formatMaybe(forgeConversion.medianCaptureBurst25InWins)}, losses ${formatMaybe(forgeConversion.medianCaptureBurst25InLosses)}\n`;
+    report += `- **First-Capture Win Rate:** ${forgeConversion.winsWithFirstCapture}/${forgeConversion.gamesWithFirstCapture} (${formatMaybe(forgeConversion.winRateAfterFirstCapture)}%)\n`;
+    if (forgeConversion.progressWins > 0) {
+        report += `- **Progress Wins With Prior Captures:** ${forgeConversion.progressWinsWithPriorCapture}/${forgeConversion.progressWins} (${formatMaybe(forgeConversion.progressWinPivotRate)}%), avg ${formatMaybe(forgeConversion.avgCapturesBeforeFirstProgressProject)} captures before first progress project\n`;
+    }
+    report += `\n`;
+}
 
 // Unit Analysis
 report += `## 3. Unit Combat Analysis\n\n`;

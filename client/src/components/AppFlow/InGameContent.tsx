@@ -1,9 +1,10 @@
 import React from "react";
-import { Action, CombatPreview, DiplomacyState, GameState, HexCoord, TechId } from "@simple-civ/engine";
+import { Action, CombatPreview, DiplomacyState, GameState, getMapSpecificVictoryRules, HexCoord, TechId } from "@simple-civ/engine";
 import { EndGameExperience } from "../EndGame/EndGameExperience";
 import { GameMap, GameMapHandle, MapViewport } from "../GameMap";
 import { HUD } from "../HUD";
 import { CombatPreviewModal, WarDeclarationModal } from "../HUD/sections";
+import { Modal } from "../Modal";
 import { SaveGameModal } from "../SaveGameModal";
 import { TechTree } from "../TechTree";
 import { Toast, ToastContainer } from "../Toast";
@@ -120,6 +121,29 @@ export const InGameContent: React.FC<InGameContentProps> = ({
     error,
     setError,
 }) => {
+    const mapSpecificVictoryRules = React.useMemo(
+        () => getMapSpecificVictoryRules(gameState.map),
+        [gameState.map]
+    );
+    const [dismissedRuleGameIds, setDismissedRuleGameIds] = React.useState<Set<string>>(() => new Set());
+    const [showMapRuleModal, setShowMapRuleModal] = React.useState(false);
+
+    React.useEffect(() => {
+        const shouldShowRules = mapSpecificVictoryRules.length > 0 &&
+            gameState.turn <= 1 &&
+            !dismissedRuleGameIds.has(gameState.id);
+        setShowMapRuleModal(shouldShowRules);
+    }, [dismissedRuleGameIds, gameState.id, gameState.turn, mapSpecificVictoryRules]);
+
+    const handleDismissMapRuleModal = React.useCallback(() => {
+        setDismissedRuleGameIds(prev => {
+            const next = new Set(prev);
+            next.add(gameState.id);
+            return next;
+        });
+        setShowMapRuleModal(false);
+    }, [gameState.id]);
+
     return (
         <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
             <GameMap
@@ -219,6 +243,56 @@ export const InGameContent: React.FC<InGameContentProps> = ({
                 onClose={onCloseSaveModal}
                 onConfirmSave={onConfirmSave}
             />
+            <Modal
+                isOpen={showMapRuleModal}
+                onClose={handleDismissMapRuleModal}
+                title="Map-Specific Victory Rules"
+            >
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
+                        This match changes the standard victory rules for the selected map size.
+                    </div>
+                    {mapSpecificVictoryRules.map(rule => (
+                        <div
+                            key={rule.id}
+                            style={{
+                                borderRadius: 12,
+                                border: "1px solid rgba(205, 138, 54, 0.3)",
+                                background: "rgba(205, 138, 54, 0.08)",
+                                padding: "14px 16px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                            }}
+                        >
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-highlight)" }}>
+                                {rule.title}
+                            </div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-main)" }}>
+                                {rule.summary}
+                            </div>
+                            <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--color-text-muted)" }}>
+                                {rule.detail}
+                            </div>
+                        </div>
+                    ))}
+                    <button
+                        onClick={handleDismissMapRuleModal}
+                        style={{
+                            alignSelf: "flex-end",
+                            padding: "10px 16px",
+                            borderRadius: 10,
+                            border: "none",
+                            background: "var(--color-highlight-strong, #cd8a36)",
+                            color: "#fff",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                        }}
+                    >
+                        Continue
+                    </button>
+                </div>
+            </Modal>
             {error && (
                 <div style={{
                     position: "fixed",

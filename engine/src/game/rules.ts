@@ -8,6 +8,7 @@ import {
     Tile,
     Yields,
     TechId,
+    MapSize,
     UnitType,
     UnitDomain,
     ProjectId,
@@ -549,19 +550,65 @@ export function canBuild(city: City, type: "Unit" | "Building" | "Project", id: 
  * Calculates the production cost of a project, potentially scaling with the game turn.
  * @param projectId - The ID of the project.
  * @param turn - The current game turn.
+ * @param map - Optional map dimensions for map-size-aware Progress cost scaling.
  * @returns The production cost.
  */
-export function getProjectCost(projectId: ProjectId, turn: number): number {
+export function getProjectCost(projectId: ProjectId, turn: number, map?: Pick<GameState["map"], "width" | "height">): number {
     const data = PROJECTS[projectId];
     if (!data) return 9999;
 
+    let cost = data.cost;
     if (data.scalesWithTurn) {
         // Scale cost by turn number: Base * (1 + floor(Turn / 40)), capped at 5x
         // v1.0.2: Reduced scaling from /25 to /40 for less dramatic late-game inflation
         // v1.0.2: Capped at 5x to prevent runaway costs in long games (avg victory ~turn 192)
         const multiplier = Math.min(5, 1 + Math.floor(turn / 40));
-        return data.cost * multiplier;
+        cost *= multiplier;
     }
 
-    return data.cost;
+    if (isProgressVictoryProject(projectId)) {
+        cost = Math.round(cost * getProgressProjectMapSizeMultiplier(map));
+    }
+
+    return cost;
+}
+
+export function getProgressVictoryCityRequirement(map?: Pick<GameState["map"], "width" | "height">): number {
+    void map;
+    return 1;
+}
+
+export function getProgressVictoryCityShortfall(state: GameState, playerId: string): number {
+    const ownedCities = state.cities.filter(c => c.ownerId === playerId).length;
+    return Math.max(0, getProgressVictoryCityRequirement(state.map) - ownedCities);
+}
+
+export function meetsProgressVictoryCityRequirement(state: GameState, playerId: string): boolean {
+    return getProgressVictoryCityShortfall(state, playerId) === 0;
+}
+
+export type MapSpecificVictoryRule = {
+    id: string;
+    title: string;
+    summary: string;
+    detail: string;
+    appliesTo: MapSize[];
+};
+
+export function getMapSpecificVictoryRules(
+    mapOrSize?: MapSize | Pick<GameState["map"], "width" | "height">
+): MapSpecificVictoryRule[] {
+    void mapOrSize;
+    return [];
+}
+
+function isProgressVictoryProject(projectId: ProjectId): boolean {
+    return projectId === ProjectId.Observatory || projectId === ProjectId.GrandAcademy || projectId === ProjectId.GrandExperiment;
+}
+
+function getProgressProjectMapSizeMultiplier(map?: Pick<GameState["map"], "width" | "height">): number {
+    if (!map) return 1;
+    if (map.width >= 40 || map.height >= 30) return 1.2;
+    if (map.width >= 35 || map.height >= 25) return 1.1;
+    return 1;
 }

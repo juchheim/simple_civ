@@ -168,6 +168,7 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
                     cityId,
                     from: prevCity.ownerId,
                     to: currentCity.ownerId,
+                    isCapital: !!currentCity.isCapital,
                 });
             }
         });
@@ -319,12 +320,23 @@ function runComprehensiveSimulation(seed = 42, mapSize: MapSize = "Huge", turnLi
     };
 }
 
-const MAP_CONFIGS: { size: MapSize; maxCivs: number }[] = [
-    { size: "Tiny", maxCivs: 2 },
-    { size: "Small", maxCivs: 3 },
-    { size: "Standard", maxCivs: 4 },
-    { size: "Large", maxCivs: 6 },
-    { size: "Huge", maxCivs: 6 },
+function getTurnLimitForMapSize(mapSize: MapSize): number {
+    switch (mapSize) {
+        case "Huge":
+            return 500;
+        case "Large":
+            return 450;
+        default:
+            return 400;
+    }
+}
+
+const MAP_CONFIGS: { size: MapSize; maxCivs: number; turnLimit: number }[] = [
+    { size: "Tiny", maxCivs: 2, turnLimit: getTurnLimitForMapSize("Tiny") },
+    { size: "Small", maxCivs: 3, turnLimit: getTurnLimitForMapSize("Small") },
+    { size: "Standard", maxCivs: 4, turnLimit: getTurnLimitForMapSize("Standard") },
+    { size: "Large", maxCivs: 6, turnLimit: getTurnLimitForMapSize("Large") },
+    { size: "Huge", maxCivs: 6, turnLimit: getTurnLimitForMapSize("Huge") },
 ];
 
 const seedsCount = process.env.SIM_SEEDS_COUNT ? parseInt(process.env.SIM_SEEDS_COUNT) : 10;
@@ -351,7 +363,7 @@ for (const config of MAP_CONFIGS) {
         console.error(`\n[${completedSims}/${totalSims}] Starting ${config.size} simulation ${i + 1}/10 (seed ${seed})`);
         console.error(`  Elapsed: ${elapsedSeconds.toFixed(0)}s | Est. remaining: ${remaining.toFixed(0)}s`);
 
-        const result = runComprehensiveSimulation(seed, config.size, 200, config.maxCivs);
+        const result = runComprehensiveSimulation(seed, config.size, config.turnLimit, config.maxCivs);
         allResults.push(result);
 
         const simEndTime = Date.now();

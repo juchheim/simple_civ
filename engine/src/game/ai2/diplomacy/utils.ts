@@ -1,6 +1,7 @@
 import { DiplomacyState, GameState, ProjectId } from "../../../core/types.js";
 import { hexDistance } from "../../../core/hex.js";
 import type { AiPlayerMemoryV2 } from "../memory.js";
+import { getProgressVictoryCityShortfall, meetsProgressVictoryCityRequirement } from "../../rules.js";
 
 // ============================================================================
 // WAR ESCALATION & POWER COMPARISON (from Legacy AI)
@@ -80,7 +81,8 @@ export function isProgressThreat(state: GameState, targetPlayerId: string): bool
     const completedObs = p.completedProjects?.includes(ProjectId.Observatory);
     const completedAcad = p.completedProjects?.includes(ProjectId.GrandAcademy);
     const completedExp = p.completedProjects?.includes(ProjectId.GrandExperiment);
-    if (completedExp) return true;
+    const cityShortfall = getProgressVictoryCityShortfall(state, targetPlayerId);
+    if (completedExp && meetsProgressVictoryCityRequirement(state, targetPlayerId)) return true;
 
     // If they are currently building any progress-chain project, treat as a threat that scales with turn.
     const buildingProgress = state.cities.some(c =>
@@ -90,7 +92,7 @@ export function isProgressThreat(state: GameState, targetPlayerId: string): bool
     );
 
     // Early chain is only a "soft" threat; once Observatory is done or they are building Academy/Experiment, it's urgent.
-    if (completedAcad || buildingProgress) return true;
+    if (cityShortfall <= 1 && (completedAcad || completedExp || buildingProgress)) return true;
     if (completedObs && state.turn >= 110) return true;
     return false;
 }

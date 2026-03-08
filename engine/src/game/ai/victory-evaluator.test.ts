@@ -11,6 +11,7 @@ import { generateWorld } from "../../map/map-generator";
 import {
     BuildingType,
     City,
+    GameState,
     ProjectId,
     TechId,
     UnitType,
@@ -164,6 +165,142 @@ describe("Victory Evaluator", () => {
             const turnsWithObservatory = estimateTurnsToProgress(state, "p1");
 
             expect(turnsWithObservatory).toBeLessThan(turnsNoProjects);
+        });
+
+        it("should account for in-progress Progress projects", () => {
+            const state = generateWorld({ mapSize: "Standard", players: [{ id: "p1", civName: "ScholarKingdoms", color: "blue" }] });
+
+            const city: City = {
+                id: "c1",
+                name: "City",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 4,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.StoneWorkshop, BuildingType.Scriptorium],
+                workedTiles: [{ q: 0, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            };
+            state.cities = [city];
+
+            const player = state.players.find(p => p.id === "p1")!;
+            player.techs = [TechId.StarCharts];
+            player.completedProjects = [ProjectId.Observatory];
+
+            const turnsWithoutProgress = estimateTurnsToProgress(state, "p1");
+
+            city.currentBuild = { type: "Project", id: ProjectId.GrandAcademy, cost: 550 };
+            city.buildProgress = 300;
+
+            const turnsWithProgress = estimateTurnsToProgress(state, "p1");
+
+            expect(turnsWithProgress).toBeLessThan(turnsWithoutProgress);
+        });
+
+        it("should account for higher Progress project costs on larger maps", () => {
+            function makeState(width: number, height: number): GameState {
+                return {
+                    turn: 1,
+                    players: [{
+                        id: "p1",
+                        civName: "ForgeClans",
+                        color: "red",
+                        techs: [TechId.StarCharts],
+                        currentTech: null,
+                        completedProjects: [],
+                        isEliminated: false,
+                    }],
+                    cities: [{
+                        id: "c1",
+                        name: "City",
+                        ownerId: "p1",
+                        coord: { q: 0, r: 0 },
+                        pop: 3,
+                        storedFood: 0,
+                        storedProduction: 0,
+                        buildings: [BuildingType.StoneWorkshop],
+                        workedTiles: [{ q: 0, r: 0 }],
+                        currentBuild: null,
+                        buildProgress: 0,
+                        hp: 20,
+                        maxHp: 20,
+                        isCapital: true,
+                        hasFiredThisTurn: false,
+                        milestones: [],
+                    } as City],
+                    units: [],
+                    map: {
+                        width,
+                        height,
+                        tiles: [{ coord: { q: 0, r: 0 }, terrain: "Plains", overlays: [] }],
+                    },
+                } as unknown as GameState;
+            }
+
+            const standardTurns = estimateTurnsToProgress(makeState(30, 22), "p1");
+            const largeTurns = estimateTurnsToProgress(makeState(35, 25), "p1");
+            const hugeTurns = estimateTurnsToProgress(makeState(40, 30), "p1");
+
+            expect(largeTurns).toBeGreaterThan(standardTurns);
+            expect(hugeTurns).toBeGreaterThan(largeTurns);
+        });
+
+        it("does not add extra time for missing cities when no map-specific Progress gate is active", () => {
+            function makeState(cityCount: number): GameState {
+                return {
+                    turn: 80,
+                    players: [{
+                        id: "p1",
+                        civName: "ScholarKingdoms",
+                        color: "blue",
+                        techs: [TechId.StarCharts],
+                        currentTech: null,
+                        completedProjects: [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment],
+                        isEliminated: false,
+                    }],
+                    cities: Array.from({ length: cityCount }, (_, index) => ({
+                        id: `c${index + 1}`,
+                        name: `City ${index + 1}`,
+                        ownerId: "p1",
+                        coord: { q: index, r: 0 },
+                        pop: 4,
+                        storedFood: 0,
+                        storedProduction: 0,
+                        buildings: [BuildingType.StoneWorkshop],
+                        workedTiles: [{ q: index, r: 0 }],
+                        currentBuild: null,
+                        buildProgress: 0,
+                        hp: 20,
+                        maxHp: 20,
+                        isCapital: index === 0,
+                        hasFiredThisTurn: false,
+                        milestones: [],
+                    })) as City[],
+                    units: [],
+                    map: {
+                        width: 40,
+                        height: 30,
+                        tiles: Array.from({ length: cityCount }, (_, index) => ({
+                            coord: { q: index, r: 0 },
+                            terrain: "Plains",
+                            overlays: [],
+                        })),
+                    },
+                } as unknown as GameState;
+            }
+
+            const oneCityTurns = estimateTurnsToProgress(makeState(1), "p1");
+            const threeCityTurns = estimateTurnsToProgress(makeState(3), "p1");
+
+            expect(oneCityTurns).toBe(0);
+            expect(threeCityTurns).toBe(0);
         });
     });
 

@@ -40,7 +40,7 @@ export type Event =
     | { type: "PeaceTreaty"; turn: number; civ1: string; civ2: string }
     | { type: "UnitDeath"; turn: number; unitId: string; unitType: UnitType; owner: string; killedBy?: string; settlerTelemetry?: SettlerDeathTelemetry }
     | { type: "UnitProduction"; turn: number; cityId: string; owner: string; unitType: UnitType; unitId?: string }
-    | { type: "CityCapture"; turn: number; cityId: string; from: string; to: string }
+    | { type: "CityCapture"; turn: number; cityId: string; from: string; to: string; isCapital?: boolean }
     | { type: "CityFound"; turn: number; cityId: string; owner: string }
     | { type: "CityRaze"; turn: number; cityId: string; owner: string }
     | { type: "TechComplete"; turn: number; civ: string; tech: TechId }
