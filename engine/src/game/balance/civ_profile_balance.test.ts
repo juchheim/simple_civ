@@ -54,14 +54,19 @@ describe("Civ profile balance safeguards", () => {
         const profile = getAiProfileV2(state, "p1");
 
         expect(profile.diplomacy.warPowerRatio).toBe(0.9);
+        expect(profile.diplomacy.warDistanceMax).toBe(15);
+        expect(profile.diplomacy.peaceIfBelowRatio).toBe(0.6);
         expect(profile.diplomacy.minWarTurn).toBe(8);
         expect(profile.diplomacy.maxConcurrentWars).toBe(2);
-        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(6);
-        expect(profile.diplomacy.targetPreference).toBe("Finishable");
+        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(5);
+        expect(profile.diplomacy.targetPreference).toBe("Nearest");
         expect(profile.build.armyPerCity).toBe(2.3);
         expect(profile.build.desiredCities).toBe(7);
-        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.0);
-        expect(profile.tech.weights[TechId.StarCharts]).toBe(0.9);
+        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.1);
+        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.1);
+        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.1);
+        expect(profile.tech.weights[TechId.SignalRelay]).toBe(1.0);
+        expect(profile.tech.weights[TechId.StarCharts]).toBe(1.0);
     });
 
     it("restores ScholarKingdoms baseline progress pacing", () => {
@@ -70,9 +75,12 @@ describe("Civ profile balance safeguards", () => {
 
         expect(profile.tech.weights[TechId.SignalRelay]).toBeUndefined();
         expect(profile.tech.weights[TechId.StarCharts]).toBeUndefined();
+        expect(profile.build.armyPerCity).toBe(1.6);
+        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(0.7);
+        expect(profile.build.weights.building[BuildingType.CityWard]).toBe(0.9);
         expect(profile.build.weights.project[ProjectId.Observatory]).toBe(2.0);
-        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.2);
-        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.2);
+        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.35);
+        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.35);
         expect(profile.economy.reserveMultiplier).toBe(1.0);
         expect(profile.economy.rushBuyAggression).toBe(1.0);
     });

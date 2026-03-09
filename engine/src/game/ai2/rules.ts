@@ -390,7 +390,7 @@ const profiles: Record<string, CivAiProfileV2> = {
         },
         build: {
             // v9.9: Nerf expansion defense to make them vulnerable to conquest
-            armyPerCity: 1.6, // Scholar targeted pass: lower upkeep pressure while expanding.
+            armyPerCity: 1.6, // Keep upkeep low; rely on smarter closeout, not heavier standing armies.
             settlerCap: 7,  // Targeted expansion pass.
             desiredCities: 9,  // Targeted expansion pass.
             weights: {
@@ -405,15 +405,15 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [BuildingType.MarketHall]: 1.65,
                     [BuildingType.Bank]: 1.35,
                     [BuildingType.Exchange]: 1.2,
-                    [BuildingType.Bulwark]: 0.6,
-                    [BuildingType.CityWard]: 0.8,
+                    [BuildingType.Bulwark]: 0.7,
+                    [BuildingType.CityWard]: 0.9,
                     [BuildingType.Scriptorium]: 1.3,
                     [BuildingType.Academy]: 1.3,
                 },
                 project: {
                     [ProjectId.Observatory]: 2.0,  // v9.9: Nerfed from 2.5 - Slow down the runaway leader
-                    [ProjectId.GrandAcademy]: 1.2,
-                    [ProjectId.GrandExperiment]: 1.2,
+                    [ProjectId.GrandAcademy]: 1.35,
+                    [ProjectId.GrandExperiment]: 1.35,
                 },
             },
         },
@@ -431,14 +431,14 @@ const profiles: Record<string, CivAiProfileV2> = {
     RiverLeague: mergeProfile(baseProfile, {
         civName: "RiverLeague",
         diplomacy: {
-            warPowerRatio: 0.9, // v9.9: Stabilized from 0.85 (Suicidal) to 0.9 (Aggressive but safe)
-            warDistanceMax: 18, // Rivers extend reach
-            peaceIfBelowRatio: 0.55, // v1.8: Fight harder (was 0.65)
-            minWarTurn: 8, // v1.8: Start wars earlier (was 10)
+            warPowerRatio: 0.9, // Stay aggressive, but keep River pressure local where terrain helps.
+            warDistanceMax: 15, // River recovery pass: reduce overextended wars away from river terrain.
+            peaceIfBelowRatio: 0.6, // River recovery pass: concede losing wars a bit earlier.
+            minWarTurn: 8,
             maxConcurrentWars: 2,
-            maxInitiatedWarsPer50Turns: 6, // v1.8: More wars (was 5)
+            maxInitiatedWarsPer50Turns: 5, // River recovery pass: trim serial-war churn without gutting tempo.
             canInitiateWars: true,
-            targetPreference: "Finishable", // v1.8: Pick off civs close to elimination
+            targetPreference: "Nearest", // River recovery pass: bias to local fights where civ bonuses are active.
         },
         tech: {
             weights: {
@@ -451,8 +451,8 @@ const profiles: Record<string, CivAiProfileV2> = {
                 // Reduced Progress focus
                 [TechId.ScriptLore]: 1.0,
                 [TechId.ScholarCourts]: 1.0,
-                [TechId.SignalRelay]: 0.9, // v1.7: Lower priority
-                [TechId.StarCharts]: 0.9, // v1.7: Lower priority - conquest focus
+                [TechId.SignalRelay]: 1.0,
+                [TechId.StarCharts]: 1.0,
             }
         },
         build: {
@@ -463,9 +463,9 @@ const profiles: Record<string, CivAiProfileV2> = {
                 unit: { [UnitType.Skiff]: 1.2, [UnitType.Settler]: 1.2, [UnitType.SpearGuard]: 1.3, [UnitType.BowGuard]: 1.2 }, // v1.7: Military focus
                 building: { [BuildingType.Reservoir]: 1.2 },
                 project: {
-                    [ProjectId.Observatory]: 1.0, // v1.7: Reduced from 1.3
-                    [ProjectId.GrandAcademy]: 1.0,
-                    [ProjectId.GrandExperiment]: 1.0,
+                    [ProjectId.Observatory]: 1.1,
+                    [ProjectId.GrandAcademy]: 1.1,
+                    [ProjectId.GrandExperiment]: 1.1,
                 },
             },
         },

@@ -5,19 +5,19 @@ This report analyzes how frequently AI civilizations spend Command Points (CP) t
 ## Overall Summary
 
 - **Total Sims Analyzed**: 100
-- **Total CPs Spent Across All Civs & Sims**: 13751
-- **Average Network-Wide CPs Spent Per Game**: 137.5
+- **Total CPs Spent Across All Civs & Sims**: 14897
+- **Average Network-Wide CPs Spent Per Game**: 149.0
 
 ## Breakdown By Civilization
 
 | Civilization | Total Games Sampled | Total CPs Spent | Average CPs Spent/Game |
 |--------------|---------------------|-----------------|------------------------|
-| StarborneSeekers | 68                  | 2970            | 43.68                  |
-| ScholarKingdoms | 70                  | 2664            | 38.06                  |
-| JadeCovenant | 67                  | 2380            | 35.52                  |
-| ForgeClans   | 74                  | 2200            | 29.73                  |
-| RiverLeague  | 70                  | 1902            | 27.17                  |
-| AetherianVanguard | 71                  | 1635            | 23.03                  |
+| StarborneSeekers | 68                  | 3501            | 51.49                  |
+| ScholarKingdoms | 70                  | 2874            | 41.06                  |
+| RiverLeague  | 70                  | 2391            | 34.16                  |
+| JadeCovenant | 67                  | 2156            | 32.18                  |
+| ForgeClans   | 74                  | 2306            | 31.16                  |
+| AetherianVanguard | 71                  | 1669            | 23.51                  |
 
 ## Insights
 
