@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { GameState, UnitType, TerrainType, TechId, UnitState, Unit } from "../core/types.js";
-import { handleAttack } from "./actions/unit-combat.js";
+import { getAetherianScavengerScienceGain, getAetherianScavengerScienceMultiplier, handleAttack } from "./actions/unit-combat.js";
 import { computeMoveCost, ensureTerrainEntry } from "./helpers/movement.js";
 import { UNITS, TECHS } from "../core/constants.js";
 import { chooseTechV2 } from "./ai2/tech.js";
@@ -13,6 +13,9 @@ const mockState = (overrides: Partial<GameState> = {}): GameState => ({
     seed: 12345,
     turn: 1,
     diplomacy: { "p1": { "p2": "War" }, "p2": { "p1": "War" } },
+    contacts: {},
+    sharedVision: {},
+    diplomacyOffers: [],
     ...overrides,
 } as unknown as GameState);
 
@@ -56,6 +59,78 @@ describe("Aether Era Mechanics", () => {
                 targetId: "target",
                 targetType: "Unit"
             })).toThrow("Cannot attack air units");
+        });
+    });
+
+    describe("Aetherian Scavenger Doctrine", () => {
+        it("reduces early kill science relative to late game", () => {
+            expect(getAetherianScavengerScienceMultiplier(80)).toBe(0.6);
+            expect(getAetherianScavengerScienceMultiplier(160)).toBe(0.7);
+            expect(getAetherianScavengerScienceMultiplier(240)).toBe(0.75);
+
+            const earlyGain = getAetherianScavengerScienceGain(UnitType.SpearGuard, 80);
+            const lateGain = getAetherianScavengerScienceGain(UnitType.SpearGuard, 240);
+            expect(earlyGain).toBeLessThan(lateGain);
+        });
+
+        it("grants the turn-weighted science amount on kills", () => {
+            const state = mockState({
+                turn: 80,
+                players: [
+                    {
+                        id: "p1",
+                        civName: "AetherianVanguard",
+                        techs: [],
+                        currentTech: { id: TechId.ScriptLore, progress: 0, cost: 40 },
+                        completedProjects: [],
+                        isEliminated: false,
+                    },
+                    {
+                        id: "p2",
+                        civName: "ForgeClans",
+                        techs: [],
+                        currentTech: null,
+                        completedProjects: [],
+                        isEliminated: false,
+                    },
+                ] as any,
+                units: [
+                    {
+                        id: "attacker",
+                        type: UnitType.Landship,
+                        ownerId: "p1",
+                        coord: { q: 0, r: 0 },
+                        movesLeft: 2,
+                        state: UnitState.Normal,
+                        hasAttacked: false,
+                        hp: 16,
+                        maxHp: 16,
+                    } as Unit,
+                    {
+                        id: "target",
+                        type: UnitType.SpearGuard,
+                        ownerId: "p2",
+                        coord: { q: 0, r: 1 },
+                        movesLeft: 1,
+                        state: UnitState.Normal,
+                        hasAttacked: false,
+                        hp: 1,
+                        maxHp: 10,
+                    } as Unit,
+                ],
+            });
+
+            const expectedScience = getAetherianScavengerScienceGain(UnitType.SpearGuard, 80);
+            handleAttack(state, {
+                type: "Attack",
+                playerId: "p1",
+                attackerId: "attacker",
+                targetId: "target",
+                targetType: "Unit",
+            });
+
+            expect(state.players[0].currentTech?.progress).toBe(expectedScience);
+            expect(state.players[0].scavengerDoctrineStats).toEqual({ kills: 1, scienceGained: expectedScience });
         });
     });
 

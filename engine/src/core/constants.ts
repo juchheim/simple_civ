@@ -192,7 +192,7 @@ export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonu
 export const FORGE_CLANS_HILL_COMBAT_BONUS = 2; // +2 Attack for units from hill cities (Buffed from 1)
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.80; // v7.9: Nerfed to 20% (was 25%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.85; // v1.0.4: Reduced discount to 15% cheaper (was 20%)
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)

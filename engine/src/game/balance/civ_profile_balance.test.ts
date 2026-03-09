@@ -21,25 +21,32 @@ describe("Civ profile balance safeguards", () => {
         expect(profile.diplomacy.warPowerRatio).toBe(0.9);
         expect(profile.diplomacy.minWarTurn).toBe(10);
         expect(profile.diplomacy.maxConcurrentWars).toBe(2);
-        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(6);
+        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(5);
         expect(profile.diplomacy.targetPreference).toBe("Finishable");
-        expect(profile.diplomacy.earlyRushChance).toBe(0.8);
+        expect(profile.diplomacy.earlyRushChance).toBe(0.7);
         expect(profile.build.armyPerCity).toBe(2.1);
+        expect(profile.tactics.forceConcentration).toBe(0.75);
+        expect(profile.tactics.siegeCommitment).toBe(0.85);
+        expect(profile.tactics.retreatHpFrac).toBe(0.25);
+        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.0);
     });
 
     it("gives JadeCovenant a moderate progress recovery without overcorrecting", () => {
         const state = createMockState("JadeCovenant");
         const profile = getAiProfileV2(state, "p1");
 
-        expect(profile.diplomacy.warPowerRatio).toBe(1.1);
-        expect(profile.diplomacy.minWarTurn).toBe(24);
+        expect(profile.diplomacy.warPowerRatio).toBe(1.15);
+        expect(profile.diplomacy.minWarTurn).toBe(28);
+        expect(profile.diplomacy.targetPreference).toBe("Nearest");
         expect(profile.build.settlerCap).toBe(3);
-        expect(profile.build.desiredCities).toBe(6);
+        expect(profile.build.desiredCities).toBe(7);
         expect(profile.build.weights.building[BuildingType.JadeGranary]).toBe(1.35);
-        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.4);
-        expect(profile.economy.reserveMultiplier).toBe(0.98);
-        expect(profile.economy.rushBuyAggression).toBe(0.78);
-        expect(profile.tech.weights[TechId.StarCharts]).toBe(1.3);
+        expect(profile.build.weights.building[BuildingType.Scriptorium]).toBe(1.15);
+        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.6);
+        expect(profile.economy.reserveMultiplier).toBe(1.02);
+        expect(profile.economy.rushBuyAggression).toBe(0.82);
+        expect(profile.tech.weights[TechId.SignalRelay]).toBe(1.4);
+        expect(profile.tech.weights[TechId.StarCharts]).toBe(1.5);
     });
 
     it("restores RiverLeague baseline war cadence", () => {
@@ -78,10 +85,10 @@ describe("Civ profile balance safeguards", () => {
         expect(profile.diplomacy.minWarTurn).toBe(40);
         expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(2);
         expect(profile.diplomacy.targetPreference).toBe("Finishable");
-        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(2.0);
-        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(2.0);
-        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.2);
-        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.2);
+        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(1.7);
+        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.7);
+        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.0);
+        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.0);
         expect(profile.tech.pathsByGoal?.Progress).toEqual([
             TechId.StoneworkHalls,
             TechId.CityWards,

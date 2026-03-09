@@ -102,6 +102,10 @@ export function pickDefensiveArmyBuild(
     return null;
 }
 
+export function shouldStartAetherianTitansCore(cityCount: number, riderCount: number): boolean {
+    return cityCount >= 3 && riderCount >= 2;
+}
+
 export function pickAetherianVanguardBuild(
     state: GameState,
     city: City,
@@ -126,7 +130,7 @@ export function pickAetherianVanguardBuild(
     // v9.10: Build Titan's Core immediately after SteamForges - no Rider prerequisite
     // Previous requirement of 4 Riders was blocking Titan spawn in 54% of games!
     // Riders can be built in parallel from other cities
-    if (hasSteamForges && !hasTitan && !hasTitansCore) {
+    if (hasSteamForges && !hasTitan && !hasTitansCore && shouldStartAetherianTitansCore(context.myCities.length, currentRiders)) {
         if (canBuild(city, "Building", BuildingType.TitansCore, state)) {
             aiInfo(`[AI Build] AetherianVanguard PRIORITY: TitansCore IMMEDIATELY after SteamForges!`);
             return { type: "Building", id: BuildingType.TitansCore };

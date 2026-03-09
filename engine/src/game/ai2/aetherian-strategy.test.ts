@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { chooseVictoryGoalV2 } from './strategy.js';
-import { GameState, ProjectId } from '../../core/types.js';
+import { GameState, ProjectId, TechId } from '../../core/types.js';
 import { evaluateBestVictoryPath } from '../ai/victory-evaluator.js';
 
 // Mock getAiProfileV2 and other dependencies
@@ -45,7 +45,7 @@ describe('Aetherian Vanguard Strategy', () => {
             units: [],
             cities: [],
             diplomacy: { 'player1': { 'enemy': 'War' }, 'enemy': { 'player1': 'War' } },
-            map: { tiles: [] },
+            map: { width: 40, height: 30, tiles: [] },
             history: { events: [] }
         } as unknown as GameState;
     }
@@ -81,6 +81,32 @@ describe('Aetherian Vanguard Strategy', () => {
         p1.completedProjects = [ProjectId.TitansCoreComplete, ProjectId.Observatory, ProjectId.GrandAcademy];
 
         // Still dominating military
+        const goal = chooseVictoryGoalV2(state, 'player1');
+        expect(goal).toBe('Progress');
+    });
+
+    it('should pivot to Progress after Titan when territory and evaluator both support it', () => {
+        const state = createTestState();
+        const p1 = state.players.find(p => p.id === 'player1')!;
+        p1.techs = [TechId.SignalRelay];
+        state.turn = 190;
+        state.cities = [
+            { id: 'c1', ownerId: 'player1', isCapital: true },
+            { id: 'c2', ownerId: 'player1', isCapital: false },
+            { id: 'c3', ownerId: 'player1', isCapital: false },
+            { id: 'c4', ownerId: 'player1', isCapital: false },
+            { id: 'c5', ownerId: 'player1', isCapital: false },
+        ] as any;
+
+        (evaluateBestVictoryPath as unknown as { mockReturnValue: (v: any) => void }).mockReturnValue({
+            path: 'Progress',
+            turnsToProgress: 55,
+            turnsToConquest: 65,
+            progressFaster: true,
+            confidence: 'medium',
+            reason: 'pivot'
+        });
+
         const goal = chooseVictoryGoalV2(state, 'player1');
         expect(goal).toBe('Progress');
     });

@@ -275,10 +275,10 @@ const profiles: Record<string, CivAiProfileV2> = {
             minStanceTurns: 10, // v1.0.8: Reduced from 12 to 10
             minWarTurn: 10, // v9.4: Start earlier (was 15)
             maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
-            maxInitiatedWarsPer50Turns: 6, // v9.4: Constant pressure (was 4)
+            maxInitiatedWarsPer50Turns: 5, // Slightly reduce serial-war pressure without collapsing identity
             canInitiateWars: true,
             targetPreference: "Finishable", // v9.8: Kill the weak to close out games (was Nearest)
-            earlyRushChance: 0.8, // v9.4: Even higher rush chance (was 0.7)
+            earlyRushChance: 0.7, // Slightly soften cramped-map blowouts
         },
         tech: {
             weights: {
@@ -288,10 +288,10 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.CompositeArmor]: 2.0,
                 [TechId.Aerodynamics]: 1.5, // v6.4: Enable Airship research
                 // Secondary Progress Path
-                [TechId.ScriptLore]: 1.1,
-                [TechId.ScholarCourts]: 1.1,
-                [TechId.SignalRelay]: 1.1,
-                [TechId.StarCharts]: 1.1,
+                [TechId.ScriptLore]: 1.0,
+                [TechId.ScholarCourts]: 1.0,
+                [TechId.SignalRelay]: 0.95,
+                [TechId.StarCharts]: 0.95,
             },
             pathsByGoal: {
                 Conquest: [
@@ -330,9 +330,9 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
                 project: {
                     // Secondary Progress Projects
-                    [ProjectId.Observatory]: 1.2,
-                    [ProjectId.GrandAcademy]: 1.2,
-                    [ProjectId.GrandExperiment]: 1.2,
+                    [ProjectId.Observatory]: 1.0,
+                    [ProjectId.GrandAcademy]: 1.0,
+                    [ProjectId.GrandExperiment]: 1.0,
                 },
             },
         },
@@ -601,14 +601,14 @@ const profiles: Record<string, CivAiProfileV2> = {
                 },
                 building: {
                     // v9.13: Re-enabled Bulwark for win rate testing
-                    [BuildingType.Bulwark]: 2.0,
+                    [BuildingType.Bulwark]: 1.7,
                     [BuildingType.CityWard]: 1.5,
                     [BuildingType.Academy]: 1.5,
                 },
                 project: {
-                    [ProjectId.Observatory]: 2.0,  // High priority now (standard path)
-                    [ProjectId.GrandAcademy]: 1.2,
-                    [ProjectId.GrandExperiment]: 1.2,
+                    [ProjectId.Observatory]: 1.7,
+                    [ProjectId.GrandAcademy]: 1.0,
+                    [ProjectId.GrandExperiment]: 1.0,
                 },
             },
         },
@@ -627,14 +627,14 @@ const profiles: Record<string, CivAiProfileV2> = {
         civName: "JadeCovenant",
         diplomacy: {
             // v8.11: Balanced settings - rely on pop bonus nerf instead
-            warPowerRatio: 1.1,
+            warPowerRatio: 1.15,
             warDistanceMax: 16, // v1.0.8: Increased (was 14)
             peaceIfBelowRatio: 0.85,
-            minWarTurn: 24,
+            minWarTurn: 28,
             maxConcurrentWars: 1,
             maxInitiatedWarsPer50Turns: 1,
             canInitiateWars: true,
-            targetPreference: "Finishable",
+            targetPreference: "Nearest",
         },
         tech: {
             weights: {
@@ -643,33 +643,39 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.UrbanPlans]: 1.2,
                 [TechId.DrilledRanks]: 1.3, // v1.6: Increased for military
                 [TechId.ArmyDoctrine]: 1.3, // v1.6: Added for late-game armies
-                [TechId.ScriptLore]: 1.2, // v1.6: Slightly higher for Progress path
-                [TechId.ScholarCourts]: 1.2,
-                [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 1.3, // v1.6: Higher priority for Progress backup
+                [TechId.ScriptLore]: 1.3,
+                [TechId.ScholarCourts]: 1.35,
+                [TechId.SignalRelay]: 1.4,
+                [TechId.StarCharts]: 1.5,
                 [TechId.Aerodynamics]: 1.2,
                 [TechId.CompositeArmor]: 1.2, // v1.6: Landships for late-game conquest
             }
         },
         build: {
-            armyPerCity: 2.3,
+            armyPerCity: 2.15,
             settlerCap: 3,
-            desiredCities: 6,
+            desiredCities: 7,
             weights: {
-                building: { [BuildingType.JadeGranary]: 1.35, [BuildingType.Farmstead]: 1.0 },
+                building: {
+                    [BuildingType.JadeGranary]: 1.35,
+                    [BuildingType.Farmstead]: 1.0,
+                    [BuildingType.Scriptorium]: 1.15,
+                    [BuildingType.Academy]: 1.2,
+                    [BuildingType.CityWard]: 0.7,
+                },
                 unit: { [UnitType.Settler]: 1.45, [UnitType.SpearGuard]: 1.0, [UnitType.BowGuard]: 1.0 },
                 project: {
-                    [ProjectId.Observatory]: 1.4, // v1.6: Higher for Progress path
-                    [ProjectId.GrandAcademy]: 1.4,
-                    [ProjectId.GrandExperiment]: 1.4,
+                    [ProjectId.Observatory]: 1.6,
+                    [ProjectId.GrandAcademy]: 1.6,
+                    [ProjectId.GrandExperiment]: 1.6,
                 },
             },
         },
         economy: {
-            reserveMultiplier: 0.98,
+            reserveMultiplier: 1.02,
             deficitToleranceTurns: 2,
-            goldBuildBias: 1.45,
-            rushBuyAggression: 0.78,
+            goldBuildBias: 1.5,
+            rushBuyAggression: 0.82,
             upkeepRatioLimit: 0.32,
         },
         tactics: {

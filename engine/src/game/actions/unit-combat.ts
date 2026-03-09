@@ -21,6 +21,18 @@ import { AttackAction } from "./unit-action-types.js";
 import { triggerNativeAggro, triggerNativeRetreat, isNativeUnit, clearNativeCamp } from "../natives/native-behavior.js";
 import { ensureCityStateWar, getCityStateByOwnerId, removeCityStateByCityId } from "../city-states.js";
 
+export function getAetherianScavengerScienceMultiplier(turn: number): number {
+    if (turn < 120) return 0.6;
+    if (turn < 200) return 0.7;
+    return 0.75;
+}
+
+export function getAetherianScavengerScienceGain(unitType: UnitType, turn: number): number {
+    const victimStats = UNITS[unitType];
+    const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
+    return Math.floor(combatPower * getAetherianScavengerScienceMultiplier(turn));
+}
+
 export function handleAttack(state: GameState, action: AttackAction): GameState {
     const attacker = getUnitOrThrow(state, action.attackerId, "Attacker not found");
     assertOwnership(attacker, action.playerId);
@@ -226,14 +238,7 @@ export function handleAttack(state: GameState, action: AttackAction): GameState 
             if (attacker.ownerId === action.playerId) {
                 const player = state.players.find(p => p.id === attacker.ownerId);
                 if (player && player.civName === "AetherianVanguard" && player.currentTech) {
-                    const victimStats = UNITS[defender.type as UnitType];
-                    // v1.9: Reworked - Base on combat power (ATK + DEF + HP/2), not cost
-                    // v2.7: Nerfed multiplier from 0.5 to 0.2 - Prevent snowballing
-                    // v5.14: Buffed to 0.3 (was 0.2) per user request
-                    // v6.6k: Buffed to 0.5 to help Aetherian win rate (was 16.9%)
-                    // v6.6m: Buffed to 0.7 to further help Aetherian (was 16.4%)
-                    const combatPower = victimStats.atk + victimStats.def + Math.floor(victimStats.hp / 2);
-                    const scienceGain = Math.floor(combatPower * 0.8); // v1.0.5: Buffed from 0.6 to 0.8 (analysis showed 14.6% win rate)
+                    const scienceGain = getAetherianScavengerScienceGain(defender.type as UnitType, state.turn);
                     if (scienceGain > 0) {
                         player.currentTech.progress += scienceGain;
                         // Track for simulation analysis

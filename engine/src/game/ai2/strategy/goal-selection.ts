@@ -69,6 +69,10 @@ function getStrongestEnemyPower(state: GameState, playerId: string): number {
     return Math.max(1, maxPower);
 }
 
+function getOwnedCityCount(state: GameState, playerId: string): number {
+    return state.cities.filter(c => c.ownerId === playerId).length;
+}
+
 export function computeForcedGoal(
     state: GameState,
     playerId: string,
@@ -97,17 +101,42 @@ export function computeForcedGoal(
         const hasTitansCore = completedProjects.includes(ProjectId.TitansCoreComplete);
         if (hasTitansCore) {
             const completedScience = PROGRESS_PROJECTS.filter(id => completedProjects.includes(id)).length;
+            const ownedCities = getOwnedCityCount(state, playerId);
+            const hasSignalRelay = player.techs.includes(TechId.SignalRelay);
+            const hasStarCharts = player.techs.includes(TechId.StarCharts);
             if (completedScience >= 2) {
                 return { goal: "Progress", reason: "aetherian-science-pivot" };
             }
-            if (state.turn > 250) {
+
+            const postTitanPivotWindow = state.turn >= 170 && (ownedCities >= 5 || hasSignalRelay || hasStarCharts);
+            if (completedScience >= 1 && ownedCities >= 4) {
+                return { goal: "Progress", reason: "aetherian-post-capture-project" };
+            }
+            if (postTitanPivotWindow) {
+                const evaluation = evaluateBestVictoryPath(state, playerId);
+                const progressClose = evaluation.turnsToProgress <= evaluation.turnsToConquest + 15;
+                if (evaluation.progressFaster || progressClose) {
+                    return {
+                        goal: "Progress",
+                        reason: "aetherian-post-titan-pivot",
+                        notes: [
+                            `cities:${ownedCities}`,
+                            `turnsP:${evaluation.turnsToProgress}`,
+                            `turnsC:${evaluation.turnsToConquest}`,
+                        ],
+                    };
+                }
+            }
+
+            if (state.turn > 235) {
                 return { goal: "Progress", reason: "aetherian-stall-pivot" };
             }
 
             const myPower = estimateMilitaryPower(playerId, state);
             const strongestEnemyPower = getStrongestEnemyPower(state, playerId);
             const powerRatio = strongestEnemyPower > 0 ? myPower / strongestEnemyPower : 2;
-            if (powerRatio >= 1.5) {
+            const conquestLockRatio = postTitanPivotWindow ? 1.75 : 1.6;
+            if (powerRatio >= conquestLockRatio) {
                 return { goal: "Conquest", reason: "aetherian-dominance", notes: [`ratio:${powerRatio.toFixed(2)}`] };
             }
             return { goal: "Progress", reason: "aetherian-underdog", notes: [`ratio:${powerRatio.toFixed(2)}`] };

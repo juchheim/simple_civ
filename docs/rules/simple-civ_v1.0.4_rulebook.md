@@ -319,7 +319,8 @@
 - **ForgeClans**:
   - Capital: +1 Production per worked Hill.
   - Industrial buildings: Stone Workshop (+1P, +1S), Lumber Mill (+1P), Forgeworks (+1P, +1S).
-  - Military: 20% cheaper; +2 Attack for units built in cities with 2+ Hills; +1 Attack per tracked mid/late tech (max +5).
+  - Projects: build 20% faster.
+  - Military: 15% cheaper; +2 Attack for units built in cities with 2+ Hills; +1 Attack per tracked mid/late tech (max +5).
 - **Scholar Kingdoms**:
   - Science: +1 per city with a City Ward.
   - Starts with an extra Bow Guard; can build Bulwark and Lorekeeper.
