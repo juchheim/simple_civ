@@ -322,7 +322,8 @@
   - Projects: build 20% faster.
   - Military: 15% cheaper; +2 Attack for units built in cities with 2+ Hills; +1 Attack per tracked mid/late tech (max +5).
 - **Scholar Kingdoms**:
-  - Science: +1 per city with a City Ward.
+  - Science: +3 per city with a City Ward.
+  - Military: +2 free supply; +2 Defense to military units.
   - Starts with an extra Bow Guard; can build Bulwark and Lorekeeper.
 - **River League**:
   - Yields: +1 Food per river tile; +1 Production per 2 river tiles worked.

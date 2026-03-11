@@ -255,8 +255,8 @@ describe("Rules", () => {
             }));
 
             const scholarSupply = getPlayerSupplyUsage(state, "p1");
-            expect(scholarSupply.freeSupply).toBe(3);
-            expect(scholarSupply.militaryUpkeep).toBe(6);
+            expect(scholarSupply.freeSupply).toBe(4);
+            expect(scholarSupply.militaryUpkeep).toBe(3);
         });
     });
 });

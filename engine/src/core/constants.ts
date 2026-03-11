@@ -63,7 +63,7 @@ export const MILITARY_FREE_SUPPLY_BASE = 1;
 /** Military supply provided by each owned city. */
 export const MILITARY_FREE_SUPPLY_PER_CITY = 1;
 /** ScholarKingdoms passive free military supply to ease early economy collapse. */
-export const SCHOLAR_KINGDOMS_FREE_SUPPLY_BONUS = 1;
+export const SCHOLAR_KINGDOMS_FREE_SUPPLY_BONUS = 2;
 /** Gold upkeep charged per supply point above free military supply. */
 export const MILITARY_UPKEEP_PER_EXCESS_SUPPLY = 3;
 /** City administration upkeep applied per city beyond the capital. */
@@ -156,9 +156,8 @@ export const GROWTH_FACTORS = [
     { min: 11, max: 999, f: 2.60 }, // v1.6: Slightly reduced - target pop 10 at turn ~195
 ];
 export const FARMSTEAD_GROWTH_MULT = 0.9;
-export const JADE_GRANARY_GROWTH_MULT = 0.9;
-// JadeCovenant passive global growth discount removed in targeted balance pass.
-export const JADE_COVENANT_GROWTH_MULT = 1.0;
+export const JADE_GRANARY_GROWTH_MULT = 0.85;
+export const JADE_COVENANT_GROWTH_MULT = 0.95;
 
 // Tech Costs defined in TECHS object below
 // Project Costs defined in PROJECTS object below
@@ -173,8 +172,7 @@ export const FORGE_CLANS_EXTRA_STARTING_UNITS: UnitType[] = [];
 
 
 
-// JadeCovenant "Swift Settlers" cost discount removed; movement identity remains.
-export const JADE_COVENANT_SETTLER_DISCOUNT = 1.0;
+export const JADE_COVENANT_SETTLER_DISCOUNT = 0.9;
 export const JADE_COVENANT_SETTLER_MOVEMENT = 1;
 
 // JadeCovenant "Population Power": +1 Atk/Def per X total population (capped).
@@ -182,17 +180,14 @@ export const JADE_COVENANT_POP_COMBAT_BONUS_PER = 29;
 export const JADE_COVENANT_POP_COMBAT_BONUS_CAP = 2;
 
 
-
-
-
-// v1.9: REMOVED - Projects 20% faster perk (was never actually implemented in game logic)
+// ForgeClans project-speed bonus is applied in helpers/builds.ts.
 
 // v0.98 Update 5: ForgeClans "Forged Arms" - combat bonus for hill production
 export const FORGE_CLANS_HILL_COMBAT_THRESHOLD = 2; // Min worked hills for bonus
-export const FORGE_CLANS_HILL_COMBAT_BONUS = 2; // +2 Attack for units from hill cities (Buffed from 1)
+export const FORGE_CLANS_HILL_COMBAT_BONUS = 2; // +2 Attack for units from hill cities
 
 // v0.98 Update 5: ForgeClans cheaper military production
-export const FORGE_CLANS_MILITARY_DISCOUNT = 0.85; // v1.0.4: Reduced discount to 15% cheaper (was 20%)
+export const FORGE_CLANS_MILITARY_DISCOUNT = 0.85; // 15% cheaper
 
 // v0.98 Update 6: ForgeClans "Industrial Warfare" - attack bonus per Engine-era tech
 // Engine-era techs: SteamForges, CityWards, UrbanPlans, SignalRelay, StarCharts (5 total)
@@ -211,9 +206,9 @@ export const STARBORNE_CAPITAL_DEFENSE_RADIUS = 4; // DEPRECATED - no longer use
 export const STARBORNE_CAPITAL_DEFENSE_BONUS = 1; // +1 Defense for all military units
 
 // ScholarKingdoms "Scholarly Fortitude" - global defense bonus
-// v1.0.9: Simplified to flat +1 defense for all units (was radius-based around cities)
+// v1.0.9: Simplified to flat defense for all units (was radius-based around cities)
 export const SCHOLAR_KINGDOMS_DEFENSE_RADIUS = 99; // DEPRECATED - no longer used
-export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 1; // +1 Defense for all military units
+export const SCHOLAR_KINGDOMS_DEFENSE_BONUS = 2; // +2 Defense for all military units
 
 
 

@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { getUnitCost } from "./units.js";
-import { UnitType, City, TerrainType, Tile, GameState } from "../core/types.js";
+import { UnitType, City, TerrainType, Tile, GameState, ProjectId } from "../core/types.js";
 import { getCityYields } from "./rules.js";
 import { UNIT_BASE_DAMAGE, FORTIFY_DEFENSE_BONUS, UNITS } from "../core/constants.js";
+import { applyCityProduction } from "./helpers/builds.js";
 
 describe("Balance Adjustments", () => {
     describe("Unit Cost Scaling", () => {
@@ -105,6 +106,17 @@ describe("Balance Adjustments", () => {
             const yields = getCityYields(city, state);
             expect(yields.P).toBe(2);
         });
+
+        it("should apply the current Forge project speed bonus", () => {
+            const { city, state } = createMockState(true);
+            const player = state.players[0] as any;
+            city.currentBuild = { type: "Project", id: ProjectId.Observatory, cost: 100 };
+            city.buildProgress = 0;
+
+            applyCityProduction(state, city, player, 20);
+
+            expect(city.buildProgress).toBe(24);
+        });
     });
 
     describe("Combat Constants", () => {
@@ -118,17 +130,10 @@ describe("Balance Adjustments", () => {
     });
 
     describe("Jade Covenant Buff", () => {
-        it("should apply 30% discount to Settlers", () => {
-            // Base cost 20. 30% off = 14.
-            // But wait, cost scaling applies first!
-            // Turn 1: Cost 20. Discounted: floor(20 * 0.7) = 14.
-            // We need to mock the state/logic or just test the math if possible.
-            // Since we can't easily mock the action handler here without a full state,
-            // we'll rely on the logic we wrote: cost = floor(cost * 0.7).
-            // Let's verify the math:
+        it("should apply 10% discount to Settlers", () => {
             const base = 20;
-            const discounted = Math.floor(base * 0.7);
-            expect(discounted).toBe(14);
+            const discounted = Math.floor(base * 0.9);
+            expect(discounted).toBe(18);
         });
     });
 });

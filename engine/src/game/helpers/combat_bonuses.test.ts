@@ -13,10 +13,10 @@ describe('Combat Bonuses', () => {
             expect(getScholarKingdomsDefenseBonus(state, player, unit)).toBe(0);
         });
 
-        it('should correctly divide bonus among cities', () => {
+        it('should apply the full flat defense bonus regardless of city count', () => {
             const player = { id: 'p1', civName: 'ScholarKingdoms' } as Player;
 
-            // 1 City: flat +1 global bonus
+            // 1 City: flat +2 global bonus
             const state1 = {
                 cities: [{ id: 'c1', ownerId: 'p1', coord: { q: 0, r: 0 } }],
                 players: [player]
@@ -24,10 +24,9 @@ describe('Combat Bonuses', () => {
             // Unit at 0,0 (dist 0)
             const unit1 = { coord: { q: 0, r: 0 } } as Unit;
 
-            // v1.0.9: Ensure constant matches current balance (+1 global)
-            expect(SCHOLAR_KINGDOMS_DEFENSE_BONUS).toBe(1);
+            expect(SCHOLAR_KINGDOMS_DEFENSE_BONUS).toBe(2);
 
-            expect(getScholarKingdomsDefenseBonus(state1, player, unit1)).toBe(1);
+            expect(getScholarKingdomsDefenseBonus(state1, player, unit1)).toBe(2);
 
             // 2 Cities: flat bonus, not divided
             const state2 = {
@@ -38,7 +37,7 @@ describe('Combat Bonuses', () => {
                 players: [player]
             } as unknown as GameState;
             // Unit near city 1
-            expect(getScholarKingdomsDefenseBonus(state2, player, unit1)).toBe(1);
+            expect(getScholarKingdomsDefenseBonus(state2, player, unit1)).toBe(2);
 
             // 4 Cities: still flat bonus
             const state4 = {
@@ -50,7 +49,7 @@ describe('Combat Bonuses', () => {
                 ],
                 players: [player]
             } as unknown as GameState;
-            expect(getScholarKingdomsDefenseBonus(state4, player, unit1)).toBe(1);
+            expect(getScholarKingdomsDefenseBonus(state4, player, unit1)).toBe(2);
         });
 
         it('should verify bonus is global (applies at any distance)', () => {
@@ -63,11 +62,11 @@ describe('Combat Bonuses', () => {
             // v1.0.9: Bonus is now global - applies at any distance from cities
             // At radius 1 (adjacent) -> Should get bonus
             const unitIn = { coord: { q: 0, r: 1 } } as Unit;
-            expect(getScholarKingdomsDefenseBonus(state, player, unitIn)).toBe(1);
+            expect(getScholarKingdomsDefenseBonus(state, player, unitIn)).toBe(2);
 
             // At radius 10 -> Still gets bonus (now global)
             const unitFar = { coord: { q: 0, r: 10 } } as Unit;
-            expect(getScholarKingdomsDefenseBonus(state, player, unitFar)).toBe(1);
+            expect(getScholarKingdomsDefenseBonus(state, player, unitFar)).toBe(2);
         });
     });
 });

@@ -231,7 +231,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, _attacker?: 
         boosted.def += 1;
     }
 
-    // v0.98 Update 5: ForgeClans "Forged Arms" - +2 Attack if built in city with 2+ Hills
+    // ForgeClans "Forged Arms" - +2 Attack if built in city with 2+ Hills
     // Only applies to military units
     if (player.civName === "ForgeClans" && UNITS[unit.type].domain !== "Civilian") {
         // v1.7: "Forge Hardened" - flat +1 Attack for all military
@@ -240,7 +240,7 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, _attacker?: 
         const forgeBonus = getForgeClansCombatBonus(state, player, unit);
         boosted.atk += forgeBonus;
 
-        // v0.98 Update 6: "Industrial Warfare" - +1 Attack per Engine tech
+        // ForgeClans "Industrial Warfare" - +1 Attack per Engine tech
         const engineBonus = getForgeClansEngineBonus(player);
         boosted.atk += engineBonus;
     }
@@ -274,13 +274,10 @@ export function getEffectiveUnitStats(unit: Unit, state: GameState, _attacker?: 
 
     // v1.1.0: StarborneSeekers +1 Defense bonus REMOVED for balance
 
-    // v1.0.9: AetherianVanguard "Vanguard Resilience" - +1 Defense globally
-    // Helps them survive until Titan spawns (19% elimination rate was too high)
+    // AetherianVanguard "Vanguard Resilience" - +1 Defense globally
     if (player.civName === "AetherianVanguard" && UNITS[unit.type].domain !== "Civilian") {
         boosted.def += 1;
     }
-
-    // v1.1.0: ScholarKingdoms +1 Defense bonus REMOVED for balance
 
     // v7.0: Lorekeeper "Fortified Knowledge" - +3 DEF in friendly territory or on own city
     // v9.12: Removed anti-Army bonus for balance

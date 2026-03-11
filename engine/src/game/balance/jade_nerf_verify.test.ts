@@ -2,6 +2,7 @@ import { expect, test, describe } from "vitest";
 import { GameState, BuildingType, TechId } from "../../core/types.js";
 import {
     JADE_COVENANT_GROWTH_MULT,
+    JADE_GRANARY_GROWTH_MULT,
     JADE_COVENANT_SETTLER_DISCOUNT,
     JADE_COVENANT_POP_COMBAT_BONUS_PER,
     JADE_COVENANT_POP_COMBAT_BONUS_CAP,
@@ -10,19 +11,20 @@ import {
 import { getGrowthCost, canBuild } from "../rules.js";
 
 describe("JadeCovenant Balance Changes", () => {
-    test("Constants reflect new nerf values", () => {
-        expect(JADE_COVENANT_GROWTH_MULT).toBe(1.0);
-        expect(JADE_COVENANT_SETTLER_DISCOUNT).toBe(1.0);
+    test("constants reflect the restored trait values", () => {
+        expect(JADE_GRANARY_GROWTH_MULT).toBe(0.85);
+        expect(JADE_COVENANT_GROWTH_MULT).toBe(0.95);
+        expect(JADE_COVENANT_SETTLER_DISCOUNT).toBe(0.9);
         expect(JADE_COVENANT_SETTLER_MOVEMENT).toBe(1);
         expect(JADE_COVENANT_POP_COMBAT_BONUS_PER).toBe(29);
         expect(JADE_COVENANT_POP_COMBAT_BONUS_CAP).toBe(2);
     });
 
-    test("Passive growth discount is removed", () => {
+    test("passive growth discount reduces JadeCovenant growth cost", () => {
         const cost = getGrowthCost(10, false, false, "JadeCovenant");
         const base = getGrowthCost(10, false, false, "OtherCiv");
 
-        expect(cost).toBe(base);
+        expect(cost).toBeLessThan(base);
     });
 });
 

@@ -90,7 +90,7 @@ describe('Civ Balance Nerfs', () => {
             expect(yields.S).toBe(1); // Base only
         });
 
-        it('should provide +1 Science per CityWard (Nerfed from +3)', () => {
+        it('should provide +3 Science per CityWard', () => {
             player = createTestPlayer('p1', 'ScholarKingdoms');
             state.players = [player];
             // Create a city with a CityWard
@@ -100,10 +100,10 @@ describe('Civ Balance Nerfs', () => {
             state.cities = [city];
 
             // Base Science: 1
-            // City Ward Bonus: Should be +1 (Total 2)
+            // City Ward Bonus: Should be +3 (Total 4)
 
             const yields = getCityYields(city, state);
-            expect(yields.S).toBe(2);
+            expect(yields.S).toBe(4);
         });
     });
 

@@ -190,10 +190,9 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
         if (city.buildings.includes(BuildingType.Forgeworks)) { total.P += 1; total.S += 1; }
     } else if (trait === "ScholarKingdoms") {
         // ScholarKingdoms "Citadel Protocol"
-        // v1.1.0: Removed +1 Science in Capital bonus for balance
-        // +1 Science if this city has a CityWard (Citadel Protocol)
+        // v1.1.0: Removed capital-only science in favor of CityWard scaling.
         if (city.buildings.includes(BuildingType.CityWard)) {
-            total.S += 1;
+            total.S += 3;
         }
     } else if (trait === "RiverLeague") {
         // v2.3: River bonuses - multiple river tiles boost yields
