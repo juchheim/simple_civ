@@ -12,7 +12,9 @@ import type { BuildOption } from "../production.js";
 import type { EconomySnapshot } from "../economy/budget.js";
 import {
     GOLD_BUILDING_CHAIN,
-    getGoldBuildingCount,
+    getCompletedGoldTier,
+    getEffectiveGoldTier,
+    getGoldBuildingTier,
     getProjectedGoldBuildingYieldGain,
 } from "../../helpers/gold-buildings.js";
 
@@ -65,22 +67,6 @@ function estimateSupplyReliefValue(building: BuildingType, snapshot?: EconomySna
     return 0;
 }
 
-function estimateStrategicRecoveryValue(city: City, building: BuildingType, snapshot?: EconomySnapshot): number {
-    if (!snapshot || building !== BuildingType.TradingPost) {
-        return 0;
-    }
-    if (getGoldBuildingCount(city) > 0) {
-        return 0;
-    }
-    if (snapshot.economyState === "Crisis") {
-        return 0.75;
-    }
-    if (snapshot.economyState === "Strained" && (snapshot.netGold < 0 || snapshot.treasury < snapshot.reserveFloor)) {
-        return 0.35;
-    }
-    return 0;
-}
-
 export function estimateGoldBuildingNetGain(
     state: GameState,
     city: City,
@@ -91,8 +77,7 @@ export function estimateGoldBuildingNetGain(
     const grossGain = getProjectedGoldBuildingYieldGain(state, city, building);
     const maintenance = data.maintenance ?? 0;
     const supplyRelief = estimateSupplyReliefValue(building, snapshot);
-    const strategicRecoveryValue = estimateStrategicRecoveryValue(city, building, snapshot);
-    return grossGain - maintenance + supplyRelief + strategicRecoveryValue;
+    return grossGain - maintenance + supplyRelief;
 }
 
 export function estimateGoldBuildingPaybackTurns(
@@ -107,9 +92,9 @@ export function estimateGoldBuildingPaybackTurns(
     return data.cost / netGain;
 }
 
-function shouldIgnoreGoldScatter(state: GameState, playerId: string): boolean {
+function shouldIgnoreGoldScatter(state: GameState, playerId: string, snapshot?: EconomySnapshot): boolean {
     const player = state.players.find(candidate => candidate.id === playerId);
-    return !!player?.austerityActive;
+    return !!player?.austerityActive || snapshot?.economyState === "Crisis";
 }
 
 function canBuildGoldEconomyBuilding(state: GameState, city: City, building: BuildingType): boolean {
@@ -122,24 +107,47 @@ function canBuildGoldEconomyBuilding(state: GameState, city: City, building: Bui
     return true;
 }
 
-function otherIdleCitiesNeedGoldCoverage(state: GameState, playerId: string, city: City): boolean {
-    const projectedGoldCount = getGoldBuildingCount(city) + 1;
-    if (projectedGoldCount <= 1) {
-        return false;
+type GoldScatterAssessment = {
+    hardBlock: boolean;
+    scoreMultiplier: number;
+};
+
+export function assessGoldScatter(
+    state: GameState,
+    playerId: string,
+    city: City,
+    building: BuildingType,
+    snapshot?: EconomySnapshot
+): GoldScatterAssessment {
+    if (shouldIgnoreGoldScatter(state, playerId, snapshot)) {
+        return { hardBlock: false, scoreMultiplier: 1 };
     }
 
-    return state.cities.some(otherCity => {
+    const requiredTier = getGoldBuildingTier(building) - 1;
+    if (requiredTier < 0) {
+        return { hardBlock: false, scoreMultiplier: 1 };
+    }
+
+    const requiredBuilding = GOLD_BUILDINGS[requiredTier];
+    let scoreMultiplier = 1;
+
+    for (const otherCity of state.cities) {
         if (otherCity.ownerId !== playerId || otherCity.id === city.id) {
-            return false;
+            continue;
         }
-        if (otherCity.currentBuild) {
-            return false;
+        if (getEffectiveGoldTier(otherCity) >= requiredTier) {
+            continue;
         }
-        if (getGoldBuildingCount(otherCity) >= projectedGoldCount - 1) {
-            return false;
+        if (!canBuildGoldEconomyBuilding(state, otherCity, requiredBuilding)) {
+            continue;
         }
-        return GOLD_BUILDINGS.some(building => canBuildGoldEconomyBuilding(state, otherCity, building));
-    });
+        if (!otherCity.currentBuild) {
+            return { hardBlock: true, scoreMultiplier: 1 };
+        }
+        scoreMultiplier = 0.65;
+    }
+
+    return { hardBlock: false, scoreMultiplier };
 }
 
 export function pickEconomyBuilding(
@@ -163,23 +171,24 @@ export function pickEconomyBuilding(
                     ? 1.06
                     : 1.0;
     const riverOrCoastBias = civName === "RiverLeague" && (isTileAdjacentToRiver(state.map, city.coord) || isCoastalCity(state, city)) ? 1.5 : 1.0;
-    const existingGoldBuildings = getGoldBuildingCount(city);
+    const completedGoldBuildings = Math.max(0, getCompletedGoldTier(city) + 1);
     const jadeGoldSpreadMultiplier = civName === "JadeCovenant"
-        ? (existingGoldBuildings >= 2 ? 0.62 : existingGoldBuildings === 1 ? 0.78 : 1.0)
+        ? (completedGoldBuildings >= 2 ? 0.62 : completedGoldBuildings === 1 ? 0.78 : 1.0)
         : 1.0;
-    const spreadMultiplier = existingGoldBuildings >= 3
-        ? 0.2
-        : existingGoldBuildings === 2
-            ? 0.4
-            : existingGoldBuildings === 1
-                ? 0.65
-                : 1.4;
+    const spreadMultiplier = completedGoldBuildings >= 3
+        ? 0.4
+        : completedGoldBuildings === 2
+            ? 0.6
+            : completedGoldBuildings === 1
+                ? 0.85
+                : 1.15;
 
     let best: { building: BuildingType; score: number; payback: number; netGain: number; supplyRelief: number } | null = null;
     for (const building of GOLD_BUILDINGS) {
         if (city.buildings.includes(building)) continue;
         if (!canBuildGoldEconomyBuilding(state, city, building)) continue;
-        if (!shouldIgnoreGoldScatter(state, playerId) && otherIdleCitiesNeedGoldCoverage(state, playerId, city)) continue;
+        const scatter = assessGoldScatter(state, playerId, city, building, snapshot);
+        if (scatter.hardBlock) continue;
 
         const payback = estimateGoldBuildingPaybackTurns(state, city, building, snapshot);
         const netGain = estimateGoldBuildingNetGain(state, city, building, snapshot);
@@ -193,6 +202,7 @@ export function pickEconomyBuilding(
             * riverOrCoastBias
             * tierMultiplier
             * spreadMultiplier
+            * scatter.scoreMultiplier
             * supportPressureMultiplier
             * jadeGoldSpreadMultiplier);
         if (!best || score > best.score) {

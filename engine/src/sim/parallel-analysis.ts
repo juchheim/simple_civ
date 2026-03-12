@@ -31,6 +31,8 @@ const GOLD_BUILDINGS_FOR_TELEMETRY: BuildingType[] = [
     BuildingType.Bank,
     BuildingType.Exchange,
 ];
+const DEVELOPED_GOLD_HUB_MIN_TURN = 101;
+const DEVELOPED_GOLD_HUB_MIN_CITIES = 3;
 
 type EconomyPhase = "early" | "mid" | "late";
 
@@ -63,6 +65,8 @@ type EconomyAccumulator = {
     multiGoldEconomyCityTurns: number;
     topCityGoldShareTotal: number;
     topCityGoldSamples: number;
+    developedTopCityGoldShareTotal: number;
+    developedTopCityGoldSamples: number;
     topCityGoldHubSamples: number;
     upkeepRatioTotal: number;
     deficitTurns: number;
@@ -147,6 +151,8 @@ type EconomySummaryEntry = {
     avgGoldEconomyCities: number;
     multiGoldEconomyCityTurnRate: number;
     avgTopCityGoldShare: number;
+    avgDevelopedTopCityGoldShare: number;
+    developedTopCityGoldSamples: number;
     topCityGoldHubRate: number;
     avgUpkeepRatio: number;
     deficitTurns: number;
@@ -228,6 +234,8 @@ function createEconomyAccumulator(civId: string, civName: string): EconomyAccumu
         multiGoldEconomyCityTurns: 0,
         topCityGoldShareTotal: 0,
         topCityGoldSamples: 0,
+        developedTopCityGoldShareTotal: 0,
+        developedTopCityGoldSamples: 0,
         topCityGoldHubSamples: 0,
         upkeepRatioTotal: 0,
         deficitTurns: 0,
@@ -462,8 +470,13 @@ function recordEconomySample(
         }
 
         if (totalCityGold > 0) {
-            acc.topCityGoldShareTotal += topCityGold / totalCityGold;
+            const topCityGoldShare = topCityGold / totalCityGold;
+            acc.topCityGoldShareTotal += topCityGoldShare;
             acc.topCityGoldSamples += 1;
+            if (state.turn >= DEVELOPED_GOLD_HUB_MIN_TURN && ownedCities.length >= DEVELOPED_GOLD_HUB_MIN_CITIES) {
+                acc.developedTopCityGoldShareTotal += topCityGoldShare;
+                acc.developedTopCityGoldSamples += 1;
+            }
             if (cityIsGoldHub(state, topCity.id)) {
                 acc.topCityGoldHubSamples += 1;
             }
@@ -563,6 +576,8 @@ function finalizeEconomySummary(economyByCiv: Map<string, EconomyAccumulator>): 
             avgGoldEconomyCities: ratio(acc.goldEconomyCityCountTotal, samples),
             multiGoldEconomyCityTurnRate: ratio(acc.multiGoldEconomyCityTurns, samples),
             avgTopCityGoldShare: ratio(acc.topCityGoldShareTotal, acc.topCityGoldSamples),
+            avgDevelopedTopCityGoldShare: ratio(acc.developedTopCityGoldShareTotal, acc.developedTopCityGoldSamples),
+            developedTopCityGoldSamples: acc.developedTopCityGoldSamples,
             topCityGoldHubRate: ratio(acc.topCityGoldHubSamples, acc.topCityGoldSamples),
             avgUpkeepRatio: ratio(acc.upkeepRatioTotal, samples),
             deficitTurns: acc.deficitTurns,

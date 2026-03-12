@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GameState, PlayerPhase, TechId } from "../../core/types.js";
+import { BuildingType, GameState, OverlayType, PlayerPhase, TechId, TerrainType } from "../../core/types.js";
 import { chooseTechV2 } from "./tech.js";
 
 function baseState(): GameState {
@@ -78,5 +78,79 @@ describe("UtilityV2 AI tech selection", () => {
 
         const tech = chooseTechV2(state, "p1", "Progress");
         expect(tech).toBe(TechId.ScriptLore);
+    });
+
+    it("prefers UrbanPlans over SignalRelay when the economy chain trigger is active", () => {
+        const state = baseState();
+        state.turn = 80;
+        state.players = [
+            mkPlayer("p1", "RiverLeague", [
+                TechId.Fieldcraft,
+                TechId.StoneworkHalls,
+                TechId.ScriptLore,
+                TechId.Wellworks,
+                TechId.ScholarCourts,
+            ]),
+        ];
+        state.cities = [
+            {
+                ...mkCity("p1", "c1", 0, 0, { capital: true }),
+                pop: 5,
+                buildings: [BuildingType.TradingPost, BuildingType.MarketHall],
+                workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+            },
+            {
+                ...mkCity("p1", "c2", 3, 0),
+                pop: 4,
+                buildings: [BuildingType.TradingPost, BuildingType.MarketHall],
+                workedTiles: [{ q: 3, r: 0 }, { q: 4, r: 0 }],
+            },
+        ];
+        state.map.tiles = [
+            { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c1", hasCityCenter: true },
+            { coord: { q: 1, r: 0 }, terrain: TerrainType.Hills, overlays: [OverlayType.OreVein], ownerId: "p1", ownerCityId: "c1" },
+            { coord: { q: 3, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2", hasCityCenter: true },
+            { coord: { q: 4, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2" },
+        ];
+
+        const tech = chooseTechV2(state, "p1", "Progress");
+        expect(tech).toBe(TechId.UrbanPlans);
+    });
+
+    it("does not suppress SignalRelay when the economy chain trigger is absent", () => {
+        const state = baseState();
+        state.turn = 80;
+        state.players = [
+            mkPlayer("p1", "RiverLeague", [
+                TechId.Fieldcraft,
+                TechId.StoneworkHalls,
+                TechId.ScriptLore,
+                TechId.Wellworks,
+                TechId.ScholarCourts,
+            ]),
+        ];
+        state.cities = [
+            {
+                ...mkCity("p1", "c1", 0, 0, { capital: true }),
+                pop: 5,
+                buildings: [BuildingType.TradingPost],
+                workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+            },
+            {
+                ...mkCity("p1", "c2", 3, 0),
+                pop: 4,
+                buildings: [],
+                workedTiles: [{ q: 3, r: 0 }, { q: 4, r: 0 }],
+            },
+        ];
+        state.map.tiles = [
+            { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c1", hasCityCenter: true },
+            { coord: { q: 1, r: 0 }, terrain: TerrainType.Hills, overlays: [OverlayType.OreVein], ownerId: "p1", ownerCityId: "c1" },
+            { coord: { q: 3, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2", hasCityCenter: true },
+            { coord: { q: 4, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2" },
+        ];
+
+        const tech = chooseTechV2(state, "p1", "Progress");
+        expect(tech).toBe(TechId.SignalRelay);
     });
 });

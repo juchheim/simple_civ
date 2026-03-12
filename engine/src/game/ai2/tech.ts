@@ -7,7 +7,7 @@
 
 import { TECHS, ENABLE_AETHER_ERA } from "../../core/constants.js";
 import { aiInfo, isAiDebugEnabled } from "../ai/debug-logging.js";
-import { AiVictoryGoal, GameState, TechId } from "../../core/types.js";
+import { AiVictoryGoal, BuildingType, GameState, OverlayType, TechId } from "../../core/types.js";
 import { getAiProfileV2 } from "./rules.js";
 import { getGoalRequirements, getNextTechInChain, getGamePhase } from "./strategic-plan.js";
 import { evaluateBestVictoryPath } from "../ai/victory-evaluator.js";
@@ -78,6 +78,7 @@ const TECH_SCORE_WEIGHTS: Record<string, number> = {
     phaseFit: 0.06,
     cost: 0.04,
     economySupport: 0.06,
+    economyChain: 0.45,
 };
 
 const ECONOMY_UNLOCK_TECH_SCORES: Partial<Record<TechId, number>> = {
@@ -153,6 +154,28 @@ function economySupportScore(techId: TechId, playerTechs: TechId[], economyPress
     return score;
 }
 
+function cityHasOwnedOreVein(state: GameState, cityId: string): boolean {
+    return state.map.tiles.some(tile =>
+        tile.ownerCityId === cityId && tile.overlays.includes(OverlayType.OreVein)
+    );
+}
+
+function getEconomyChainTarget(state: GameState, playerId: string, playerTechs: TechId[]): TechId | null {
+    const ownedCities = state.cities.filter(city => city.ownerId === playerId);
+    const tradingPostCities = ownedCities.filter(city => city.buildings.includes(BuildingType.TradingPost)).length;
+    const marketHallCities = ownedCities.filter(city => city.buildings.includes(BuildingType.MarketHall));
+
+    if (!playerTechs.includes(TechId.Wellworks) && tradingPostCities >= 2) {
+        return TechId.Wellworks;
+    }
+    if (!playerTechs.includes(TechId.UrbanPlans)
+        && (marketHallCities.length >= 2 || marketHallCities.some(city => cityHasOwnedOreVein(state, city.id)))) {
+        return TechId.UrbanPlans;
+    }
+
+    return null;
+}
+
 type ProgressPivot = {
     score: number;
     milestone?: string;
@@ -207,6 +230,7 @@ function scoreTechCandidate(input: {
     progressPivotScore: number;
     siegeUnlockActive: boolean;
     economyPressure: boolean;
+    economyChainTarget: TechId | null;
     minCost: number;
     maxCost: number;
 }): TechCandidateScore {
@@ -221,6 +245,7 @@ function scoreTechCandidate(input: {
         progressPivotScore,
         siegeUnlockActive,
         economyPressure,
+        economyChainTarget,
         minCost,
         maxCost,
     } = input;
@@ -234,6 +259,7 @@ function scoreTechCandidate(input: {
         phaseFit: phaseFitScore(techId, phase, goal),
         cost: computeCostScore(techId, minCost, maxCost),
         economySupport: economySupportScore(techId, playerTechs, economyPressure),
+        economyChain: economyChainTarget !== null && techId === economyChainTarget ? 1 : 0,
     };
 
     const notes: string[] = [];
@@ -242,6 +268,7 @@ function scoreTechCandidate(input: {
     if (components.siegeUnlock > 0) notes.push("siege-unlock");
     if (components.pathAffinity >= 1) notes.push("goal-path-next");
     if (components.economySupport > 0) notes.push("econ-support");
+    if (components.economyChain > 0) notes.push("econ-chain");
 
     let weightedSum = 0;
     let totalWeight = 0;
@@ -250,7 +277,11 @@ function scoreTechCandidate(input: {
         weightedSum += (components[key] ?? 0) * weight;
     }
 
-    const total = totalWeight > 0 ? clamp01(weightedSum / totalWeight) : 0;
+    let total = totalWeight > 0 ? clamp01(weightedSum / totalWeight) : 0;
+    if (economyChainTarget === TechId.UrbanPlans && techId === TechId.SignalRelay) {
+        total *= 0.85;
+        notes.push("signalrelay-suppressed");
+    }
 
     return {
         techId,
@@ -284,6 +315,7 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
     const goalPath = profile.tech.pathsByGoal?.[goal] ?? [];
     const pivot = computeProgressPivotScore(state, playerId, player.techs);
     const economySnapshot = computeEconomySnapshot(state, playerId);
+    const economyChainTarget = getEconomyChainTarget(state, playerId, player.techs);
     const economyPressure = economySnapshot.economyState === "Strained"
         || economySnapshot.economyState === "Crisis"
         || economySnapshot.netGold <= 5
@@ -309,6 +341,7 @@ export function chooseTechV2(state: GameState, playerId: string, goal: AiVictory
             progressPivotScore: pivot.score,
             siegeUnlockActive,
             economyPressure,
+            economyChainTarget,
             minCost,
             maxCost,
         })

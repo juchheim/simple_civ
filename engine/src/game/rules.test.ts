@@ -78,6 +78,41 @@ describe("Rules", () => {
             expect(yields).toEqual({ F: 2, P: 2, S: 1, G: 3 });
         });
 
+        it("applies the commercial population bonus only once per city", () => {
+            const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+            state.map.tiles = [
+                {
+                    coord: { q: 0, r: 0 },
+                    terrain: TerrainType.Plains,
+                    overlays: [],
+                },
+            ];
+
+            const city: City = {
+                id: "c1",
+                name: "City",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost],
+                workedTiles: [{ q: 0, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+            };
+
+            expect(getCityYields(city, state)).toEqual({ F: 2, P: 1, S: 1, G: 8 });
+
+            city.buildings.push(BuildingType.MarketHall);
+
+            const yields = getCityYields(city, state);
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 10 });
+        });
+
         it("applies reduced returns to additional gold buildings in the same city", () => {
             const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
             state.map.tiles = [
@@ -106,10 +141,10 @@ describe("Rules", () => {
             };
 
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 9 });
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 10 });
         });
 
-        it("heavily caps third and fourth gold buildings in the same city", () => {
+        it("uses 100/45/20/10 returns for stacked gold buildings", () => {
             const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
             state.map.tiles = [
                 {
@@ -142,10 +177,10 @@ describe("Rules", () => {
             };
 
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 4, S: 1, G: 13 });
+            expect(yields).toEqual({ F: 2, P: 4, S: 1, G: 14 });
         });
 
-        it("spreads MarketHall gold to other TradingPost cities", () => {
+        it("does not spread MarketHall gold to other TradingPost cities", () => {
             const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
             state.map.tiles = [
                 {

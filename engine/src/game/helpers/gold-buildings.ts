@@ -11,12 +11,7 @@ export const GOLD_BUILDING_CHAIN: BuildingType[] = [
 ];
 
 const POPULATION_GOLD_SCALING = 3;
-const GOLD_BUILDING_SLOT_MULTIPLIERS = [1, 0.4, 0.25, 0.1];
-const GOLD_NETWORK_BONUSES: Array<{ provider: BuildingType; recipientTier: number; gold: number }> = [
-    { provider: BuildingType.MarketHall, recipientTier: 0, gold: 1 },
-    { provider: BuildingType.Bank, recipientTier: 1, gold: 1 },
-    { provider: BuildingType.Exchange, recipientTier: 2, gold: 1 },
-];
+const GOLD_BUILDING_SLOT_MULTIPLIERS = [1, 0.45, 0.2, 0.1];
 
 type GoldBuildingProjection = {
     cityId: string;
@@ -35,8 +30,18 @@ export function getPopulationScaledGoldBonus(city: City): number {
     return Math.floor(city.pop / POPULATION_GOLD_SCALING);
 }
 
-function getCityGoldBuildings(city: City, projection?: GoldBuildingProjection): BuildingType[] {
+function getOrderedGoldBuildings(
+    city: City,
+    projection?: GoldBuildingProjection,
+    includeCurrentBuild: boolean = false
+): BuildingType[] {
     const buildings = city.buildings.filter(building => isGoldBuilding(building));
+    if (includeCurrentBuild && city.currentBuild?.type === "Building") {
+        const currentBuild = city.currentBuild.id as BuildingType;
+        if (isGoldBuilding(currentBuild) && !buildings.includes(currentBuild)) {
+            buildings.push(currentBuild);
+        }
+    }
     if (projection?.cityId === city.id && !buildings.includes(projection.building)) {
         buildings.push(projection.building);
     }
@@ -54,12 +59,8 @@ export function getGoldBuildingCount(city: City, includeCurrentBuild: boolean = 
 }
 
 export function hasPopulationScaledGoldBuilding(city: City): boolean {
-    if (city.buildings.includes(BuildingType.TradingPost) || city.buildings.includes(BuildingType.MarketHall)) {
-        return true;
-    }
-    return city.currentBuild?.type === "Building" && (
-        city.currentBuild.id === BuildingType.TradingPost ||
-        city.currentBuild.id === BuildingType.MarketHall
+    return getOrderedGoldBuildings(city, undefined, true).some(building =>
+        building === BuildingType.TradingPost || building === BuildingType.MarketHall
     );
 }
 
@@ -83,9 +84,6 @@ export function getGoldBuildingConditionalBonus(
     building: BuildingType,
     cache?: LookupCache
 ): number {
-    if (building === BuildingType.TradingPost || building === BuildingType.MarketHall) {
-        return getPopulationScaledGoldBonus(city);
-    }
     if (building === BuildingType.Bank) {
         return cityWorksOreVein(state, city, cache) ? 1 : 0;
     }
@@ -93,13 +91,9 @@ export function getGoldBuildingConditionalBonus(
 }
 
 function getGoldBuildingRawYield(
-    state: GameState,
-    city: City,
-    building: BuildingType,
-    cache?: LookupCache
+    building: BuildingType
 ): number {
-    const baseGold = BUILDINGS[building]?.yieldFlat?.G ?? 0;
-    return baseGold + getGoldBuildingConditionalBonus(state, city, building, cache);
+    return BUILDINGS[building]?.yieldFlat?.G ?? 0;
 }
 
 function getGoldBuildingSlotMultiplier(slotIndex: number): number {
@@ -107,37 +101,27 @@ function getGoldBuildingSlotMultiplier(slotIndex: number): number {
         ?? GOLD_BUILDING_SLOT_MULTIPLIERS[GOLD_BUILDING_SLOT_MULTIPLIERS.length - 1];
 }
 
-function getCompletedCityGoldTier(city: City, projection?: GoldBuildingProjection): number {
-    const buildings = getCityGoldBuildings(city, projection);
+function getCommercialPopulationBonus(orderedBuildings: BuildingType[], city: City): number {
+    const hasCommercialAnchor = orderedBuildings.some(building =>
+        building === BuildingType.TradingPost || building === BuildingType.MarketHall
+    );
+    return hasCommercialAnchor ? getPopulationScaledGoldBonus(city) : 0;
+}
+
+export function getCompletedGoldTier(city: City): number {
+    const buildings = getOrderedGoldBuildings(city);
     if (buildings.length === 0) {
         return -1;
     }
     return getGoldBuildingTier(buildings[buildings.length - 1]);
 }
 
-function getCityGoldNetworkBonus(
-    state: GameState,
-    city: City,
-    projection?: GoldBuildingProjection
-): number {
-    const recipientTier = getCompletedCityGoldTier(city, projection);
-    if (recipientTier < 0) {
-        return 0;
+export function getEffectiveGoldTier(city: City): number {
+    const buildings = getOrderedGoldBuildings(city, undefined, true);
+    if (buildings.length === 0) {
+        return -1;
     }
-
-    return state.cities.reduce((sum, otherCity) => {
-        if (otherCity.ownerId !== city.ownerId || otherCity.id === city.id) {
-            return sum;
-        }
-
-        return sum + GOLD_NETWORK_BONUSES.reduce((networkSum, bonus) => {
-            if (recipientTier < bonus.recipientTier) {
-                return networkSum;
-            }
-            const providesBonus = getCityGoldBuildings(otherCity, projection).includes(bonus.provider);
-            return providesBonus ? networkSum + bonus.gold : networkSum;
-        }, 0);
-    }, 0);
+    return getGoldBuildingTier(buildings[buildings.length - 1]);
 }
 
 export function getCityGoldBuildingYield(
@@ -146,16 +130,22 @@ export function getCityGoldBuildingYield(
     cache?: LookupCache,
     projection?: GoldBuildingProjection
 ): number {
-    const ordered = getCityGoldBuildings(city, projection);
-    const directYield = ordered.reduce((sum, building, slotIndex) => {
-        const rawYield = getGoldBuildingRawYield(state, city, building, cache);
-        if (rawYield <= 0) {
+    const ordered = getOrderedGoldBuildings(city, projection);
+    const commercialPopulationBonus = getCommercialPopulationBonus(ordered, city);
+
+    return ordered.reduce((sum, building, slotIndex) => {
+        const baseGold = getGoldBuildingRawYield(building);
+        const scaledBaseGold = baseGold > 0
+            ? Math.max(1, Math.round(baseGold * getGoldBuildingSlotMultiplier(slotIndex)))
+            : 0;
+        const conditionalBonus = getGoldBuildingConditionalBonus(state, city, building, cache);
+        const populationBonus = slotIndex === 0 ? commercialPopulationBonus : 0;
+        const totalYield = scaledBaseGold + conditionalBonus + populationBonus;
+        if (totalYield <= 0) {
             return sum;
         }
-        const scaledYield = Math.round(rawYield * getGoldBuildingSlotMultiplier(slotIndex));
-        return sum + Math.max(1, scaledYield);
+        return sum + totalYield;
     }, 0);
-    return directYield + getCityGoldNetworkBonus(state, city, projection);
 }
 
 export function getProjectedGoldBuildingYieldGain(
@@ -168,30 +158,12 @@ export function getProjectedGoldBuildingYieldGain(
         return 0;
     }
 
-    const ownedCities = state.cities.filter(candidate => candidate.ownerId === city.ownerId);
-    const currentYield = ownedCities.reduce((sum, ownedCity) => {
-        return sum + getCityGoldBuildingYield(state, ownedCity, cache);
-    }, 0);
     const projection = { cityId: city.id, building };
-    const projectedYield = ownedCities.reduce((sum, ownedCity) => {
-        return sum + getCityGoldBuildingYield(state, ownedCity, cache, projection);
-    }, 0);
+    const currentYield = getCityGoldBuildingYield(state, city, cache);
+    const projectedYield = getCityGoldBuildingYield(state, city, cache, projection);
     return projectedYield - currentYield;
 }
 
 export function getCityGoldTier(city: City): number {
-    let tier = -1;
-    for (const building of city.buildings) {
-        const buildingTier = getGoldBuildingTier(building);
-        if (buildingTier > tier) {
-            tier = buildingTier;
-        }
-    }
-    if (city.currentBuild?.type === "Building") {
-        const buildTier = getGoldBuildingTier(city.currentBuild.id as BuildingType);
-        if (buildTier > tier) {
-            tier = buildTier;
-        }
-    }
-    return tier;
+    return getEffectiveGoldTier(city);
 }

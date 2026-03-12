@@ -1,4 +1,12 @@
 import { readFileSync, writeFileSync } from "fs";
+import {
+    DEVELOPED_GOLD_HUB_TARGET,
+    DEVELOPED_GOLD_SHARE_LABEL,
+    LEGACY_GOLD_SHARE_LABEL,
+    STRATEGIC_SITE_RATE_LABEL,
+    evaluateScarcityPillars,
+    summarizeDevelopedGoldHubShipGate,
+} from "./economy-report.js";
 
 const RESULTS_FILE = "/tmp/comprehensive-simulation-results.json";
 const OUTPUT_FILE = "/tmp/economic-balance-report.md";
@@ -105,6 +113,8 @@ function createCivAggregate() {
         multiGoldEconomyCityTurns: 0,
         topCityGoldShareTotal: 0,
         topCityGoldSamples: 0,
+        developedTopCityGoldShareTotal: 0,
+        developedTopCityGoldSamples: 0,
         topCityGoldHubSamples: 0,
         upkeepRatioTotal: 0,
         deficitTurns: 0,
@@ -224,6 +234,12 @@ function addEconomySummary(target, eco) {
     }
     if (typeof target.topCityGoldSamples === "number") {
         target.topCityGoldSamples += samples;
+    }
+    if (typeof target.developedTopCityGoldShareTotal === "number") {
+        target.developedTopCityGoldShareTotal += num(eco.avgDevelopedTopCityGoldShare, 0) * num(eco.developedTopCityGoldSamples, 0);
+    }
+    if (typeof target.developedTopCityGoldSamples === "number") {
+        target.developedTopCityGoldSamples += num(eco.developedTopCityGoldSamples, 0);
     }
     if (typeof target.topCityGoldHubSamples === "number") {
         target.topCityGoldHubSamples += num(eco.topCityGoldHubRate, 0) * samples;
@@ -496,6 +512,7 @@ const civScoreRows = [];
 const scarcityRows = [];
 const adaptationRows = [];
 const expansionPairs = [];
+const developedGoldHubRows = [];
 
 for (const civName of CIVS) {
     const civAgg = ensureCiv(civName);
@@ -508,6 +525,7 @@ for (const civName of CIVS) {
     const avgGoldEconomyCities = avg(civAgg.goldEconomyCityCountTotal, civAgg.economySamples);
     const multiGoldEconomyTurnRate = avg(civAgg.multiGoldEconomyCityTurns, civAgg.economySamples);
     const avgTopCityGoldShare = avg(civAgg.topCityGoldShareTotal, civAgg.topCityGoldSamples);
+    const avgDevelopedTopCityGoldShare = avg(civAgg.developedTopCityGoldShareTotal, civAgg.developedTopCityGoldSamples);
     const topCityGoldHubRate = avg(civAgg.topCityGoldHubSamples, civAgg.topCityGoldSamples);
     const avgUsedSupply = avg(civAgg.usedSupplyTotal, civAgg.economySamples);
     const avgFreeSupply = avg(civAgg.freeSupplyTotal, civAgg.economySamples);
@@ -533,6 +551,10 @@ for (const civName of CIVS) {
         cities: avgCities,
         gross: avg(civAgg.grossGoldTotal, civAgg.economySamples),
     });
+    developedGoldHubRows.push({
+        civName,
+        avgDevelopedTopCityGoldShare,
+    });
 
     civScoreRows.push([
         civName,
@@ -542,6 +564,7 @@ for (const civName of CIVS) {
         fmt(avgCities, 2),
         fmt(avgGoldEconomyCities, 2),
         fmtPct(civAgg.multiGoldEconomyCityTurns, civAgg.economySamples),
+        fmtPct(civAgg.developedTopCityGoldShareTotal, civAgg.developedTopCityGoldSamples),
         fmtPct(civAgg.topCityGoldShareTotal, civAgg.topCityGoldSamples),
         fmtPct(civAgg.topCityGoldHubSamples, civAgg.topCityGoldSamples),
         fmt(avgUsedSupply, 2),
@@ -566,31 +589,31 @@ for (const civName of CIVS) {
         exchangeDelayMedian === null ? "n/a" : fmt(exchangeDelayMedian, 1),
     ]);
 
-    const challengeHealthy = avgNet >= 0 && avgNet <= 20
-        && deficitRate >= 0.10 && deficitRate <= 0.55
-        && austerityRate >= 0.04 && austerityRate <= 0.42
-        && lateNet <= 38;
-    const infrastructureHealthy = avgGoldEconomyCities >= 1.6
-        && multiGoldEconomyTurnRate >= 0.35
-        && marketAdoptionRate >= 0.45
-        && bankAdoptionRate >= 0.25;
-    const goldHubHealthy = avgTopCityGoldShare >= 0.28
-        && avgTopCityGoldShare <= 0.58
-        && topCityGoldHubRate >= 0.60;
-    const adaptationHealthy = militaryProducedPer100Turns >= 2.0
-        && supplyPerCity >= 1.6
-        && (civAgg.deficitEntryCount <= 2 || deficitRecoveryRate >= 0.18)
-        && (deficitRate < 0.20 || militaryProducedUnderStressRate >= 0.10);
-    const healthyPillars = Number(challengeHealthy) + Number(infrastructureHealthy) + Number(goldHubHealthy) + Number(adaptationHealthy);
+    const scarcity = evaluateScarcityPillars({
+        avgNet,
+        deficitRate,
+        austerityRate,
+        lateNet,
+        avgGoldEconomyCities,
+        multiGoldEconomyTurnRate,
+        marketAdoptionRate,
+        bankAdoptionRate,
+        avgDevelopedTopCityGoldShare,
+        militaryProducedPer100Turns,
+        supplyPerCity,
+        deficitEntryCount: civAgg.deficitEntryCount,
+        deficitRecoveryRate,
+        militaryProducedUnderStressRate,
+    });
 
     scarcityRows.push([
         civName,
-        challengeHealthy ? "Healthy" : "Needs Tuning",
-        infrastructureHealthy ? "Healthy" : "Needs Tuning",
-        goldHubHealthy ? "Healthy" : "Needs Tuning",
-        adaptationHealthy ? "Healthy" : "Needs Tuning",
-        `${healthyPillars}/4`,
-        healthyPillars >= 3 ? "Healthy" : "Needs Tuning",
+        scarcity.challengeHealthy ? "Healthy" : "Needs Tuning",
+        scarcity.infrastructureHealthy ? "Healthy" : "Needs Tuning",
+        scarcity.goldHubHealthy ? "Healthy" : "Needs Tuning",
+        scarcity.adaptationHealthy ? "Healthy" : "Needs Tuning",
+        `${scarcity.healthyPillars}/4`,
+        scarcity.verdict,
     ]);
 
     adaptationRows.push([
@@ -603,7 +626,7 @@ for (const civName of CIVS) {
         fmt(militaryProducedPer100Turns, 2),
         fmtPct(militaryProducedUnderStress, civAgg.militaryUnitsProduced),
         fmt(supplyPerCity, 2),
-        adaptationHealthy ? "Healthy" : "Needs Tuning",
+        scarcity.adaptationHealthy ? "Healthy" : "Needs Tuning",
     ]);
 }
 
@@ -771,8 +794,16 @@ const expansionCorrelation = pearson(expansionCities, expansionGross);
 const expansionHealthy = expansionCorrelation >= 0.35;
 const civScarcityHealthyCount = scarcityRows.filter(row => row[6] === "Healthy").length;
 const scarcityOverallHealthy = expansionHealthy && civScarcityHealthyCount >= Math.ceil(CIVS.length * (2 / 3));
+const developedGoldHubShipGate = summarizeDevelopedGoldHubShipGate(developedGoldHubRows);
 
 const acceptanceRows = [
+    [
+        "Developed-economy top gold city share",
+        `${developedGoldHubShipGate.passingCivs}/${developedGoldHubShipGate.totalCivs} civs <= ${(DEVELOPED_GOLD_HUB_TARGET * 100).toFixed(0)}% (max ${(developedGoldHubShipGate.maxShare * 100).toFixed(1)}%)`,
+        `>= 5/6 civs <= ${(DEVELOPED_GOLD_HUB_TARGET * 100).toFixed(0)}%; no civ > 50%`,
+        developedGoldHubShipGate.met ? "Met" : "Not met",
+        "Ship gate from Problem 03. Developed samples only: turn > 100 and >= 3 cities.",
+    ],
     [
         "Exchange adoption among SignalRelay researchers",
         `${(exchangeAdoptionRate * 100).toFixed(1)}% (${acceptance.exchangeBuiltAfterUnlock} / ${acceptance.exchangeEligible})`,
@@ -809,7 +840,7 @@ const report = `# Economic Balance Report\n\nGenerated: ${new Date().toISOString
     "Threshold",
     "Status",
     "Notes",
-], acceptanceRows)}\n\n## Scarcity Health\n- Overall scarcity verdict: **${scarcityOverallHealthy ? "Healthy" : "Needs Tuning"}**\n- City-count to gross-gold correlation (expansion dependence): **${fmt(expansionCorrelation, 3)}** (${expansionHealthy ? "Healthy" : "Needs Tuning"})\n- Civs passing scarcity checks: **${civScarcityHealthyCount}/${CIVS.length}**\n- Challenge pressure target band: **Avg Net 0-20, Deficit 10-55%, Austerity 4-42%, Late Net <= 38**\n- Adaptation target band: **>= 2.0 military units per 100 turns, >= 1.6 units per city, deficit recovery >= 18% when repeatedly stressed**\n\n${markdownTable([
+], acceptanceRows)}\n\n## Scarcity Health (Diagnostic)\n- Overall scarcity diagnostic: **${scarcityOverallHealthy ? "Healthy" : "Needs Tuning"}**\n- City-count to gross-gold correlation (expansion dependence): **${fmt(expansionCorrelation, 3)}** (${expansionHealthy ? "Healthy" : "Needs Tuning"})\n- Civs passing scarcity checks: **${civScarcityHealthyCount}/${CIVS.length}**\n- Challenge pressure target band: **Avg Net 0-20, Deficit 10-55%, Austerity 4-42%, Late Net <= 38**\n- Adaptation target band: **>= 2.0 military units per 100 turns, >= 1.6 units per city, deficit recovery >= 18% when repeatedly stressed**\n- Gold-hub pillar uses the developed-economy metric only; legacy all-turn gold share remains informational.\n\n${markdownTable([
     "Civ",
     "Challenge Pressure",
     "Economy Infra",
@@ -825,8 +856,9 @@ const report = `# Economic Balance Report\n\nGenerated: ${new Date().toISOString
     "Avg Cities",
     "Econ Cities",
     "2+ Econ Cities",
-    "Top Gold City Share",
-    "Top Gold Hub Source",
+    DEVELOPED_GOLD_SHARE_LABEL,
+    LEGACY_GOLD_SHARE_LABEL,
+    STRATEGIC_SITE_RATE_LABEL,
     "Avg Used Supply",
     "Avg Free Supply",
     "Avg Gross",
@@ -866,7 +898,7 @@ const report = `# Economic Balance Report\n\nGenerated: ${new Date().toISOString
     "Early Austerity",
     "Mid Austerity",
     "Late Austerity",
-], phaseRows)}\n\n## Map Size Sensitivity\n${mapSections.join("\n\n")}\n\n## Gold Building Timing By Map Size\n${mapGoldTimingSections.join("\n\n")}\n\n## Civ-Specific Tuning Flags\n${tuningFlags.join("\n\n")}\n\n## How To Use This Report\n- Use **Avg Net**, **Deficit Turns**, and **Austerity Turns** to determine if a civ's baseline economy is stable.\n- Use **Avg Net (At War)**, **Supply Pressure**, and **Military Prod (per 100T)** to tune war upkeep pressure per civ.\n- Use **Deficit Recoveries**, **Max Deficit Streak**, and **Military Under Stress** to verify AI adaptation during stalls.\n- Use **Bank Uptime**, **Rush-Buys/Game**, **Saved Gold/Game**, and **Exchange Delay** to evaluate tactical gold payoff adoption.\n- Use **Gold Building Adoption** + **Median First Completion Turn** to tune AI economy bias and building cost/tech timing.\n- Use **Phase Net** and **Phase Austerity** to isolate whether issues are early snowball, midgame squeeze, or late-game collapse.\n- Use **Map Size Sensitivity** to decide whether fixes should be global or map-size-specific.\n`;
+], phaseRows)}\n\n## Map Size Sensitivity\n${mapSections.join("\n\n")}\n\n## Gold Building Timing By Map Size\n${mapGoldTimingSections.join("\n\n")}\n\n## Civ-Specific Tuning Flags\n${tuningFlags.join("\n\n")}\n\n## How To Use This Report\n- Use **Avg Net**, **Deficit Turns**, and **Austerity Turns** to determine if a civ's baseline economy is stable.\n- Use **Avg Net (At War)**, **Supply Pressure**, and **Military Prod (per 100T)** to tune war upkeep pressure per civ.\n- Use **Deficit Recoveries**, **Max Deficit Streak**, and **Military Under Stress** to verify AI adaptation during stalls.\n- Use **Bank Uptime**, **Rush-Buys/Game**, **Saved Gold/Game**, and **Exchange Delay** to evaluate tactical gold payoff adoption.\n- Use **${DEVELOPED_GOLD_SHARE_LABEL}** as the ship-gate gold concentration metric; use **${LEGACY_GOLD_SHARE_LABEL}** only as an early-game diagnostic.\n- Use **${STRATEGIC_SITE_RATE_LABEL}** to understand how often the top gold city sits on river/coast/ore advantages; it is not part of the gold-hub acceptance check.\n- Use **Gold Building Adoption** + **Median First Completion Turn** to tune AI economy bias and building cost/tech timing.\n- Use **Phase Net** and **Phase Austerity** to isolate whether issues are early snowball, midgame squeeze, or late-game collapse.\n- Use **Map Size Sensitivity** to decide whether fixes should be global or map-size-specific.\n`;
 
 writeFileSync(OUTPUT_FILE, report);
 console.log(`Economic report written to ${OUTPUT_FILE}`);

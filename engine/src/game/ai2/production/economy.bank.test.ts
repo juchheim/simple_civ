@@ -9,7 +9,7 @@ import {
     TerrainType,
     TechId,
 } from "../../../core/types.js";
-import { pickEconomyBuilding } from "./economy.js";
+import { assessGoldScatter, pickEconomyBuilding } from "./economy.js";
 
 function makeBaseState(): GameState {
     return {
@@ -203,11 +203,85 @@ describe("pickEconomyBuilding Bank siting", () => {
             atWar: false,
         } as const;
 
+        expect(assessGoldScatter(state, "p1", state.cities[0], BuildingType.MarketHall, snapshot)).toEqual({
+            hardBlock: true,
+            scoreMultiplier: 1,
+        });
+
         const upgradedCapital = pickEconomyBuilding(state, "p1", state.cities[0], "ForgeClans", snapshot);
         const frontierChoice = pickEconomyBuilding(state, "p1", state.cities[1], "ForgeClans", snapshot);
 
         expect(upgradedCapital).toBeNull();
         expect(frontierChoice).toEqual({ type: "Building", id: BuildingType.TradingPost });
+    });
+
+    it("applies a scatter score penalty when a busy peer is missing the previous tier", () => {
+        const state = makeBaseState();
+        state.players[0].techs = [TechId.Fieldcraft, TechId.Wellworks];
+        state.cities = [
+            {
+                id: "c1",
+                name: "Capital",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost],
+                workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            },
+            {
+                id: "c2",
+                name: "Frontier",
+                ownerId: "p1",
+                coord: { q: 3, r: 0 },
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [],
+                workedTiles: [{ q: 3, r: 0 }],
+                currentBuild: { type: "Building", id: BuildingType.StoneWorkshop, cost: 40 },
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: false,
+                hasFiredThisTurn: false,
+                milestones: [],
+            },
+        ];
+        state.map.tiles = [
+            { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c1", hasCityCenter: true },
+            { coord: { q: 1, r: 0 }, terrain: TerrainType.Hills, overlays: [OverlayType.OreVein], ownerId: "p1", ownerCityId: "c1" },
+            { coord: { q: 3, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2", hasCityCenter: true },
+            { coord: { q: 4, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2" },
+        ];
+        const snapshot = {
+            grossGold: 6,
+            buildingUpkeep: 4,
+            militaryUpkeep: 6,
+            netGold: -4,
+            treasury: 30,
+            reserveFloor: 40,
+            deficitRiskTurns: 8,
+            economyState: "Strained",
+            spendableTreasury: 0,
+            usedSupply: 6,
+            freeSupply: 4,
+            upkeepRatio: 1.67,
+            atWar: false,
+        } as const;
+
+        expect(assessGoldScatter(state, "p1", state.cities[0], BuildingType.MarketHall, snapshot)).toEqual({
+            hardBlock: false,
+            scoreMultiplier: 0.65,
+        });
     });
 
     it("ignores scatter gating during austerity", () => {
@@ -273,6 +347,83 @@ describe("pickEconomyBuilding Bank siting", () => {
             upkeepRatio: 2,
             atWar: false,
         } as const;
+
+        expect(assessGoldScatter(state, "p1", state.cities[0], BuildingType.MarketHall, snapshot)).toEqual({
+            hardBlock: false,
+            scoreMultiplier: 1,
+        });
+
+        const choice = pickEconomyBuilding(state, "p1", state.cities[0], "ForgeClans", snapshot);
+        expect(choice).toEqual({ type: "Building", id: BuildingType.MarketHall });
+    });
+
+    it("ignores scatter gating during crisis even without austerity", () => {
+        const state = makeBaseState();
+        state.players[0].techs = [TechId.Fieldcraft, TechId.Wellworks];
+        state.cities = [
+            {
+                id: "c1",
+                name: "Capital",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost],
+                workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+                hasFiredThisTurn: false,
+                milestones: [],
+            },
+            {
+                id: "c2",
+                name: "Frontier",
+                ownerId: "p1",
+                coord: { q: 3, r: 0 },
+                pop: 2,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [],
+                workedTiles: [{ q: 3, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: false,
+                hasFiredThisTurn: false,
+                milestones: [],
+            },
+        ];
+        state.map.tiles = [
+            { coord: { q: 0, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c1", hasCityCenter: true },
+            { coord: { q: 1, r: 0 }, terrain: TerrainType.Hills, overlays: [OverlayType.OreVein], ownerId: "p1", ownerCityId: "c1" },
+            { coord: { q: 3, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2", hasCityCenter: true },
+            { coord: { q: 4, r: 0 }, terrain: TerrainType.Plains, overlays: [], ownerId: "p1", ownerCityId: "c2" },
+        ];
+        const snapshot = {
+            grossGold: 5,
+            buildingUpkeep: 4,
+            militaryUpkeep: 6,
+            netGold: -5,
+            treasury: 18,
+            reserveFloor: 36,
+            deficitRiskTurns: 4,
+            economyState: "Crisis",
+            spendableTreasury: 0,
+            usedSupply: 6,
+            freeSupply: 4,
+            upkeepRatio: 2,
+            atWar: false,
+        } as const;
+
+        expect(assessGoldScatter(state, "p1", state.cities[0], BuildingType.MarketHall, snapshot)).toEqual({
+            hardBlock: false,
+            scoreMultiplier: 1,
+        });
 
         const choice = pickEconomyBuilding(state, "p1", state.cities[0], "ForgeClans", snapshot);
         expect(choice).toEqual({ type: "Building", id: BuildingType.MarketHall });
