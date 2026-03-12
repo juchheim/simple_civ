@@ -3,6 +3,7 @@ import { getCityRushBuyDiscount, getCityYields, getGrowthCost, canBuild, getPlay
 import {
     BuildingType,
     City,
+    OverlayType,
     TerrainType,
     Tile,
     TechId,
@@ -39,10 +40,10 @@ describe("Rules", () => {
                 isCapital: true,
             };
 
-            // Plains: 1F, 1P, 0G. City Min: 2F, 1P, 1G. Base yields: +1S, +0G.
-            // Total: 2F, 1P, 1S, 1G.
+            // Plains: 1F, 1P, 0G. City Min: 2F, 1P, 1G. Base yields: +1S, +2G.
+            // Total: 2F, 1P, 1S, 3G.
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 1 });
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 3 });
         });
 
         it("should apply building bonuses", () => {
@@ -71,10 +72,77 @@ describe("Rules", () => {
                 isCapital: true,
             };
 
-            // Base: 2F, 1P, 1S, 1G. +1P from Workshop.
-            // Total: 2F, 2P, 1S, 1G.
+            // Base: 2F, 1P, 1S, 3G. +1P from Workshop.
+            // Total: 2F, 2P, 1S, 3G.
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 2, S: 1, G: 1 });
+            expect(yields).toEqual({ F: 2, P: 2, S: 1, G: 3 });
+        });
+
+        it("applies reduced returns to additional gold buildings in the same city", () => {
+            const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+            state.map.tiles = [
+                {
+                    coord: { q: 0, r: 0 },
+                    terrain: TerrainType.Plains,
+                    overlays: [],
+                },
+            ];
+
+            const city: City = {
+                id: "c1",
+                name: "City",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost, BuildingType.MarketHall],
+                workedTiles: [{ q: 0, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+            };
+
+            const yields = getCityYields(city, state);
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 11 });
+        });
+
+        it("heavily caps third and fourth gold buildings in the same city", () => {
+            const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+            state.map.tiles = [
+                {
+                    coord: { q: 0, r: 0 },
+                    terrain: TerrainType.Plains,
+                    overlays: [],
+                },
+                {
+                    coord: { q: 1, r: 0 },
+                    terrain: TerrainType.Hills,
+                    overlays: [OverlayType.OreVein],
+                },
+            ];
+
+            const city: City = {
+                id: "c1",
+                name: "City",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost, BuildingType.MarketHall, BuildingType.Bank, BuildingType.Exchange],
+                workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+            };
+
+            const yields = getCityYields(city, state);
+            expect(yields).toEqual({ F: 2, P: 4, S: 1, G: 15 });
         });
     });
 
@@ -120,7 +188,7 @@ describe("Rules", () => {
             expect(canBuild(city, "Building", BuildingType.Farmstead, state)).toBe(true);
         });
 
-        it("requires Bank before Exchange and unlocks Exchange at SignalRelay", () => {
+        it("requires the prior gold-building tier before advancing the chain", () => {
             const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
             const player = state.players[0];
             const city: City = {
@@ -141,9 +209,17 @@ describe("Rules", () => {
             };
             state.cities.push(city);
 
-            player.techs.push(TechId.SignalRelay);
-            expect(canBuild(city, "Building", BuildingType.Exchange, state)).toBe(false);
+            player.techs.push(TechId.Fieldcraft, TechId.Wellworks, TechId.UrbanPlans, TechId.SignalRelay);
 
+            expect(canBuild(city, "Building", BuildingType.MarketHall, state)).toBe(false);
+            city.buildings.push(BuildingType.TradingPost);
+            expect(canBuild(city, "Building", BuildingType.MarketHall, state)).toBe(true);
+
+            expect(canBuild(city, "Building", BuildingType.Bank, state)).toBe(false);
+            city.buildings.push(BuildingType.MarketHall);
+            expect(canBuild(city, "Building", BuildingType.Bank, state)).toBe(true);
+
+            expect(canBuild(city, "Building", BuildingType.Exchange, state)).toBe(false);
             city.buildings.push(BuildingType.Bank);
             expect(canBuild(city, "Building", BuildingType.Exchange, state)).toBe(true);
         });
@@ -159,7 +235,7 @@ describe("Rules", () => {
                 pop: 2,
                 storedFood: 0,
                 storedProduction: 0,
-                buildings: [BuildingType.TradingPost, BuildingType.Bank],
+                buildings: [BuildingType.TradingPost, BuildingType.MarketHall, BuildingType.Bank],
                 workedTiles: [{ q: 0, r: 0 }],
                 currentBuild: null,
                 buildProgress: 0,
@@ -178,7 +254,7 @@ describe("Rules", () => {
     });
 
     describe("Supply Economy Dependency", () => {
-        it("economic buildings increase free supply and lower military upkeep", () => {
+        it("military supply relief starts at MarketHall instead of TradingPost", () => {
             const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
 
             const city: City = {
@@ -217,8 +293,13 @@ describe("Rules", () => {
 
             city.buildings = [BuildingType.TradingPost];
             const withTradingPost = getPlayerSupplyUsage(state, "p1");
-            expect(withTradingPost.freeSupply).toBe(3);
-            expect(withTradingPost.militaryUpkeep).toBe(6);
+            expect(withTradingPost.freeSupply).toBe(2);
+            expect(withTradingPost.militaryUpkeep).toBe(9);
+
+            city.buildings = [BuildingType.TradingPost, BuildingType.MarketHall];
+            const withMarketHall = getPlayerSupplyUsage(state, "p1");
+            expect(withMarketHall.freeSupply).toBe(3);
+            expect(withMarketHall.militaryUpkeep).toBe(6);
         });
 
         it("ScholarKingdoms receives a passive free supply bonus", () => {

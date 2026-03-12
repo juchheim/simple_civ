@@ -49,7 +49,7 @@ export const ERA_COMMAND_POINTS: Record<EraId, number> = {
 /** Base science yield for every city (before buildings/modifiers). */
 export const BASE_CITY_SCIENCE = 1;
 /** Base gold yield for every city (before buildings/modifiers). */
-export const BASE_CITY_GOLD = 0;
+export const BASE_CITY_GOLD = 2;
 /** Minimum food yield for a city center tile. */
 export const CITY_CENTER_MIN_FOOD = 2;
 /** Minimum production yield for a city center tile. */
@@ -75,9 +75,9 @@ export const CITY_ADMIN_UPKEEP_WIDE_SURCHARGE = 2;
  * This makes sustained military scale partially dependent on economy infrastructure.
  */
 export const ECONOMIC_BUILDING_SUPPLY_BONUS: Partial<Record<BuildingType, number>> = {
-    // Basic economic infrastructure should support early military scaling.
-    [BuildingType.TradingPost]: 1,
-    [BuildingType.MarketHall]: 0,
+    // Military support now starts at MarketHall so the gold chain cannot be front-loaded as cheaply.
+    [BuildingType.TradingPost]: 0,
+    [BuildingType.MarketHall]: 1,
     [BuildingType.Bank]: 1,
     [BuildingType.Exchange]: 2,
 };
@@ -418,14 +418,14 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Farmstead]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { F: 1 }, maintenance: 2, growthMult: 0.9 },
     [BuildingType.StoneWorkshop]: { era: EraId.Hearth, techReq: TechId.StoneworkHalls, cost: 40, yieldFlat: { P: 1 }, maintenance: 2 },
     [BuildingType.Scriptorium]: { era: EraId.Hearth, techReq: TechId.ScriptLore, cost: 40, yieldFlat: { S: 1 }, maintenance: 2 },
-    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 4 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold if city is river-adjacent or coastal" },
+    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 3 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold per 3 population" },
     [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, maintenance: 2, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
-    [BuildingType.MarketHall]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 56, yieldFlat: { G: 6 }, maintenance: 3, rushBuyDiscountPct: 10, conditional: "+1 Gold if city population is 5+" },
+    [BuildingType.MarketHall]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 56, yieldFlat: { G: 4 }, maintenance: 3, rushBuyDiscountPct: 10, requiresBuilding: BuildingType.TradingPost, conditional: "+1 Gold per 3 population" },
     [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, maintenance: 2, conditional: "+1P more if any Forest worked" },
     [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 }, maintenance: 3 }, // v4.2: S:3, Cost 50
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, maintenance: 3, defenseBonus: 2, cityAttackBonus: 1 }, // v8.13: Nerfed Defense 3→2
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 }, maintenance: 3 }, // v5.0: Buffed from P:2 to P:4
-    [BuildingType.Bank]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 72, yieldFlat: { G: 8 }, maintenance: 4, rushBuyDiscountPct: 15, conditional: "+1 Gold if any worked Ore Vein" },
+    [BuildingType.Bank]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 72, yieldFlat: { G: 5 }, maintenance: 4, rushBuyDiscountPct: 15, requiresBuilding: BuildingType.MarketHall, conditional: "+1 Gold if any worked Ore Vein" },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 }, maintenance: 3 }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 60, conditional: "Summons The Titan upon completion" }, // v9.10: Buffed to 60 (was 120)
 
@@ -442,7 +442,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     },
     // v6.0: Aether Era
     [BuildingType.AetherReactor]: { era: EraId.Aether, techReq: TechId.ZeroPointEnergy, cost: 200, yieldFlat: { F: 5, P: 5, S: 5 }, maintenance: 5 },
-    [BuildingType.Exchange]: { era: EraId.Engine, techReq: TechId.SignalRelay, cost: 108, yieldFlat: { G: 10 }, maintenance: 5, rushBuyDiscountPct: 20, requiresBuilding: BuildingType.Bank },
+    [BuildingType.Exchange]: { era: EraId.Engine, techReq: TechId.SignalRelay, cost: 108, yieldFlat: { G: 6 }, maintenance: 5, rushBuyDiscountPct: 20, requiresBuilding: BuildingType.Bank },
     [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, maintenance: 6, defenseBonus: 15, conditional: "Grants 50 Shield HP (regenerating)" },
 };
 

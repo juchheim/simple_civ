@@ -3,6 +3,7 @@ import { BuildingType, City, GameState, OverlayType, TechId } from "../../core/t
 import { hexDistance, hexEquals } from "../../core/hex.js";
 import { getTileYields } from "../rules.js";
 import { tryAction } from "../ai/shared/actions.js";
+import { wantsPopulationGoldGrowthPush } from "../helpers/gold-buildings.js";
 
 type YieldPriority = "Food" | "Prod" | "Science" | "Balanced";
 
@@ -62,9 +63,7 @@ export function assignWorkedTilesV2(state: GameState, playerId: string, goal: "P
 
     const cities = next.cities.filter(c => c.ownerId === playerId);
     for (const city of cities) {
-        const hasMarketHall = city.buildings.includes(BuildingType.MarketHall);
-        const marketHallGrowthPush = hasMarketHall && city.pop < 5;
-        const priority = priorityForGoal(goal, hasStarCharts, marketHallGrowthPush);
+        const priority = priorityForGoal(goal, hasStarCharts, wantsPopulationGoldGrowthPush(city));
 
         const netGold = player.netGold ?? 0;
         const treasury = player.treasury ?? 0;

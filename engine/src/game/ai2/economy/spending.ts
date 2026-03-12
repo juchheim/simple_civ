@@ -1,7 +1,5 @@
 import { AUSTERITY_PRODUCTION_MULTIPLIER, BUILDINGS, PROJECTS } from "../../../core/constants.js";
-import { BuildingType, City, GameState, OverlayType, ProjectId, TerrainType, UnitType } from "../../../core/types.js";
-import { hexDistance } from "../../../core/hex.js";
-import { isTileAdjacentToRiver } from "../../../map/rivers.js";
+import { BuildingType, City, GameState, ProjectId, UnitType } from "../../../core/types.js";
 import { tryAction } from "../../ai/shared/actions.js";
 import { buildLookupCache } from "../../helpers/lookup-cache.js";
 import { getCityYields, getRushBuyGoldCost } from "../../rules.js";
@@ -10,13 +8,9 @@ import { getAiMemoryV2, setAiMemoryV2 } from "../memory.js";
 import { getAiProfileV2 } from "../rules.js";
 import { isCombatUnitType } from "../schema.js";
 import { computeEconomySnapshot, getEconomyBudgetBuckets, type EconomySnapshot } from "./budget.js";
+import { GOLD_BUILDING_CHAIN, getProjectedGoldBuildingYieldGain } from "../../helpers/gold-buildings.js";
 
-const GOLD_BUILDINGS = new Set<BuildingType>([
-    BuildingType.TradingPost,
-    BuildingType.MarketHall,
-    BuildingType.Bank,
-    BuildingType.Exchange,
-]);
+const GOLD_BUILDINGS = new Set<BuildingType>(GOLD_BUILDING_CHAIN);
 
 const MAX_RUSH_BUYS_PER_TURN = 2;
 const MAX_RUSH_BUYS_PER_CITY_PER_TURN = 1;
@@ -54,36 +48,11 @@ function isUniqueCompletionBuild(type: "Unit" | "Building" | "Project", id: stri
     return false;
 }
 
-function isCoastalCity(state: GameState, city: City): boolean {
-    return state.map.tiles.some(tile => {
-        if (hexDistance(tile.coord, city.coord) !== 1) return false;
-        return tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea;
-    });
-}
-
-function goldBuildingConditionalBonus(state: GameState, city: City, building: BuildingType): number {
-    if (building === BuildingType.TradingPost) {
-        return (isTileAdjacentToRiver(state.map, city.coord) || isCoastalCity(state, city)) ? 1 : 0;
-    }
-    if (building === BuildingType.MarketHall) {
-        return city.pop >= 5 ? 1 : 0;
-    }
-    if (building === BuildingType.Bank) {
-        const workedOre = city.workedTiles.some(coord => {
-            const tile = state.map.tiles.find(t => t.coord.q === coord.q && t.coord.r === coord.r);
-            return !!tile?.overlays.includes(OverlayType.OreVein);
-        });
-        return workedOre ? 1 : 0;
-    }
-    return 0;
-}
-
 function getGoldBuildingPayback(state: GameState, city: City, building: BuildingType, cost: number): number {
     const data = BUILDINGS[building];
-    const baseGold = data.yieldFlat?.G ?? 0;
-    const conditional = goldBuildingConditionalBonus(state, city, building);
+    const grossGain = getProjectedGoldBuildingYieldGain(state, city, building);
     const maintenance = data.maintenance ?? 0;
-    const netGain = baseGold + conditional - maintenance;
+    const netGain = grossGain - maintenance;
     if (netGain <= 0) return Number.POSITIVE_INFINITY;
     return cost / netGain;
 }

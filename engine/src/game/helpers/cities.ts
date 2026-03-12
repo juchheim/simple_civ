@@ -3,6 +3,7 @@ import { CAPTURED_CITY_HP_RESET, CITY_WORK_RADIUS_RINGS, TERRAIN, CITY_NAMES } f
 import { hexDistance, hexEquals, hexSpiral, hexToString } from "../../core/hex.js";
 import { getTileYields } from "../rules.js";
 import { isTileAdjacentToRiver } from "../../map/rivers.js";
+import { wantsPopulationGoldGrowthPush } from "./gold-buildings.js";
 
 const GAME_LOG_ENABLED = typeof process !== "undefined" && process.env.DEBUG_GAME_LOGS === "true";
 const gameLog = (...args: unknown[]): void => {
@@ -184,11 +185,7 @@ export function tileScore(coord: HexCoord, state: GameState, city: City): number
         production += 1;
     }
 
-    const isMarketHallGrowthPush = city.pop < 5 && (
-        city.buildings.includes(BuildingType.MarketHall) ||
-        (city.currentBuild?.type === "Building" && city.currentBuild.id === BuildingType.MarketHall)
-    );
-    if (isMarketHallGrowthPush) {
+    if (wantsPopulationGoldGrowthPush(city)) {
         food += 1;
     }
 

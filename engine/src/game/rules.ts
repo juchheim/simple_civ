@@ -3,7 +3,6 @@ import {
     City,
     DiplomacyState,
     GameState,
-    OverlayType,
     TerrainType,
     Tile,
     Yields,
@@ -40,6 +39,7 @@ import {
 import { hexEquals, hexDistance, hexToString } from "../core/hex.js";
 import { isTileAdjacentToRiver, riverAdjacencyCount } from "../map/rivers.js";
 import { LookupCache } from "./helpers/lookup-cache.js";
+import { getCityGoldBuildingYield, isGoldBuilding } from "./helpers/gold-buildings.js";
 import { getCityStateYieldBonusesForPlayer } from "./city-states.js";
 
 /**
@@ -132,36 +132,28 @@ export function getCityYields(city: City, state: GameState, cache?: LookupCache)
 
     // 2. Buildings
     const isRiverCity = isTileAdjacentToRiver(state.map, cityCoord);
-    const isCoastalCity = state.map.tiles.some(tile => {
-        if (hexDistance(tile.coord, cityCoord) !== 1) return false;
-        return tile.terrain === TerrainType.Coast || tile.terrain === TerrainType.DeepSea;
-    });
-
     let worksForest = false;
-    let worksOreVein = false;
     for (const coord of workedTiles) {
         const tKey = hexToString(coord);
         const t = cache ? cache.tileByKey.get(tKey) : state.map.tiles.find(tile => hexEquals(tile.coord, coord));
         if (t && t.terrain === TerrainType.Forest) worksForest = true;
-        if (t && t.overlays.includes(OverlayType.OreVein)) worksOreVein = true;
     }
 
     for (const b of city.buildings) {
         const data = BUILDINGS[b];
+        const goldBuilding = isGoldBuilding(b);
         if (data.yieldFlat) {
             if (data.yieldFlat.F) total.F += data.yieldFlat.F;
             if (data.yieldFlat.P) total.P += data.yieldFlat.P;
             if (data.yieldFlat.S) total.S += data.yieldFlat.S;
-            if (data.yieldFlat.G) total.G += data.yieldFlat.G;
+            if (data.yieldFlat.G && !goldBuilding) total.G += data.yieldFlat.G;
         }
 
         // Conditionals
         if (b === BuildingType.Reservoir && isRiverCity) total.F += 1;
         if (b === BuildingType.LumberMill && worksForest) total.P += 1;
-        if (b === BuildingType.TradingPost && (isRiverCity || isCoastalCity)) total.G += 1;
-        if (b === BuildingType.MarketHall && city.pop >= 5) total.G += 1;
-        if (b === BuildingType.Bank && worksOreVein) total.G += 1;
     }
+    total.G += getCityGoldBuildingYield(state, city, cache);
 
     // 3. Base yields per city
     total.S += BASE_CITY_SCIENCE;
