@@ -106,7 +106,7 @@ describe("Rules", () => {
             };
 
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 11 });
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 9 });
         });
 
         it("heavily caps third and fourth gold buildings in the same city", () => {
@@ -142,7 +142,66 @@ describe("Rules", () => {
             };
 
             const yields = getCityYields(city, state);
-            expect(yields).toEqual({ F: 2, P: 4, S: 1, G: 15 });
+            expect(yields).toEqual({ F: 2, P: 4, S: 1, G: 13 });
+        });
+
+        it("spreads MarketHall gold to other TradingPost cities", () => {
+            const state = generateWorld({ mapSize: "Small", players: [{ id: "p1", civName: "A", color: "red" }] });
+            state.map.tiles = [
+                {
+                    coord: { q: 0, r: 0 },
+                    terrain: TerrainType.Plains,
+                    overlays: [],
+                    ownerId: "p1",
+                    ownerCityId: "c1",
+                    hasCityCenter: true,
+                },
+                {
+                    coord: { q: 3, r: 0 },
+                    terrain: TerrainType.Plains,
+                    overlays: [],
+                    ownerId: "p1",
+                    ownerCityId: "c2",
+                    hasCityCenter: true,
+                },
+            ];
+
+            const marketCity: City = {
+                id: "c1",
+                name: "Market",
+                ownerId: "p1",
+                coord: { q: 0, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost, BuildingType.MarketHall],
+                workedTiles: [{ q: 0, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: true,
+            };
+            const spokeCity: City = {
+                id: "c2",
+                name: "Spoke",
+                ownerId: "p1",
+                coord: { q: 3, r: 0 },
+                pop: 6,
+                storedFood: 0,
+                storedProduction: 0,
+                buildings: [BuildingType.TradingPost],
+                workedTiles: [{ q: 3, r: 0 }],
+                currentBuild: null,
+                buildProgress: 0,
+                hp: 20,
+                maxHp: 20,
+                isCapital: false,
+            };
+            state.cities = [marketCity, spokeCity];
+
+            const yields = getCityYields(spokeCity, state);
+            expect(yields).toEqual({ F: 2, P: 1, S: 1, G: 8 });
         });
     });
 

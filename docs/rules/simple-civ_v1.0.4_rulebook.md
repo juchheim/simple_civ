@@ -276,18 +276,18 @@
 ## 12. Buildings
 - Costs are Production; one per city unless noted.
   - Gold-building chain: Trading Post → Market Hall → Bank → Exchange. Each tier requires the previous one in that city.
-  - Gold-building stacking rule: a city's first gold building gives full gold, then additional gold buildings in that city give reduced gold returns (50%, 25%, then 10% of their listed gold, rounded, minimum 1). Rush-buy discounts and supply bonuses still apply normally.
+  - Gold-building stacking rule: a city's first gold building gives full gold, then additional gold buildings in that city give reduced gold returns (40%, 25%, then 10% of their listed gold, rounded, minimum 1). Rush-buy discounts and supply bonuses still apply normally.
   - **Farmstead** (40, Fieldcraft): +1 Food; growth 10% cheaper.
   - **Stone Workshop** (40, Stonework Halls): +1 Production.
   - **Scriptorium** (40, Script Lore): +1 Science.
-  - **Trading Post** (40, Fieldcraft): +3 Gold, 2 upkeep; +1 Gold per 3 population; rush-buy discount 5%.
+  - **Trading Post** (40, Fieldcraft): +2 Gold, 2 upkeep; +1 Gold per 3 population; rush-buy discount 5%.
     - Tactical role: first commercial foothold, focused on gold rather than military support.
-  - **Market Hall** (56, Wellworks, requires Trading Post): +4 Gold, 3 upkeep; +1 Gold per 3 population; +1 free supply; rush-buy discount 10%.
-    - Tactical role: mid-tier commerce upgrade that starts converting economy infrastructure into supply relief.
-  - **Bank** (72, Urban Plans, requires Market Hall): +5 Gold, 4 upkeep; +1 Gold if working any Ore Vein; +1 free supply; rush-buy discount 15%.
+  - **Market Hall** (56, Wellworks, requires Trading Post): +3 Gold, 3 upkeep; +1 Gold per 3 population; +1 Gold to other Trading Post cities; +1 free supply; rush-buy discount 10%.
+    - Tactical role: mid-tier commerce upgrade that starts a city-to-city trade network instead of only boosting the host city.
+  - **Bank** (72, Urban Plans, requires Market Hall): +5 Gold, 4 upkeep; +1 Gold if working any Ore Vein; +1 Gold to other Market Hall cities; +1 free supply; rush-buy discount 15%.
     - Tactical role: turns ore control into sustained war economy and faster emergency production.
-  - **Exchange** (108, Signal Relay, requires Bank): +6 Gold, 5 upkeep; +2 free supply; rush-buy discount 20%.
-    - Tactical role: capstone commerce upgrade for cities that fully commit to the chain under late-game pressure.
+  - **Exchange** (108, Signal Relay, requires Bank): +6 Gold, 5 upkeep; +1 Gold to other Bank cities; +2 free supply; rush-buy discount 20%.
+    - Tactical role: capstone commerce upgrade for cities that fully commit to the chain while extending value to the rest of the network.
   - **Reservoir** (50, Wellworks): +2 Food (+1 extra if river city).
   - **Lumber Mill** (60, Timber Mills): +1 Production (+1 extra if any Forest worked).
   - **Academy** (50, Scholar Courts): +3 Science.

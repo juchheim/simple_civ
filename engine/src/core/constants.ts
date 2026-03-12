@@ -418,14 +418,14 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Farmstead]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { F: 1 }, maintenance: 2, growthMult: 0.9 },
     [BuildingType.StoneWorkshop]: { era: EraId.Hearth, techReq: TechId.StoneworkHalls, cost: 40, yieldFlat: { P: 1 }, maintenance: 2 },
     [BuildingType.Scriptorium]: { era: EraId.Hearth, techReq: TechId.ScriptLore, cost: 40, yieldFlat: { S: 1 }, maintenance: 2 },
-    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 3 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold per 3 population" },
+    [BuildingType.TradingPost]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 40, yieldFlat: { G: 2 }, maintenance: 2, rushBuyDiscountPct: 5, conditional: "+1 Gold per 3 population" },
     [BuildingType.Reservoir]: { era: EraId.Hearth, techReq: TechId.Wellworks, cost: 50, yieldFlat: { F: 2 }, maintenance: 2, conditional: "+1 Food per water tile" }, // v4.1: +2 Food base
-    [BuildingType.MarketHall]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 56, yieldFlat: { G: 4 }, maintenance: 3, rushBuyDiscountPct: 10, requiresBuilding: BuildingType.TradingPost, conditional: "+1 Gold per 3 population" },
+    [BuildingType.MarketHall]: { era: EraId.Banner, techReq: TechId.Wellworks, cost: 56, yieldFlat: { G: 3 }, maintenance: 3, rushBuyDiscountPct: 10, requiresBuilding: BuildingType.TradingPost, conditional: "+1 Gold per 3 population; +1 Gold to other Trading Post cities" },
     [BuildingType.LumberMill]: { era: EraId.Banner, techReq: TechId.TimberMills, cost: 60, yieldFlat: { P: 1 }, maintenance: 2, conditional: "+1P more if any Forest worked" },
     [BuildingType.Academy]: { era: EraId.Banner, techReq: TechId.ScholarCourts, cost: 50, yieldFlat: { S: 3 }, maintenance: 3 }, // v4.2: S:3, Cost 50
     [BuildingType.CityWard]: { era: EraId.Banner, techReq: TechId.CityWards, cost: 60, maintenance: 3, defenseBonus: 2, cityAttackBonus: 1 }, // v8.13: Nerfed Defense 3→2
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 }, maintenance: 3 }, // v5.0: Buffed from P:2 to P:4
-    [BuildingType.Bank]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 72, yieldFlat: { G: 5 }, maintenance: 4, rushBuyDiscountPct: 15, requiresBuilding: BuildingType.MarketHall, conditional: "+1 Gold if any worked Ore Vein" },
+    [BuildingType.Bank]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 72, yieldFlat: { G: 5 }, maintenance: 4, rushBuyDiscountPct: 15, requiresBuilding: BuildingType.MarketHall, conditional: "+1 Gold if any worked Ore Vein; +1 Gold to other Market Hall cities" },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 }, maintenance: 3 }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
     [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 60, conditional: "Summons The Titan upon completion" }, // v9.10: Buffed to 60 (was 120)
 
@@ -442,7 +442,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     },
     // v6.0: Aether Era
     [BuildingType.AetherReactor]: { era: EraId.Aether, techReq: TechId.ZeroPointEnergy, cost: 200, yieldFlat: { F: 5, P: 5, S: 5 }, maintenance: 5 },
-    [BuildingType.Exchange]: { era: EraId.Engine, techReq: TechId.SignalRelay, cost: 108, yieldFlat: { G: 6 }, maintenance: 5, rushBuyDiscountPct: 20, requiresBuilding: BuildingType.Bank },
+    [BuildingType.Exchange]: { era: EraId.Engine, techReq: TechId.SignalRelay, cost: 108, yieldFlat: { G: 6 }, maintenance: 5, rushBuyDiscountPct: 20, requiresBuilding: BuildingType.Bank, conditional: "+1 Gold to other Bank cities" },
     [BuildingType.ShieldGenerator]: { era: EraId.Aether, techReq: TechId.PlasmaShields, cost: 250, maintenance: 6, defenseBonus: 15, conditional: "Grants 50 Shield HP (regenerating)" },
 };
 

@@ -65,6 +65,22 @@ function estimateSupplyReliefValue(building: BuildingType, snapshot?: EconomySna
     return 0;
 }
 
+function estimateStrategicRecoveryValue(city: City, building: BuildingType, snapshot?: EconomySnapshot): number {
+    if (!snapshot || building !== BuildingType.TradingPost) {
+        return 0;
+    }
+    if (getGoldBuildingCount(city) > 0) {
+        return 0;
+    }
+    if (snapshot.economyState === "Crisis") {
+        return 0.75;
+    }
+    if (snapshot.economyState === "Strained" && (snapshot.netGold < 0 || snapshot.treasury < snapshot.reserveFloor)) {
+        return 0.35;
+    }
+    return 0;
+}
+
 export function estimateGoldBuildingNetGain(
     state: GameState,
     city: City,
@@ -75,7 +91,8 @@ export function estimateGoldBuildingNetGain(
     const grossGain = getProjectedGoldBuildingYieldGain(state, city, building);
     const maintenance = data.maintenance ?? 0;
     const supplyRelief = estimateSupplyReliefValue(building, snapshot);
-    return grossGain - maintenance + supplyRelief;
+    const strategicRecoveryValue = estimateStrategicRecoveryValue(city, building, snapshot);
+    return grossGain - maintenance + supplyRelief + strategicRecoveryValue;
 }
 
 export function estimateGoldBuildingPaybackTurns(
@@ -151,12 +168,12 @@ export function pickEconomyBuilding(
         ? (existingGoldBuildings >= 2 ? 0.62 : existingGoldBuildings === 1 ? 0.78 : 1.0)
         : 1.0;
     const spreadMultiplier = existingGoldBuildings >= 3
-        ? 0.4
+        ? 0.2
         : existingGoldBuildings === 2
-            ? 0.6
+            ? 0.4
             : existingGoldBuildings === 1
-                ? 0.85
-                : 1.15;
+                ? 0.65
+                : 1.4;
 
     let best: { building: BuildingType; score: number; payback: number; netGain: number; supplyRelief: number } | null = null;
     for (const building of GOLD_BUILDINGS) {
