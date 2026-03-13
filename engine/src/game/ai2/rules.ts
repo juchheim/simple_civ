@@ -356,26 +356,30 @@ const profiles: Record<string, CivAiProfileV2> = {
     ScholarKingdoms: mergeProfile(baseProfile, {
         civName: "ScholarKingdoms",
         diplomacy: {
-            // v8.6: TEST - Match Starborne exactly to isolate civ ability differences
-            warPowerRatio: 1.2,
-            warDistanceMax: 16,
-            peaceIfBelowRatio: 0.95,
-            minWarTurn: 60,
+            // Civ-balance pass: keep Scholar measured, but no longer strictly passive.
+            warPowerRatio: 1.15,
+            warDistanceMax: 15,
+            peaceIfBelowRatio: 0.9,
+            minWarTurn: 55,
             maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 0,
-            canInitiateWars: false,
+            maxInitiatedWarsPer50Turns: 1,
+            canInitiateWars: true,
             targetPreference: "Finishable",
         },
         tech: {
             weights: {
-                [TechId.Fieldcraft]: 1.9,
-                [TechId.Wellworks]: 1.7,
-                [TechId.UrbanPlans]: 1.35,
+                [TechId.Fieldcraft]: 1.6,
+                [TechId.Wellworks]: 1.45,
+                [TechId.UrbanPlans]: 1.25,
+                [TechId.StoneworkHalls]: 1.15,
+                [TechId.CityWards]: 1.25,
                 [TechId.ScriptLore]: 1.45,
-                [TechId.ScholarCourts]: 1.45,
+                [TechId.ScholarCourts]: 1.55,
+                [TechId.SignalRelay]: 1.2,
+                [TechId.StarCharts]: 1.3,
             },
             pathsByGoal: {
-                // Scholar targeted pass: front-load economic techs to reduce austerity traps.
+                // Scholar targeted pass: keep the economy stable, but return to a clearer progress closeout.
                 Progress: [
                     TechId.Fieldcraft,
                     TechId.ScriptLore,
@@ -389,42 +393,43 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            // v9.9: Nerf expansion defense to make them vulnerable to conquest
-            armyPerCity: 1.6, // Keep upkeep low; rely on smarter closeout, not heavier standing armies.
-            settlerCap: 7,  // Targeted expansion pass.
-            desiredCities: 9,  // Targeted expansion pass.
+            armyPerCity: 1.9,
+            settlerCap: 4,
+            desiredCities: 6,
             weights: {
                 unit: {
-                    [UnitType.Settler]: 1.9,
-                    [UnitType.ArmyBowGuard]: 1.0,
-                    [UnitType.ArmySpearGuard]: 0.8,
-                    [UnitType.ArmyRiders]: 0.7,
+                    [UnitType.Settler]: 1.35,
+                    [UnitType.SpearGuard]: 1.0,
+                    [UnitType.BowGuard]: 1.0,
+                    [UnitType.ArmyBowGuard]: 1.15,
+                    [UnitType.ArmySpearGuard]: 1.05,
+                    [UnitType.ArmyRiders]: 0.75,
                 },
                 building: {
-                    [BuildingType.TradingPost]: 1.85,
-                    [BuildingType.MarketHall]: 1.65,
-                    [BuildingType.Bank]: 1.35,
-                    [BuildingType.Exchange]: 1.2,
-                    [BuildingType.Bulwark]: 0.7,
-                    [BuildingType.CityWard]: 0.9,
-                    [BuildingType.Scriptorium]: 1.3,
-                    [BuildingType.Academy]: 1.3,
+                    [BuildingType.TradingPost]: 1.55,
+                    [BuildingType.MarketHall]: 1.35,
+                    [BuildingType.Bank]: 1.2,
+                    [BuildingType.Exchange]: 1.05,
+                    [BuildingType.Bulwark]: 1.0,
+                    [BuildingType.CityWard]: 1.15,
+                    [BuildingType.Scriptorium]: 1.25,
+                    [BuildingType.Academy]: 1.35,
                 },
                 project: {
-                    [ProjectId.Observatory]: 2.0,  // v9.9: Nerfed from 2.5 - Slow down the runaway leader
-                    [ProjectId.GrandAcademy]: 1.35,
-                    [ProjectId.GrandExperiment]: 1.35,
+                    [ProjectId.Observatory]: 2.15,
+                    [ProjectId.GrandAcademy]: 1.55,
+                    [ProjectId.GrandExperiment]: 1.65,
                 },
             },
         },
         economy: {
-            reserveMultiplier: 1.0,
+            reserveMultiplier: 0.95,
             deficitToleranceTurns: 4,
-            goldBuildBias: 2.4,
-            rushBuyAggression: 1.0,
-            upkeepRatioLimit: 0.34,
+            goldBuildBias: 1.9,
+            rushBuyAggression: 1.05,
+            upkeepRatioLimit: 0.36,
         },
-        tactics: { riskTolerance: 0.15, forceConcentration: 0.5, siegeCommitment: 0.4, retreatHpFrac: 0.6, rangedCaution: 0.9 },
+        tactics: { riskTolerance: 0.25, forceConcentration: 0.6, siegeCommitment: 0.55, retreatHpFrac: 0.5, rangedCaution: 0.8 },
         titan: { capitalHunt: 0.5, finisher: 0.6, momentum: 0.5 },
     }),
 
@@ -483,12 +488,12 @@ const profiles: Record<string, CivAiProfileV2> = {
     AetherianVanguard: mergeProfile(baseProfile, {
         civName: "AetherianVanguard",
         diplomacy: {
-            warPowerRatio: 1.0, // v1.0.8: Aggressive (was 1.05)
-            warDistanceMax: 20, // v1.0.8: Increased reach (was 18)
-            peaceIfBelowRatio: 0.75,
-            minWarTurn: 50, // v9.10: Increased from 30 to allow more expansion
-            maxConcurrentWars: 2, // v1.0.8: Allow 2 wars (was 1)
-            maxInitiatedWarsPer50Turns: 4,
+            warPowerRatio: 1.25,
+            warDistanceMax: 16,
+            peaceIfBelowRatio: 0.88,
+            minWarTurn: 80,
+            maxConcurrentWars: 1,
+            maxInitiatedWarsPer50Turns: 1,
             canInitiateWars: true,
             targetPreference: "Nearest", // PROPOSAL: "Capital" rush was getting them flanked/killed. Fight standard war until Titan arrives.
         },
@@ -496,12 +501,12 @@ const profiles: Record<string, CivAiProfileV2> = {
             weights: {
                 // v9.10: Science-first Titan Rush (faster by ~8 turns)
                 // Build Scriptorium (+1 S) and Academy (+3 S) to accelerate research
-                [TechId.ScriptLore]: 2.5,      // HIGHEST - enables Scriptorium
-                [TechId.StoneworkHalls]: 2.3,  // Second - prereq for TimberMills
-                [TechId.FormationTraining]: 2.1, // Third - unlocks Banner era
-                [TechId.ScholarCourts]: 2.4,   // Banner priority - enables Academy (+3 S)
-                [TechId.TimberMills]: 2.2,     // Prereq for SteamForges
-                [TechId.SteamForges]: 3.0,     // Unlocks Titan's Core
+                [TechId.ScriptLore]: 2.0,
+                [TechId.StoneworkHalls]: 1.9,
+                [TechId.FormationTraining]: 1.9,
+                [TechId.ScholarCourts]: 1.95,
+                [TechId.TimberMills]: 1.85,
+                [TechId.SteamForges]: 2.1,
 
                 // Support Techs (Post-Titan)
                 [TechId.DrilledRanks]: 1.1,
@@ -509,8 +514,8 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.Aerodynamics]: 1.5,
 
                 // Late-game Progress pivot
-                [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 1.5,
+                [TechId.SignalRelay]: 1.1,
+                [TechId.StarCharts]: 1.2,
             },
             pathsByGoal: {
                 Conquest: [
@@ -529,91 +534,103 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            // v9.10: Prioritize expansion to reach 4+ cities for Titan economy
-            armyPerCity: 2.0, // Reduced from 2.8 - fewer units, more settlers
-            settlerCap: 5,    // Increased from 3 - more expansion
-            desiredCities: 5, // Reduced from 7 - realistic target (avg was 3.1)
+            // Civ-balance pass: slow the expansion-to-Titan snowball materially.
+            armyPerCity: 1.95,
+            settlerCap: 3,
+            desiredCities: 4,
             weights: {
                 building: {
-                    // v9.10: Science buildings HIGHEST priority to accelerate Titan research
-                    [BuildingType.Scriptorium]: 2.5, // Build IMMEDIATELY after ScriptLore
-                    [BuildingType.Academy]: 2.5,     // Build IMMEDIATELY after ScholarCourts
-                    [BuildingType.TitansCore]: 2.8,  // Then Titan's Core
-                    [BuildingType.StoneWorkshop]: 1.3,
+                    // Keep the Titan line strong, but stop overcommitting every opening to it.
+                    [BuildingType.Scriptorium]: 2.0,
+                    [BuildingType.Academy]: 2.0,
+                    [BuildingType.TitansCore]: 1.8,
+                    [BuildingType.StoneWorkshop]: 1.25,
                 },
                 unit: { [UnitType.SpearGuard]: 1.1, [UnitType.BowGuard]: 1.1 },
                 project: {
-                    [ProjectId.Observatory]: 1.6,
-                    [ProjectId.GrandAcademy]: 1.6,
-                    [ProjectId.GrandExperiment]: 1.8,
+                    [ProjectId.Observatory]: 1.4,
+                    [ProjectId.GrandAcademy]: 1.4,
+                    [ProjectId.GrandExperiment]: 1.6,
                 },
             },
         },
         economy: {
-            reserveMultiplier: 1.15,
+            reserveMultiplier: 1.1,
             reserveMultiplierPostTitan: 1.0,
             deficitToleranceTurns: 3,
             goldBuildBias: 1.6,
-            rushBuyAggression: 1.15,
+            rushBuyAggression: 1.1,
             upkeepRatioLimit: 0.44,
         },
-        tactics: { riskTolerance: 0.55, forceConcentration: 0.75, siegeCommitment: 0.9, retreatHpFrac: 0.3, rangedCaution: 0.6 },
-        titan: { capitalHunt: 0.9, finisher: 0.9, momentum: 0.75 },
+        tactics: { riskTolerance: 0.45, forceConcentration: 0.65, siegeCommitment: 0.75, retreatHpFrac: 0.38, rangedCaution: 0.68 },
+        titan: { capitalHunt: 0.7, finisher: 0.75, momentum: 0.6 },
     }),
 
     StarborneSeekers: mergeProfile(baseProfile, {
         civName: "StarborneSeekers",
         diplomacy: {
-            // v8.4: Progress civs should be opportunistic, not pacifist
-            // More cities = more SpiritObservatories = faster Progress
-            warPowerRatio: 1.2,  // v8.4: Attack when 20% stronger (was 1.5 - too passive)
-            warDistanceMax: 16,  // Longer reach for wide expansion
-            peaceIfBelowRatio: 0.85,  // v8.4: Finish what you start
-            minWarTurn: 40,  // v8.4: Still wait longer than conquest civs
+            // Civ-balance pass: keep Starborne safer than baseline, but pull back the over-buff.
+            warPowerRatio: 1.45,
+            warDistanceMax: 14,
+            peaceIfBelowRatio: 0.95,
+            minWarTurn: 70,
             maxConcurrentWars: 1,
-            maxInitiatedWarsPer50Turns: 2,  // v8.4: Can be opportunistic
+            maxInitiatedWarsPer50Turns: 1,
             canInitiateWars: true,
-            targetPreference: "Finishable",  // Focus on weak targets
+            targetPreference: "Nearest",
         },
         tech: {
+            weights: {
+                [TechId.StoneworkHalls]: 1.3,
+                [TechId.CityWards]: 1.6,
+                [TechId.UrbanPlans]: 1.15,
+                [TechId.SignalRelay]: 0.95,
+                [TechId.StarCharts]: 0.95,
+                [TechId.FormationTraining]: 1.0,
+                [TechId.DrilledRanks]: 1.0,
+            },
             pathsByGoal: {
-                // v9.13: Re-enabled StoneworkHalls/Bulwark for win rate testing
+                // Keep the defensive opener, but make the progress rush pay the normal economy-tech tax.
                 Progress: [
                     TechId.StoneworkHalls,
                     TechId.CityWards,
+                    TechId.Fieldcraft,
                     TechId.ScriptLore,
+                    TechId.Wellworks,
                     TechId.ScholarCourts,
+                    TechId.UrbanPlans,
                     TechId.SignalRelay,
                     TechId.StarCharts
                 ],
             },
         },
         build: {
-            armyPerCity: 2.5,  // v6.5: Lower than Scholar - spread focus
-            settlerCap: 4,  // v6.5: HIGH - wide expansion
-            desiredCities: 5,  // v9.10: Reduced from 7 - more focused expansion
+            armyPerCity: 2.6,
+            settlerCap: 3,
+            desiredCities: 4,
             weights: {
                 unit: {
-                    [UnitType.Settler]: 1.4,  // v6.5: HIGH - expansion focus
-                    [UnitType.ArmyBowGuard]: 1.4,
+                    [UnitType.Settler]: 1.15,
+                    [UnitType.SpearGuard]: 1.0,
+                    [UnitType.BowGuard]: 1.1,
+                    [UnitType.ArmyBowGuard]: 1.35,
                     [UnitType.ArmySpearGuard]: 1.1,
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    // v9.13: Re-enabled Bulwark for win rate testing
-                    [BuildingType.Bulwark]: 1.7,
-                    [BuildingType.CityWard]: 1.5,
-                    [BuildingType.Academy]: 1.5,
+                    [BuildingType.Bulwark]: 1.4,
+                    [BuildingType.CityWard]: 1.4,
+                    [BuildingType.Academy]: 1.4,
                 },
                 project: {
-                    [ProjectId.Observatory]: 1.7,
-                    [ProjectId.GrandAcademy]: 1.0,
-                    [ProjectId.GrandExperiment]: 1.0,
+                    [ProjectId.Observatory]: 1.45,
+                    [ProjectId.GrandAcademy]: 0.95,
+                    [ProjectId.GrandExperiment]: 0.95,
                 },
             },
         },
         economy: {
-            reserveMultiplier: 1.45,
+            reserveMultiplier: 1.15,
             deficitToleranceTurns: 2,
             goldBuildBias: 1.7,
             rushBuyAggression: 0.7,

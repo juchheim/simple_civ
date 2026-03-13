@@ -1,248 +1,252 @@
 # Economic Balance Report
 
-Generated: 2026-03-12T02:00:02.406Z
+Generated: 2026-03-13T18:56:24.322Z
 
 ## Data Coverage
 - Simulations processed: 600
 - Simulations with economy telemetry: 600
 - Simulations missing economy telemetry: 0
-- Total wins: 540 (299 Conquest / 241 Progress)
+- Total wins: 525 (294 Conquest / 231 Progress)
 
 
 
 ## Acceptance Targets
 | Target | Current | Threshold | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Exchange adoption among SignalRelay researchers | 42.6% (508 / 1193) | >= 35% | Met |  |
-| Bank conditional uptime | 95.7% (129741 / 135628) | >= 70% | Met |  |
-| ScholarKingdoms austerity share vs Feb 21 baseline | 0.5% (delta -13.1pp vs 13.6%) | < 13.6% | Met |  |
-| RiverLeague treasury runaway variance cap | Variance 173607.93 (CV 1.082) | <= +10% vs Feb 21 baseline | Indeterminate | Baseline variance value not present in current report artifacts |
-| JadeCovenant treasury runaway variance cap | Variance 302180.30 (CV 1.067) | <= +10% vs Feb 21 baseline | Indeterminate | Baseline variance value not present in current report artifacts |
+| Developed-economy top gold city share | 6/6 civs <= 45% (max 33.3%) | >= 5/6 civs <= 45%; no civ > 50% | Met | Ship gate from Problem 03. Developed samples only: turn > 100 and >= 3 cities. |
+| Exchange adoption among SignalRelay researchers | 54.0% (679 / 1258) | >= 35% | Met |  |
+| Bank conditional uptime | 96.2% (250692 / 260485) | >= 70% | Met |  |
+| ScholarKingdoms austerity share vs Feb 21 baseline | 0.3% (delta -13.3pp vs 13.6%) | < 13.6% | Met |  |
+| RiverLeague treasury runaway variance cap | Variance 133179.34 (CV 1.072) | <= +10% vs Feb 21 baseline | Indeterminate | Baseline variance value not present in current report artifacts |
+| JadeCovenant treasury runaway variance cap | Variance 278131.68 (CV 1.131) | <= +10% vs Feb 21 baseline | Indeterminate | Baseline variance value not present in current report artifacts |
 
-## Scarcity Health
-- Overall scarcity verdict: **Needs Tuning**
-- City-count to gross-gold correlation (expansion dependence): **0.426** (Healthy)
-- Civs passing scarcity checks: **1/6**
+## Scarcity Health (Diagnostic)
+- Overall scarcity diagnostic: **Healthy**
+- City-count to gross-gold correlation (expansion dependence): **0.647** (Healthy)
+- Civs passing scarcity checks: **6/6**
 - Challenge pressure target band: **Avg Net 0-20, Deficit 10-55%, Austerity 4-42%, Late Net <= 38**
 - Adaptation target band: **>= 2.0 military units per 100 turns, >= 1.6 units per city, deficit recovery >= 18% when repeatedly stressed**
+- Gold-hub pillar uses the developed-economy metric only; legacy all-turn gold share remains informational.
 
 | Civ | Challenge Pressure | Economy Infra | Gold-Hub City | Adaptation & Army | Pillars | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | Needs Tuning | Healthy | Needs Tuning | Healthy | 2/4 | Needs Tuning |
+| ForgeClans | Needs Tuning | Healthy | Healthy | Healthy | 3/4 | Healthy |
 | ScholarKingdoms | Needs Tuning | Healthy | Healthy | Healthy | 3/4 | Healthy |
-| RiverLeague | Needs Tuning | Healthy | Needs Tuning | Healthy | 2/4 | Needs Tuning |
-| AetherianVanguard | Healthy | Needs Tuning | Needs Tuning | Healthy | 2/4 | Needs Tuning |
-| StarborneSeekers | Needs Tuning | Healthy | Needs Tuning | Healthy | 2/4 | Needs Tuning |
-| JadeCovenant | Needs Tuning | Healthy | Needs Tuning | Healthy | 2/4 | Needs Tuning |
+| RiverLeague | Needs Tuning | Healthy | Healthy | Healthy | 3/4 | Healthy |
+| AetherianVanguard | Healthy | Needs Tuning | Healthy | Healthy | 3/4 | Healthy |
+| StarborneSeekers | Healthy | Healthy | Healthy | Healthy | 4/4 | Healthy |
+| JadeCovenant | Needs Tuning | Healthy | Healthy | Healthy | 3/4 | Healthy |
 
 ## Civ Economy Scorecard
-| Civ | Games | Win% | Victory Mix | Avg Cities | Econ Cities | 2+ Econ Cities | Top Gold City Share | Top Gold Hub Source | Avg Used Supply | Avg Free Supply | Avg Gross | Avg Upkeep | Avg Net | Avg Treasury | Deficit Turns | Deficit Recoveries | Max Deficit Streak | Austerity Turns | Austerity Streak (Avg/Max) | Supply Pressure | Avg Net (At War) | Military Prod (per 100T) | Military Prod (Deficit/Austerity) | Bank Uptime | Rush-Buys/Game | Saved Gold/Game | Discount Utilization | Exchange Delay |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 415 | 21.4% | 59.6% C / 40.4% P | 2.72 | 2.14 | 53.5% | 58.5% | 92.7% | 6.46 | 4.61 | 27.36 | 16.30 | 11.07 | 307.47 | 10.0% | 98.4% | 367 | 4.4% | 11.1 / 354 | 63.0% | 13.64 | 16634 (12.26) | 1957 / 534 | 96.8% | 14.28 | 53.50 | 6.0% | 54.0 |
-| ScholarKingdoms | 422 | 24.4% | 30.1% C / 69.9% P | 2.96 | 1.99 | 49.3% | 57.8% | 94.9% | 6.22 | 7.07 | 28.34 | 15.19 | 13.15 | 404.72 | 1.6% | 97.9% | 193 | 0.5% | 1.3 / 178 | 22.0% | 16.95 | 14576 (10.44) | 374 / 74 | 95.8% | 15.57 | 74.59 | 6.2% | 96.5 |
-| RiverLeague | 419 | 21.5% | 60.0% C / 40.0% P | 2.50 | 1.86 | 46.3% | 63.4% | 94.4% | 5.70 | 5.15 | 28.21 | 14.52 | 13.68 | 408.86 | 6.7% | 98.7% | 257 | 2.6% | 7.2 / 244 | 44.8% | 17.10 | 14971 (10.86) | 1159 / 283 | 97.1% | 14.67 | 102.80 | 8.0% | 54.0 |
-| AetherianVanguard | 426 | 25.8% | 80.9% C / 19.1% P | 2.66 | 1.56 | 36.1% | 62.6% | 94.3% | 5.67 | 4.65 | 24.33 | 13.54 | 10.79 | 384.68 | 10.3% | 97.6% | 270 | 5.2% | 13.3 / 253 | 49.8% | 12.83 | 14927 (10.94) | 2169 / 882 | 95.3% | 11.82 | 45.16 | 5.5% | 76.0 |
-| StarborneSeekers | 421 | 19.0% | 31.3% C / 68.8% P | 2.31 | 1.74 | 45.3% | 65.0% | 94.3% | 4.95 | 4.69 | 25.35 | 15.31 | 10.04 | 377.28 | 7.8% | 98.6% | 228 | 2.7% | 7.4 / 215 | 38.5% | 11.85 | 13881 (9.96) | 1283 / 319 | 93.5% | 13.57 | 69.48 | 8.1% | 131.0 |
-| JadeCovenant | 417 | 16.3% | 69.1% C / 30.9% P | 2.73 | 2.14 | 53.5% | 59.6% | 92.4% | 5.57 | 5.53 | 31.49 | 14.93 | 16.56 | 540.80 | 3.8% | 99.1% | 324 | 1.2% | 3.8 / 311 | 35.2% | 20.39 | 13433 (9.77) | 678 / 86 | 94.9% | 15.86 | 118.82 | 8.3% | 56.0 |
+| Civ | Games | Win% | Victory Mix | Avg Cities | Econ Cities | 2+ Econ Cities | Developed Top Gold City Share | Legacy Top Gold City Share (All Turns) | Strategic Site Rate | Avg Used Supply | Avg Free Supply | Avg Gross | Avg Upkeep | Avg Net | Avg Treasury | Deficit Turns | Deficit Recoveries | Max Deficit Streak | Austerity Turns | Austerity Streak (Avg/Max) | Supply Pressure | Avg Net (At War) | Military Prod (per 100T) | Military Prod (Deficit/Austerity) | Bank Uptime | Rush-Buys/Game | Saved Gold/Game | Discount Utilization | Exchange Delay |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ForgeClans | 415 | 20.5% | 57.6% C / 42.4% P | 2.63 | 2.02 | 52.7% | 31.4% | 58.9% | 93.7% | 6.17 | 5.45 | 27.01 | 16.02 | 10.99 | 336.33 | 8.8% | 97.9% | 373 | 3.9% | 10.3 / 351 | 50.5% | 13.10 | 16569 (12.15) | 1677 / 487 | 95.3% | 14.24 | 68.44 | 7.2% | 20.0 |
+| ScholarKingdoms | 422 | 17.5% | 40.5% C / 59.5% P | 2.79 | 1.92 | 48.8% | 32.3% | 59.5% | 96.3% | 6.47 | 7.49 | 27.46 | 15.50 | 11.97 | 368.11 | 1.6% | 97.3% | 86 | 0.3% | 0.9 / 81 | 19.0% | 14.15 | 15346 (10.91) | 324 / 52 | 96.6% | 16.21 | 78.22 | 6.7% | 50.5 |
+| RiverLeague | 419 | 20.0% | 61.9% C / 38.1% P | 2.50 | 1.88 | 46.7% | 31.5% | 62.3% | 95.1% | 5.65 | 5.34 | 26.42 | 14.77 | 11.66 | 356.40 | 6.8% | 98.7% | 257 | 2.6% | 7.4 / 244 | 42.3% | 14.30 | 14904 (10.71) | 1143 / 209 | 96.2% | 13.84 | 87.57 | 7.8% | 21.0 |
+| AetherianVanguard | 426 | 25.1% | 83.2% C / 16.8% P | 2.57 | 1.56 | 38.4% | 32.5% | 63.0% | 94.8% | 5.70 | 4.96 | 23.44 | 14.05 | 9.40 | 383.75 | 10.9% | 97.2% | 278 | 5.5% | 15.7 / 259 | 45.9% | 10.86 | 15613 (11.31) | 2190 / 864 | 97.0% | 11.41 | 46.59 | 5.9% | 35.5 |
+| StarborneSeekers | 421 | 24.0% | 18.8% C / 81.2% P | 2.20 | 1.76 | 48.3% | 33.3% | 65.5% | 94.1% | 5.06 | 5.30 | 24.20 | 17.76 | 6.43 | 283.20 | 10.6% | 96.9% | 202 | 4.3% | 12.2 / 184 | 33.1% | 6.97 | 15722 (11.06) | 1777 / 565 | 96.2% | 14.51 | 54.86 | 8.0% | 52.0 |
+| JadeCovenant | 417 | 17.7% | 74.3% C / 25.7% P | 2.66 | 2.10 | 55.5% | 32.1% | 59.4% | 93.5% | 5.49 | 5.49 | 28.28 | 14.71 | 13.57 | 484.29 | 3.8% | 98.6% | 253 | 1.1% | 3.1 / 240 | 34.6% | 15.95 | 13113 (9.49) | 690 / 78 | 96.3% | 14.18 | 89.37 | 8.0% | 42.0 |
 
 ## AI Adaptation & Army Pressure
 | Civ | Deficit Entries | Deficit Recoveries | Recovery Rate | Max Deficit Streak | Military Units Produced | Military / 100T | Military Under Stress | Units Per City | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 1601 | 1575 | 98.4% | 367 | 16634 | 12.26 | 15.0% | 2.38 | Healthy |
-| ScholarKingdoms | 336 | 329 | 97.9% | 193 | 14576 | 10.44 | 3.1% | 2.10 | Healthy |
-| RiverLeague | 1136 | 1121 | 98.7% | 257 | 14971 | 10.86 | 9.6% | 2.27 | Healthy |
-| AetherianVanguard | 1383 | 1350 | 97.6% | 270 | 14927 | 10.94 | 20.4% | 2.13 | Healthy |
-| StarborneSeekers | 1362 | 1343 | 98.6% | 228 | 13881 | 9.96 | 11.5% | 2.14 | Healthy |
-| JadeCovenant | 879 | 871 | 99.1% | 324 | 13433 | 9.77 | 5.7% | 2.04 | Healthy |
+| ForgeClans | 1451 | 1420 | 97.9% | 373 | 16569 | 12.15 | 13.1% | 2.34 | Healthy |
+| ScholarKingdoms | 371 | 361 | 97.3% | 86 | 15346 | 10.91 | 2.5% | 2.32 | Healthy |
+| RiverLeague | 1215 | 1199 | 98.7% | 257 | 14904 | 10.71 | 9.1% | 2.26 | Healthy |
+| AetherianVanguard | 1449 | 1408 | 97.2% | 278 | 15613 | 11.31 | 19.6% | 2.22 | Healthy |
+| StarborneSeekers | 1922 | 1863 | 96.9% | 202 | 15722 | 11.06 | 14.9% | 2.30 | Healthy |
+| JadeCovenant | 950 | 937 | 98.6% | 253 | 13113 | 9.49 | 5.9% | 2.06 | Healthy |
 
 ## Gold Building Adoption
 ### TradingPost
 | Civ | Completions / Game | Adoption Rate | Median First Completion Turn |
 | --- | --- | --- | --- |
-| ForgeClans | 3.29 | 93.3% | 71.0 |
-| ScholarKingdoms | 3.77 | 94.8% | 82.0 |
-| RiverLeague | 3.13 | 94.7% | 73.0 |
-| AetherianVanguard | 2.64 | 77.0% | 77.5 |
-| StarborneSeekers | 2.94 | 94.3% | 67.0 |
-| JadeCovenant | 3.29 | 96.9% | 63.0 |
+| ForgeClans | 3.08 | 93.5% | 72.0 |
+| ScholarKingdoms | 3.22 | 91.7% | 79.0 |
+| RiverLeague | 3.11 | 93.8% | 74.0 |
+| AetherianVanguard | 2.51 | 77.5% | 71.0 |
+| StarborneSeekers | 2.84 | 97.9% | 64.0 |
+| JadeCovenant | 3.32 | 97.4% | 64.0 |
 
 ### MarketHall
 | Civ | Completions / Game | Adoption Rate | Median First Completion Turn |
 | --- | --- | --- | --- |
-| ForgeClans | 1.90 | 45.3% | 282.5 |
-| ScholarKingdoms | 2.49 | 61.8% | 224.0 |
-| RiverLeague | 2.96 | 84.0% | 138.0 |
-| AetherianVanguard | 1.79 | 43.4% | 218.0 |
-| StarborneSeekers | 2.45 | 77.7% | 123.0 |
-| JadeCovenant | 3.11 | 86.1% | 122.0 |
+| ForgeClans | 2.57 | 69.6% | 132.0 |
+| ScholarKingdoms | 2.62 | 73.5% | 162.0 |
+| RiverLeague | 2.77 | 82.1% | 135.0 |
+| AetherianVanguard | 2.14 | 64.6% | 152.0 |
+| StarborneSeekers | 2.58 | 91.0% | 118.0 |
+| JadeCovenant | 2.77 | 85.9% | 124.0 |
 
 ### Bank
 | Civ | Completions / Game | Adoption Rate | Median First Completion Turn |
 | --- | --- | --- | --- |
-| ForgeClans | 0.76 | 33.3% | 291.0 |
-| ScholarKingdoms | 0.64 | 34.6% | 263.5 |
-| RiverLeague | 0.74 | 35.1% | 279.0 |
-| AetherianVanguard | 0.52 | 24.4% | 292.0 |
-| StarborneSeekers | 0.52 | 28.0% | 278.0 |
-| JadeCovenant | 0.78 | 38.8% | 278.0 |
+| ForgeClans | 0.92 | 43.1% | 261.0 |
+| ScholarKingdoms | 0.85 | 46.9% | 235.0 |
+| RiverLeague | 1.03 | 53.0% | 230.0 |
+| AetherianVanguard | 0.75 | 38.5% | 246.5 |
+| StarborneSeekers | 0.94 | 60.6% | 196.0 |
+| JadeCovenant | 0.91 | 52.5% | 227.0 |
 
 ### Exchange
 | Civ | Completions / Game | Adoption Rate | Median First Completion Turn |
 | --- | --- | --- | --- |
-| ForgeClans | 0.44 | 22.9% | 306.0 |
-| ScholarKingdoms | 0.34 | 21.3% | 303.5 |
-| RiverLeague | 0.40 | 21.5% | 306.5 |
-| AetherianVanguard | 0.30 | 16.2% | 319.0 |
-| StarborneSeekers | 0.29 | 17.3% | 291.0 |
-| JadeCovenant | 0.35 | 19.4% | 325.0 |
+| ForgeClans | 0.40 | 19.5% | 310.0 |
+| ScholarKingdoms | 0.43 | 27.0% | 296.0 |
+| RiverLeague | 0.41 | 23.2% | 308.0 |
+| AetherianVanguard | 0.33 | 19.0% | 294.0 |
+| StarborneSeekers | 0.66 | 46.6% | 211.5 |
+| JadeCovenant | 0.29 | 18.9% | 311.0 |
 
 ## Economy By Game Phase
 (Phase buckets: Early <= 100, Mid 101-200, Late > 200)
 
 | Civ | Early Net | Mid Net | Late Net | Early Austerity | Mid Austerity | Late Austerity |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 3.45 | 10.08 | 17.25 | 5.4% | 4.3% | 3.6% |
-| ScholarKingdoms | 5.64 | 11.95 | 19.35 | 0.1% | 0.6% | 0.6% |
-| RiverLeague | 4.12 | 14.53 | 20.07 | 4.3% | 2.9% | 1.3% |
-| AetherianVanguard | 3.76 | 8.55 | 17.81 | 3.8% | 8.4% | 4.0% |
-| StarborneSeekers | 4.00 | 10.19 | 14.34 | 1.8% | 3.9% | 2.6% |
-| JadeCovenant | 5.58 | 16.75 | 24.35 | 1.6% | 1.6% | 0.7% |
+| ForgeClans | 3.54 | 11.70 | 15.83 | 6.0% | 3.8% | 2.5% |
+| ScholarKingdoms | 5.68 | 12.35 | 16.15 | 0.0% | 0.4% | 0.5% |
+| RiverLeague | 4.03 | 13.02 | 16.19 | 3.7% | 3.1% | 1.5% |
+| AetherianVanguard | 3.82 | 9.00 | 13.88 | 3.9% | 8.3% | 4.8% |
+| StarborneSeekers | 4.01 | 8.45 | 6.78 | 1.8% | 4.1% | 6.3% |
+| JadeCovenant | 5.42 | 14.83 | 18.54 | 1.4% | 1.4% | 0.8% |
 
 ## Map Size Sensitivity
 ### Tiny
 | Civ | Games | Avg Gross | Avg Upkeep | Avg Net | Deficit Turns | Austerity Turns |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 34 | 28.48 | 15.25 | 13.23 | 10.2% | 4.6% |
-| ScholarKingdoms | 37 | 40.90 | 21.22 | 19.68 | 1.1% | 0.0% |
-| RiverLeague | 44 | 29.32 | 14.00 | 15.32 | 7.7% | 3.2% |
-| AetherianVanguard | 44 | 19.95 | 12.17 | 7.78 | 14.8% | 6.4% |
-| StarborneSeekers | 40 | 36.28 | 20.67 | 15.61 | 6.6% | 1.8% |
-| JadeCovenant | 41 | 33.56 | 15.66 | 17.90 | 4.0% | 0.9% |
+| ForgeClans | 34 | 25.68 | 14.24 | 11.44 | 12.1% | 6.3% |
+| ScholarKingdoms | 37 | 29.14 | 14.69 | 14.45 | 1.6% | 0.4% |
+| RiverLeague | 44 | 32.64 | 17.27 | 15.36 | 6.5% | 2.1% |
+| AetherianVanguard | 44 | 19.63 | 11.87 | 7.76 | 17.7% | 9.4% |
+| StarborneSeekers | 40 | 28.86 | 18.99 | 9.86 | 8.7% | 1.7% |
+| JadeCovenant | 41 | 29.70 | 15.09 | 14.61 | 5.4% | 1.7% |
 
 ### Small
 | Civ | Games | Avg Gross | Avg Upkeep | Avg Net | Deficit Turns | Austerity Turns |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 66 | 26.37 | 16.95 | 9.42 | 12.1% | 4.8% |
-| ScholarKingdoms | 60 | 26.70 | 14.73 | 11.97 | 4.4% | 1.6% |
-| RiverLeague | 52 | 26.51 | 14.36 | 12.15 | 13.8% | 6.2% |
-| AetherianVanguard | 63 | 20.20 | 13.14 | 7.06 | 20.4% | 10.9% |
-| StarborneSeekers | 60 | 24.31 | 14.86 | 9.45 | 14.0% | 7.5% |
-| JadeCovenant | 59 | 28.66 | 14.20 | 14.45 | 6.3% | 0.8% |
+| ForgeClans | 66 | 23.66 | 14.90 | 8.76 | 14.9% | 7.7% |
+| ScholarKingdoms | 60 | 23.43 | 12.19 | 11.24 | 1.7% | 0.0% |
+| RiverLeague | 52 | 24.11 | 13.78 | 10.32 | 14.4% | 7.6% |
+| AetherianVanguard | 63 | 19.62 | 13.33 | 6.29 | 20.0% | 10.0% |
+| StarborneSeekers | 60 | 22.81 | 16.77 | 6.04 | 15.2% | 6.2% |
+| JadeCovenant | 59 | 28.51 | 15.39 | 13.12 | 7.3% | 2.0% |
 
 ### Standard
 | Civ | Games | Avg Gross | Avg Upkeep | Avg Net | Deficit Turns | Austerity Turns |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 75 | 32.93 | 19.60 | 13.34 | 8.8% | 3.1% |
-| ScholarKingdoms | 85 | 34.67 | 18.79 | 15.88 | 0.8% | 0.0% |
-| RiverLeague | 83 | 31.64 | 17.10 | 14.54 | 7.8% | 3.4% |
-| AetherianVanguard | 79 | 23.29 | 13.44 | 9.86 | 13.1% | 7.3% |
-| StarborneSeekers | 81 | 28.55 | 16.62 | 11.93 | 8.0% | 2.9% |
-| JadeCovenant | 77 | 36.21 | 17.94 | 18.26 | 5.1% | 2.1% |
+| ForgeClans | 75 | 29.67 | 17.77 | 11.91 | 8.2% | 2.7% |
+| ScholarKingdoms | 85 | 34.13 | 19.18 | 14.95 | 0.9% | 0.0% |
+| RiverLeague | 83 | 28.30 | 16.14 | 12.16 | 8.3% | 3.6% |
+| AetherianVanguard | 79 | 24.35 | 15.32 | 9.02 | 15.7% | 9.1% |
+| StarborneSeekers | 81 | 28.16 | 20.99 | 7.17 | 10.5% | 4.2% |
+| JadeCovenant | 77 | 33.65 | 17.90 | 15.75 | 3.3% | 0.7% |
 
 ### Large
 | Civ | Games | Avg Gross | Avg Upkeep | Avg Net | Deficit Turns | Austerity Turns |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 120 | 27.18 | 16.84 | 10.35 | 10.9% | 4.8% |
-| ScholarKingdoms | 120 | 24.01 | 12.65 | 11.36 | 1.8% | 0.8% |
-| RiverLeague | 120 | 28.74 | 14.78 | 13.95 | 4.9% | 1.7% |
-| AetherianVanguard | 120 | 23.03 | 13.07 | 9.97 | 10.5% | 5.4% |
-| StarborneSeekers | 120 | 21.85 | 13.43 | 8.41 | 8.7% | 2.4% |
-| JadeCovenant | 120 | 30.34 | 14.60 | 15.74 | 3.0% | 0.7% |
+| ForgeClans | 120 | 27.34 | 16.13 | 11.21 | 7.2% | 2.8% |
+| ScholarKingdoms | 120 | 23.35 | 12.81 | 10.54 | 1.9% | 0.4% |
+| RiverLeague | 120 | 26.21 | 14.77 | 11.45 | 5.3% | 1.7% |
+| AetherianVanguard | 120 | 23.80 | 14.55 | 9.25 | 9.9% | 5.0% |
+| StarborneSeekers | 120 | 22.89 | 17.14 | 5.75 | 11.6% | 5.0% |
+| JadeCovenant | 120 | 26.60 | 13.82 | 12.78 | 2.8% | 0.3% |
 
 ### Huge
 | Civ | Games | Avg Gross | Avg Upkeep | Avg Net | Deficit Turns | Austerity Turns |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForgeClans | 120 | 24.60 | 13.98 | 10.62 | 9.1% | 4.4% |
-| ScholarKingdoms | 120 | 26.46 | 14.31 | 12.15 | 1.2% | 0.1% |
-| RiverLeague | 120 | 25.79 | 12.90 | 12.89 | 5.8% | 2.1% |
-| AetherianVanguard | 120 | 28.23 | 14.47 | 13.76 | 5.0% | 2.1% |
-| StarborneSeekers | 120 | 24.74 | 15.30 | 9.44 | 5.3% | 1.7% |
-| JadeCovenant | 120 | 30.23 | 13.60 | 16.63 | 3.2% | 1.5% |
+| ForgeClans | 120 | 26.52 | 15.65 | 10.87 | 8.1% | 4.1% |
+| ScholarKingdoms | 120 | 28.16 | 16.97 | 11.19 | 1.6% | 0.4% |
+| RiverLeague | 120 | 24.54 | 13.58 | 10.96 | 5.8% | 1.9% |
+| AetherianVanguard | 120 | 24.54 | 13.59 | 10.94 | 5.1% | 2.0% |
+| StarborneSeekers | 120 | 22.51 | 16.50 | 6.01 | 8.6% | 3.8% |
+| JadeCovenant | 120 | 26.55 | 13.53 | 13.02 | 3.8% | 1.8% |
 
 ## Gold Building Timing By Map Size
 ### Tiny
 | Civ | TradingPost First | MarketHall First | Bank First | Exchange First |
 | --- | --- | --- | --- | --- |
-| ForgeClans | 64.0 | 256.0 | 285.5 | 322.0 |
-| ScholarKingdoms | 72.5 | 208.0 | 247.5 | 304.0 |
-| RiverLeague | 71.5 | 113.0 | 246.0 | 336.0 |
-| AetherianVanguard | 56.5 | 207.0 | 217.0 | 257.0 |
-| StarborneSeekers | 70.0 | 113.5 | 228.0 | 249.0 |
-| JadeCovenant | 59.0 | 114.0 | 227.0 | 309.0 |
+| ForgeClans | 64.5 | 135.0 | 238.0 | n/a |
+| ScholarKingdoms | 70.0 | 148.0 | 247.5 | 296.0 |
+| RiverLeague | 72.0 | 120.0 | 187.5 | 323.0 |
+| AetherianVanguard | 67.0 | 129.0 | 197.0 | 294.0 |
+| StarborneSeekers | 65.0 | 113.5 | 174.0 | 184.0 |
+| JadeCovenant | 59.5 | 109.0 | 193.0 | 322.0 |
 
 ### Small
 | Civ | TradingPost First | MarketHall First | Bank First | Exchange First |
 | --- | --- | --- | --- | --- |
-| ForgeClans | 64.0 | 242.5 | 280.5 | 291.0 |
-| ScholarKingdoms | 79.0 | 173.0 | 233.0 | 255.5 |
-| RiverLeague | 70.0 | 119.0 | 242.0 | 327.0 |
-| AetherianVanguard | 62.0 | 176.0 | 292.0 | 161.0 |
-| StarborneSeekers | 66.0 | 112.0 | 236.0 | 282.5 |
-| JadeCovenant | 56.5 | 107.0 | 227.0 | 207.0 |
+| ForgeClans | 66.0 | 118.0 | 217.0 | 371.0 |
+| ScholarKingdoms | 68.5 | 119.0 | 192.0 | 304.0 |
+| RiverLeague | 70.0 | 115.0 | 198.0 | 275.0 |
+| AetherianVanguard | 59.0 | 117.5 | 204.0 | n/a |
+| StarborneSeekers | 64.5 | 110.5 | 166.0 | 172.0 |
+| JadeCovenant | 56.5 | 112.0 | 210.0 | 275.0 |
 
 ### Standard
 | Civ | TradingPost First | MarketHall First | Bank First | Exchange First |
 | --- | --- | --- | --- | --- |
-| ForgeClans | 70.0 | 276.0 | 287.0 | 300.0 |
-| ScholarKingdoms | 77.0 | 209.5 | 235.0 | 287.0 |
-| RiverLeague | 76.5 | 127.0 | 254.0 | 285.5 |
-| AetherianVanguard | 73.0 | 198.0 | 295.0 | 340.5 |
-| StarborneSeekers | 69.5 | 123.0 | 265.0 | 282.5 |
-| JadeCovenant | 57.0 | 115.0 | 246.0 | 310.5 |
+| ForgeClans | 70.0 | 123.0 | 261.0 | 298.0 |
+| ScholarKingdoms | 76.0 | 148.0 | 215.0 | 278.0 |
+| RiverLeague | 74.0 | 119.0 | 223.0 | 293.0 |
+| AetherianVanguard | 70.5 | 155.0 | 252.0 | 283.0 |
+| StarborneSeekers | 62.5 | 112.5 | 183.0 | 203.0 |
+| JadeCovenant | 58.5 | 116.0 | 209.0 | 301.5 |
 
 ### Large
 | Civ | TradingPost First | MarketHall First | Bank First | Exchange First |
 | --- | --- | --- | --- | --- |
-| ForgeClans | 72.5 | 290.0 | 299.0 | 311.0 |
-| ScholarKingdoms | 89.0 | 241.0 | 296.0 | 308.0 |
-| RiverLeague | 74.5 | 142.0 | 293.0 | 317.0 |
-| AetherianVanguard | 103.5 | 250.0 | 292.0 | 324.0 |
-| StarborneSeekers | 69.0 | 137.5 | 314.0 | 324.0 |
-| JadeCovenant | 66.0 | 133.0 | 298.0 | 329.0 |
+| ForgeClans | 73.0 | 140.0 | 264.5 | 287.0 |
+| ScholarKingdoms | 86.0 | 183.0 | 246.5 | 296.0 |
+| RiverLeague | 75.0 | 141.0 | 233.0 | 315.0 |
+| AetherianVanguard | 78.0 | 171.0 | 252.0 | 292.0 |
+| StarborneSeekers | 65.0 | 123.0 | 208.0 | 226.0 |
+| JadeCovenant | 66.0 | 137.5 | 239.0 | 304.0 |
 
 ### Huge
 | Civ | TradingPost First | MarketHall First | Bank First | Exchange First |
 | --- | --- | --- | --- | --- |
-| ForgeClans | 77.5 | 312.0 | 290.5 | 301.5 |
-| ScholarKingdoms | 86.0 | 248.0 | 286.0 | 307.0 |
-| RiverLeague | 74.0 | 152.0 | 315.5 | 306.0 |
-| AetherianVanguard | 81.0 | 164.0 | 289.0 | 319.0 |
-| StarborneSeekers | 63.0 | 118.0 | 271.0 | 282.5 |
-| JadeCovenant | 67.0 | 143.5 | 312.5 | 345.5 |
+| ForgeClans | 77.0 | 147.0 | 285.5 | 341.0 |
+| ScholarKingdoms | 80.0 | 172.0 | 237.0 | 300.0 |
+| RiverLeague | 76.0 | 155.0 | 239.0 | 283.0 |
+| AetherianVanguard | 72.5 | 155.5 | 268.0 | 303.5 |
+| StarborneSeekers | 61.0 | 118.0 | 200.0 | 229.0 |
+| JadeCovenant | 68.0 | 141.5 | 257.0 | 325.5 |
 
 ## Civ-Specific Tuning Flags
 ### ForgeClans
-- Long austerity streaks detected (max 354 consecutive turns).
-- Long deficit streaks detected (max 367 consecutive turns).
+- Long austerity streaks detected (max 351 consecutive turns).
+- Long deficit streaks detected (max 373 consecutive turns).
+- Late-gold building adoption is low (Exchange adoption 19.5%).
 
 ### ScholarKingdoms
-- Long austerity streaks detected (max 178 consecutive turns).
-- Long deficit streaks detected (max 193 consecutive turns).
+- Long austerity streaks detected (max 81 consecutive turns).
+- Long deficit streaks detected (max 86 consecutive turns).
 
 ### RiverLeague
 - Long austerity streaks detected (max 244 consecutive turns).
 - Long deficit streaks detected (max 257 consecutive turns).
 
 ### AetherianVanguard
-- Long austerity streaks detected (max 253 consecutive turns).
-- Long deficit streaks detected (max 270 consecutive turns).
-- Late-gold building adoption is low (Exchange adoption 16.2%).
+- Long austerity streaks detected (max 259 consecutive turns).
+- Long deficit streaks detected (max 278 consecutive turns).
+- Late-gold building adoption is low (Exchange adoption 19.0%).
 
 ### StarborneSeekers
-- Long austerity streaks detected (max 215 consecutive turns).
-- Long deficit streaks detected (max 228 consecutive turns).
-- Late-gold building adoption is low (Exchange adoption 17.3%).
+- Long austerity streaks detected (max 184 consecutive turns).
+- Long deficit streaks detected (max 202 consecutive turns).
 
 ### JadeCovenant
-- Long austerity streaks detected (max 311 consecutive turns).
-- Long deficit streaks detected (max 324 consecutive turns).
-- Late-gold building adoption is low (Exchange adoption 19.4%).
+- Long austerity streaks detected (max 240 consecutive turns).
+- Long deficit streaks detected (max 253 consecutive turns).
+- Late-gold building adoption is low (Exchange adoption 18.9%).
 
 ## How To Use This Report
 - Use **Avg Net**, **Deficit Turns**, and **Austerity Turns** to determine if a civ's baseline economy is stable.
 - Use **Avg Net (At War)**, **Supply Pressure**, and **Military Prod (per 100T)** to tune war upkeep pressure per civ.
 - Use **Deficit Recoveries**, **Max Deficit Streak**, and **Military Under Stress** to verify AI adaptation during stalls.
 - Use **Bank Uptime**, **Rush-Buys/Game**, **Saved Gold/Game**, and **Exchange Delay** to evaluate tactical gold payoff adoption.
+- Use **Developed Top Gold City Share** as the ship-gate gold concentration metric; use **Legacy Top Gold City Share (All Turns)** only as an early-game diagnostic.
+- Use **Strategic Site Rate** to understand how often the top gold city sits on river/coast/ore advantages; it is not part of the gold-hub acceptance check.
 - Use **Gold Building Adoption** + **Median First Completion Turn** to tune AI economy bias and building cost/tech timing.
 - Use **Phase Net** and **Phase Austerity** to isolate whether issues are early snowball, midgame squeeze, or late-game collapse.
 - Use **Map Size Sensitivity** to decide whether fixes should be global or map-size-specific.

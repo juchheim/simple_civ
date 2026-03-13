@@ -69,58 +69,80 @@ describe("Civ profile balance safeguards", () => {
         expect(profile.tech.weights[TechId.StarCharts]).toBe(1.0);
     });
 
-    it("restores ScholarKingdoms baseline progress pacing", () => {
+    it("keeps ScholarKingdoms on the stronger-but-still-measured recovery profile", () => {
         const state = createMockState("ScholarKingdoms");
         const profile = getAiProfileV2(state, "p1");
 
-        expect(profile.tech.weights[TechId.SignalRelay]).toBeUndefined();
-        expect(profile.tech.weights[TechId.StarCharts]).toBeUndefined();
-        expect(profile.build.armyPerCity).toBe(1.6);
-        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(0.7);
-        expect(profile.build.weights.building[BuildingType.CityWard]).toBe(0.9);
-        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(2.0);
-        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.35);
-        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.35);
-        expect(profile.economy.reserveMultiplier).toBe(1.0);
-        expect(profile.economy.rushBuyAggression).toBe(1.0);
+        expect(profile.diplomacy.warPowerRatio).toBe(1.15);
+        expect(profile.diplomacy.minWarTurn).toBe(55);
+        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(1);
+        expect(profile.diplomacy.targetPreference).toBe("Finishable");
+        expect(profile.tech.weights[TechId.SignalRelay]).toBe(1.2);
+        expect(profile.tech.weights[TechId.StarCharts]).toBe(1.3);
+        expect(profile.build.armyPerCity).toBe(1.9);
+        expect(profile.build.settlerCap).toBe(4);
+        expect(profile.build.desiredCities).toBe(6);
+        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(1.0);
+        expect(profile.build.weights.building[BuildingType.CityWard]).toBe(1.15);
+        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(2.15);
+        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.55);
+        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.65);
+        expect(profile.economy.reserveMultiplier).toBe(0.95);
+        expect(profile.economy.rushBuyAggression).toBe(1.05);
     });
 
-    it("restores StarborneSeekers baseline progress pressure", () => {
+    it("keeps StarborneSeekers defensive without preserving the over-buff", () => {
         const state = createMockState("StarborneSeekers");
         const profile = getAiProfileV2(state, "p1");
 
-        expect(profile.diplomacy.warPowerRatio).toBe(1.2);
-        expect(profile.diplomacy.minWarTurn).toBe(40);
-        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(2);
-        expect(profile.diplomacy.targetPreference).toBe("Finishable");
-        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(1.7);
-        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.7);
-        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(1.0);
-        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(1.0);
+        expect(profile.diplomacy.warPowerRatio).toBe(1.45);
+        expect(profile.diplomacy.minWarTurn).toBe(70);
+        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(1);
+        expect(profile.diplomacy.targetPreference).toBe("Nearest");
+        expect(profile.build.armyPerCity).toBe(2.6);
+        expect(profile.build.settlerCap).toBe(3);
+        expect(profile.build.desiredCities).toBe(4);
+        expect(profile.build.weights.building[BuildingType.Bulwark]).toBe(1.4);
+        expect(profile.build.weights.building[BuildingType.CityWard]).toBe(1.4);
+        expect(profile.build.weights.project[ProjectId.Observatory]).toBe(1.45);
+        expect(profile.build.weights.project[ProjectId.GrandAcademy]).toBe(0.95);
+        expect(profile.build.weights.project[ProjectId.GrandExperiment]).toBe(0.95);
+        expect(profile.tech.weights[TechId.CityWards]).toBe(1.6);
+        expect(profile.tech.weights[TechId.UrbanPlans]).toBe(1.15);
+        expect(profile.tech.weights[TechId.SignalRelay]).toBe(0.95);
+        expect(profile.tech.weights[TechId.StarCharts]).toBe(0.95);
+        expect(profile.economy.reserveMultiplier).toBe(1.15);
+        expect(profile.economy.rushBuyAggression).toBe(0.7);
         expect(profile.tech.pathsByGoal?.Progress).toEqual([
             TechId.StoneworkHalls,
             TechId.CityWards,
+            TechId.Fieldcraft,
             TechId.ScriptLore,
+            TechId.Wellworks,
             TechId.ScholarCourts,
+            TechId.UrbanPlans,
             TechId.SignalRelay,
             TechId.StarCharts,
         ]);
     });
 
-    it("restores AetherianVanguard baseline conquest tempo", () => {
+    it("keeps AetherianVanguard dangerous while slowing the snowball profile", () => {
         const state = createMockState("AetherianVanguard");
         const profile = getAiProfileV2(state, "p1");
 
-        expect(profile.diplomacy.warPowerRatio).toBe(1.0);
-        expect(profile.diplomacy.minWarTurn).toBe(50);
-        expect(profile.diplomacy.maxConcurrentWars).toBe(2);
-        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(4);
-        expect(profile.build.armyPerCity).toBe(2.0);
-        expect(profile.build.settlerCap).toBe(5);
-        expect(profile.build.desiredCities).toBe(5);
-        expect(profile.tactics.riskTolerance).toBe(0.55);
-        expect(profile.tactics.siegeCommitment).toBe(0.9);
-        expect(profile.tactics.retreatHpFrac).toBe(0.3);
+        expect(profile.diplomacy.warPowerRatio).toBe(1.25);
+        expect(profile.diplomacy.minWarTurn).toBe(80);
+        expect(profile.diplomacy.maxConcurrentWars).toBe(1);
+        expect(profile.diplomacy.maxInitiatedWarsPer50Turns).toBe(1);
+        expect(profile.build.armyPerCity).toBe(1.95);
+        expect(profile.build.settlerCap).toBe(3);
+        expect(profile.build.desiredCities).toBe(4);
+        expect(profile.build.weights.building[BuildingType.TitansCore]).toBe(1.8);
+        expect(profile.tech.weights[TechId.SteamForges]).toBe(2.1);
+        expect(profile.economy.rushBuyAggression).toBe(1.1);
+        expect(profile.tactics.riskTolerance).toBe(0.45);
+        expect(profile.tactics.siegeCommitment).toBe(0.75);
+        expect(profile.tactics.retreatHpFrac).toBe(0.38);
     });
 
 });
