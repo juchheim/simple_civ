@@ -20,7 +20,7 @@ import { RiverRibbons } from "./RiverRibbons";
 import { WorldSurfaceShell } from "./surface";
 import { TerrainInstances } from "./TerrainInstances";
 import { UnitTokens } from "./UnitTokens";
-import { getCameraDistanceBounds, Map3DController, useMap3DController } from "./useMap3DController";
+import { getCameraDistanceBounds, LOCKED_POLAR_ANGLE, Map3DController, useMap3DController } from "./useMap3DController";
 
 const WORLD_HEX_SIZE = 1;
 
@@ -105,11 +105,12 @@ function BoardScene({
                 enableDamping
                 dampingFactor={0.09}
                 enablePan={false}
+                rotateSpeed={0.38}
                 zoomSpeed={0.35}
                 minDistance={cameraBounds.min}
                 maxDistance={cameraBounds.max}
-                minPolarAngle={Math.PI * 0.16}
-                maxPolarAngle={Math.PI * 0.84}
+                minPolarAngle={LOCKED_POLAR_ANGLE}
+                maxPolarAngle={LOCKED_POLAR_ANGLE}
                 onChange={handleControlsChange}
             />
         </>

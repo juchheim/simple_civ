@@ -146,7 +146,7 @@ export function ProjectedHexToken({
     return (
         <group>
             <mesh geometry={sideGeometry}>
-                <meshStandardMaterial color={sideColor} roughness={0.82} />
+                <meshStandardMaterial color={sideColor} roughness={0.82} side={THREE.DoubleSide} />
             </mesh>
             <mesh geometry={topGeometry}>{children}</mesh>
         </group>

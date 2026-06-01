@@ -20,6 +20,8 @@ export function getCameraDistanceBounds(radius: number) {
     };
 }
 
+export const LOCKED_POLAR_ANGLE = Math.acos(0.24);
+
 type ControllerParams = {
     projector: Projector;
     tiles: Tile[];
@@ -35,7 +37,7 @@ export function useMap3DController({
     controlsRef,
     onViewChange,
 }: ControllerParams) {
-    const { camera, invalidate, size } = useThree();
+    const { camera, gl, invalidate, size } = useThree();
     const centeredCoordRef = React.useRef<HexCoord>(initialCenter ?? tiles[0]?.coord ?? { q: 0, r: 0 });
     const hasInitializedRef = React.useRef(false);
     const tileKeys = React.useMemo(() => new Set(tiles.map(tile => `${tile.coord.q},${tile.coord.r}`)), [tiles]);
@@ -116,6 +118,58 @@ export function useMap3DController({
         emitViewport(coord);
         invalidate();
     }, [camera.position, controlsRef, emitViewport, invalidate, projector, tileKeys]);
+
+    React.useEffect(() => {
+        const element = gl.domElement;
+        let activePointerId: number | null = null;
+        let previousY = 0;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            if (event.button !== 0) return;
+            activePointerId = event.pointerId;
+            previousY = event.clientY;
+        };
+
+        const handlePointerMove = (event: PointerEvent) => {
+            if (event.pointerId !== activePointerId || (event.buttons & 1) === 0) return;
+            const controls = controlsRef.current;
+            if (!controls) return;
+            const deltaY = event.clientY - previousY;
+            previousY = event.clientY;
+            if (deltaY === 0) return;
+
+            const distance = camera.position.distanceTo(controls.target);
+            const panDistance = (deltaY / Math.max(size.height, 1)) * distance * 0.58;
+            const verticalRange = projector.surface.kind === "cylinder"
+                ? projector.surface.height * 0.52
+                : projector.surface.radius * 0.6;
+            const nextTargetY = THREE.MathUtils.clamp(
+                controls.target.y + panDistance,
+                -verticalRange,
+                verticalRange,
+            );
+            camera.position.y += nextTargetY - controls.target.y;
+            controls.target.y = nextTargetY;
+            controls.update();
+            invalidate();
+        };
+
+        const handlePointerUp = (event: PointerEvent) => {
+            if (event.pointerId === activePointerId) activePointerId = null;
+        };
+
+        element.addEventListener("pointerdown", handlePointerDown);
+        element.addEventListener("pointermove", handlePointerMove);
+        element.addEventListener("pointerup", handlePointerUp);
+        element.addEventListener("pointercancel", handlePointerUp);
+
+        return () => {
+            element.removeEventListener("pointerdown", handlePointerDown);
+            element.removeEventListener("pointermove", handlePointerMove);
+            element.removeEventListener("pointerup", handlePointerUp);
+            element.removeEventListener("pointercancel", handlePointerUp);
+        };
+    }, [camera.position, controlsRef, gl.domElement, invalidate, projector.surface, size.height]);
 
     React.useEffect(() => {
         if (hasInitializedRef.current) return;
