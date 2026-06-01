@@ -21,9 +21,9 @@ describe('Peacetime Army Size Checks', () => {
         expect(profile.build.armyPerCity).toBe(1.9);
     });
 
-    it('should have armyPerCity = 2.6 for StarborneSeekers', () => {
+    it('should have armyPerCity = 2.4 for StarborneSeekers', () => {
         const state = createMockState("StarborneSeekers");
         const profile = getAiProfileV2(state, "p1");
-        expect(profile.build.armyPerCity).toBe(2.6);
+        expect(profile.build.armyPerCity).toBe(2.4);
     });
 });

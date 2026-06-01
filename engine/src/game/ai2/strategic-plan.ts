@@ -109,8 +109,8 @@ const PROGRESS_DEFENSE_BASE: Record<GamePhase, number> = {
 };
 
 const CIV_TECH_OVERRIDES: Record<string, string> = {
+    ScholarKingdoms: "Progress",
     StarborneSeekers: "ProgressRush",
-    ScholarKingdoms: "Defensive",
 };
 
 function resolveTechTarget(goal: AiVictoryGoal, civName: string): string {

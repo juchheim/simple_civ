@@ -160,6 +160,7 @@ function addProgressAndDefenseCandidates(params: ProductionCandidateGroupParams)
         && isEconomyRecoveryState
         && lateProgressWindow
         && !isCrisis;
+    const scholarProgressBoost = 0;
     const progressScoreBoost = goal === "Progress" ? 0.08 : 0;
     const lateProgressBoost = lateProgressWindow ? (anyBuildingProgress ? 0.04 : 0.08) : 0;
 
@@ -169,7 +170,7 @@ function addProgressAndDefenseCandidates(params: ProductionCandidateGroupParams)
             reason: "victory-project",
             base: PRODUCTION_BASE_SCORES.victoryProject,
             components: {
-                progress: progressScoreBoost,
+                progress: progressScoreBoost + scholarProgressBoost,
                 lateProgress: lateProgressBoost,
                 gatePenalty: progressExpansionNeed ? -0.06 : 0,
             },

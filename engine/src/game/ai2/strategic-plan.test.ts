@@ -33,6 +33,16 @@ describe('strategic-plan: getGoalRequirements', () => {
         expect(reqs.minSiege).toBe(1);
     });
 
+    it('uses the Progress tech target for ScholarKingdoms', () => {
+        const reqs = getGoalRequirements("Progress", "ScholarKingdoms", "Develop", 1);
+        expect(reqs.techTarget).toBe("Progress");
+    });
+
+    it('uses the ProgressRush tech target for StarborneSeekers', () => {
+        const reqs = getGoalRequirements("Progress", "StarborneSeekers", "Develop", 1);
+        expect(reqs.techTarget).toBe("ProgressRush");
+    });
+
     it('scales conquest force requirements with city count', () => {
         const compact = getGoalRequirements("Conquest", "ForgeClans", "Develop", 2);
         const wide = getGoalRequirements("Conquest", "ForgeClans", "Develop", 6);

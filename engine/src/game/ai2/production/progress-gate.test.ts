@@ -129,4 +129,43 @@ describe("Progress production without map-specific gate", () => {
 
         expect(build).not.toEqual({ type: "Unit", id: UnitType.Settler });
     });
+
+    it("lets ScholarKingdoms prioritize Observatory even from a Balanced goal once StarCharts is online", () => {
+        const state = makeState(1, { completedProjects: [] });
+        state.players[0]!.aiGoal = "Balanced";
+
+        const build = chooseCityBuildV2(state, "p1", state.cities[0]!, "Balanced");
+
+        expect(build).toEqual({ type: "Project", id: ProjectId.Observatory });
+    });
+
+    it("does not auto-prioritize Observatory for StarborneSeekers off-goal before the late-game window", () => {
+        const state = makeState(1, { completedProjects: [] });
+        state.turn = 120;
+        state.players[0]!.civName = "StarborneSeekers";
+        state.players[0]!.aiGoal = "Balanced";
+
+        const profile = getAiProfileV2(state, "p1");
+        const city = state.cities[0]!;
+
+        const build = pickVictoryProject(state, "p1", city, "Balanced", profile, state.cities);
+
+        expect(build).toBeNull();
+    });
+
+    it("starts Observatory for StarborneSeekers off-goal once the controlled opener window begins", () => {
+        const state = makeState(1, { completedProjects: [] });
+        state.turn = 150;
+        state.map.width = 30;
+        state.map.height = 22;
+        state.players[0]!.civName = "StarborneSeekers";
+        state.players[0]!.aiGoal = "Balanced";
+
+        const profile = getAiProfileV2(state, "p1");
+        const city = state.cities[0]!;
+
+        const build = pickVictoryProject(state, "p1", city, "Balanced", profile, state.cities);
+
+        expect(build).toEqual({ type: "Project", id: ProjectId.Observatory });
+    });
 });

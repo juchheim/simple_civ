@@ -20,6 +20,7 @@ export function followTitan(state: GameState, playerId: string): GameState {
     let next = state;
     const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
     if (!titan) return next;
+    const player = next.players.find(p => p.id === playerId);
 
     const enemies = warEnemyIds(next, playerId);
     if (enemies.size === 0) return next;
@@ -43,6 +44,7 @@ export function followTitan(state: GameState, playerId: string): GameState {
     const rallyPoint = titan.coord;
     const SAFE_STAGING_DISTANCE = 3;
     const escortFlow = getFlowFieldCached(next, playerId, rallyPoint, { cacheKey: "titan-escort" });
+    const maxEscorts = 3;
 
     const myCities = next.cities.filter(c => c.ownerId === playerId);
     const potentialEscorts = next.units.filter(u => {
@@ -56,33 +58,36 @@ export function followTitan(state: GameState, playerId: string): GameState {
         if (isGarrisoned) return false;
         const isInRing = myCities.some(c => hexDistance(c.coord, u.coord) === 1);
         if (isInRing) return false;
-        const distToTarget = hexDistance(u.coord, rallyPoint);
-        if (distToTarget <= SAFE_STAGING_DISTANCE && distToTarget >= 2) return false;
         return true;
     }).sort((a, b) => {
-        const aRider = a.type === UnitType.ArmyRiders ? 0 : 1;
-        const bRider = b.type === UnitType.ArmyRiders ? 0 : 1;
-        if (aRider !== bRider) return aRider - bRider;
+        const aExistingEscort = a.isTitanEscort ? 0 : 1;
+        const bExistingEscort = b.isTitanEscort ? 0 : 1;
+        if (aExistingEscort !== bExistingEscort) return aExistingEscort - bExistingEscort;
+        const aTypePriority = a.type === UnitType.ArmyRiders ? 0 : a.type === UnitType.Landship ? 1 : a.type === UnitType.Riders ? 2 : 3;
+        const bTypePriority = b.type === UnitType.ArmyRiders ? 0 : b.type === UnitType.Landship ? 1 : b.type === UnitType.Riders ? 2 : 3;
+        if (aTypePriority !== bTypePriority) return aTypePriority - bTypePriority;
         return hexDistance(a.coord, rallyPoint) - hexDistance(b.coord, rallyPoint);
     });
+    const selectedEscortIds = new Set(potentialEscorts.slice(0, maxEscorts).map(u => u.id));
 
-    // v9.15 FIX: Only clear escort flags for units that are FAR from Titan (>6 hexes)
-    // Previously all flags were cleared, causing escorts to lose their role if they fell behind
+    // Balance pass: reserve only the chosen escort detachment so the rest of the army stays available.
     next.units.filter(u => u.ownerId === playerId).forEach(u => {
-        if (hexDistance(u.coord, titan.coord) > 6) {
+        if (u.type !== UnitType.Titan && !selectedEscortIds.has(u.id)) {
             u.isTitanEscort = false;
         }
     });
 
     let escortsMoved = 0;
+    const reservedEscortIds = new Set<string>();
     for (const escort of potentialEscorts) {
+        if (!selectedEscortIds.has(escort.id)) continue;
         const liveEscort = next.units.find(u => u.id === escort.id);
         if (!liveEscort || liveEscort.movesLeft <= 0) continue;
 
         const currentDist = hexDistance(liveEscort.coord, rallyPoint);
         if (currentDist >= 2 && currentDist <= SAFE_STAGING_DISTANCE) {
             liveEscort.isTitanEscort = true;
-            escortsMoved++;
+            reservedEscortIds.add(liveEscort.id);
             continue;
         }
 
@@ -92,34 +97,38 @@ export function followTitan(state: GameState, playerId: string): GameState {
             const movedUnit = next.units.find(u => u.id === escort.id);
             if (movedUnit) {
                 movedUnit.isTitanEscort = true;
+                reservedEscortIds.add(movedUnit.id);
             }
             escortsMoved++;
         }
     }
 
     let escortsMarked = 0;
-    next.units.filter(u =>
-        u.ownerId === playerId &&
-        isMilitary(u) &&
-        u.type !== UnitType.Titan &&
-        hexDistance(u.coord, rallyPoint) >= 2 &&
-        hexDistance(u.coord, rallyPoint) <= 4
-    ).forEach(u => {
+    next.units.filter(u => {
+        if (!selectedEscortIds.has(u.id)) return false;
+        if (u.ownerId !== playerId) return false;
+        if (!isMilitary(u)) return false;
+        if (u.type === UnitType.Titan) return false;
+        const distance = hexDistance(u.coord, rallyPoint);
+        return distance >= 2 && distance <= 4;
+    }).forEach(u => {
+        if (!reservedEscortIds.has(u.id)) {
+            escortsMarked++;
+        }
         u.isTitanEscort = true;
-        escortsMarked++;
+        reservedEscortIds.add(u.id);
     });
 
-    const player = next.players.find(p => p.id === playerId);
     if (player) {
         if (!player.titanStats) {
             player.titanStats = { kills: 0, cityCaptures: 0, deathballCaptures: 0, totalSupportAtCaptures: 0, escortsMarkedTotal: 0, escortsAtCaptureTotal: 0, totalMilitaryAtCaptures: 0, supportByCapture: [] };
         }
-        player.titanStats.escortsMarkedTotal += escortsMarked + escortsMoved;
+        player.titanStats.escortsMarkedTotal += reservedEscortIds.size;
     }
 
     if (escortsMoved > 0 || escortsMarked > 0) {
         const targetLabel = targetCity ? `city ${targetCity.name}` : `Titan`;
-        aiInfo(`[TITAN ESCORT] ${escortsMoved} moved, ${escortsMarked} already nearby -> ${escortsMoved + escortsMarked} total escorts marked for ${targetLabel}`);
+        aiInfo(`[TITAN ESCORT] ${escortsMoved} moved, ${escortsMarked} already nearby -> ${reservedEscortIds.size}/${maxEscorts} reserved escorts for ${targetLabel}`);
     }
 
     return next;
@@ -294,8 +303,8 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
     const titanHpFrac = titan.maxHp ? titan.hp / titan.maxHp : (titan.hp / UNITS[titan.type].hp);
     const onFriendlyCity = next.cities.some(c => c.ownerId === playerId && hexEquals(c.coord, titan.coord));
 
-    // v9.10: Lowered from 0.8 to 0.65 - Titan was waiting too long in cities
-    const TITAN_HEAL_THRESHOLD = 0.65;
+    // v1.0.4: Make Titans spend longer recovering in cities so bad trades have a real tempo cost.
+    const TITAN_HEAL_THRESHOLD = 0.8;
     if (onFriendlyCity && titanHpFrac < TITAN_HEAL_THRESHOLD) {
         aiInfo(`[TITAN LOG] Healing holdout in city (HP: ${Math.round(titanHpFrac * 100)}% < ${TITAN_HEAL_THRESHOLD * 100}% threshold)`);
         return next;
@@ -310,10 +319,9 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
         }
     }
 
-    // v9.11: Raised from 0.2 to 0.4 - retreat EARLIER to survive with 40% HP
-    // 82% death rate was because Titan didn't retreat until nearly dead
-    if (titanHpFrac < 0.4 && !onFriendlyCity) {
-        aiInfo(`[TITAN LOG] Retreating early (HP: ${Math.round(titanHpFrac * 100)}% < 40%) - survival priority!`);
+    // v1.0.4: Retreat earlier so post-spawn pressure cannot absorb multiple losing trades.
+    if (titanHpFrac < 0.5 && !onFriendlyCity) {
+        aiInfo(`[TITAN LOG] Retreating early (HP: ${Math.round(titanHpFrac * 100)}% < 50%) - survival priority!`);
         const safe = nearestFriendlyCity(next, playerId, titan.coord);
         if (safe) {
             const cache = createLookupCache(next);
@@ -322,18 +330,20 @@ export function runTitanAgent(state: GameState, playerId: string, ctx?: Tactical
         }
     }
 
-    // v9.16: Increased radius from 2 to 3 hexes - escorts 3 hexes away should count as support
+    const isAetherian = profile.civName === "AetherianVanguard";
     const supportCount = next.units.filter(u =>
         u.ownerId === playerId &&
         isMilitary(u) &&
         u.type !== UnitType.Titan &&
+        (!isAetherian || u.isTitanEscort) &&
         getUnitMaxMoves(u, next) >= 2 && // Actual movement with bonuses
         hexDistance(u.coord, titan.coord) <= 3  // v9.16: Extended from 2 to 3
     ).length;
-    const isAetherian = profile.civName === "AetherianVanguard";
 
-    // v9.10: Reduced from 5 to 4 to match the 4 Riders built before Titan's Core
-    const requiredSupport = isAetherian ? 4 : (titanHpFrac < 0.55 ? 4 : 3);
+    // v1.0.4: Keep Titan rewarding when healthy, but ask for the full escort package earlier once it has taken meaningful damage.
+    const requiredSupport = isAetherian
+        ? (titanHpFrac < 0.8 ? 4 : 3)
+        : (titanHpFrac < 0.55 ? 4 : 3);
     const allowDeepPush = supportCount >= requiredSupport;
 
     // v9.14: BALANCED - Retreat only when BOTH alone AND damaged

@@ -255,10 +255,10 @@ export const CIV6_DAMAGE_RANDOM_MAX = 1.1;
 export const CIV6_DAMAGE_MIN = 1;
 export const CIV6_DAMAGE_MAX = 15;
 
-// v2.1: Titan regeneration by location (Buffed from 0/2/4 to 1/2/4)
-export const TITAN_REGEN_BASE = 1;      // Enemy/neutral territory (Was 0)
-export const TITAN_REGEN_TERRITORY = 2; // Friendly territory
-export const TITAN_REGEN_CITY = 4;      // Friendly city
+// v1.0.4: Titan sustain trimmed so post-spawn pressure has to keep moving instead of healing through mistakes.
+export const TITAN_REGEN_BASE = 0;      // Enemy/neutral territory
+export const TITAN_REGEN_TERRITORY = 1; // Friendly territory
+export const TITAN_REGEN_CITY = 3;      // Friendly city
 
 // Native Camp System Constants
 export const NATIVE_CAMP_TERRITORY_RADIUS = 3;   // Tiles around camp considered territory
@@ -385,7 +385,7 @@ export const UNITS: Record<UnitType, UnitStats> = {
     [UnitType.ArmySpearGuard]: { atk: 8, def: 4, rng: 1, move: 1, hp: 15, cost: 70, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 80->70
     [UnitType.ArmyBowGuard]: { atk: 6, def: 3, rng: 2, move: 1, hp: 15, cost: 65, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 }, // v6.6o: Cost 75->65
     [UnitType.ArmyRiders]: { atk: 8, def: 4, rng: 1, move: 2, hp: 15, cost: 85, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v6.6o: Cost 95->85
-    [UnitType.Titan]: { atk: 15, def: 15, rng: 1, move: 2, hp: 40, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v9.15: HP 30→40, DEF 12→15 (survivability buff)
+    [UnitType.Titan]: { atk: 13, def: 12, rng: 1, move: 2, hp: 35, cost: 0, domain: UnitDomain.Land, canCaptureCity: true, vision: 2 }, // v1.0.4: Pull back the survivability spike so Titan pressure still matters without hard-locking wars
     // Native units (non-player controlled)
     [UnitType.NativeChampion]: { atk: 4, def: 4, rng: 1, move: 1, hp: 18, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
     [UnitType.NativeArcher]: { atk: 3, def: 2, rng: 2, move: 1, hp: 12, cost: 0, domain: UnitDomain.Land, canCaptureCity: false, vision: 2 },
@@ -427,7 +427,7 @@ export const BUILDINGS: Record<BuildingType, BuildingData> = {
     [BuildingType.Forgeworks]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 80, yieldFlat: { P: 4 }, maintenance: 3 }, // v5.0: Buffed from P:2 to P:4
     [BuildingType.Bank]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 72, yieldFlat: { G: 5 }, maintenance: 4, rushBuyDiscountPct: 15, requiresBuilding: BuildingType.MarketHall, conditional: "+1 Gold if any worked Ore Vein" },
     [BuildingType.CitySquare]: { era: EraId.Engine, techReq: TechId.UrbanPlans, cost: 80, yieldFlat: { F: 2, P: 2 }, maintenance: 3 }, // v5.0: Buffed from F:1/P:1 to F:2/P:2
-    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 60, conditional: "Summons The Titan upon completion" }, // v9.10: Buffed to 60 (was 120)
+    [BuildingType.TitansCore]: { era: EraId.Engine, techReq: TechId.SteamForges, cost: 90, conditional: "Summons The Titan upon completion" }, // v1.0.4: Delay Titan timing without restoring the old 120-production stall
 
     [BuildingType.JadeGranary]: { era: EraId.Hearth, techReq: TechId.Fieldcraft, cost: 50, yieldFlat: { F: 2, P: 1 }, maintenance: 3, conditional: "The Great Harvest: +2 Food, +1 Prod." }, // v5.8: Buffed Cost 50, +1 Prod
     // v5.5: Bulwark converted to Building (Scholar/Starborne only)

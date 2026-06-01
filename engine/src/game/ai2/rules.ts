@@ -357,13 +357,13 @@ const profiles: Record<string, CivAiProfileV2> = {
         civName: "ScholarKingdoms",
         diplomacy: {
             // Civ-balance pass: keep Scholar measured, but no longer strictly passive.
-            warPowerRatio: 1.15,
+            warPowerRatio: 1.4,
             warDistanceMax: 15,
             peaceIfBelowRatio: 0.9,
-            minWarTurn: 55,
+            minWarTurn: 90,
             maxConcurrentWars: 1,
             maxInitiatedWarsPer50Turns: 1,
-            canInitiateWars: true,
+            canInitiateWars: false,
             targetPreference: "Finishable",
         },
         tech: {
@@ -375,8 +375,8 @@ const profiles: Record<string, CivAiProfileV2> = {
                 [TechId.CityWards]: 1.25,
                 [TechId.ScriptLore]: 1.45,
                 [TechId.ScholarCourts]: 1.55,
-                [TechId.SignalRelay]: 1.2,
-                [TechId.StarCharts]: 1.3,
+                [TechId.SignalRelay]: 1.25,
+                [TechId.StarCharts]: 1.35,
             },
             pathsByGoal: {
                 // Scholar targeted pass: keep the economy stable, but return to a clearer progress closeout.
@@ -393,7 +393,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 1.9,
+            armyPerCity: 1.7,
             settlerCap: 4,
             desiredCities: 6,
             weights: {
@@ -410,22 +410,22 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [BuildingType.MarketHall]: 1.35,
                     [BuildingType.Bank]: 1.2,
                     [BuildingType.Exchange]: 1.05,
-                    [BuildingType.Bulwark]: 1.0,
-                    [BuildingType.CityWard]: 1.15,
+                    [BuildingType.Bulwark]: 0.55,
+                    [BuildingType.CityWard]: 0.8,
                     [BuildingType.Scriptorium]: 1.25,
-                    [BuildingType.Academy]: 1.35,
+                    [BuildingType.Academy]: 1.2,
                 },
                 project: {
-                    [ProjectId.Observatory]: 2.15,
-                    [ProjectId.GrandAcademy]: 1.55,
-                    [ProjectId.GrandExperiment]: 1.65,
+                    [ProjectId.Observatory]: 1.75,
+                    [ProjectId.GrandAcademy]: 1.45,
+                    [ProjectId.GrandExperiment]: 1.6,
                 },
             },
         },
         economy: {
-            reserveMultiplier: 0.95,
+            reserveMultiplier: 0.8,
             deficitToleranceTurns: 4,
-            goldBuildBias: 1.9,
+            goldBuildBias: 1.65,
             rushBuyAggression: 1.05,
             upkeepRatioLimit: 0.36,
         },
@@ -582,10 +582,10 @@ const profiles: Record<string, CivAiProfileV2> = {
         tech: {
             weights: {
                 [TechId.StoneworkHalls]: 1.3,
-                [TechId.CityWards]: 1.6,
-                [TechId.UrbanPlans]: 1.15,
-                [TechId.SignalRelay]: 0.95,
-                [TechId.StarCharts]: 0.95,
+                [TechId.CityWards]: 1.45,
+                [TechId.UrbanPlans]: 1.05,
+                [TechId.SignalRelay]: 1.05,
+                [TechId.StarCharts]: 1.1,
                 [TechId.FormationTraining]: 1.0,
                 [TechId.DrilledRanks]: 1.0,
             },
@@ -605,7 +605,7 @@ const profiles: Record<string, CivAiProfileV2> = {
             },
         },
         build: {
-            armyPerCity: 2.6,
+            armyPerCity: 2.4,
             settlerCap: 3,
             desiredCities: 4,
             weights: {
@@ -618,19 +618,19 @@ const profiles: Record<string, CivAiProfileV2> = {
                     [UnitType.ArmyRiders]: 0.7,
                 },
                 building: {
-                    [BuildingType.Bulwark]: 1.4,
-                    [BuildingType.CityWard]: 1.4,
-                    [BuildingType.Academy]: 1.4,
+                    [BuildingType.Bulwark]: 0.95,
+                    [BuildingType.CityWard]: 1.0,
+                    [BuildingType.Academy]: 1.1,
                 },
                 project: {
-                    [ProjectId.Observatory]: 1.45,
+                    [ProjectId.Observatory]: 1.35,
                     [ProjectId.GrandAcademy]: 0.95,
                     [ProjectId.GrandExperiment]: 0.95,
                 },
             },
         },
         economy: {
-            reserveMultiplier: 1.15,
+            reserveMultiplier: 0.95,
             deficitToleranceTurns: 2,
             goldBuildBias: 1.7,
             rushBuyAggression: 0.7,

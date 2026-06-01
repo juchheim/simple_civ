@@ -11,35 +11,21 @@ import { isMilitary } from "./unit-roles.js";
 
 /**
  * v9.11: Escorts actively attack enemies threatening the Titan
- * v9.16: Also proactively clears enemies along Titan's path to target
+ * v1.0.4: Limit this to true close-protection so the Titan does not get a free
+ * path-clearing mini alpha strike before it acts.
  */
 function escortsAttackThreats(state: GameState, playerId: string): GameState {
     let next = state;
     const titan = next.units.find(u => u.ownerId === playerId && u.type === UnitType.Titan);
     if (!titan) return next;
+    const MAX_ESCORT_PROTECTIVE_ATTACKS = 1;
 
-    // Get Titan's target from memory for proactive path clearing
-    const memory = (next as any).aiMemory?.[playerId] || {};
-    const targetCityId = memory.titanFocusCityId;
-    const targetCity = targetCityId ? next.cities.find(c => c.id === targetCityId) : null;
-
-    // v9.16: Find enemies either near Titan OR along path to target
+    // Only react to immediate local threats around the Titan.
     const threats = next.units.filter(u => {
         if (u.ownerId === playerId) return false;
 
         const distToTitan = hexDistance(u.coord, titan.coord);
-        // Threat if within 2 hexes of Titan
-        if (distToTitan <= 2) return true;
-
-        // v9.16: Also threat if along path to target (within 3 hexes of Titan AND closer to target)
-        if (targetCity && distToTitan <= 4) {
-            const enemyDistToTarget = hexDistance(u.coord, targetCity.coord);
-            const titanDistToTarget = hexDistance(titan.coord, targetCity.coord);
-            // Enemy is between Titan and target (closer to target than Titan)
-            if (enemyDistToTarget < titanDistToTarget) return true;
-        }
-
-        return false;
+        return distToTitan <= 2;
     }).sort((a, b) => {
         // Prioritize by threat level: higher ATK first, then lower HP (easier kills)
         const aStats = UNITS[a.type];
@@ -56,12 +42,14 @@ function escortsAttackThreats(state: GameState, playerId: string): GameState {
         u.ownerId === playerId &&
         isMilitary(u) &&
         u.type !== UnitType.Titan &&
+        u.isTitanEscort &&
         !u.hasAttacked &&
-        hexDistance(u.coord, titan.coord) <= 4 // v9.16: Extended from 3 to 4 for path clearing
+        hexDistance(u.coord, titan.coord) <= 2
     );
 
     let attacksMade = 0;
     for (const threat of threats) {
+        if (attacksMade >= MAX_ESCORT_PROTECTIVE_ATTACKS) break;
         // Find best escort to attack this threat
         for (const escort of escorts) {
             const liveEscort = next.units.find(u => u.id === escort.id);
@@ -91,8 +79,7 @@ function escortsAttackThreats(state: GameState, playerId: string): GameState {
                 if (result !== next) {
                     next = result;
                     attacksMade++;
-                    const isPathClear = hexDistance(liveThreat.coord, titan.coord) > 2;
-                    aiInfo(`[TITAN PROTECT] Escort ${liveEscort.type} attacked ${liveThreat.type}${isPathClear ? ' (PATH CLEAR)' : ''}${wouldKill ? ' (KILL)' : ''}`);
+                    aiInfo(`[TITAN PROTECT] Escort ${liveEscort.type} attacked ${liveThreat.type}${wouldKill ? ' (KILL)' : ''}`);
                     break; // Move to next threat
                 }
             }

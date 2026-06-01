@@ -29,7 +29,7 @@ function pickDefenseSupportBuilds(
     return pickGarrisonBuild(state, city, context, defenseDecision)
         ?? pickTerritorialDefenderBuild(state, city, context, defenseDecision)
         ?? pickShieldGeneratorBuild(state, city, goal, context)
-        ?? pickBulwarkBuild(state, city, context);
+        ?? pickBulwarkBuild(state, city, goal, context);
 }
 
 function pickExpandPhaseDefensePriorityBuild(

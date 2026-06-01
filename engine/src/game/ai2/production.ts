@@ -129,12 +129,16 @@ export function chooseCityBuildV2(
 
     // v7.2: PROGRESS BYPASS - If we have StarCharts and NO city is building Progress,
     // skip defense for this city so it can build Progress projects.
+    // Starborne no longer gets this bypass because it was reinforcing the exact
+    // low-risk project shell the balance passes are trying to break.
     const hasStarChartsForBypass = player.techs.includes(TechId.StarCharts);
     const anyBuildingProgressForBypass = myCities.some(c =>
         c.currentBuild?.type === "Project" &&
         [ProjectId.Observatory, ProjectId.GrandAcademy, ProjectId.GrandExperiment].includes(c.currentBuild.id as ProjectId)
     );
-    const progressBypassing = hasStarChartsForBypass && !anyBuildingProgressForBypass;
+    const progressBypassing = hasStarChartsForBypass
+        && !anyBuildingProgressForBypass
+        && profile.civName !== "StarborneSeekers";
 
     const defenseDecision = shouldPrioritizeDefense(state, city, playerId, phase, context.perception.isCoordVisible);
     const cityIndex = myCities.findIndex(c => c.id === city.id);

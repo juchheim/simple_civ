@@ -39,7 +39,7 @@ export function pickProactiveReinforcementBuild(
     const isDefensive = ["ScholarKingdoms", "StarborneSeekers"].includes(civName);
     const capPerCity = civName === "JadeCovenant"
         ? 4.4
-        : (isDefensive ? 2.5 : 6.0);
+        : (civName === "ScholarKingdoms" ? 2.0 : (isDefensive ? 2.5 : 6.0));
 
     const militaryCount = context.myMilitaryUnits.length;
     const cityCount = context.myCities.length;

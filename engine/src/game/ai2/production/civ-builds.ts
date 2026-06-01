@@ -63,7 +63,9 @@ export function pickDefensiveLorekeeperBuild(
     if (city.buildings.includes(BuildingType.Bulwark)) return null;
 
     const currentLorekeepers = context.myUnits.filter(u => u.type === UnitType.Lorekeeper).length;
-    const desiredLorekeepers = Math.max(3, Math.floor(context.myCities.length * 1.5));
+    const desiredLorekeepers = context.profile.civName === "ScholarKingdoms"
+        ? Math.max(2, Math.floor(context.myCities.length * 0.75))
+        : Math.max(3, Math.floor(context.myCities.length * 1.5));
 
     if (currentLorekeepers < desiredLorekeepers) {
         if (canBuild(city, "Unit", UnitType.Lorekeeper, state)) {
@@ -155,11 +157,13 @@ export function pickAetherianVanguardBuild(
             }
         }
 
-        // After Rider minimum met, build additional escorts (Landships, more Riders)
+        // Balance pass: keep a split force after Titan instead of feeding a six-unit escort blob.
+        // Five total mobile escorts gives the Titan more cover again, while still leaving some army
+        // available for standard front-line planning.
         const totalEscorts = context.myUnits.filter(u =>
             u.type === UnitType.ArmyRiders || u.type === UnitType.Landship || u.type === UnitType.Riders
         ).length;
-        const TITAN_ESCORT_TARGET = 6;
+        const TITAN_ESCORT_TARGET = 5;
 
         if (totalEscorts < TITAN_ESCORT_TARGET) {
             if (canBuild(city, "Unit", UnitType.Landship, state)) {

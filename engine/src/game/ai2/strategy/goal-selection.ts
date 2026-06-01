@@ -164,8 +164,11 @@ export function buildStandardGoalCandidates(
 ): GoalCandidate[] {
     const hasStarCharts = player.techs.includes(TechId.StarCharts);
     const hasCompositeArmor = player.techs.includes(TechId.CompositeArmor);
+    const hasScholarCourts = player.techs.includes(TechId.ScholarCourts);
+    const hasSignalRelay = player.techs.includes(TechId.SignalRelay);
     const myCities = state.cities.filter(c => c.ownerId === playerId).length;
     const isAggressive = AGGRESSIVE_CIVS.has(profile.civName);
+    const isScholar = profile.civName === "ScholarKingdoms";
     const conquestFirst = CONQUEST_FIRST_CIVS.has(profile.civName);
 
     const projectWeights = profile.build?.weights?.project ?? {};
@@ -176,6 +179,13 @@ export function buildStandardGoalCandidates(
     const progressAffinityScore = clamp01(progressAffinity / 2.5);
     const riskAverseScore = clamp01((0.35 - profile.tactics.riskTolerance) / 0.35);
     const progressLean = hasStarCharts ? Math.max(progressAffinityScore, riskAverseScore) : 0;
+    const scholarProgressIdentity = isScholar
+        ? (
+            hasStarCharts ? 0.03 :
+                hasSignalRelay ? 0.01 :
+                    0
+        )
+        : 0;
 
     const warBias = inWar ? clamp01((1.35 - profile.diplomacy.warPowerRatio) / 0.35) * 0.2 : 0;
 
@@ -202,14 +212,17 @@ export function buildStandardGoalCandidates(
             war: warBias,
             deny: denyThreatBias,
             conquestFirst: conquestFirstBias,
+            scholarRestraint: 0,
         }),
         makeGoalCandidate("Progress", {
             base: GOAL_BASE.Progress,
             progressLean: progressLeanBias,
             pivot: aggressivePivotBias,
+            scholarIdentity: scholarProgressIdentity,
         }),
         makeGoalCandidate("Balanced", {
             base: GOAL_BASE.Balanced,
+            scholarCommitment: 0,
         }),
     ];
 }

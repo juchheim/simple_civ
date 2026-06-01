@@ -1,5 +1,5 @@
 import { canBuild } from "../../rules.js";
-import { AiVictoryGoal, BuildingType, City, GameState, TechId, UnitType } from "../../../core/types.js";
+import { AiVictoryGoal, BuildingType, City, GameState, ProjectId, TechId, UnitType } from "../../../core/types.js";
 import { aiInfo } from "../../ai/debug-logging.js";
 import { isDefensiveCiv } from "../../helpers/civ-helpers.js";
 import { hexDistance } from "../../../core/hex.js";
@@ -245,10 +245,17 @@ export function pickShieldGeneratorBuild(
 export function pickBulwarkBuild(
     state: GameState,
     city: City,
+    goal: AiVictoryGoal,
     context: ProductionContext
 ): BuildOption | null {
     const isDefensive = isDefensiveCiv(context.profile.civName);
     if (!isDefensive) return null;
+    if (context.profile.civName === "ScholarKingdoms" && !context.player.completedProjects.includes(ProjectId.Observatory)) {
+        return null;
+    }
+    if (context.profile.civName === "ScholarKingdoms" && goal !== "Progress" && state.turn < 180) {
+        return null;
+    }
 
     const currentBulwarks = context.myCities.filter(c => c.buildings.includes(BuildingType.Bulwark)).length;
     const minBulwarks = 1;

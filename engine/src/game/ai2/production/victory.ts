@@ -65,9 +65,16 @@ export function pickVictoryProject(
     if (!player) return null;
     const progressProjects = getEligibleProgressProjects(state, playerId, player);
     const cityGateReason = getProgressCityGateReason(state, playerId);
+    const hasStarCharts = player.techs.includes(TechId.StarCharts);
+    const hasObservatory = player.completedProjects.includes(ProjectId.Observatory);
+    const hasGrandAcademy = player.completedProjects.includes(ProjectId.GrandAcademy);
+    const hasInvestedInProgress = hasObservatory || hasGrandAcademy;
 
-    // Primary Progress / science civ path
-    if (goal === "Progress" || profile.civName === "ScholarKingdoms" || profile.civName === "StarborneSeekers") {
+    // Primary Progress / science civ path.
+    // Starborne used to bypass this through a hardcoded civ check, which made
+    // profile-level project trims largely irrelevant. Keep it on the normal
+    // goal/evaluator path so project commitment has to be earned.
+    if (goal === "Progress" || profile.civName === "ScholarKingdoms") {
         for (const pid of progressProjects) {
             if (canBuild(city, "Project", pid, state)) {
                 const reason = cityGateReason ? `Victory, ${cityGateReason}` : "Victory";
@@ -77,12 +84,27 @@ export function pickVictoryProject(
         }
     }
 
-    // Hybrid/pivot path: consider building Observatory/GrandAcademy when Progress is competitive.
-    const hasStarCharts = player.techs.includes(TechId.StarCharts);
-    const hasObservatory = player.completedProjects.includes(ProjectId.Observatory);
-    const hasGrandAcademy = player.completedProjects.includes(ProjectId.GrandAcademy);
-    const hasInvestedInProgress = hasObservatory || hasGrandAcademy;
+    const starborneProgressOpenerTurn = Math.max(130, getProgressEndgameTurn(state.map) - 40);
+    const shouldOpenStarborneProgress =
+        profile.civName === "StarborneSeekers" &&
+        goal !== "Conquest" &&
+        hasStarCharts &&
+        !hasInvestedInProgress &&
+        state.turn >= starborneProgressOpenerTurn;
 
+    if (shouldOpenStarborneProgress) {
+        for (const pid of progressProjects) {
+            if (canBuild(city, "Project", pid, state)) {
+                const reason = cityGateReason
+                    ? `controlled opener, ${cityGateReason}`
+                    : `controlled opener, turn ${state.turn}`;
+                aiInfo(`[AI Build] StarborneSeekers MID-GAME PROGRESS: ${pid} (${reason})`);
+                return { type: "Project", id: pid };
+            }
+        }
+    }
+
+    // Hybrid/pivot path: consider building Observatory/GrandAcademy when Progress is competitive.
     // Shared late-game stall breaker: once a map is in its endgame window, any
     // civ with StarCharts should consider converting science into an actual win.
     const isLateGame = state.turn >= getProgressEndgameTurn(state.map);

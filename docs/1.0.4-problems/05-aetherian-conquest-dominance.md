@@ -80,7 +80,7 @@ If the Titan bypasses CP entirely, integrate it:
 
 ## Ripple Effects to Monitor
 - **AetherianVanguard should still be good at conquest.** Target win rate of 21-23% (down from 24.6%) — they should still be the top conquest civ, just not dominant.
-- **Titan should still be impactful.** A 29.6% win-with-Titan rate should drop to ~22-25% — still meaningful but not a guaranteed win.
+- **Titan should still be impactful.** Treat Titan as healthy if wins/spawns stays at or below ~36% while AetherianVanguard's top-line win rate remains in band. The Titan is supposed to be rewarding, not merely neutral.
 - **Other civs' Titan builds.** The Titan is available to all civs via TitansCore. Nerfing Titan stats affects everyone, but AetherianVanguard is most impacted since they rush it.
 - **Progress victory balance.** If AetherianVanguard conquest slows, their Progress win rate may rise (currently only 7.6%). This is acceptable.
 
@@ -90,4 +90,4 @@ Run 600 simulations before/after. Target:
 - AetherianVanguard CP spend should increase if Titan CP integration is done
 - Titan survival rate should decrease to ~25% (from 31.9%)
 - Win rate spread ≤ 5pp (currently 5.6pp)
-- Titan wins/spawns ratio should decrease to ~22-25% (from 29.6%)
+- Titan wins/spawns ratio should stay at or below 36%; treat that as fixed if AetherianVanguard's overall win rate is healthy

@@ -8,7 +8,7 @@ import { cityHasGarrison } from "./analysis.js";
 import type { BuildOption, ProductionContext } from "../production.js";
 
 const CITY_THREAT_DISTANCE = 2;
-const TITAN_RESPONSE_MILITARY_THRESHOLD = 8;
+const TITAN_RESPONSE_MILITARY_THRESHOLD = 14;
 const WAR_EMERGENCY_THRESHOLD = 6;
 
 const RANGED_GARRISON_OPTIONS = [UnitType.ArmyBowGuard, UnitType.BowGuard];
