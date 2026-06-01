@@ -40,15 +40,14 @@ export function buildProjectedHexFaces(faces: ProjectedHexFace[], projector: Pro
     return geometry;
 }
 
-function buildProjectedHexToken(
+function buildProjectedHexSides(
     coord: Coord,
     projector: Projector,
     bottomElevation: number,
     topElevation: number,
     scale: number,
 ): THREE.BufferGeometry {
-    const geometry = buildProjectedHexFaces([{ coord, elevation: topElevation, scale }], projector);
-    const positions = Array.from(geometry.getAttribute("position").array);
+    const positions: number[] = [];
 
     for (let index = 0; index < 6; index++) {
         const next = (index + 1) % 6;
@@ -62,8 +61,8 @@ function buildProjectedHexToken(
         );
     }
 
+    const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.deleteAttribute("uv");
     geometry.computeVertexNormals();
     return geometry;
 }
@@ -122,6 +121,7 @@ export function ProjectedHexToken({
     bottomElevation,
     topElevation,
     scale,
+    sideColor,
     children,
 }: {
     coord: Coord;
@@ -129,15 +129,28 @@ export function ProjectedHexToken({
     bottomElevation: number;
     topElevation: number;
     scale: number;
+    sideColor: string;
     children: React.ReactNode;
 }) {
-    const geometry = React.useMemo(
-        () => buildProjectedHexToken(coord, projector, bottomElevation, topElevation, scale),
+    const topGeometry = React.useMemo(
+        () => buildProjectedHexFaces([{ coord, elevation: topElevation, scale }], projector),
+        [coord, projector, scale, topElevation],
+    );
+    const sideGeometry = React.useMemo(
+        () => buildProjectedHexSides(coord, projector, bottomElevation, topElevation, scale),
         [bottomElevation, coord, projector, scale, topElevation],
     );
-    React.useEffect(() => () => geometry.dispose(), [geometry]);
+    React.useEffect(() => () => topGeometry.dispose(), [topGeometry]);
+    React.useEffect(() => () => sideGeometry.dispose(), [sideGeometry]);
 
-    return <mesh geometry={geometry}>{children}</mesh>;
+    return (
+        <group>
+            <mesh geometry={sideGeometry}>
+                <meshStandardMaterial color={sideColor} roughness={0.82} />
+            </mesh>
+            <mesh geometry={topGeometry}>{children}</mesh>
+        </group>
+    );
 }
 
 export function HexRing({

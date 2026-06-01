@@ -1,4 +1,4 @@
-import { TerrainType } from "@simple-civ/engine";
+import { HexCoord, TerrainType, Tile } from "@simple-civ/engine";
 
 const TERRAIN_RELIEF: Record<TerrainType, number> = {
     [TerrainType.DeepSea]: 0.04,
@@ -13,4 +13,13 @@ const TERRAIN_RELIEF: Record<TerrainType, number> = {
 
 export function getTerrainElevation(terrain: TerrainType): number {
     return TERRAIN_RELIEF[terrain];
+}
+
+export function createTerrainElevationLookup(tiles: Tile[]) {
+    const elevations = new Map(tiles.map(tile => [
+        `${tile.coord.q},${tile.coord.r}`,
+        getTerrainElevation(tile.terrain),
+    ]));
+
+    return (coord: HexCoord) => elevations.get(`${coord.q},${coord.r}`) ?? TERRAIN_RELIEF[TerrainType.Plains];
 }

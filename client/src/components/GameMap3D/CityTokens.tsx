@@ -7,10 +7,26 @@ import { ProjectedHexDecal, ProjectedHexToken } from "./primitives";
 import type { Projector } from "./projection";
 import { useBoardTexture } from "./textures";
 
-function CityToken({ overlay, projector }: { overlay: CityOverlayDescriptor; projector: Projector }) {
+const CITY_TOKEN_CLEARANCE = 0.018;
+const CITY_TOKEN_DEPTH = 0.11;
+
+function darkenColor(color: string): string {
+    return new THREE.Color(color).multiplyScalar(0.5).getStyle();
+}
+
+function CityToken({
+    overlay,
+    projector,
+    getGroundElevation,
+}: {
+    overlay: CityOverlayDescriptor;
+    projector: Projector;
+    getGroundElevation: (coord: CityOverlayDescriptor["city"]["coord"]) => number;
+}) {
     const texture = useBoardTexture(cityImages[Math.min(overlay.city.pop, 10)]);
     const bulwarkTexture = useBoardTexture(overlayImages.Bulwark);
-    const baseElevation = 0.34;
+    const baseElevation = getGroundElevation(overlay.city.coord) + CITY_TOKEN_CLEARANCE;
+    const topElevation = baseElevation + CITY_TOKEN_DEPTH;
     const hpPct = Math.max(0, Math.min(1, overlay.city.hp / overlay.city.maxHp));
 
     return (
@@ -19,15 +35,16 @@ function CityToken({ overlay, projector }: { overlay: CityOverlayDescriptor; pro
                 coord={overlay.city.coord}
                 projector={projector}
                 bottomElevation={baseElevation}
-                topElevation={baseElevation + 0.28}
+                topElevation={topElevation}
                 scale={0.9}
+                sideColor={darkenColor(overlay.strokeColor)}
             >
                 <meshStandardMaterial color={overlay.strokeColor} roughness={0.72} />
             </ProjectedHexToken>
             <ProjectedHexDecal
                 coord={overlay.city.coord}
                 projector={projector}
-                elevation={baseElevation + 0.285}
+                elevation={topElevation + 0.005}
                 scale={0.86}
             >
                 <meshBasicMaterial map={texture} transparent alphaTest={0.04} side={THREE.DoubleSide} />
@@ -36,14 +53,14 @@ function CityToken({ overlay, projector }: { overlay: CityOverlayDescriptor; pro
                 <ProjectedHexDecal
                     coord={overlay.city.coord}
                     projector={projector}
-                    elevation={baseElevation + 0.3}
+                    elevation={topElevation + 0.01}
                     scale={0.89}
                 >
                     <meshBasicMaterial map={bulwarkTexture} transparent alphaTest={0.04} side={THREE.DoubleSide} />
                 </ProjectedHexDecal>
             )}
             <Html
-                position={projector.positionOf(overlay.city.coord, baseElevation + 0.8)}
+                position={projector.positionOf(overlay.city.coord, topElevation + 0.45)}
                 center
                 distanceFactor={8}
                 style={{ pointerEvents: "none" }}
@@ -59,6 +76,14 @@ function CityToken({ overlay, projector }: { overlay: CityOverlayDescriptor; pro
     );
 }
 
-export function CityTokens({ overlays, projector }: { overlays: CityOverlayDescriptor[]; projector: Projector }) {
-    return <>{overlays.map(overlay => <CityToken key={overlay.key} overlay={overlay} projector={projector} />)}</>;
+export function CityTokens({
+    overlays,
+    projector,
+    getGroundElevation,
+}: {
+    overlays: CityOverlayDescriptor[];
+    projector: Projector;
+    getGroundElevation: (coord: CityOverlayDescriptor["city"]["coord"]) => number;
+}) {
+    return <>{overlays.map(overlay => <CityToken key={overlay.key} overlay={overlay} projector={projector} getGroundElevation={getGroundElevation} />)}</>;
 }

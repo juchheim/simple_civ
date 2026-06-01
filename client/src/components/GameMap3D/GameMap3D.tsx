@@ -11,6 +11,7 @@ import { useRenderData } from "../../hooks/useRenderData";
 import { BoardIndicators } from "./BoardIndicators";
 import { BorderTubes } from "./BorderTubes";
 import { CityTokens } from "./CityTokens";
+import { createTerrainElevationLookup } from "./elevation";
 import { FogLayer } from "./FogLayer";
 import { BoardLighting } from "./lighting";
 import { OverlayDecals } from "./OverlayDecals";
@@ -65,6 +66,10 @@ function BoardScene({
         () => getCameraDistanceBounds(projector.surface.radius),
         [projector.surface.radius],
     );
+    const getGroundElevation = React.useMemo(
+        () => createTerrainElevationLookup(mapTiles),
+        [mapTiles],
+    );
     const { controller, handleControlsChange } = useMap3DController({
         projector,
         tiles: mapTiles,
@@ -91,9 +96,9 @@ function BoardScene({
             <OverlayDecals entries={tiles} projector={projector} showTileYields={showTileYields} />
             <RiverRibbons segments={rivers} projector={projector} />
             <BorderTubes borders={borders} projector={projector} />
-            <CityTokens overlays={cities} projector={projector} />
-            <UnitTokens units={unitsOnCity} projector={projector} onCity />
-            <UnitTokens units={unitsOffCity} projector={projector} />
+            <CityTokens overlays={cities} projector={projector} getGroundElevation={getGroundElevation} />
+            <UnitTokens units={unitsOnCity} projector={projector} getGroundElevation={getGroundElevation} onCity />
+            <UnitTokens units={unitsOffCity} projector={projector} getGroundElevation={getGroundElevation} />
             <BoardIndicators tiles={tiles} path={path} projector={projector} />
             <OrbitControls
                 ref={controlsRef}
