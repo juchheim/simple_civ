@@ -3,43 +3,44 @@ import { BuildingType } from "@simple-civ/engine";
 import * as THREE from "three";
 import { cityImages, overlayImages } from "../../assets";
 import type { CityOverlayDescriptor } from "../GameMap/CityLayer";
+import { ProjectedHexDecal, ProjectedHexToken } from "./primitives";
 import type { Projector } from "./projection";
 import { useBoardTexture } from "./textures";
 
 function CityToken({ overlay, projector }: { overlay: CityOverlayDescriptor; projector: Projector }) {
     const texture = useBoardTexture(cityImages[Math.min(overlay.city.pop, 10)]);
     const bulwarkTexture = useBoardTexture(overlayImages.Bulwark);
-    const normal = projector.normalAt(overlay.city.coord);
-    const tokenQuaternion = projector.orientationOf(overlay.city.coord);
-    const decalQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
     const baseElevation = 0.34;
     const hpPct = Math.max(0, Math.min(1, overlay.city.hp / overlay.city.maxHp));
 
     return (
         <group>
-            <mesh
-                position={projector.positionOf(overlay.city.coord, baseElevation + 0.14)}
-                quaternion={tokenQuaternion}
-                scale={[0.86, 0.28, 0.86]}
+            <ProjectedHexToken
+                coord={overlay.city.coord}
+                projector={projector}
+                bottomElevation={baseElevation}
+                topElevation={baseElevation + 0.28}
+                scale={0.9}
             >
-                <cylinderGeometry args={[1, 1, 1, 6]} />
                 <meshStandardMaterial color={overlay.strokeColor} roughness={0.72} />
-            </mesh>
-            <mesh
-                position={projector.positionOf(overlay.city.coord, baseElevation + 0.285)}
-                quaternion={decalQuaternion}
+            </ProjectedHexToken>
+            <ProjectedHexDecal
+                coord={overlay.city.coord}
+                projector={projector}
+                elevation={baseElevation + 0.285}
+                scale={0.86}
             >
-                <circleGeometry args={[0.84, 6]} />
                 <meshBasicMaterial map={texture} transparent alphaTest={0.04} side={THREE.DoubleSide} />
-            </mesh>
+            </ProjectedHexDecal>
             {overlay.city.buildings.includes(BuildingType.Bulwark) && (
-                <mesh
-                    position={projector.positionOf(overlay.city.coord, baseElevation + 0.3)}
-                    quaternion={decalQuaternion}
+                <ProjectedHexDecal
+                    coord={overlay.city.coord}
+                    projector={projector}
+                    elevation={baseElevation + 0.3}
+                    scale={0.89}
                 >
-                    <circleGeometry args={[0.87, 6]} />
                     <meshBasicMaterial map={bulwarkTexture} transparent alphaTest={0.04} side={THREE.DoubleSide} />
-                </mesh>
+                </ProjectedHexDecal>
             )}
             <Html
                 position={projector.positionOf(overlay.city.coord, baseElevation + 0.8)}

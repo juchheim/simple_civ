@@ -4,6 +4,142 @@ import type { Projector } from "./projection";
 
 type Coord = { q: number; r: number };
 
+type ProjectedHexFace = {
+    coord: Coord;
+    elevation: number;
+    scale?: number;
+};
+
+export function buildProjectedHexFaces(faces: ProjectedHexFace[], projector: Projector): THREE.BufferGeometry {
+    const positions: number[] = [];
+    const uvs: number[] = [];
+
+    faces.forEach(({ coord, elevation, scale = 1 }) => {
+        const center = projector.positionOf(coord, elevation);
+        for (let index = 0; index < 6; index++) {
+            const next = (index + 1) % 6;
+            const angle = ((60 * index - 30) * Math.PI) / 180;
+            const nextAngle = ((60 * next - 30) * Math.PI) / 180;
+            positions.push(
+                ...center.toArray(),
+                ...projector.cornerOf(coord, index, elevation, scale).toArray(),
+                ...projector.cornerOf(coord, next, elevation, scale).toArray(),
+            );
+            uvs.push(
+                0.5, 0.5,
+                0.5 + Math.cos(angle) * 0.5, 0.5 - Math.sin(angle) * 0.5,
+                0.5 + Math.cos(nextAngle) * 0.5, 0.5 - Math.sin(nextAngle) * 0.5,
+            );
+        }
+    });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    return geometry;
+}
+
+function buildProjectedHexToken(
+    coord: Coord,
+    projector: Projector,
+    bottomElevation: number,
+    topElevation: number,
+    scale: number,
+): THREE.BufferGeometry {
+    const geometry = buildProjectedHexFaces([{ coord, elevation: topElevation, scale }], projector);
+    const positions = Array.from(geometry.getAttribute("position").array);
+
+    for (let index = 0; index < 6; index++) {
+        const next = (index + 1) % 6;
+        const bottomA = projector.cornerOf(coord, index, bottomElevation, scale);
+        const bottomB = projector.cornerOf(coord, next, bottomElevation, scale);
+        const topA = projector.cornerOf(coord, index, topElevation, scale);
+        const topB = projector.cornerOf(coord, next, topElevation, scale);
+        positions.push(
+            ...bottomA.toArray(), ...bottomB.toArray(), ...topB.toArray(),
+            ...bottomA.toArray(), ...topB.toArray(), ...topA.toArray(),
+        );
+    }
+
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.deleteAttribute("uv");
+    geometry.computeVertexNormals();
+    return geometry;
+}
+
+function buildProjectedHexRing(
+    coord: Coord,
+    projector: Projector,
+    elevation: number,
+    innerScale: number,
+    outerScale: number,
+): THREE.BufferGeometry {
+    const positions: number[] = [];
+    for (let index = 0; index < 6; index++) {
+        const next = (index + 1) % 6;
+        const innerA = projector.cornerOf(coord, index, elevation, innerScale);
+        const innerB = projector.cornerOf(coord, next, elevation, innerScale);
+        const outerA = projector.cornerOf(coord, index, elevation, outerScale);
+        const outerB = projector.cornerOf(coord, next, elevation, outerScale);
+        positions.push(
+            ...innerA.toArray(), ...outerA.toArray(), ...outerB.toArray(),
+            ...innerA.toArray(), ...outerB.toArray(), ...innerB.toArray(),
+        );
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    return geometry;
+}
+
+export function ProjectedHexDecal({
+    coord,
+    projector,
+    elevation,
+    scale = 1,
+    children,
+}: {
+    coord: Coord;
+    projector: Projector;
+    elevation: number;
+    scale?: number;
+    children: React.ReactNode;
+}) {
+    const geometry = React.useMemo(
+        () => buildProjectedHexFaces([{ coord, elevation, scale }], projector),
+        [coord, elevation, projector, scale],
+    );
+    React.useEffect(() => () => geometry.dispose(), [geometry]);
+
+    return <mesh geometry={geometry}>{children}</mesh>;
+}
+
+export function ProjectedHexToken({
+    coord,
+    projector,
+    bottomElevation,
+    topElevation,
+    scale,
+    children,
+}: {
+    coord: Coord;
+    projector: Projector;
+    bottomElevation: number;
+    topElevation: number;
+    scale: number;
+    children: React.ReactNode;
+}) {
+    const geometry = React.useMemo(
+        () => buildProjectedHexToken(coord, projector, bottomElevation, topElevation, scale),
+        [bottomElevation, coord, projector, scale, topElevation],
+    );
+    React.useEffect(() => () => geometry.dispose(), [geometry]);
+
+    return <mesh geometry={geometry}>{children}</mesh>;
+}
+
 export function HexRing({
     coord,
     projector,
@@ -19,19 +155,14 @@ export function HexRing({
     scale?: number;
     opacity?: number;
 }) {
-    const transform = React.useMemo(() => {
-        const normal = projector.normalAt(coord);
-        return {
-            position: projector.positionOf(coord, elevation).toArray() as [number, number, number],
-            quaternion: new THREE.Quaternion()
-                .setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
-                .toArray() as [number, number, number, number],
-        };
-    }, [coord, elevation, projector]);
+    const geometry = React.useMemo(
+        () => buildProjectedHexRing(coord, projector, elevation, 0.76 * scale, 0.9 * scale),
+        [coord, elevation, projector, scale],
+    );
+    React.useEffect(() => () => geometry.dispose(), [geometry]);
 
     return (
-        <mesh position={transform.position} quaternion={transform.quaternion} scale={scale}>
-            <ringGeometry args={[0.76, 0.9, 6]} />
+        <mesh geometry={geometry}>
             <meshBasicMaterial color={color} transparent opacity={opacity} side={THREE.DoubleSide} />
         </mesh>
     );

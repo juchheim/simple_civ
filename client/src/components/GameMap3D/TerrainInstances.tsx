@@ -35,8 +35,8 @@ function buildTopGeometry(entries: TileRenderEntry[], projector: Projector): THR
             );
             uvs.push(
                 0.5, 0.5,
-                0.5 + Math.cos(angle) * 0.5, 0.5 + Math.sin(angle) * 0.5,
-                0.5 + Math.cos(nextAngle) * 0.5, 0.5 + Math.sin(nextAngle) * 0.5,
+                0.5 + Math.cos(angle) * 0.5, 0.5 - Math.sin(angle) * 0.5,
+                0.5 + Math.cos(nextAngle) * 0.5, 0.5 - Math.sin(nextAngle) * 0.5,
             );
         }
     });

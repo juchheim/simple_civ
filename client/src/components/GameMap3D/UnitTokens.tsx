@@ -3,36 +3,35 @@ import { UnitType } from "@simple-civ/engine";
 import * as THREE from "three";
 import { unitImages } from "../../assets";
 import type { UnitDescriptor } from "../GameMap/UnitLayer";
-import { HexRing } from "./primitives";
+import { HexRing, ProjectedHexDecal, ProjectedHexToken } from "./primitives";
 import type { Projector } from "./projection";
 import { useBoardTexture } from "./textures";
 
 function UnitToken({ descriptor, projector, stackOffset }: { descriptor: UnitDescriptor; projector: Projector; stackOffset: number }) {
     const texture = useBoardTexture(unitImages[descriptor.unit.type] || unitImages.Scout);
-    const normal = projector.normalAt(descriptor.unit.coord);
-    const tokenQuaternion = projector.orientationOf(descriptor.unit.coord);
-    const decalQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
     const isExhausted = descriptor.unit.movesLeft <= 0 && descriptor.unit.hasAttacked && !descriptor.unit.cpGranted;
     const baseElevation = 0.72 + stackOffset;
     const hpPct = Math.max(0, Math.min(1, descriptor.unit.hp / descriptor.unit.maxHp));
 
     return (
         <group>
-            <mesh
-                position={projector.positionOf(descriptor.unit.coord, baseElevation + 0.1)}
-                quaternion={tokenQuaternion}
-                scale={[0.58, 0.2, 0.58]}
+            <ProjectedHexToken
+                coord={descriptor.unit.coord}
+                projector={projector}
+                bottomElevation={baseElevation}
+                topElevation={baseElevation + 0.2}
+                scale={0.78}
             >
-                <cylinderGeometry args={[1, 1, 1, 6]} />
                 <meshStandardMaterial color={descriptor.color} roughness={0.74} opacity={isExhausted ? 0.62 : 1} transparent={isExhausted} />
-            </mesh>
-            <mesh
-                position={projector.positionOf(descriptor.unit.coord, baseElevation + 0.205)}
-                quaternion={decalQuaternion}
+            </ProjectedHexToken>
+            <ProjectedHexDecal
+                coord={descriptor.unit.coord}
+                projector={projector}
+                elevation={baseElevation + 0.205}
+                scale={0.74}
             >
-                <circleGeometry args={[0.56, 6]} />
                 <meshBasicMaterial map={texture} transparent alphaTest={0.04} opacity={isExhausted ? 0.62 : 1} side={THREE.DoubleSide} />
-            </mesh>
+            </ProjectedHexDecal>
             {(descriptor.isSelected || descriptor.isLinkedPartner) && (
                 <HexRing
                     coord={descriptor.unit.coord}

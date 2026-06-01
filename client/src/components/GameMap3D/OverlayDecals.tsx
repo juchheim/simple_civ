@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { terrainImages } from "../../assets";
 import type { TileRenderEntry } from "../../hooks/useRenderData";
 import { getTerrainElevation } from "./elevation";
+import { ProjectedHexDecal } from "./primitives";
 import type { Projector } from "./projection";
 import { useBoardTexture } from "./textures";
 
@@ -21,19 +22,20 @@ const RESOURCE_COLORS: Partial<Record<OverlayType, string>> = {
 
 function OverlaySprite({
     url,
-    position,
-    quaternion,
+    coord,
+    projector,
+    elevation,
 }: {
     url: string;
-    position: THREE.Vector3;
-    quaternion: THREE.Quaternion;
+    coord: { q: number; r: number };
+    projector: Projector;
+    elevation: number;
 }) {
     const texture = useBoardTexture(url);
     return (
-        <mesh position={position} quaternion={quaternion}>
-            <circleGeometry args={[0.72, 6]} />
+        <ProjectedHexDecal coord={coord} projector={projector} elevation={elevation} scale={0.72}>
             <meshBasicMaterial map={texture} transparent alphaTest={0.08} depthWrite={false} side={THREE.DoubleSide} />
-        </mesh>
+        </ProjectedHexDecal>
     );
 }
 
@@ -50,10 +52,7 @@ export function OverlayDecals({
         <>
             {entries.flatMap(entry => {
                 if (!entry.visibility.isVisible && !entry.visibility.isFogged) return [];
-                const normal = projector.normalAt(entry.tile.coord);
-                const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
                 const elevation = getTerrainElevation(entry.tile.terrain) + 0.025;
-                const basePosition = projector.positionOf(entry.tile.coord, elevation);
                 return entry.tile.overlays
                     .filter(overlay => overlay !== OverlayType.RiverEdge)
                     .map((overlay, index) => {
@@ -63,21 +62,23 @@ export function OverlayDecals({
                                 <OverlaySprite
                                     key={`${entry.key}-${overlay}-${index}`}
                                     url={texture}
-                                    position={basePosition}
-                                    quaternion={quaternion}
+                                    coord={entry.tile.coord}
+                                    projector={projector}
+                                    elevation={elevation + index * 0.01}
                                 />
                             );
                         }
 
                         return (
-                            <mesh
+                            <ProjectedHexDecal
                                 key={`${entry.key}-${overlay}-${index}`}
-                                position={basePosition.clone().add(normal.clone().multiplyScalar(0.025 + index * 0.035))}
-                                quaternion={quaternion}
+                                coord={entry.tile.coord}
+                                projector={projector}
+                                elevation={elevation + 0.025 + index * 0.035}
+                                scale={0.17}
                             >
-                                <circleGeometry args={[0.17, overlay === OverlayType.OreVein ? 4 : 12]} />
                                 <meshBasicMaterial color={RESOURCE_COLORS[overlay] ?? "#ffffff"} side={THREE.DoubleSide} />
-                            </mesh>
+                            </ProjectedHexDecal>
                         );
                     });
             })}

@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { terrainImages } from "../../assets";
 import type { TileRenderEntry } from "../../hooks/useRenderData";
 import { getTerrainElevation } from "./elevation";
+import { buildProjectedHexFaces } from "./primitives";
 import type { Projector } from "./projection";
 import { useBoardTexture } from "./textures";
 
@@ -21,31 +22,21 @@ function FogBatch({
     projector: Projector;
     opacity: number;
 }) {
-    const meshRef = React.useRef<THREE.InstancedMesh>(null);
     const fogTexture = useBoardTexture(terrainImages.Fog);
-
-    React.useLayoutEffect(() => {
-        const mesh = meshRef.current;
-        if (!mesh) return;
-        const matrix = new THREE.Matrix4();
-        const scale = new THREE.Vector3(1, 1, 1);
-        entries.forEach((entry, index) => {
-            const normal = projector.normalAt(entry.tile.coord);
-            matrix.compose(
-                projector.positionOf(entry.tile.coord, getTerrainElevation(entry.tile.terrain) + 0.012),
-                new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal),
-                scale,
-            );
-            mesh.setMatrixAt(index, matrix);
-        });
-        mesh.instanceMatrix.needsUpdate = true;
-    }, [entries, projector]);
+    const geometry = React.useMemo(
+        () => buildProjectedHexFaces(entries.map(entry => ({
+            coord: entry.tile.coord,
+            elevation: getTerrainElevation(entry.tile.terrain) + 0.018,
+            scale: 0.98,
+        })), projector),
+        [entries, projector],
+    );
+    React.useEffect(() => () => geometry.dispose(), [geometry]);
 
     return (
-        <instancedMesh ref={meshRef} args={[undefined, undefined, entries.length]} frustumCulled={false}>
-            <circleGeometry args={[0.96, 6]} />
+        <mesh geometry={geometry} frustumCulled={false}>
             <meshBasicMaterial map={fogTexture} transparent opacity={opacity} depthWrite={false} side={THREE.DoubleSide} />
-        </instancedMesh>
+        </mesh>
     );
 }
 

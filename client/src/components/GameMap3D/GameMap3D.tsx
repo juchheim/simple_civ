@@ -19,7 +19,7 @@ import { RiverRibbons } from "./RiverRibbons";
 import { WorldSurfaceShell } from "./surface";
 import { TerrainInstances } from "./TerrainInstances";
 import { UnitTokens } from "./UnitTokens";
-import { Map3DController, useMap3DController } from "./useMap3DController";
+import { getCameraDistanceBounds, Map3DController, useMap3DController } from "./useMap3DController";
 
 const WORLD_HEX_SIZE = 1;
 
@@ -61,6 +61,10 @@ function BoardScene({
     onControllerReady,
 }: SceneProps) {
     const controlsRef = React.useRef<OrbitControlsImpl>(null);
+    const cameraBounds = React.useMemo(
+        () => getCameraDistanceBounds(projector.surface.radius),
+        [projector.surface.radius],
+    );
     const { controller, handleControlsChange } = useMap3DController({
         projector,
         tiles: mapTiles,
@@ -96,8 +100,9 @@ function BoardScene({
                 enableDamping
                 dampingFactor={0.09}
                 enablePan={false}
-                minDistance={Math.max(projector.surface.radius * 1.14, 5)}
-                maxDistance={Math.max(projector.surface.radius * 3.4, 16)}
+                zoomSpeed={0.35}
+                minDistance={cameraBounds.min}
+                maxDistance={cameraBounds.max}
                 minPolarAngle={Math.PI * 0.16}
                 maxPolarAngle={Math.PI * 0.84}
                 onChange={handleControlsChange}
@@ -147,12 +152,11 @@ const GameMap3DComponent = React.forwardRef<GameMapHandle, GameMapProps>(({
     });
 
     const initialCenter = React.useMemo(() => {
-        if (renderData.selectedUnit) return renderData.selectedUnit.coord;
         return units.find(unit => unit.ownerId === playerId)?.coord ??
             cities.find(city => city.ownerId === playerId)?.coord ??
             map.tiles[0]?.coord ??
             null;
-    }, [cities, map.tiles, playerId, renderData.selectedUnit, units]);
+    }, [cities, map.tiles, playerId, units]);
 
     React.useEffect(() => {
         const player = gameState.players.find(candidate => candidate.id === playerId);

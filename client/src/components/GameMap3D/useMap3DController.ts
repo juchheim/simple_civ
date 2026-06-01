@@ -13,6 +13,13 @@ export type Map3DController = {
     centerOnPoint: (point: { x: number; y: number }) => void;
 };
 
+export function getCameraDistanceBounds(radius: number) {
+    return {
+        min: Math.max(radius * 1.65, 12),
+        max: Math.max(radius * 2.65, 20),
+    };
+}
+
 type ControllerParams = {
     projector: Projector;
     tiles: Tile[];
@@ -30,6 +37,7 @@ export function useMap3DController({
 }: ControllerParams) {
     const { camera, invalidate, size } = useThree();
     const centeredCoordRef = React.useRef<HexCoord>(initialCenter ?? tiles[0]?.coord ?? { q: 0, r: 0 });
+    const hasInitializedRef = React.useRef(false);
     const tileKeys = React.useMemo(() => new Set(tiles.map(tile => `${tile.coord.q},${tile.coord.r}`)), [tiles]);
 
     const emitViewport = React.useCallback((coord: HexCoord) => {
@@ -61,13 +69,16 @@ export function useMap3DController({
         if (!controls) return;
         const normal = projector.normalAt(coord);
         const position = projector.positionOf(coord);
-        const distance = Math.max(projector.surface.radius * 0.58, 6);
+        const bounds = getCameraDistanceBounds(projector.surface.radius);
+        const distance = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target), bounds.min, bounds.max);
         const target = projector.surface.kind === "cylinder"
             ? new THREE.Vector3(0, position.y, 0)
             : new THREE.Vector3(0, 0, 0);
-        const cameraPosition = normal.multiplyScalar(projector.surface.radius + distance);
+        const cameraPosition = normal.multiplyScalar(distance);
         if (projector.surface.kind === "cylinder") {
-            cameraPosition.y = position.y + Math.max(2.5, projector.surface.radius * 0.24);
+            const lift = distance * 0.24;
+            cameraPosition.multiplyScalar(Math.sqrt(distance * distance - lift * lift) / distance);
+            cameraPosition.y = target.y + lift;
         }
 
         controls.target.copy(target);
@@ -107,6 +118,8 @@ export function useMap3DController({
     }, [camera.position, controlsRef, emitViewport, invalidate, projector, tileKeys]);
 
     React.useEffect(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
         if (initialCenter) {
             centerOnCoord(initialCenter);
         } else {

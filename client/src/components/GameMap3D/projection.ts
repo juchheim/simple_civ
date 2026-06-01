@@ -22,7 +22,7 @@ export type Projector = {
     positionOf: (coord: HexCoord, elevation?: number) => THREE.Vector3;
     normalAt: (coord: HexCoord) => THREE.Vector3;
     orientationOf: (coord: HexCoord) => THREE.Quaternion;
-    cornerOf: (coord: HexCoord, cornerIndex: number, elevation?: number) => THREE.Vector3;
+    cornerOf: (coord: HexCoord, cornerIndex: number, elevation?: number, scale?: number) => THREE.Vector3;
     pointToWorld: (point: { x: number; y: number }, elevation?: number) => THREE.Vector3;
     pixelToHex: (point: { x: number; y: number }) => HexCoord;
 };
@@ -154,10 +154,10 @@ export function createProjector(
         positionOf,
         normalAt,
         orientationOf,
-        cornerOf: (coord, cornerIndex, elevation = 0) => {
+        cornerOf: (coord, cornerIndex, elevation = 0, scale = 1) => {
             const center = hexToPixel(coord, hexSize);
             const corner = corners[((cornerIndex % 6) + 6) % 6];
-            return pointToWorld({ x: center.x + corner.x, y: center.y + corner.y }, elevation);
+            return pointToWorld({ x: center.x + corner.x * scale, y: center.y + corner.y * scale }, elevation);
         },
         pointToWorld,
         pixelToHex: point => pixelToHex(point, hexSize),
