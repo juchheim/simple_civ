@@ -1,5 +1,16 @@
 # Working Memory
 
+- **3D Board Planning (Jun 1, 2026):** Created planning + implementation doc set in `docs/3d-board/` (README + 00–09) for an optional 3D rendering of the board, on branch `feature/3d-board`.
+  - **Entities:** `docs/3d-board/*` (overview, current-architecture, geometry-and-topology, engine-choice, rendering-design, interaction-and-camera, preferences-and-integration, implementation-plan, asset-pipeline, risks).
+  - **Key decisions/relationships:**
+    - **Engine topology is frozen.** 3D is a *render-only* projection of the existing flat, bounded axial `(q,r)` hex grid (`engine/src/core/types.ts`, `MAP_DIMS` in `engine/src/core/constants.ts`). No change to coords/adjacency/distance/pathfinding/map-gen/saves.
+    - **Default 3D surface = cylinder** (developable → zero hex distortion). A true **sphere is not viable** for current map aspect ratios (~1.5:1) + bounded grid: equirectangular fit forces 180° latitude band (max pole pinch) and an incomplete wrap. Encoded as `chooseWorldSurface(W,H)` which picks cylinder for all current `MAP_DIMS`. Sphere is experimental/optional.
+    - **Engine choice:** Three.js + `@react-three/fiber` + `drei` (lazy-loaded, code-split). Client currently has NO 3D dep (React+Vite only).
+    - **Reuse seam:** `client/src/hooks/useRenderData.ts` is projection-independent; the new `GameMap3D` consumes the same render data + same `GameMap` props/`GameMapHandle`. New `BoardRenderer` branches 2D(SVG)/3D at the single mount point `client/src/components/AppFlow/InGameContent.tsx`.
+    - **Preference:** new `boardMode` (`"3d"` default) via localStorage hook mirroring `useCombatPreviewPreference.ts`, plumbed `useAppUiFlow → useAppCoreState → useAppPresenterModel → InGameContent → HUD → GameMenu` (like `showShroud`); shown in Game→Preferences (`HUD/sections/GameMenu.tsx`). WebGL capability gate + error-boundary fallback to 2D.
+    - **Art reuse:** all existing PNGs (`client/public/{terrain,units,cities,overlays}`, registry `client/src/assets.ts`) become textures; units/cities = extruded hex tokens (PNG top, civ-color sides); terrain = relief prisms; rivers/borders = surface ribbons from existing edge data.
+  - **Observations:** 2D board is SVG, pointy-top hexes, `HEX_SIZE=75`, `hexToPixel` in `client/src/components/GameMap/geometry.ts`; picking is nearest-center scan (→ raycast in 3D); map generation rings the map with ocean (edge falloff), so wrap seams fall in deep ocean.
+
 - **v1.0 Final Balance (Dec 3, 2025):** Final tuning based on 600-game statistical verification:
   - **Aetherian Vanguard BUFF**: "Battle Hardened" perk increased to **+2 HP per era** (max +6).
     - *Reasoning*: Win rate was slightly low (14.8%). This solidifies their late-game "God-Killer" identity.
