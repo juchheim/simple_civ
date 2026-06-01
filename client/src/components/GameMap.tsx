@@ -20,7 +20,7 @@ export type GameMapHandle = {
 /**
  * Props for the GameMap component.
  */
-interface GameMapProps {
+export interface GameMapProps {
     /** The current game state. */
     gameState: GameState;
     /** Callback when a tile is clicked. */

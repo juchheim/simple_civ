@@ -151,6 +151,10 @@ describe("useAppCoreState", () => {
             closeGameMenu,
             resetMapNavigation: vi.fn(),
             resetUiOverlays,
+            boardMode: "3d",
+            effectiveBoardMode: "2d",
+            supports3D: false,
+            setBoardMode: vi.fn(),
         });
         mockUseEraMusic.mockReturnValue({
             activeEra: null,

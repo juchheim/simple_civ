@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { HexCoord } from "@simple-civ/engine";
 import { MapViewport } from "../components/GameMap";
+import { BoardMode, useBoardModePreference } from "./useBoardModePreference";
 
 type UseAppUiFlowResult = {
     showTechTree: boolean;
@@ -21,9 +22,19 @@ type UseAppUiFlowResult = {
     closeGameMenu: () => void;
     resetMapNavigation: () => void;
     resetUiOverlays: () => void;
+    boardMode: BoardMode;
+    effectiveBoardMode: BoardMode;
+    supports3D: boolean;
+    setBoardMode: (mode: BoardMode) => void;
 };
 
 export function useAppUiFlow(): UseAppUiFlowResult {
+    const {
+        boardMode,
+        effectiveMode: effectiveBoardMode,
+        supports3D,
+        setBoardMode,
+    } = useBoardModePreference();
     const [showTechTree, setShowTechTreeState] = useState(false);
     const [showShroud, setShowShroud] = useState(true);
     const [showTileYields, setShowTileYields] = useState(false);
@@ -97,5 +108,9 @@ export function useAppUiFlow(): UseAppUiFlowResult {
         closeGameMenu,
         resetMapNavigation,
         resetUiOverlays,
+        boardMode,
+        effectiveBoardMode,
+        supports3D,
+        setBoardMode,
     };
 }

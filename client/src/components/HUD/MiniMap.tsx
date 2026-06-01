@@ -3,6 +3,7 @@ import { GameState } from "@simple-civ/engine";
 import { MapViewport } from "../GameMap";
 import { getTerrainColor, getHexPoints, hexToPixel } from "../GameMap/geometry";
 import { HEX_SIZE } from "../GameMap/constants";
+import type { BoardMode } from "../../hooks/useBoardModePreference";
 
 type MiniMapProps = {
     gameState: GameState;
@@ -10,6 +11,7 @@ type MiniMapProps = {
     mapView: MapViewport | null;
     selectedUnitId: string | null;
     onNavigate: (point: { x: number; y: number }) => void;
+    boardMode?: BoardMode;
 };
 
 const MINIMAP_SIZE = 220;
@@ -17,7 +19,7 @@ const VIEWPORT_MIN_SIZE = 10;
 const CITY_MARK_SCALE = 0.72;
 const UNIT_MARK_SCALE = 0.6;
 
-export const MiniMap: React.FC<MiniMapProps> = ({ gameState, playerId, mapView, selectedUnitId, onNavigate }) => {
+export const MiniMap: React.FC<MiniMapProps> = ({ gameState, playerId, mapView, selectedUnitId, onNavigate, boardMode = "2d" }) => {
     const svgRef = React.useRef<SVGSVGElement>(null);
     const [isDragging, setIsDragging] = React.useState(false);
     const hexPoints = React.useMemo(() => getHexPoints(HEX_SIZE), []);
@@ -223,13 +225,22 @@ export const MiniMap: React.FC<MiniMapProps> = ({ gameState, playerId, mapView, 
                         fillOpacity={0.5}
                     />
                 )}
-                {viewportRect && (
+                {viewportRect && boardMode === "2d" && (
                     <rect
                         x={viewportRect.x}
                         y={viewportRect.y}
                         width={viewportRect.width}
                         height={viewportRect.height}
                         className="hud-minimap-viewport"
+                    />
+                )}
+                {mapView && boardMode === "3d" && (
+                    <circle
+                        cx={mapView.center.x}
+                        cy={mapView.center.y}
+                        r={HEX_SIZE * 1.4}
+                        className="hud-minimap-viewport"
+                        fill="rgba(255,255,255,0.14)"
                     />
                 )}
             </svg>

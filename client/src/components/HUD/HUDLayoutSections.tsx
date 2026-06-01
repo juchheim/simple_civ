@@ -5,6 +5,7 @@ import { MiniMap } from "./MiniMap";
 import type { AttentionTask, BlockingTask, CityStateRow, DiplomacyRow, EmpireYields, HUDLayoutProps, HUDSelectionState } from "./helpers";
 import type { CityBuildOptions } from "./hooks";
 import { useTutorial } from "../../contexts/TutorialContext";
+import type { BoardMode } from "../../hooks/useBoardModePreference";
 
 type ToggleCardProps = {
     label: string;
@@ -62,6 +63,7 @@ type TopRowProps = {
     selectedUnitId: string | null;
     onNavigateMap: (point: { x: number; y: number }) => void;
     sciencePerTurn: number;
+    boardMode: BoardMode;
 };
 
 export const TopRow: React.FC<TopRowProps> = ({
@@ -86,6 +88,7 @@ export const TopRow: React.FC<TopRowProps> = ({
     selectedUnitId,
     onNavigateMap,
     sciencePerTurn,
+    boardMode,
 }) => {
     const tutorial = useTutorial();
 
@@ -153,6 +156,7 @@ export const TopRow: React.FC<TopRowProps> = ({
                 mapView={mapView}
                 selectedUnitId={selectedUnitId}
                 onNavigate={onNavigateMap}
+                boardMode={boardMode}
             />
         </div>
     );
@@ -216,6 +220,9 @@ type TopLeftMenuProps = {
     onToggleYields: () => void;
     showCombatPreview: boolean;
     onToggleCombatPreview: () => void;
+    storedBoardMode: BoardMode;
+    supports3D: boolean;
+    onSetBoardMode?: (mode: BoardMode) => void;
     musicEnabled?: boolean;
     onToggleMusic?: () => void;
     musicVolume?: number;
@@ -239,6 +246,9 @@ export const TopLeftMenu: React.FC<TopLeftMenuProps> = ({
     onToggleYields,
     showCombatPreview,
     onToggleCombatPreview,
+    storedBoardMode,
+    supports3D,
+    onSetBoardMode,
     musicEnabled,
     onToggleMusic,
     musicVolume,
@@ -266,6 +276,9 @@ export const TopLeftMenu: React.FC<TopLeftMenuProps> = ({
                 onToggleYields={onToggleYields}
                 showCombatPreview={showCombatPreview}
                 onToggleCombatPreview={onToggleCombatPreview}
+                storedBoardMode={storedBoardMode}
+                supports3D={supports3D}
+                onSetBoardMode={onSetBoardMode}
                 musicEnabled={musicEnabled}
                 onToggleMusic={onToggleMusic}
                 musicVolume={musicVolume}

@@ -3,6 +3,7 @@ import type { MapViewport } from "../../GameMap";
 import type { CityBuildOptions } from "../hooks";
 import type { CityStateRow, DiplomacyRow } from "./diplomacy";
 import type { AttentionTask, BlockingTask } from "./hud-utils";
+import type { BoardMode } from "../../../hooks/useBoardModePreference";
 
 export type EmpireYields = { F: number; P: number; S: number; G: number };
 
@@ -46,6 +47,7 @@ export type HUDMeta = {
     empireYields: EmpireYields;
     playerEconomy: PlayerEconomySummary;
     mapView: MapViewport | null;
+    boardMode: BoardMode;
 };
 
 export type HUDLayoutProps = {
@@ -61,6 +63,8 @@ export type HUDLayoutProps = {
         showShroud: boolean;
         showYields: boolean;
         showCombatPreview: boolean;
+        storedBoardMode: BoardMode;
+        supports3D: boolean;
     };
     uiToggles: {
         setShowResearch: (show: boolean) => void;
@@ -71,6 +75,7 @@ export type HUDLayoutProps = {
         onToggleShroud: () => void;
         onToggleYields: () => void;
         onToggleCombatPreview: () => void;
+        onSetBoardMode?: (mode: BoardMode) => void;
     };
     actions: {
         onAction: (action: Action) => void;

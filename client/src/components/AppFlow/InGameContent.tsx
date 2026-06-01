@@ -1,7 +1,9 @@
 import React from "react";
 import { Action, CombatPreview, DiplomacyState, GameState, getMapSpecificVictoryRules, HexCoord, TechId } from "@simple-civ/engine";
 import { EndGameExperience } from "../EndGame/EndGameExperience";
-import { GameMap, GameMapHandle, MapViewport } from "../GameMap";
+import { GameMapHandle, MapViewport } from "../GameMap";
+import { BoardRenderer } from "../GameMap/BoardRenderer";
+import type { BoardMode } from "../../hooks/useBoardModePreference";
 import { HUD } from "../HUD";
 import { CombatPreviewModal, WarDeclarationModal } from "../HUD/sections";
 import { Modal } from "../Modal";
@@ -21,6 +23,10 @@ type InGameContentProps = {
     reachableCoordSet: Set<string>;
     showShroud: boolean;
     showTileYields: boolean;
+    boardMode?: BoardMode;
+    storedBoardMode?: BoardMode;
+    supports3D?: boolean;
+    onSetBoardMode?: (mode: BoardMode) => void;
     cityToCenter: HexCoord | null;
     onSetMapView: (view: MapViewport) => void;
     onTileClick: (coord: HexCoord) => void;
@@ -76,6 +82,10 @@ export const InGameContent: React.FC<InGameContentProps> = ({
     reachableCoordSet,
     showShroud,
     showTileYields,
+    boardMode = "2d",
+    storedBoardMode = boardMode,
+    supports3D = false,
+    onSetBoardMode,
     cityToCenter,
     onSetMapView,
     onTileClick,
@@ -146,8 +156,9 @@ export const InGameContent: React.FC<InGameContentProps> = ({
 
     return (
         <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
-            <GameMap
+            <BoardRenderer
                 ref={mapRef}
+                boardMode={boardMode}
                 gameState={gameState}
                 onTileClick={onTileClick}
                 selectedCoord={selectedCoord}
@@ -180,6 +191,10 @@ export const InGameContent: React.FC<InGameContentProps> = ({
                 onToggleYields={onToggleYields}
                 showCombatPreview={showCombatPreview}
                 onToggleCombatPreview={onToggleCombatPreview}
+                boardMode={boardMode}
+                storedBoardMode={storedBoardMode}
+                supports3D={supports3D}
+                onSetBoardMode={onSetBoardMode}
                 onCenterCity={onCenterCity}
                 mapView={mapView}
                 onNavigateMap={onNavigateMap}

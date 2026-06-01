@@ -19,6 +19,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             empireYields,
             playerEconomy,
             mapView,
+            boardMode,
         },
         selection: {
             selectedCoord,
@@ -41,6 +42,8 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             showShroud,
             showYields,
             showCombatPreview,
+            storedBoardMode,
+            supports3D,
         },
         uiToggles: {
             setShowResearch,
@@ -51,6 +54,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
             onToggleShroud,
             onToggleYields,
             onToggleCombatPreview,
+            onSetBoardMode,
         },
         actions: {
             onAction,
@@ -117,6 +121,7 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 selectedUnitId={selectedUnitId}
                 onNavigateMap={onNavigateMap}
                 sciencePerTurn={empireYields.S}
+                boardMode={boardMode}
             />
 
             <TopLeftMenu
@@ -133,6 +138,9 @@ export const HUDLayout: React.FC<HUDLayoutProps> = props => {
                 onToggleYields={onToggleYields}
                 showCombatPreview={showCombatPreview}
                 onToggleCombatPreview={onToggleCombatPreview}
+                storedBoardMode={storedBoardMode}
+                supports3D={supports3D}
+                onSetBoardMode={onSetBoardMode}
                 musicEnabled={musicEnabled}
                 onToggleMusic={onToggleMusic}
                 musicVolume={musicVolume}

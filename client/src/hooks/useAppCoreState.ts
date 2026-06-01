@@ -82,6 +82,10 @@ export function useAppCoreState() {
         closeGameMenu,
         resetMapNavigation,
         resetUiOverlays,
+        boardMode,
+        effectiveBoardMode,
+        supports3D,
+        setBoardMode,
     } = useAppUiFlow();
     const {
         activeEra: activeMusicEra,
@@ -216,6 +220,10 @@ export function useAppCoreState() {
         setMapView,
         showGameMenu,
         setShowGameMenu,
+        boardMode,
+        effectiveBoardMode,
+        supports3D,
+        setBoardMode,
         musicEnabled,
         musicVolume,
         setMusicVolume,

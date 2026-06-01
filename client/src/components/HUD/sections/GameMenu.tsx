@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTutorial } from "../../../contexts/TutorialContext";
+import type { BoardMode } from "../../../hooks/useBoardModePreference";
 
 type GameMenuProps = {
     onSave: () => void;
@@ -18,6 +19,9 @@ type GameMenuProps = {
     musicVolume?: number;
     onMusicVolumeChange?: (volume: number) => void;
     musicStatusLabel?: string;
+    storedBoardMode?: BoardMode;
+    supports3D?: boolean;
+    onSetBoardMode?: (mode: BoardMode) => void;
 };
 
 export const GameMenu: React.FC<GameMenuProps> = ({
@@ -37,6 +41,9 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     musicVolume,
     onMusicVolumeChange,
     musicStatusLabel,
+    storedBoardMode = "2d",
+    supports3D = false,
+    onSetBoardMode,
 }) => {
     const [showPreferences, setShowPreferences] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -124,6 +131,33 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                 </div>
                 <div className="hud-menu-scroll">
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
+                        <div className="hud-section-subtitle">Board</div>
+                        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: supports3D ? "pointer" : "not-allowed", fontSize: 13, color: "#e5e7eb" }}>
+                            <input
+                                type="radio"
+                                name="boardMode"
+                                checked={storedBoardMode === "3d"}
+                                onChange={() => onSetBoardMode?.("3d")}
+                                disabled={!supports3D || !onSetBoardMode}
+                            />
+                            3D world (default)
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: onSetBoardMode ? "pointer" : "not-allowed", fontSize: 13, color: "#e5e7eb" }}>
+                            <input
+                                type="radio"
+                                name="boardMode"
+                                checked={storedBoardMode === "2d"}
+                                onChange={() => onSetBoardMode?.("2d")}
+                                disabled={!onSetBoardMode}
+                            />
+                            2D map
+                        </label>
+                        {!supports3D && (
+                            <div style={{ fontSize: 12, color: "rgba(229, 231, 235, 0.75)" }}>
+                                3D is unavailable on this device; using 2D.
+                            </div>
+                        )}
+                        <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 0" }} />
                         <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "#e5e7eb" }}>
                             <input
                                 type="checkbox"

@@ -10,6 +10,7 @@ import { HUDLayout } from "./HUD/HUDLayout";
 import type { HUDLayoutProps } from "./HUD/helpers";
 import { buildAttentionTasks, buildBlockingTasks, calculateEmpireYields, getSelectedCity } from "./HUD/helpers/hud-utils";
 import "./HUD/hud.css";
+import type { BoardMode } from "../hooks/useBoardModePreference";
 
 interface HUDProps {
     gameState: GameState;
@@ -31,6 +32,10 @@ interface HUDProps {
     onToggleYields: () => void;
     showCombatPreview: boolean;
     onToggleCombatPreview: () => void;
+    boardMode?: BoardMode;
+    storedBoardMode?: BoardMode;
+    supports3D?: boolean;
+    onSetBoardMode?: (mode: BoardMode) => void;
     onCenterCity: (coord: HexCoord) => void;
 
     mapView: MapViewport | null;
@@ -64,6 +69,10 @@ export const HUD: React.FC<HUDProps> = ({
     onToggleYields,
     showCombatPreview,
     onToggleCombatPreview,
+    boardMode = "2d",
+    storedBoardMode = boardMode,
+    supports3D = false,
+    onSetBoardMode,
     onCenterCity,
     mapView,
     onNavigateMap,
@@ -226,6 +235,7 @@ export const HUD: React.FC<HUDProps> = ({
             empireYields,
             playerEconomy,
             mapView,
+            boardMode,
         },
         selection: {
             selectedCoord,
@@ -248,6 +258,8 @@ export const HUD: React.FC<HUDProps> = ({
             showShroud,
             showYields,
             showCombatPreview,
+            storedBoardMode,
+            supports3D,
         },
         uiToggles: {
             setShowResearch,
@@ -258,6 +270,7 @@ export const HUD: React.FC<HUDProps> = ({
             onToggleShroud,
             onToggleYields,
             onToggleCombatPreview,
+            onSetBoardMode,
         },
         actions: {
             onAction,
