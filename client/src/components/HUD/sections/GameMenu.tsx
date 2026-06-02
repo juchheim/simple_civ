@@ -140,7 +140,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                                 onChange={() => onSetBoardMode?.("3d")}
                                 disabled={!supports3D || !onSetBoardMode}
                             />
-                            3D world (default)
+                            3D world
                         </label>
                         <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: onSetBoardMode ? "pointer" : "not-allowed", fontSize: 13, color: "#e5e7eb" }}>
                             <input
@@ -150,7 +150,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                                 onChange={() => onSetBoardMode?.("2d")}
                                 disabled={!onSetBoardMode}
                             />
-                            2D map
+                            2D map (default)
                         </label>
                         {!supports3D && (
                             <div style={{ fontSize: 12, color: "rgba(229, 231, 235, 0.75)" }}>

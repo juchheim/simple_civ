@@ -13,14 +13,16 @@ export type Map3DController = {
     centerOnPoint: (point: { x: number; y: number }) => void;
 };
 
+const CAMERA_LIFT_RATIO = 0.12;
+
 export function getCameraDistanceBounds(radius: number) {
     return {
-        min: Math.max(radius * 1.65, 12),
-        max: Math.max(radius * 2.65, 20),
+        min: Math.max(radius * 1.95, 14),
+        max: Math.max(radius * 3.1, 24),
     };
 }
 
-export const LOCKED_POLAR_ANGLE = Math.acos(0.24);
+export const LOCKED_POLAR_ANGLE = Math.acos(CAMERA_LIFT_RATIO);
 
 type ControllerParams = {
     projector: Projector;
@@ -67,10 +69,6 @@ export function useMap3DController({
         y: THREE.MathUtils.clamp(point.y, flatNavigationBounds.minY, flatNavigationBounds.maxY),
     }), [flatNavigationBounds]);
 
-    const faceSurfacePoint = React.useCallback((point: { x: number; y: number }) => {
-        camera.lookAt(projector.pointToWorld(point, 0));
-    }, [camera, projector]);
-
     const emitViewport = React.useCallback((coord: HexCoord) => {
         if (!onViewChange) return;
         const center = hexToPixel(coord, HEX_SIZE);
@@ -101,7 +99,7 @@ export function useMap3DController({
         const clamped = clampFlatPoint(point);
         const targetY = projector.flatCenter.y - clamped.y;
         const theta = (clamped.x - projector.flatCenter.x) / projector.surface.radius;
-        const lift = distance * 0.24;
+        const lift = distance * CAMERA_LIFT_RATIO;
         const radialDistance = Math.sqrt(distance * distance - lift * lift);
 
         controls.target.set(0, targetY, 0);
@@ -110,7 +108,7 @@ export function useMap3DController({
             targetY + lift,
             Math.cos(theta) * radialDistance,
         );
-        faceSurfacePoint(clamped);
+        camera.lookAt(controls.target);
         controls.update();
         const nextCoord = projector.pixelToHex(clamped);
         if (tileKeys.has(`${nextCoord.q},${nextCoord.r}`)) {
@@ -118,7 +116,7 @@ export function useMap3DController({
             emitViewport(nextCoord);
         }
         invalidate();
-    }, [camera.position, clampFlatPoint, controlsRef, emitViewport, faceSurfacePoint, invalidate, projector, tileKeys]);
+    }, [camera.position, clampFlatPoint, controlsRef, emitViewport, invalidate, projector, tileKeys]);
 
     const centerOnCoord = React.useCallback((coord: HexCoord) => {
         const controls = controlsRef.current;
@@ -152,7 +150,6 @@ export function useMap3DController({
                 return;
             }
             const candidate = projector.pixelToHex(clampedPoint);
-            faceSurfacePoint(clampedPoint);
             if (navigableKeys.has(`${candidate.q},${candidate.r}`) || tileKeys.has(`${candidate.q},${candidate.r}`)) {
                 coord = candidate;
             }
@@ -161,7 +158,7 @@ export function useMap3DController({
         centeredCoordRef.current = coord;
         emitViewport(coord);
         invalidate();
-    }, [applyFlatPoint, camera.position, clampFlatPoint, controlsRef, emitViewport, faceSurfacePoint, invalidate, navigableKeys, projector, tileKeys]);
+    }, [applyFlatPoint, camera.position, clampFlatPoint, controlsRef, emitViewport, invalidate, navigableKeys, projector, tileKeys]);
 
     React.useEffect(() => {
         const element = gl.domElement;

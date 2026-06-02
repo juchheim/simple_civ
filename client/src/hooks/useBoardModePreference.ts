@@ -13,7 +13,7 @@ function readInitialPreference(): BoardMode {
         // Ignore storage failures and keep runtime behavior.
     }
 
-    return "3d";
+    return "2d";
 }
 
 export function useBoardModePreference() {

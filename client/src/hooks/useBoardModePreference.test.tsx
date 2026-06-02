@@ -15,13 +15,13 @@ describe("useBoardModePreference", () => {
         reset3DCapabilityCache();
     });
 
-    it("defaults to 3D on capable devices", () => {
+    it("defaults to 2D on capable devices", () => {
         vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as WebGLRenderingContext);
 
         const { result } = renderHook(() => useBoardModePreference());
 
-        expect(result.current.boardMode).toBe("3d");
-        expect(result.current.effectiveMode).toBe("3d");
+        expect(result.current.boardMode).toBe("2d");
+        expect(result.current.effectiveMode).toBe("2d");
         expect(result.current.supports3D).toBe(true);
     });
 

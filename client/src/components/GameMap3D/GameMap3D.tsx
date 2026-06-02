@@ -200,7 +200,7 @@ const GameMap3DComponent = React.forwardRef<GameMapHandle, GameMapProps>(({
         <div style={{ width: "100%", height: "100%", position: "relative", touchAction: "none" }}>
             <Canvas
                 frameloop="demand"
-                camera={{ position: [0, 6, Math.max(projector.surface.radius * 2.2, 16)], fov: 48, near: 0.1, far: 300 }}
+                camera={{ position: [0, 4.5, Math.max(projector.surface.radius * 2.6, 18)], fov: 32, near: 0.1, far: 300 }}
                 gl={{ antialias: true, alpha: false }}
                 onPointerMissed={() => setHoveredCoord(null)}
             >
