@@ -47,13 +47,21 @@ function CityToken({
                 elevation={topElevation + 0.005}
                 scale={0.86}
             >
+                <meshBasicMaterial color={overlay.strokeColor} side={THREE.DoubleSide} />
+            </ProjectedHexDecal>
+            <ProjectedHexDecal
+                coord={overlay.city.coord}
+                projector={projector}
+                elevation={topElevation + 0.006}
+                scale={0.82}
+            >
                 <meshBasicMaterial map={texture} transparent alphaTest={0.04} side={THREE.DoubleSide} />
             </ProjectedHexDecal>
             {overlay.city.buildings.includes(BuildingType.Bulwark) && (
                 <ProjectedHexDecal
                     coord={overlay.city.coord}
                     projector={projector}
-                    elevation={topElevation + 0.01}
+                    elevation={topElevation + 0.011}
                     scale={0.89}
                 >
                     <meshBasicMaterial map={bulwarkTexture} transparent alphaTest={0.04} side={THREE.DoubleSide} />

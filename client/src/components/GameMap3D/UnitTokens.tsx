@@ -49,6 +49,14 @@ function UnitToken({
                 elevation={topElevation + 0.005}
                 scale={0.74}
             >
+                <meshBasicMaterial color={descriptor.color} side={THREE.DoubleSide} />
+            </ProjectedHexDecal>
+            <ProjectedHexDecal
+                coord={descriptor.unit.coord}
+                projector={projector}
+                elevation={topElevation + 0.006}
+                scale={0.68}
+            >
                 <meshBasicMaterial map={texture} transparent alphaTest={0.04} opacity={isExhausted ? 0.62 : 1} side={THREE.DoubleSide} />
             </ProjectedHexDecal>
             {(descriptor.isSelected || descriptor.isLinkedPartner) && (

@@ -73,6 +73,7 @@ function BoardScene({
     const { controller, handleControlsChange } = useMap3DController({
         projector,
         tiles: mapTiles,
+        navigableTiles: tiles.filter(entry => !entry.visibility.isShroud).map(entry => entry.tile),
         initialCenter,
         controlsRef,
         onViewChange,

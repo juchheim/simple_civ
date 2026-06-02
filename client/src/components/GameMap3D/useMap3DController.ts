@@ -25,6 +25,7 @@ export const LOCKED_POLAR_ANGLE = Math.acos(0.24);
 type ControllerParams = {
     projector: Projector;
     tiles: Tile[];
+    navigableTiles: Tile[];
     initialCenter: HexCoord | null;
     controlsRef: React.RefObject<OrbitControlsImpl>;
     onViewChange?: (view: MapViewport) => void;
@@ -33,6 +34,7 @@ type ControllerParams = {
 export function useMap3DController({
     projector,
     tiles,
+    navigableTiles,
     initialCenter,
     controlsRef,
     onViewChange,
@@ -41,6 +43,33 @@ export function useMap3DController({
     const centeredCoordRef = React.useRef<HexCoord>(initialCenter ?? tiles[0]?.coord ?? { q: 0, r: 0 });
     const hasInitializedRef = React.useRef(false);
     const tileKeys = React.useMemo(() => new Set(tiles.map(tile => `${tile.coord.q},${tile.coord.r}`)), [tiles]);
+    const navigableKeys = React.useMemo(() => new Set(navigableTiles.map(tile => `${tile.coord.q},${tile.coord.r}`)), [navigableTiles]);
+    const flatNavigationBounds = React.useMemo(() => {
+        const centers = navigableTiles.length > 0 ? navigableTiles : tiles;
+        const points = centers.map(tile => hexToPixel(tile.coord, projector.hexSize));
+        const minX = Math.min(...points.map(point => point.x));
+        const maxX = Math.max(...points.map(point => point.x));
+        const minY = Math.min(...points.map(point => point.y));
+        const maxY = Math.max(...points.map(point => point.y));
+        const xInset = Math.max(0, (maxX - minX) * 0.08);
+        const yInset = Math.max(0, (maxY - minY) * 0.08);
+
+        return {
+            minX: minX - projector.hexSize * 0.95 + xInset,
+            maxX: maxX + projector.hexSize * 0.95 - xInset,
+            minY: minY - projector.hexSize * 0.95 + yInset,
+            maxY: maxY + projector.hexSize * 0.95 - yInset,
+        };
+    }, [navigableTiles, projector.hexSize, tiles]);
+
+    const clampFlatPoint = React.useCallback((point: { x: number; y: number }) => ({
+        x: THREE.MathUtils.clamp(point.x, flatNavigationBounds.minX, flatNavigationBounds.maxX),
+        y: THREE.MathUtils.clamp(point.y, flatNavigationBounds.minY, flatNavigationBounds.maxY),
+    }), [flatNavigationBounds]);
+
+    const faceSurfacePoint = React.useCallback((point: { x: number; y: number }) => {
+        camera.lookAt(projector.pointToWorld(point, 0));
+    }, [camera, projector]);
 
     const emitViewport = React.useCallback((coord: HexCoord) => {
         if (!onViewChange) return;
@@ -66,31 +95,38 @@ export function useMap3DController({
         });
     }, [camera.position, controlsRef, onViewChange, projector.surface.radius, size]);
 
+    const applyFlatPoint = React.useCallback((point: { x: number; y: number }, distance: number) => {
+        const controls = controlsRef.current;
+        if (!controls) return;
+        const clamped = clampFlatPoint(point);
+        const targetY = projector.flatCenter.y - clamped.y;
+        const theta = (clamped.x - projector.flatCenter.x) / projector.surface.radius;
+        const lift = distance * 0.24;
+        const radialDistance = Math.sqrt(distance * distance - lift * lift);
+
+        controls.target.set(0, targetY, 0);
+        camera.position.set(
+            Math.sin(theta) * radialDistance,
+            targetY + lift,
+            Math.cos(theta) * radialDistance,
+        );
+        faceSurfacePoint(clamped);
+        controls.update();
+        const nextCoord = projector.pixelToHex(clamped);
+        if (tileKeys.has(`${nextCoord.q},${nextCoord.r}`)) {
+            centeredCoordRef.current = nextCoord;
+            emitViewport(nextCoord);
+        }
+        invalidate();
+    }, [camera.position, clampFlatPoint, controlsRef, emitViewport, faceSurfacePoint, invalidate, projector, tileKeys]);
+
     const centerOnCoord = React.useCallback((coord: HexCoord) => {
         const controls = controlsRef.current;
         if (!controls) return;
-        const normal = projector.normalAt(coord);
-        const position = projector.positionOf(coord);
         const bounds = getCameraDistanceBounds(projector.surface.radius);
         const distance = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target), bounds.min, bounds.max);
-        const target = projector.surface.kind === "cylinder"
-            ? new THREE.Vector3(0, position.y, 0)
-            : new THREE.Vector3(0, 0, 0);
-        const cameraPosition = normal.multiplyScalar(distance);
-        if (projector.surface.kind === "cylinder") {
-            const lift = distance * 0.24;
-            cameraPosition.multiplyScalar(Math.sqrt(distance * distance - lift * lift) / distance);
-            cameraPosition.y = target.y + lift;
-        }
-
-        controls.target.copy(target);
-        camera.position.copy(cameraPosition);
-        camera.lookAt(target);
-        controls.update();
-        centeredCoordRef.current = coord;
-        emitViewport(coord);
-        invalidate();
-    }, [camera, controlsRef, emitViewport, invalidate, projector]);
+        applyFlatPoint(hexToPixel(coord, projector.hexSize), distance);
+    }, [applyFlatPoint, camera.position, controlsRef, projector.hexSize, projector.surface.radius]);
 
     const centerOnPoint = React.useCallback((point: { x: number; y: number }) => {
         const coord = pixelToHex(point, HEX_SIZE);
@@ -106,18 +142,26 @@ export function useMap3DController({
 
         if (projector.surface.kind === "cylinder") {
             const theta = Math.atan2(camera.position.x, camera.position.z);
-            const flatPoint = {
+            const rawPoint = {
                 x: projector.flatCenter.x + theta * projector.surface.radius,
                 y: projector.flatCenter.y - controls.target.y,
             };
-            const candidate = projector.pixelToHex(flatPoint);
-            if (tileKeys.has(`${candidate.q},${candidate.r}`)) coord = candidate;
+            const clampedPoint = clampFlatPoint(rawPoint);
+            if (clampedPoint.x !== rawPoint.x || clampedPoint.y !== rawPoint.y) {
+                applyFlatPoint(clampedPoint, camera.position.distanceTo(controls.target));
+                return;
+            }
+            const candidate = projector.pixelToHex(clampedPoint);
+            faceSurfacePoint(clampedPoint);
+            if (navigableKeys.has(`${candidate.q},${candidate.r}`) || tileKeys.has(`${candidate.q},${candidate.r}`)) {
+                coord = candidate;
+            }
         }
 
         centeredCoordRef.current = coord;
         emitViewport(coord);
         invalidate();
-    }, [camera.position, controlsRef, emitViewport, invalidate, projector, tileKeys]);
+    }, [applyFlatPoint, camera.position, clampFlatPoint, controlsRef, emitViewport, faceSurfacePoint, invalidate, navigableKeys, projector, tileKeys]);
 
     React.useEffect(() => {
         const element = gl.domElement;
@@ -140,18 +184,12 @@ export function useMap3DController({
 
             const distance = camera.position.distanceTo(controls.target);
             const panDistance = (deltaY / Math.max(size.height, 1)) * distance * 0.58;
-            const verticalRange = projector.surface.kind === "cylinder"
-                ? projector.surface.height * 0.52
-                : projector.surface.radius * 0.6;
-            const nextTargetY = THREE.MathUtils.clamp(
-                controls.target.y + panDistance,
-                -verticalRange,
-                verticalRange,
-            );
-            camera.position.y += nextTargetY - controls.target.y;
-            controls.target.y = nextTargetY;
-            controls.update();
-            invalidate();
+            const theta = Math.atan2(camera.position.x, camera.position.z);
+            const currentPoint = {
+                x: projector.flatCenter.x + theta * projector.surface.radius,
+                y: projector.flatCenter.y - controls.target.y,
+            };
+            applyFlatPoint({ x: currentPoint.x, y: currentPoint.y - panDistance }, distance);
         };
 
         const handlePointerUp = (event: PointerEvent) => {
@@ -169,7 +207,7 @@ export function useMap3DController({
             element.removeEventListener("pointerup", handlePointerUp);
             element.removeEventListener("pointercancel", handlePointerUp);
         };
-    }, [camera.position, controlsRef, gl.domElement, invalidate, projector.surface, size.height]);
+    }, [applyFlatPoint, camera.position, controlsRef, gl.domElement, invalidate, projector, size.height]);
 
     React.useEffect(() => {
         if (hasInitializedRef.current) return;
